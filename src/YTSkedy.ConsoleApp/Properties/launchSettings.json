@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "YTSkedy.ConsoleApp": {
-      "commandName": "Project",
-      "commandLineArgs": "C:\\Projects\\YTSkedy\\build\\calendar-events-sample.csv"
-    }
-  }
-}

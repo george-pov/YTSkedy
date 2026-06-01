@@ -1,4 +1,7 @@
 <Solution>
-  <Project Path="YTSkedy.ConsoleApp/YTSkedy.ConsoleApp.csproj" />
-  <Project Path="YTSkedy.SchedulingApi/YTSkedy.SchedulingApi.csproj" Id="4e094750-948f-4658-9d83-a35dff9c549b" />
+  <Folder Name="/Test/" />
+  <Project Path="YTSkedy.AzureFunctions/YTSkedy.AzureFunctions.csproj" Id="17572d89-9381-4762-a651-b40ecbf9c2a3" />
+  <Project Path="YTSkedy.Infrastructure/YTSkedy.Infrastructure.csproj" />
+  <Project Path="YTSkedy.Scheduling.Application/YTSkedy.Scheduling.Application.csproj" />
+  <Project Path="YTSkedy.Scheduling.Domain/YTSkedy.Scheduling.Domain.csproj" />
 </Solution>
