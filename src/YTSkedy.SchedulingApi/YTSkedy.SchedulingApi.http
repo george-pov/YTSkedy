@@ -1,0 +1,10 @@
+@YTSkedy.SchedulingApi_HostAddress = https://localhost:7129
+
+GET {{YTSkedy.SchedulingApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+
+GET {{YTSkedy.SchedulingApi_HostAddress}}/weatherforecast
+
+###
