@@ -17,8 +17,12 @@ commands.
 - `YTSkedy.AzureFunctions` hosts the REST API using Azure Functions v4.
 - The Functions project uses the isolated worker model with ASP.NET Core HTTP
   integration through `ConfigureFunctionsWebApplication`.
+- The implemented endpoint is `POST /api/calendar-events`; its API contract is
+  discoverable through the API host OpenAPI surface.
+- The current HTTP trigger uses Azure Functions `Function` authorization level.
 - HTTP endpoints should stay thin and delegate business behavior to
   `YTSkedy.Scheduling.Application`.
+- Application Insights worker telemetry is registered in the Functions host.
 
 ## Persistence
 
@@ -26,13 +30,22 @@ commands.
   owned scheduling data.
 - Persistence code belongs in `YTSkedy.Infrastructure` and implements ports
   defined by `YTSkedy.Scheduling.Application`.
-- The initial calendar event creation adapter uses `Azure.Data.Tables`.
+- The initial calendar event creation adapter uses `Azure.Data.Tables`
+  version `12.11.0`.
+- Calendar events use a table named by `AzureStorage:CalendarEventsTableName`,
+  defaulting to `CalendarEvents`.
+- The storage connection string is read from `AzureStorage:ConnectionString`,
+  then `AzureWebJobsStorage`.
+- See [`persistence.md`](persistence.md) for the current table storage behavior.
 
 ## External Integrations
 
-- Azure B2C is the planned user authentication provider at the API boundary.
-- YouTube access should use adapter modules in `YTSkedy.Infrastructure`.
-- WordPress access should use adapter modules in `YTSkedy.Infrastructure`.
+- Azure B2C is the planned user authentication provider at the API boundary,
+  but it is not implemented yet.
+- YouTube access should use adapter modules in `YTSkedy.Infrastructure`; no
+  YouTube adapter is implemented yet.
+- WordPress access should use adapter modules in `YTSkedy.Infrastructure`; no
+  WordPress adapter is implemented yet.
 - Domain and application code must not depend directly on external SDKs.
 
 ## Unit Testing
@@ -43,6 +56,8 @@ commands.
   code complexity.
 - Unit tests should avoid real Azure, YouTube, WordPress, network, filesystem,
   and credential dependencies.
+- Manual `.http` files under `src/Test/YTSkedy.AzureFunctions.IntegrationTest/`
+  are local integration checks, not xUnit tests.
 
 See [`../development/testing.md`](../development/testing.md) for testing
 practices.

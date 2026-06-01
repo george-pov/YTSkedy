@@ -7,19 +7,40 @@ inward on the scheduling projects. See
 [`technology-stack.md`](technology-stack.md) for selected platform and tooling
 choices.
 
+## Current Runtime Flow
+
+The current implemented flow is initial calendar event creation:
+
+```text
+POST /api/calendar-events
+    -> YTSkedy.AzureFunctions request DTO
+    -> CreateEventCommand
+    -> CreateEventHandler
+    -> ICalendarEventRepository
+    -> AzureCalendarEventRepository
+    -> Azure Table Storage
+```
+
+The API contract is discoverable through the API host OpenAPI surface. See
+[`persistence.md`](persistence.md) for the table storage architecture notes.
+
 ## Projects
 
 ### `YTSkedy.Scheduling.Domain`
 
 Pure scheduling domain model and rules.
 
-Scope:
+Current scope:
 
 - Calendar event concepts.
-- Scheduled stream concepts.
-- Stream template concepts.
 - Scheduled start time and time zone rules.
 - Description content needed to generate YouTube stream metadata.
+
+Planned scope:
+
+- Scheduled stream concepts.
+- Stream template concepts.
+- Scheduling rules that can be enforced before external resources are touched.
 
 This project must not depend on Azure, YouTube, WordPress, HTTP, persistence,
 or authentication packages.
@@ -28,11 +49,15 @@ or authentication packages.
 
 Application use cases and orchestration for scheduling workflows.
 
-Scope:
+Current scope:
+
+- Defining ports for persistence and external systems.
+- Creating calendar events through `CreateEventHandler`.
+
+Planned scope:
 
 - Creating and updating scheduling plans.
 - Coordinating calendar event input with scheduled stream creation.
-- Defining ports for persistence and external systems.
 - Validation at use case boundaries before external resources are touched.
 
 This project depends on `YTSkedy.Scheduling.Domain`. It defines interfaces for
@@ -43,9 +68,12 @@ WordPress access.
 
 Concrete adapters for external systems.
 
-Scope:
+Current scope:
 
 - Azure Table Storage persistence.
+
+Planned scope:
+
 - YouTube API access.
 - WordPress API access.
 - Azure B2C integration support.
@@ -58,13 +86,17 @@ This project depends inward on `YTSkedy.Scheduling.Application` and
 
 REST API host and Azure Functions entry point.
 
-Scope:
+Current scope:
 
 - HTTP-triggered endpoints.
 - Request and response DTOs.
-- Authentication and authorization integration at the API boundary.
 - Dependency injection composition.
 - Calling application use cases.
+
+Planned scope:
+
+- Authentication and authorization integration at the API boundary beyond the
+  current Azure Functions function-key authorization level.
 
 This project should stay thin. Business rules belong in the scheduling
 projects, and external system details belong in `YTSkedy.Infrastructure`.

@@ -30,6 +30,13 @@ and runnable commands are listed in [`build-and-test.md`](build-and-test.md).
 
 - Keep integration tests separate from unit tests when they require Azure
   storage, YouTube, WordPress, or authentication behavior.
+- Treat the current `.http` files under
+  `src/Test/YTSkedy.AzureFunctions.IntegrationTest/` as manual integration
+  checks. They are not executed by `dotnet test`.
+- Use Azurite for local Azure Table Storage checks unless a real storage
+  account has been explicitly selected for the run.
+- Keep deployed host URLs, function keys, and other personal HTTP environment
+  values in `http-client.env.json.user`, not in tracked environment files.
 - Do not create, update, or delete real YouTube resources by default.
 - Use local emulators, fakes, or explicitly approved test resources for
   integration coverage.
