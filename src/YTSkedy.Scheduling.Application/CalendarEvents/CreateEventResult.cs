@@ -1,4 +1,4 @@
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
-public sealed record CreateCalendarEventResult(
+public sealed record CreateEventResult(
     string EventId);

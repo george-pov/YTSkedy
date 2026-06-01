@@ -1,5 +1,9 @@
 <Solution>
-  <Folder Name="/Test/" />
+  <Folder Name="/Test/">
+    <File Path="Test/YTSkedy.AzureFunctions.IntegrationTest/CalendarEvents/CreateCalendarEvent.http" />
+    <File Path="Test/YTSkedy.AzureFunctions.IntegrationTest/CalendarEvents/http-client.env.json" />
+    <Project Path="Test/YTSkedy.Scheduling.Application.Test/YTSkedy.Scheduling.Application.Test.csproj" Id="3a8f9723-40ce-4601-a15f-263821b42beb" />
+  </Folder>
   <Project Path="YTSkedy.AzureFunctions/YTSkedy.AzureFunctions.csproj" Id="17572d89-9381-4762-a651-b40ecbf9c2a3" />
   <Project Path="YTSkedy.Infrastructure/YTSkedy.Infrastructure.csproj" />
   <Project Path="YTSkedy.Scheduling.Application/YTSkedy.Scheduling.Application.csproj" />

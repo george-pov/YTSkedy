@@ -1,0 +1,26 @@
+### Create calendar event
+# Run Azurite and the Azure Functions host before sending this request.
+# Select the local environment in the Visual Studio HTTP editor.
+# Change localDateTime after a successful run because the UTC start time is the event ID.
+
+POST {{HostAddress}}/api/calendar-events
+Content-Type: application/json
+x-functions-key: {{FunctionKey}}
+
+{
+  "start": {
+    "localDateTime": "2026-06-06T10:00:00",
+    "timeZoneId": "America/Vancouver"
+  },
+  "descriptions": [
+    {
+      "language": "ru",
+      "title": "Russian stream 1"
+    },
+    {
+      "language": "en",
+      "title": "English stream 1",
+      "description": "Description for stream 1 in English"
+    }
+  ]
+}

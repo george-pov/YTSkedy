@@ -2,10 +2,10 @@ using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
-public sealed class CreateCalendarEventHandler(ICalendarEventRepository calendarEvents)
+public sealed class CreateEventHandler(ICalendarEventRepository calendarEvents)
 {
-    public async Task<CreateCalendarEventResult> HandleAsync(
-        CreateCalendarEventCommand command,
+    public async Task<CreateEventResult> HandleAsync(
+        CreateEventCommand command,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -18,6 +18,6 @@ public sealed class CreateCalendarEventHandler(ICalendarEventRepository calendar
             calendarEvent,
             cancellationToken);
 
-        return new CreateCalendarEventResult(eventId);
+        return new CreateEventResult(eventId);
     }
 }

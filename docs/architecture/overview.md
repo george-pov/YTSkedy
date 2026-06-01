@@ -1,9 +1,11 @@
 # Architecture Overview
 
-YTSkedy uses a small onion-style structure. The scheduling core stays free of
-Azure Functions, Azure Table Storage, YouTube, WordPress, and authentication
-details. Entry points and infrastructure depend inward on the scheduling
-projects.
+YTSkedy uses a small Clean Architecture structure with ports and adapters. The
+scheduling core stays free of Azure Functions, Azure Table Storage, YouTube,
+WordPress, and authentication details. Inbound and outbound adapters depend
+inward on the scheduling projects. See
+[`technology-stack.md`](technology-stack.md) for selected platform and tooling
+choices.
 
 ## Projects
 
