@@ -16,3 +16,4 @@ source of project guidance.
 - Technology stack: [`docs/architecture/technology-stack.md`](docs/architecture/technology-stack.md)
 - Build and test commands: [`docs/development/build-and-test.md`](docs/development/build-and-test.md)
 - Testing guidelines: [`docs/development/testing.md`](docs/development/testing.md)
+- Deployment: [`docs/development/deployment.md`](docs/development/deployment.md)
