@@ -12,7 +12,9 @@ and runnable commands are listed in [`build-and-test.md`](build-and-test.md).
 - Keep unit tests free of Azure, YouTube, WordPress, network, filesystem, and
   real credential dependencies.
 - Test behavior through public module interfaces.
-- Use clear test names that describe the expected behavior.
+- Use test names that follow
+  [`MethodName_Scenario_ExpectedBehavior`](naming-guidance.md#unit-test-names),
+  with behavior names allowed for generic entry points.
 - Prefer small hand-written fakes or stubs for simple dependencies.
 - Use Moq only when mocking behavior is complex enough that it reduces test
   code complexity.

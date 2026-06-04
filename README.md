@@ -4,13 +4,12 @@ YTSkedy is an application for automating the creation and scheduling of YouTube 
 
 ## Purpose
 
-This README is a table of contents for the project. Read the chapter that
-matches the topic you are working on instead of treating this file as the full
-source of project guidance.
+This README is the human developer table of contents for durable human-facing
+docs. 
 
 ## Chapters
 
-- Project context and domain vocabulary: [`CONTEXT.md`](CONTEXT.md)
+- Domain vocabulary and naming guidance: [`docs/development/naming-guidance.md`](docs/development/naming-guidance.md)
 - Architecture overview: [`docs/architecture/overview.md`](docs/architecture/overview.md)
 - Persistence: [`docs/architecture/persistence.md`](docs/architecture/persistence.md)
 - Technology stack: [`docs/architecture/technology-stack.md`](docs/architecture/technology-stack.md)
