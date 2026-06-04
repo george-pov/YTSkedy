@@ -3,6 +3,14 @@
 This document defines domain vocabulary and naming rules for YTSkedy code and
 tests.
 
+## Scope
+
+Domain vocabulary in this document applies across backend API code, frontend UI
+code, tests, and durable documentation. Detailed C# naming rules apply to the
+backend projects under `src/api/`. Frontend TypeScript and Angular naming
+should follow Angular conventions until a dedicated frontend naming section is
+added.
+
 ## Source Priority
 
 Apply guidance in this order:

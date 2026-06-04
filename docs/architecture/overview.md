@@ -1,11 +1,25 @@
 # Architecture Overview
 
-YTSkedy uses a small Clean Architecture structure with ports and adapters. The
-scheduling core stays free of Azure Functions, Azure Table Storage, YouTube,
-WordPress, and authentication details. Inbound and outbound adapters depend
-inward on the scheduling projects. See
+YTSkedy is now split into a backend API workspace and a frontend UI workspace.
+The backend uses a small Clean Architecture structure with ports and adapters.
+The scheduling core stays free of Angular, Azure Functions, Azure Table
+Storage, YouTube, WordPress, and authentication details. Inbound and outbound
+adapters depend inward on the scheduling projects. See
 [`technology-stack.md`](technology-stack.md) for selected platform and tooling
 choices.
+
+## Repository Layout
+
+- `src/api/`: .NET backend solution. Contains the Azure Functions host,
+  scheduling domain and application projects, infrastructure adapters, backend
+  xUnit tests, and manual `.http` checks.
+- `src/ui/`: Angular frontend workspace. Contains the browser application,
+  Angular routing and component source, frontend tests, and npm package
+  metadata.
+- `docs/`: durable architecture, development, deployment, testing, and naming
+  guidance.
+- `.work/`: local-only workflow records for agents. Durable docs should not
+  reference `.work/`.
 
 ## Runtime Pattern
 
@@ -13,7 +27,7 @@ Runtime work should follow the same inward dependency shape regardless of the
 specific workflow:
 
 ```text
-HTTP endpoint or other inbound adapter
+Browser UI, HTTP endpoint, or other inbound adapter
     -> request DTO or transport input model
     -> application command or query
     -> application handler
@@ -27,10 +41,16 @@ Application handlers coordinate one use case. Domain types express scheduling
 concepts and rules. Infrastructure adapters perform external work behind
 application-owned interfaces.
 
-The REST API contract is discoverable through the API host OpenAPI surface. See
-[`persistence.md`](persistence.md) for the table storage architecture notes.
+The Angular UI should call the backend through explicit HTTP API client code
+once product workflows are implemented. It may perform client-side interaction
+validation for responsiveness, but durable scheduling rules and external side
+effects belong in the backend. The REST API contract is discoverable through
+the API host OpenAPI surface. See [`persistence.md`](persistence.md) for the
+table storage architecture notes.
 
-## Projects
+## Backend Projects
+
+Backend projects live under `src/api/`.
 
 ### `YTSkedy.Scheduling.Domain`
 
@@ -119,9 +139,27 @@ Place functionality here when it is:
 This project should stay thin. Business rules belong in the scheduling
 projects, and external system details belong in `YTSkedy.Infrastructure`.
 
+## Frontend Workspace
+
+The Angular frontend lives under `src/ui/`.
+
+Use this workspace for browser-facing presentation and interaction behavior:
+
+- Routes, layouts, pages, components, forms, and browser state.
+- Frontend API client code that calls the Azure Functions REST API.
+- Client-side formatting and interaction validation that improves the user
+  experience before the backend receives a request.
+- Frontend tests for components, routes, services, and user-facing behavior.
+
+Do not place backend scheduling rules, persistence behavior, OAuth token
+storage, YouTube API calls, WordPress API calls, or Azure Table Storage access
+in the frontend. If frontend code needs those capabilities, add or call a
+backend API use case.
+
 ## Adding Functionality
 
-When adding a new behavior, decide placement by walking inward from the caller:
+When adding a new backend behavior, decide placement by walking inward from the
+caller:
 
 1. Define the inbound contract in the host project.
    Add or update an Azure Function, request DTOs, response DTOs, and HTTP error
@@ -148,6 +186,12 @@ When adding a new behavior, decide placement by walking inward from the caller:
    Add adapter tests when storage or external protocol behavior is important.
    Add HTTP checks for manually exercising the REST contract.
 
+When adding a frontend-backed workflow, define the browser route, component,
+form state, and API client behavior in `src/ui/`, then add or extend backend
+API endpoints only where the UI needs durable scheduling behavior or external
+effects. Keep request and response DTOs stable enough for the UI to consume,
+and update tests on both sides when that contract changes.
+
 ## Placement Checklist
 
 Use these questions before creating a new class or interface:
@@ -163,6 +207,8 @@ Use these questions before creating a new class or interface:
 - Does it describe HTTP input, HTTP output, route shape, authorization,
   dependency injection, or host configuration? Put it in
   `YTSkedy.AzureFunctions`.
+- Does it describe browser presentation, a route, component state, a form, or
+  frontend API call orchestration? Put it in `src/ui/`.
 - Would placing the type require an inward project to reference Azure
   Functions, Azure Storage, YouTube, WordPress, HTTP, or authentication
   packages? Move it outward.
@@ -173,6 +219,9 @@ Use these questions before creating a new class or interface:
 ## Dependency Direction
 
 ```text
+src/ui Angular application
+    -> Azure Functions REST API
+
 YTSkedy.AzureFunctions
     -> YTSkedy.Scheduling.Application
         -> YTSkedy.Scheduling.Domain

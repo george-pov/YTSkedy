@@ -21,9 +21,9 @@ concurrency:
 
 env:
   DOTNET_VERSION: 10.0.x
-  SOLUTION_PATH: src/YTSkedy.slnx
-  UNIT_TEST_PROJECT_PATH: src/Test/YTSkedy.Scheduling.Application.Test/YTSkedy.Scheduling.Application.Test.csproj
-  FUNCTION_APP_PROJECT_PATH: src/YTSkedy.AzureFunctions/YTSkedy.AzureFunctions.csproj
+  SOLUTION_PATH: src/api/YTSkedy.slnx
+  UNIT_TEST_PROJECT_PATH: src/api/Test/YTSkedy.Scheduling.Application.Test/YTSkedy.Scheduling.Application.Test.csproj
+  FUNCTION_APP_PROJECT_PATH: src/api/YTSkedy.AzureFunctions/YTSkedy.AzureFunctions.csproj
   PUBLISH_OUTPUT_PATH: build/publish/YTSkedy.AzureFunctions
   DEPLOY_PACKAGE_PATH: build/deploy/YTSkedy.AzureFunctions
   DEPLOY_ARTIFACT_NAME: ytskedy-azure-functions

@@ -1,6 +1,8 @@
 # Deployment
 
-YTSkedy deploys the Azure Functions host with GitHub Actions.
+YTSkedy currently deploys the backend Azure Functions host with GitHub Actions.
+The Angular frontend under `src/ui/` does not have a production deployment
+target or workflow yet.
 
 ## Workflow
 
@@ -11,8 +13,13 @@ The deployment workflow is:
 ```
 
 The workflow runs on pushes to `main` and can also be started manually. It
-restores the solution, builds the solution, runs the current unit test project,
-publishes `YTSkedy.AzureFunctions`, and deploys only after those steps pass.
+restores the backend solution, builds the backend solution, runs the configured
+backend unit test project, publishes `YTSkedy.AzureFunctions`, and deploys only
+after those steps pass.
+
+The workflow path variables point at the backend workspace under `src/api/`.
+It does not install npm packages, build the Angular app, publish frontend
+assets, or deploy a frontend host.
 
 ## GitHub Environment
 
@@ -53,3 +60,14 @@ Function App, such as Website Contributor.
 Runtime settings required by the function app, including `AzureWebJobsStorage`
 or `AzureStorage:ConnectionString`, belong in Azure Function App configuration,
 not in the workflow file.
+
+## Frontend Deployment Gap
+
+When a production frontend target is selected, document:
+
+- The hosting platform and artifact path.
+- The build command and Node or npm version policy.
+- How the browser app receives the API base URL.
+- Whether frontend deployment is independent or coordinated with API
+  deployment.
+- Required environment variables, secrets, and GitHub Environment settings.

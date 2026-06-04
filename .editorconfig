@@ -100,7 +100,7 @@ dotnet_naming_rule.local_functions_should_be_camel_case.symbols = local_function
 dotnet_naming_rule.local_functions_should_be_camel_case.style = camel_case
 dotnet_naming_rule.local_functions_should_be_camel_case.severity = warning
 
-[src/Test/**/*.cs]
+[src/api/Test/**/*.cs]
 
 # Unit test method names intentionally use MethodOrBehavior_Scenario_ExpectedBehavior.
 dotnet_naming_rule.methods_should_be_pascal_case.severity = none

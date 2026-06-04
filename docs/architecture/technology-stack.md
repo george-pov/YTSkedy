@@ -7,22 +7,42 @@ commands.
 
 ## Runtime
 
-- .NET `net10.0` is the target framework for application, infrastructure,
-  Azure Functions, and test projects.
-- Projects use SDK-style C# project files with nullable reference types and
-  implicit usings enabled.
+- Backend projects live under `src/api/`.
+- .NET `net10.0` is the target framework for backend application,
+  infrastructure, Azure Functions, and test projects.
+- Backend projects use SDK-style C# project files with nullable reference types
+  and implicit usings enabled.
+- Frontend projects live under `src/ui/`.
+- The frontend is an Angular workspace managed with npm.
 
 ## API Host
 
-- `YTSkedy.AzureFunctions` hosts the REST API using Azure Functions v4.
+- `YTSkedy.AzureFunctions` hosts the REST API under `src/api/` using Azure
+  Functions v4.
 - The Functions project uses the isolated worker model with ASP.NET Core HTTP
   integration through `ConfigureFunctionsWebApplication`.
-- The implemented endpoint is `POST /api/calendar-events`; its API contract is
+- The implemented endpoints are `POST /api/calendar-events` and
+  `GET /api/calendar-events?year={year}&month={month}`. The API contract is
   discoverable through the API host OpenAPI surface.
 - The current HTTP trigger uses Azure Functions `Function` authorization level.
 - HTTP endpoints should stay thin and delegate business behavior to
   `YTSkedy.Scheduling.Application`.
 - Application Insights worker telemetry is registered in the Functions host.
+
+## Frontend
+
+- `src/ui/` contains the Angular browser application.
+- The frontend package is named `ytskedy-ui`.
+- `package.json` declares `npm@11.13.0` as the frontend package manager.
+- Angular packages currently use version `22.0.0` ranges.
+- TypeScript currently uses `~6.0.2`.
+- Styling uses SCSS.
+- Routing is configured through Angular router, with no product routes defined
+  yet.
+- The current UI is the generated Angular shell and does not call the backend
+  API yet.
+- Future frontend API access should be isolated behind explicit services or
+  client modules instead of being spread through components.
 
 ## Persistence
 
@@ -50,14 +70,25 @@ commands.
 
 ## Unit Testing
 
-- xUnit is the unit testing framework.
-- Prefer small hand-written stubs or fakes for simple dependencies.
-- Use Moq only when mocking behavior is complex enough that it reduces test
-  code complexity.
+- xUnit is the backend unit testing framework.
+- Vitest with jsdom is the frontend unit testing setup exposed through
+  `npm test` in `src/ui/`.
+- Prefer small hand-written stubs or fakes for simple backend dependencies.
+- Use Moq only when mocking behavior is complex enough that it reduces backend
+  test code complexity.
 - Unit tests should avoid real Azure, YouTube, WordPress, network, filesystem,
-  and credential dependencies.
-- Manual `.http` files under `src/Test/YTSkedy.AzureFunctions.IntegrationTest/`
+  and credential dependencies unless the test is explicitly an integration
+  test.
+- Manual `.http` files under
+  `src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/`
   are local integration checks, not xUnit tests.
 
 See [`../development/testing.md`](../development/testing.md) for testing
 practices.
+
+## Deployment
+
+- The current GitHub Actions deployment workflow builds, tests, publishes, and
+  deploys only the backend Azure Functions app.
+- No production deployment target or workflow is defined for the Angular
+  frontend yet.

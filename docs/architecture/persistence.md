@@ -1,8 +1,9 @@
 # Persistence
 
-YTSkedy currently persists calendar event creation data in Azure Table Storage.
-The scheduling application defines the `ICalendarEventRepository` port, and
-`YTSkedy.Infrastructure` implements it with `AzureCalendarEventRepository`.
+YTSkedy currently persists calendar event data in Azure Table Storage from the
+backend API under `src/api/`. The scheduling application defines the
+`ICalendarEventRepository` and `ICalendarEventReader` ports, and
+`YTSkedy.Infrastructure` implements them with `AzureCalendarEventRepository`.
 
 ## Configuration
 
@@ -37,6 +38,10 @@ exist, then inserts one calendar event row.
 Entity fields, table keys, and formatting details are defined in code rather
 than duplicated in documentation.
 
+`AzureCalendarEventRepository.ListByMonthAsync` reads calendar event rows for a
+requested local calendar month and returns application read models ordered by
+the mapper.
+
 ## Time Zone Handling
 
 The repository converts the scheduled start to UTC before writing the row.
@@ -65,7 +70,8 @@ The current API does not map that exception to a stable HTTP response yet.
 
 ## Current Limits
 
-- Create only. There is no read, update, delete, search, or list API.
+- Calendar events can be created and listed by local calendar month.
+- There is no update, delete, broad search, or pagination API.
 - No schema migration or backfill path is defined.
 - No explicit retry policy is configured around table writes.
 - No production backup or recovery process is defined.

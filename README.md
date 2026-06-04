@@ -7,6 +7,16 @@ YTSkedy is an application for automating the creation and scheduling of YouTube 
 This README is the human developer table of contents for durable human-facing
 docs.
 
+## Repository Layout
+
+- `src/api/`: .NET Azure Functions backend API, scheduling domain and
+  application projects, infrastructure adapters, backend tests, and manual
+  `.http` checks.
+- `src/ui/`: Angular frontend workspace, browser application source, frontend
+  tests, and npm package metadata.
+- `docs/`: durable architecture, development, deployment, and naming guidance.
+- `.work/`: local-only agent workflow records and transient planning support.
+
 ## Chapters
 
 - Domain vocabulary and naming guidance: [`docs/development/naming-guidance.md`](docs/development/naming-guidance.md)
