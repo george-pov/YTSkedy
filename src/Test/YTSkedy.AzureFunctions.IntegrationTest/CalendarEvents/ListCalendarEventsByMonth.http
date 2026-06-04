@@ -1,0 +1,19 @@
+### List calendar events for a month
+# Run Azurite and the Azure Functions host before sending this request.
+# Select the local environment in the Visual Studio HTTP editor.
+# Create at least one June 2026 calendar event first if a non-empty response is needed.
+
+GET {{HostAddress}}/api/calendar-events?year=2026&month=6
+x-functions-key: {{FunctionKey}}
+
+### List calendar events for a likely empty month
+# The expected response is 200 OK with [] when local storage has no matching rows.
+
+GET {{HostAddress}}/api/calendar-events?year=2099&month=1
+x-functions-key: {{FunctionKey}}
+
+### Invalid list query
+# The expected response is 400 Bad Request.
+
+GET {{HostAddress}}/api/calendar-events?year=2026&month=13
+x-functions-key: {{FunctionKey}}

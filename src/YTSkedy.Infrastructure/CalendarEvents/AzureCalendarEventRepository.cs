@@ -7,7 +7,9 @@ using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Infrastructure.CalendarEvents;
 
-public sealed class AzureCalendarEventRepository(TableClient tableClient) : ICalendarEventRepository
+public sealed class AzureCalendarEventRepository(TableClient tableClient) :
+    ICalendarEventRepository,
+    ICalendarEventReader
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -45,6 +47,38 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) : ICal
         }
 
         return calendarEventId;
+    }
+
+    public async Task<IReadOnlyList<CalendarEventListItem>> ListByMonthAsync(
+        CalendarEventMonthCriteria criteria,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(criteria);
+
+        var entities = new List<CalendarEventEntity>();
+
+        foreach (var partitionKey in CalendarEventReadMapper.GetPartitionKeysForLocalMonth(criteria))
+        {
+            var filter = $"PartitionKey eq '{partitionKey}'";
+
+            try
+            {
+                await foreach (var entity in tableClient.QueryAsync<CalendarEventEntity>(
+                    filter,
+                    cancellationToken: cancellationToken))
+                {
+                    entities.Add(entity);
+                }
+            }
+            catch (RequestFailedException exception) when (exception.Status == 404)
+            {
+                return [];
+            }
+        }
+
+        return CalendarEventReadMapper.ToListItemsForMonth(
+            entities,
+            criteria);
     }
 
     private static DateTimeOffset ToUtc(ScheduledStart start)
@@ -89,7 +123,7 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) : ICal
             "yyyyMMdd'T'HHmmss'Z'",
             CultureInfo.InvariantCulture);
 
-    private static string GetPartitionKey(DateTimeOffset scheduledStartUtc) =>
+    internal static string GetPartitionKey(DateTimeOffset scheduledStartUtc) =>
         scheduledStartUtc.UtcDateTime.ToString(
             "'calendar-events-'yyyyMM",
             CultureInfo.InvariantCulture);

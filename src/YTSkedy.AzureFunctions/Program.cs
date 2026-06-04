@@ -36,6 +36,11 @@ builder.Services.AddSingleton(_ =>
 });
 
 builder.Services.AddScoped<CreateCalendarEventHandler>();
-builder.Services.AddScoped<ICalendarEventRepository, AzureCalendarEventRepository>();
+builder.Services.AddScoped<ListByMonthHandler>();
+builder.Services.AddScoped<AzureCalendarEventRepository>();
+builder.Services.AddScoped<ICalendarEventRepository>(
+    serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
+builder.Services.AddScoped<ICalendarEventReader>(
+    serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
 
 builder.Build().Run();
