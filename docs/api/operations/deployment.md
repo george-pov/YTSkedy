@@ -1,8 +1,6 @@
-# Deployment
+# API Deployment
 
 YTSkedy currently deploys the backend Azure Functions host with GitHub Actions.
-The Angular frontend under `src/ui/` does not have a production deployment
-target or workflow yet.
 
 ## Workflow
 
@@ -23,12 +21,13 @@ assets, or deploy a frontend host.
 
 ## GitHub Environment
 
-The workflow uses OpenID Connect authentication with Azure. Do not store publish
-profiles, client secrets, storage connection strings, OAuth tokens, or API keys
-in the repository.
+The workflow uses OpenID Connect authentication with Azure. Do not store
+publish profiles, client secrets, storage connection strings, OAuth tokens, or
+API keys in the repository.
 
 Create a GitHub Environment named `production`, or select another environment
-name when manually running the workflow. Add these GitHub Environment variables:
+name when manually running the workflow. Add these GitHub Environment
+variables:
 
 ```text
 AZURE_CLIENT_ID
@@ -38,13 +37,13 @@ AZURE_FUNCTIONAPP_NAME
 ```
 
 `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID` identify the
-Azure user-assigned managed identity used by the workflow. `AZURE_FUNCTIONAPP_NAME`
-is the existing Azure Function App name.
+Azure user-assigned managed identity used by the workflow.
+`AZURE_FUNCTIONAPP_NAME` is the existing Azure Function App name.
 
 ## Azure Identity Setup
 
-Configure a federated credential on the Azure user-assigned managed identity for
-each GitHub Environment that can deploy.
+Configure a federated credential on the Azure user-assigned managed identity
+for each GitHub Environment that can deploy.
 
 Because the deploy job declares a GitHub Environment, the default GitHub OIDC
 subject uses the environment name:
@@ -57,17 +56,6 @@ Replace `OWNER/REPO` and `production` with the repository and environment that
 will deploy. Assign the managed identity a deployment role scoped to the target
 Function App, such as Website Contributor.
 
-Runtime settings required by the function app, including `AzureWebJobsStorage`
-or `AzureStorage:ConnectionString`, belong in Azure Function App configuration,
-not in the workflow file.
-
-## Frontend Deployment Gap
-
-When a production frontend target is selected, document:
-
-- The hosting platform and artifact path.
-- The build command and Node or npm version policy.
-- How the browser app receives the API base URL.
-- Whether frontend deployment is independent or coordinated with API
-  deployment.
-- Required environment variables, secrets, and GitHub Environment settings.
+Runtime settings required by the function app, including
+`AzureWebJobsStorage` or `AzureStorage:ConnectionString`, belong in Azure
+Function App configuration, not in the workflow file.

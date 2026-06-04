@@ -1,1 +1,59 @@
-/* You can add global styles to this file, and also import other style files */
+@use './styles/layout';
+@use './styles/variables' as *;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  color-scheme: light;
+  background: $app-color-background;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  background: $app-color-background;
+  color: $app-color-text;
+  font-family: $app-font-body;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1,
+h2,
+h3 {
+  color: $app-color-text;
+  line-height: 1.1;
+}
+
+h1 {
+  font-family: $app-font-heading;
+  font-size: clamp(2.25rem, 1.95rem + 1vw, 3rem);
+  margin-bottom: $app-space-4;
+}
+
+h2 {
+  font-size: clamp(1.25rem, 1.12rem + 0.45vw, 1.5rem);
+}

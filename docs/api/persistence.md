@@ -1,4 +1,4 @@
-# Persistence
+# API Persistence
 
 YTSkedy currently persists calendar event data in Azure Table Storage from the
 backend API under `src/api/`. The scheduling application defines the
@@ -29,6 +29,8 @@ For local development, use Azurite with `AzureWebJobsStorage` set to
 `UseDevelopmentStorage=true` in the ignored Azure Functions
 `local.settings.json` file, or provide a real Azure Storage connection string
 outside source control.
+
+See [`configuration.md`](configuration.md) for runtime configuration guidance.
 
 ## Calendar Event Rows
 
@@ -66,14 +68,18 @@ UTC start time. A duplicate insert receives a storage conflict and is raised as:
 Calendar event '<calendarEventId>' already exists.
 ```
 
-The current API does not map that exception to a stable HTTP response yet.
+Production API behavior must map that conflict to a stable HTTP response before
+external clients depend on duplicate handling.
 
-## Current Limits
+## Production Release Requirements
 
 - Calendar events can be created and listed by local calendar month.
-- There is no update, delete, broad search, or pagination API.
-- No schema migration or backfill path is defined.
-- No explicit retry policy is configured around table writes.
-- No production backup or recovery process is defined.
-- Calendar events are not yet linked to created YouTube broadcasts or stream
-  setup resources.
+- Update, delete, broad search, and pagination APIs must be defined when product
+  workflows require them.
+- Schema migration and backfill paths must be defined before storage shape
+  changes are released.
+- Explicit retry and conflict policies must be defined around table reads and
+  writes.
+- Backup and recovery processes must be documented before production use.
+- Calendar events must be linked to created YouTube broadcasts or stream setup
+  resources before external scheduling workflows are enabled.

@@ -1,19 +1,33 @@
 import { describe, expect, it } from 'vitest';
 
 import { routes } from './app.routes';
+import { AppLayout } from './layout/app-layout/app-layout';
 import { CalendarEvents } from './pages/calendar-events/calendar-events';
 
 describe('routes', () => {
-  it('uses calendar events as the default route', () => {
-    expect(routes).toContainEqual({
+  it('uses the app layout as the route shell', () => {
+    const layoutRoute = routes.find(({ path }) => path === '');
+
+    expect(layoutRoute).toMatchObject({
+      path: '',
+      component: AppLayout,
+    });
+  });
+
+  it('renders calendar events through the layout outlet by default', () => {
+    const layoutRoute = routes.find(({ path }) => path === '');
+
+    expect(layoutRoute?.children).toContainEqual({
       path: '',
       component: CalendarEvents,
       pathMatch: 'full',
     });
   });
 
-  it('keeps calendar events available at its explicit route', () => {
-    expect(routes).toContainEqual({
+  it('keeps calendar events available through the layout outlet at its explicit route', () => {
+    const layoutRoute = routes.find(({ path }) => path === '');
+
+    expect(layoutRoute?.children).toContainEqual({
       path: 'calendar-events',
       component: CalendarEvents,
     });

@@ -217,7 +217,7 @@ Shorter names are acceptable for:
 | `ChannelOperator` | User authorizing work for a YouTube channel. | `User` is acceptable only in authentication or UI-adjacent code where the role distinction does not matter. |
 | `CredentialStore` | Storage for OAuth tokens or credential material. | `TokenStore` or `TokenStorage` is acceptable only when the store truly contains tokens and not broader credential material. |
 | `CredentialReference` | Non-secret pointer to stored credential material. | `Credential` is acceptable only when the value actually contains credential material or the local context makes the reference nature obvious. |
-| `DryRun` | Execution mode that makes no external writes. | `TestMode` should be reserved for test infrastructure, not production dry-run behavior. |
+| `DryRun` | Execution mode that makes no external writes. | `TestMode` should be reserved for test infrastructure, not application dry-run behavior. |
 | `Preview` | User-visible planned result before creation. | `Simulation` is acceptable only when the behavior models outcomes, not just displays a plan. |
 | `AuditLog` | Durable record of externally visible or security-sensitive actions. | `Log` is acceptable inside logging infrastructure, but use `AuditLog` for durable audit records. |
 
