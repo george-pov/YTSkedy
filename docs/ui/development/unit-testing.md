@@ -80,22 +80,24 @@ Escalate outside unit tests:
 
 ## UI Library Boundary
 
-Pages and page-local components should use app-owned shared UI components from
-`src/ui/src/app/shared/components/` when a wrapper exists. They should not
-import a UI library directly for covered controls.
+Pages, page-local components, and layout components must use app-owned shared
+UI components from `src/ui/src/app/shared/components/` when a wrapper exists.
+They must not import Angular Material, Angular CDK UI components, or another
+UI library directly for covered controls.
 
 Shared UI adapters may import UI libraries internally. Their public inputs and
 outputs must describe app intent, not the underlying library implementation.
 
 Unit tests must not assert UI library internals:
 
-- no library component instance assertions
+- no Material directive or component instance assertions
 - no library-generated DOM assertions
-- no visual mapping assertions such as appearance or internal classes
+- no visual mapping assertions such as Material appearance, spinner diameter,
+  or internal classes
 
 Test a shared UI adapter only when it contains meaningful app-owned logic, such
-as value propagation, multi-select add/remove rules, date conversion, or native
-behavior that affects form submission.
+as Control Value Accessor behavior, value propagation, multi-select add/remove
+rules, date conversion, or native behavior that affects form submission.
 
 ## Component Tests
 

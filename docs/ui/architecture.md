@@ -9,6 +9,9 @@ The Angular frontend lives under `src/ui/`.
 - `package.json` declares `npm@11.13.0` as the frontend package manager.
 - Angular packages currently use version `22.0.0` ranges.
 - TypeScript currently uses `~6.0.2`.
+- Angular Material and Angular CDK are available UI dependencies. Repeated or
+  app-owned Material usage should be isolated behind shared components under
+  `src/ui/src/app/shared/components/`.
 - Styling uses SCSS.
 - Routing is configured through Angular router.
 - Routed pages render through the `AppLayout` route shell.

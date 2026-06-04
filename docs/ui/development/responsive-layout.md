@@ -18,6 +18,26 @@ Do not copy breakpoint or spacing values into many component styles. If a
 repeated layout need does not fit approved tokens, update the token set through
 a deliberate design change instead of adding arbitrary local utility classes.
 
+## Breakpoint Ownership
+
+Viewport breakpoint rules belong in the shared responsive layout layer, not in
+page or component stylesheets. New Angular component SCSS must not add local
+`@media` rules to change layout across screen widths.
+
+Use the approved responsive utilities instead:
+
+- `app-container` for shared page width and horizontal padding
+- `app-grid` for responsive 12-column structure
+- `app-col-{1..12}` and `app-col-{breakpoint}-{1..12}` for column spans
+- `app-field-row` for compact form-control wrapping
+- `app-actions` for page and form action wrapping
+- approved gap and spacing utilities for repeated layout spacing
+
+If a responsive layout need cannot be expressed with these utilities, update
+the shared layout system and this document instead of adding a local component
+media query. The shared layout layer may use media queries internally because it
+is the app-owned breakpoint abstraction.
+
 ## Suggested Utility Scope
 
 If a layout layer is added, keep it small and layout-only. Suitable utilities:
@@ -126,14 +146,19 @@ Use local component SCSS for:
 - shell-specific vertical page padding
 - visual treatment that belongs to one component
 
-Do not add a one-off media query when a shared grid, responsive column class,
-field row, or action-row utility already expresses the behavior.
+Do not add viewport breakpoint media queries in component SCSS for responsive
+layout. Use the shared grid, responsive column classes, field row, action-row,
+container, gap, and spacing utilities instead.
 
 ## Anti-Patterns
 
 Do not use the layout layer as a Bootstrap-style component replacement. It
 does not own buttons, cards, alerts, form controls, color, typography, or
 component appearance.
+
+Do not add a local component `@media` rule to rearrange page regions, cards,
+headers, forms, fields, navigation, or action areas. Move repeated responsive
+layout behavior into the shared layout system.
 
 Do not use `app-field-row` as a generic flex utility. It is only for compact
 form-control rows whose children have app-owned field adapter widths.

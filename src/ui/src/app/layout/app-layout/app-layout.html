@@ -1,17 +1,14 @@
-<div class="app-layout">
-  <header class="app-layout__header">
-    <div class="app-container">
-      <div class="app-header" aria-label="Application header">
-        <div class="app-header__brand">
-          <span class="app-header__mark" aria-hidden="true">YT</span>
-          <span>YTSkedy</span>
-        </div>
-        <span class="app-header__section">Scheduled streams</span>
+<div class="layout">
+  <mat-toolbar class="header">
+    <div class="app-container app-grid content" aria-label="Application header">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">YT</span>
+        <span class="name">YTSkedy</span>
       </div>
     </div>
-  </header>
+  </mat-toolbar>
 
-  <main class="app-layout__main">
+  <main class="main">
     <div class="app-container">
       <router-outlet />
     </div>

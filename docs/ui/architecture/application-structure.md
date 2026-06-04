@@ -98,8 +98,27 @@ shared/
   utils/
 ```
 
+Target shared UI component folders:
+
+```text
+shared/components/button/
+shared/components/icon-button/
+shared/components/select/
+shared/components/text-field/
+shared/components/toolbar/
+```
+
 Keep scheduling workflow decisions and page-flow branching out of generic
 shared components.
+
+`src/ui/src/app/shared/components/` owns Angular Material and Angular CDK
+dependencies for app UI controls that have shared wrappers. Pages and layout
+components should import app-owned wrappers, and those wrappers should keep
+Material-specific APIs out of page and layout contracts.
+
+Only create a shared wrapper when code exists and the control is repeated,
+app-owned, or needs consistent styling, accessibility, validation, or behavior.
+Do not add empty component folders only to reserve names.
 
 Create `shared/utils/` only for small, behavior-specific pure functions. File
 names inside it must describe the behavior they own instead of using generic

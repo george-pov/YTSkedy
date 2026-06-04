@@ -8,6 +8,13 @@ YTSkedy uses SCSS for application and component styles.
 - Keep global styles small and intentional.
 - Use names that explain ownership without adding unnecessary ceremony.
 - Avoid BEM-like `block__element` and `block--modifier` names for new styles.
+- Prefer the simplest layout model that communicates intent. Flexbox is the
+  default choice for component-local alignment and one-dimensional layout
+  because it is easier to read and reason about than a broader display
+  toolbox.
+- Reduce cognitive complexity in styling the same way code should reduce
+  cognitive complexity: fewer concepts, fewer special cases, and clearer local
+  ownership.
 - Keep UI-library customization behind supported APIs and app-owned wrapper
   components when a UI library is selected.
 
@@ -36,6 +43,11 @@ src/ui/src/styles/
 
 `src/ui/src/styles.scss` should stay limited to resets, base typography, design
 token imports, and approved responsive layout utilities.
+
+Viewport breakpoint media queries for layout belong in the approved responsive
+layout layer, not in component stylesheets. Use
+[`responsive-layout.md`](responsive-layout.md) before adding responsive layout
+behavior.
 
 ## Shared SCSS Partials
 
@@ -86,6 +98,12 @@ The approved exception is the app-owned responsive layout layer described in
 Inside Angular component styles, prefer natural class names nested under a
 component root class. Angular encapsulation already scopes the stylesheet, so
 component CSS should not use BEM-like names.
+
+Component SCSS should not add local viewport `@media` rules for responsive
+layout. Use the shared `app-container`, `app-grid`, responsive `app-col-*`,
+`app-field-row`, `app-actions`, gap, and spacing utilities instead. If those
+utilities cannot express the layout, update the shared layout layer rather than
+adding a one-off breakpoint.
 
 For local component styles, avoid BEM-like class names such as
 `.calendar-page__hero`, `.calendar-card--selected`, or
@@ -139,6 +157,24 @@ Use names such as `.layout`, `.header`, `.content`, `.actions`, `.summary`,
 
 Use `:host` for the component shell: display, sizing, layout participation, and
 host-level state.
+
+## Display Model Choice
+
+Prefer flexbox for local component layout when the structure is one-dimensional:
+horizontal or vertical alignment, centering, spacing between siblings, toolbars,
+headers, button rows, inline labels, and compact visual marks.
+
+Use other display modes only when they express the behavior more directly:
+
+- Use the shared `app-grid` and column utilities for responsive page, shell,
+  and form structure.
+- Use CSS grid only for genuinely two-dimensional component-local layout.
+- Use native block and inline flow when no layout primitive is needed.
+- Avoid `inline-grid`, `grid`, floats, absolute positioning, or table display
+  only to center or align simple content when flexbox is enough.
+
+The goal is not to ban CSS features. The goal is to keep styling easy to read
+by using a small, predictable layout toolset.
 
 ## Nesting Rules
 
@@ -207,17 +243,35 @@ local state classes such as `.is-selected`, `.is-expanded`, or `.has-error`.
 
 ## UI Libraries
 
-No UI component library has been selected yet. If the project later adopts
-Angular Material or another library:
+Angular Material and Angular CDK are available to support app-owned shared UI
+components.
 
-- prefer documented component inputs and APIs
-- keep library-specific APIs behind shared wrapper components when usage
-  repeats
-- do not style generated internal DOM or private classes from page SCSS
-- avoid new `::ng-deep` usage
+Do not style Angular Material internals such as `.mat-mdc-*` from component
+styles. Treat internal Material DOM and classes as private implementation
+details.
+
+Prefer these options, in order:
+
+1. App-owned shared component inputs and host classes.
+2. Material component inputs and documented APIs inside shared wrappers.
+3. Material theming and override mixins.
+4. Design tokens or CSS custom properties exposed by Material.
+5. A custom host class on the Material component or wrapper component.
+
+When a form control, button, dialog, toolbar, or other repeated control needs
+app-specific behavior or styling, prefer a shared wrapper component that owns
+the app API and delegates to Angular Material internally.
 
 Pages should style app-owned wrapper components and local page structure, not
-third-party internals.
+third-party internals. Keep Material customization behind supported APIs:
+
+- global theme setup in `src/ui/src/styles.scss`
+- Material Sass APIs and CSS custom properties documented by Material
+- app-owned wrapper inputs and host classes
+- normal Angular component styles scoped by the component boundary
+
+Avoid new `::ng-deep` usage. Angular keeps it only for compatibility, and it
+breaks the normal component style boundary.
 
 ## Migration Rule
 

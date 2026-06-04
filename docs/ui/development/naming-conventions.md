@@ -64,7 +64,11 @@ Target examples as the app grows:
 ```text
 layout/app-layout/
 pages/calendar-events/
+shared/components/button/
+shared/components/icon-button/
 shared/components/month-select/
+shared/components/text-field/
+shared/components/toolbar/
 shared/components/year-select/
 ```
 
@@ -110,17 +114,31 @@ component.
 
 Shared UI names should describe the app contract, not an underlying UI library.
 
+Target shared UI names may include:
+
+```text
+button
+icon-button
+select
+text-field
+toolbar
+```
+
 Use these suffixes consistently:
 
 - `*-field` for input-like form controls.
 - `*-select` for select controls.
 - `*-group` for grouped choices.
-- no provider-specific terms in public wrapper names.
+- no Material-specific or provider-specific terms in public wrapper names.
 
 Selectors should match the component name with the `app-` prefix:
 
 ```text
+app-button
+app-icon-button
 app-month-select
+app-text-field
+app-toolbar
 app-year-select
 app-calendar-events-table
 ```

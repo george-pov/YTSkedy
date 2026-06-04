@@ -8,7 +8,8 @@ Development guidance for the YTSkedy Angular frontend.
 - Framework: Angular v22.
 - Package manager: npm.
 - Test runner: Angular CLI unit test builder with Vitest and jsdom.
-- UI library: none selected yet.
+- UI library: Angular Material and Angular CDK, consumed through app-owned
+  shared components when wrappers exist.
 - Date handling: preserve API-provided local date/time and time-zone context.
   Add a dedicated date library only through an explicit feature decision.
 - Principles: modularity, clear contracts, accessibility, auditability, and
@@ -192,20 +193,37 @@ backend API.
   such as labels, descriptions, required state, invalid state, and labelled-by
   relationships.
 
-## Shared UI
+## Shared UI And Angular Material
 
 Pages should consume app-owned shared UI components from
-`src/ui/src/app/shared/components/` when a wrapper exists. Do not couple pages
-to a UI library API when the interaction is repeated or app-owned.
+`src/ui/src/app/shared/components/` for controls that have shared wrappers. Do
+not import Angular Material directly into pages or layout components for
+controls covered by those wrappers.
 
-Shared UI wrapper inputs and outputs should stay app-specific and
-page-oriented. Repeated app-specific layout and behavior belong in shared UI
-components.
+Shared UI wrappers may depend on Angular Material or Angular CDK internally,
+but wrapper inputs and outputs should stay app-specific and page-oriented. Do
+not expose Material types, appearance names, directive names, CSS class names,
+or implementation details as page contracts unless that becomes an explicit
+shared UI design decision.
+
+Repeated app-specific layout and behavior belong in shared UI components.
+Material-backed wrapper visuals rely on the global Material theme and
+documented Material APIs, not component-level overrides of private Material or
+MDC selectors.
+
+Use direct Angular Material imports in page or layout components only when no
+app wrapper exists and the usage is page-specific or temporary. Promote the
+usage to a shared wrapper when it repeats, when styling needs to become
+consistent, or when page code starts depending on Material-specific API
+details. Existing direct Material imports can remain until the equivalent
+wrapper is created, then touched code should migrate to the wrapper.
 
 Wrapper APIs should describe app intent:
 
 - use names such as `variant`, `label`, `hint`, `required`, `disabled`, and
   `options`
+- keep Material directive names, DOM class names, and version-specific
+  concepts inside the wrapper
 - expose accessibility requirements through wrapper inputs when the wrapper
   owns the interactive element
 - test the wrapper contract rather than private DOM structure
