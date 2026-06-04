@@ -18,12 +18,12 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) : ICal
         ArgumentNullException.ThrowIfNull(calendarEvent);
 
         var scheduledStartUtc = ToUtc(calendarEvent.Start);
-        var eventId = FormatEventId(scheduledStartUtc);
+        var calendarEventId = FormatCalendarEventId(scheduledStartUtc);
         var entity = new CalendarEventEntity
         {
             PartitionKey = GetPartitionKey(scheduledStartUtc),
-            RowKey = eventId,
-            EventId = eventId,
+            RowKey = calendarEventId,
+            CalendarEventId = calendarEventId,
             ScheduledStartUtc = scheduledStartUtc,
             LocalDateTime = FormatLocalDateTime(calendarEvent.Start.LocalDateTime),
             TimeZoneId = calendarEvent.Start.TimeZoneId,
@@ -40,11 +40,11 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) : ICal
         catch (RequestFailedException exception) when (exception.Status == 409)
         {
             throw new InvalidOperationException(
-                $"Calendar event '{eventId}' already exists.",
+                $"Calendar event '{calendarEventId}' already exists.",
                 exception);
         }
 
-        return eventId;
+        return calendarEventId;
     }
 
     private static DateTimeOffset ToUtc(ScheduledStart start)
@@ -84,7 +84,7 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) : ICal
         }
     }
 
-    private static string FormatEventId(DateTimeOffset scheduledStartUtc) =>
+    private static string FormatCalendarEventId(DateTimeOffset scheduledStartUtc) =>
         scheduledStartUtc.UtcDateTime.ToString(
             "yyyyMMdd'T'HHmmss'Z'",
             CultureInfo.InvariantCulture);

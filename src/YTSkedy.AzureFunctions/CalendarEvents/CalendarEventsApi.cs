@@ -7,7 +7,7 @@ using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.AzureFunctions.CalendarEvents;
 
-public class CalendarEventsApi(CreateEventHandler handler)
+public class CalendarEventsApi(CreateCalendarEventHandler handler)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -17,11 +17,11 @@ public class CalendarEventsApi(CreateEventHandler handler)
         HttpRequest request,
         CancellationToken cancellationToken)
     {
-        CreateEventRequest? createRequest;
+        CreateCalendarEventRequest? createRequest;
 
         try
         {
-            createRequest = await JsonSerializer.DeserializeAsync<CreateEventRequest>(
+            createRequest = await JsonSerializer.DeserializeAsync<CreateCalendarEventRequest>(
                 request.Body,
                 JsonOptions,
                 cancellationToken);
@@ -36,7 +36,7 @@ public class CalendarEventsApi(CreateEventHandler handler)
             return new BadRequestObjectResult("Request body is required.");
         }
 
-        var command = new CreateEventCommand(
+        var command = new CreateCalendarEventCommand(
             new ScheduledStart(
                 createRequest.Start.LocalDateTime,
                 createRequest.Start.TimeZoneId),
@@ -51,6 +51,6 @@ public class CalendarEventsApi(CreateEventHandler handler)
             command,
             cancellationToken);
 
-        return new OkObjectResult(new CreateEventResponse(result.EventId));
+        return new OkObjectResult(new CreateCalendarEventResponse(result.CalendarEventId));
     }
 }

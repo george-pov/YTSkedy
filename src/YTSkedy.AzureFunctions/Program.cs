@@ -35,7 +35,7 @@ builder.Services.AddSingleton(_ =>
     return new TableClient(connectionString, tableName);
 });
 
-builder.Services.AddScoped<CreateEventHandler>();
+builder.Services.AddScoped<CreateCalendarEventHandler>();
 builder.Services.AddScoped<ICalendarEventRepository, AzureCalendarEventRepository>();
 
 builder.Build().Run();

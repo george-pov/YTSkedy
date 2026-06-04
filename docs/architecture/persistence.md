@@ -58,7 +58,7 @@ The current repository implementation allows one calendar event per scheduled
 UTC start time. A duplicate insert receives a storage conflict and is raised as:
 
 ```text
-Calendar event '<eventId>' already exists.
+Calendar event '<calendarEventId>' already exists.
 ```
 
 The current API does not map that exception to a stable HTTP response yet.

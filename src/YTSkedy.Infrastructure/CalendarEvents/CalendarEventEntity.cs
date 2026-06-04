@@ -13,7 +13,7 @@ internal sealed class CalendarEventEntity : ITableEntity
 
     public ETag ETag { get; set; }
 
-    public string EventId { get; set; } = string.Empty;
+    public string CalendarEventId { get; set; } = string.Empty;
 
     public DateTimeOffset ScheduledStartUtc { get; set; }
 

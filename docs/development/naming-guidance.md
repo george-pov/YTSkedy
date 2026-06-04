@@ -143,6 +143,11 @@ Use YouTube API verbs such as `Insert`, `Update`, `Delete`, `Bind`, and
 `Transition` only in YouTube adapter code where matching the external contract
 helps the reader. Application code should prefer product verbs.
 
+Name externally visible writes with the resource being changed. For example,
+prefer `CreateBroadcastAsync`, `BindYouTubeLiveStreamAsync`, or
+`SaveCalendarEventAsync` over vague names such as `ProcessAsync` or
+`SubmitAsync`.
+
 ## Domain Vocabulary
 
 - `scheduled stream`: A future YouTube live event prepared before its start
@@ -235,6 +240,10 @@ name for public application and API types. For example, prefer
 `event`, `request`, or `result` are fine for local variables when the enclosing
 method or type already provides the missing context.
 
+Use provider prefixes such as `Azure` or `YouTube` at infrastructure,
+adapter, persistence, and external-client boundaries. Do not put provider
+prefixes on domain types unless the domain concept is provider-owned.
+
 ## Unit Test Names
 
 Unit test names follow the Microsoft pattern:
@@ -268,14 +277,17 @@ Rules:
 Examples:
 
 ```csharp
+[Fact]
 public async Task CreateCalendarEvent_ValidCommand_CreatesCalendarEvent()
 {
 }
 
+[Fact]
 public async Task CreateAsync_DuplicateScheduledStart_ThrowsInvalidOperationException()
 {
 }
 
+[Fact]
 public async Task CreateCalendarEventAsync_MissingBody_ReturnsBadRequest()
 {
 }

@@ -5,7 +5,7 @@ YTSkedy is an application for automating the creation and scheduling of YouTube 
 ## Purpose
 
 This README is the human developer table of contents for durable human-facing
-docs. 
+docs.
 
 ## Chapters
 
