@@ -32,6 +32,10 @@ src/ui/src/app/
 
   pages/
     calendar-events/
+
+  shared/
+    components/
+      toolbar/
 ```
 
 As the UI grows, use this target structure:
@@ -98,7 +102,13 @@ shared/
   utils/
 ```
 
-Target shared UI component folders:
+Current shared UI component folders:
+
+```text
+shared/components/toolbar/
+```
+
+Target shared UI component folders as repeated controls are introduced:
 
 ```text
 shared/components/button/

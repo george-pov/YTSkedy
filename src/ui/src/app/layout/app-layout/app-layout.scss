@@ -11,7 +11,6 @@
 }
 
 .header {
-  padding-inline: 0;
   border-bottom: 1px solid $app-color-border;
 }
 
@@ -30,7 +29,7 @@
     background: $app-color-action-accent;
     color: $app-color-white;
     font-size: 0.81rem;
-    font-weight: bold;    
+    font-weight: bold;
   }
 
   .name {

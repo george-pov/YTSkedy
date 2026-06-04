@@ -32,6 +32,7 @@ Current route and page files:
 src/ui/src/app/app.routes.ts
 src/ui/src/app/layout/app-layout/
 src/ui/src/app/pages/calendar-events/
+src/ui/src/app/shared/components/toolbar/
 ```
 
 Use the page-first structure in

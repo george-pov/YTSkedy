@@ -1,10 +1,11 @@
 import { Component } from '@angular/core';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterOutlet } from '@angular/router';
+
+import { Toolbar } from '../../shared/components/toolbar/toolbar';
 
 @Component({
   selector: 'app-layout',
-  imports: [MatToolbarModule, RouterOutlet],
+  imports: [RouterOutlet, Toolbar],
   templateUrl: './app-layout.html',
   styleUrl: './app-layout.scss',
 })
