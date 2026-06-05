@@ -14,6 +14,26 @@ src/api/YTSkedy.AzureFunctions/local.settings.json
 Do not commit OAuth client secrets, refresh tokens, access tokens, API keys,
 storage connection strings for real accounts, or local credential stores.
 
+## Local Debug CORS
+
+For local browser development from the Angular dev server, add local-only CORS
+settings to `src/api/YTSkedy.AzureFunctions/local.settings.json`:
+
+```json
+{
+  "Host": {
+    "CORS": "http://localhost:4200,http://127.0.0.1:4200",
+    "CORSCredentials": false
+  }
+}
+```
+
+The same origins can be passed directly when starting the Functions host:
+
+```powershell
+func start --port 7087 --cors "http://localhost:4200,http://127.0.0.1:4200"
+```
+
 ## Azure Storage
 
 Calendar event persistence reads the storage connection string in this order:

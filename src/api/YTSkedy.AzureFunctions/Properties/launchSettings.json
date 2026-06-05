@@ -2,7 +2,7 @@
   "profiles": {
     "YTSkedy.AzureFunctions": {
       "commandName": "Project",
-      "commandLineArgs": "--port 7087",
+      "commandLineArgs": "--port 7087 --cors http://localhost:4200,http://127.0.0.1:4200",
       "launchBrowser": false
     }
   }

@@ -13,6 +13,10 @@ Frontend tests live under `src/ui/`. Use this file as the testing index.
 - The Angular test setup is exposed through `npm test`.
 - Vitest with jsdom is the current unit test runtime.
 - Current route tests live in `src/ui/src/app/app.routes.spec.ts`.
+- Current runtime config and calendar events API service tests live under
+  `src/ui/src/app/shared/`.
+- Current calendar events page component tests live under
+  `src/ui/src/app/pages/calendar-events/`.
 - Playwright is the current browser-level e2e test runtime.
 - The first durable e2e spec lives in
   `src/ui/tests/e2e/component-lab-button.spec.ts`.

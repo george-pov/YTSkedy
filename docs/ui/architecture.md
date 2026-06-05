@@ -15,8 +15,12 @@ The Angular frontend lives under `src/ui/`.
 - Styling uses SCSS.
 - Routing is configured through Angular router.
 - Routed pages render through the `AppLayout` route shell.
-- The app has a `calendar-events` page route. The page is currently an initial
-  route component and does not call the backend API.
+- Runtime API base URL configuration is loaded from
+  `src/ui/public/config/app-config.json`.
+- The app has a `calendar-events` page route that loads the current browser
+  month through the calendar events API service and displays a basic table.
+- Calendar events API service code lives under
+  `src/ui/src/app/shared/api/calendar-events/`.
 
 ## Source Layout
 
@@ -32,6 +36,8 @@ Current route and page files:
 src/ui/src/app/app.routes.ts
 src/ui/src/app/layout/app-layout/
 src/ui/src/app/pages/calendar-events/
+src/ui/src/app/shared/api/calendar-events/
+src/ui/src/app/shared/config/
 src/ui/src/app/shared/components/button/
 src/ui/src/app/shared/components/toolbar/
 ```
@@ -67,5 +73,7 @@ response shapes.
 
 Deploy-specific public settings should use the runtime configuration approach
 defined in
-[`architecture/runtime-configuration.md`](architecture/runtime-configuration.md)
-when the first UI API client is introduced.
+[`architecture/runtime-configuration.md`](architecture/runtime-configuration.md).
+
+Current calendar events API access lives in
+`src/ui/src/app/shared/api/calendar-events/calendar-events-service.ts`.

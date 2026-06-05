@@ -16,14 +16,15 @@ src/ui/src/app/layout/app-layout/
 
 | Path | Behavior |
 | --- | --- |
-| `/` | Renders the `CalendarEvents` page component. |
-| `/calendar-events` | Renders the `CalendarEvents` page component. |
+| `/` | Renders `CalendarEvents` and loads the current browser month. |
+| `/calendar-events` | Renders the same `CalendarEvents` page behavior as `/`. |
 | `/component-lab` | Renders the minimal component lab page for manually demoing shared UI components. |
 | `**` | Redirects to `/`. |
 
-The current `CalendarEvents` page is an initial route component. Loading data
-from `GET /api/calendar-events?year={year}&month={month}` is required before
-the calendar event workflow is product-complete.
+The current `CalendarEvents` page calls
+`GET /api/calendar-events?year={year}&month={month}` through the shared API
+service and renders a basic table. Richer calendar navigation and scheduling
+workflow behavior remain required before the route is product-complete.
 
 ## Route Ownership
 

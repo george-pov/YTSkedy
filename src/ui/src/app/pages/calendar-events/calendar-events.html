@@ -1,4 +1,42 @@
-<section >
-  <h1>Calendar Events</h1>
-  <p>Here you can manage your calendar events.</p>
+<section class="layout">
+  <header class="header">
+    <h1>Calendar Events</h1>
+    <p>{{ monthLabel }}</p>
+  </header>
+
+  @if (isLoading()) {
+    <p class="status">Loading calendar events...</p>
+  } @else if (errorMessage()) {
+    <p class="status has-error" role="alert">
+      {{ errorMessage() }}
+    </p>
+  } @else if (events().length === 0) {
+    <p class="status">No calendar events found.</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="events-table">
+        <caption>
+          Calendar events for {{ monthLabel }}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Event ID</th>
+            <th scope="col">Scheduled Start</th>
+            <th scope="col">Time Zone</th>
+            <th scope="col">Descriptions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (event of events(); track event.calendarEventId) {
+            <tr>
+              <td class="mono">{{ event.calendarEventId }}</td>
+              <td>{{ event.start.localDateTime }}</td>
+              <td>{{ event.start.timeZoneId }}</td>
+              <td>{{ describeEvent(event) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
 </section>

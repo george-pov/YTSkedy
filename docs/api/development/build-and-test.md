@@ -62,7 +62,7 @@ dotnet build src/api/YTSkedy.slnx
 
 ```powershell
 cd src/api/YTSkedy.AzureFunctions
-func start --port 7087
+func start --port 7087 --cors "http://localhost:4200,http://127.0.0.1:4200"
 ```
 
 For Azurite, set `AzureWebJobsStorage` to `UseDevelopmentStorage=true` in

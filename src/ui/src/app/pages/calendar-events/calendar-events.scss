@@ -1,0 +1,79 @@
+:host {
+  display: block;
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  h1,
+  p {
+    margin: 0;
+  }
+
+  p {
+    color: #475467;
+  }
+}
+
+.status {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #344054;
+
+  &.has-error {
+    border-color: #fda29b;
+    background: #fff1f0;
+    color: #b42318;
+  }
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+}
+
+.events-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+
+  caption {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #344054;
+  }
+
+  th,
+  td {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #eaecf0;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    background: #f9fafb;
+    color: #344054;
+    font-weight: 600;
+  }
+}
+
+.mono {
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono",
+    monospace;
+  white-space: nowrap;
+}
