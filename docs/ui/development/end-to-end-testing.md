@@ -5,9 +5,9 @@ complement unit tests, visual review, accessibility review, and manual checks.
 They are not a required release gate, CI gate, or default condition for
 merging changes unless the project later adopts that policy.
 
-No end-to-end test framework has been selected for YTSkedy yet. If browser
-tests are added, prefer Playwright unless a concrete project constraint points
-elsewhere.
+Playwright is the selected browser-level e2e test runtime for YTSkedy. The
+current setup runs durable specs from `src/ui/tests/e2e/` and writes generated
+reports under the repository `build/` directory.
 
 Use end-to-end tests only when a real browser adds useful confidence that a
 cheaper unit or component test cannot provide.
@@ -44,16 +44,16 @@ Keep these out of durable browser tests:
 Copy assertions are appropriate only when the copy identifies a route, labels a
 user action, labels a field, or communicates a behavior-defining message.
 
-## Suggested Test Layout
+## Test Layout
 
-If Playwright is introduced, use these locations:
+Use these locations:
 
 ```text
 src/ui/tests/e2e/
   Durable Playwright tests.
 
 src/ui/tests/.tmp/
-  Temporary local verification specs. This directory should be ignored by git.
+  Temporary local verification specs. This directory is ignored by git.
 ```
 
 Temporary specs can be useful during development and diagnosis. Before work is
@@ -63,10 +63,9 @@ Temporary screenshots are allowed for local verification. Keep generated local
 artifacts out of committed source, such as under `build/`. Committed visual
 snapshot baselines require explicit approval before they are added.
 
-## Suggested Commands
+## Commands
 
-If Playwright is introduced, align `package.json` and the Playwright config
-before relying on E2E validation:
+Run these commands from `src/ui/`:
 
 ```powershell
 npm run start:e2e
@@ -79,7 +78,8 @@ Command expectations:
 
 - `npm run start:e2e` starts the Angular dev server for E2E testing at the
   configured Playwright base URL.
-- `npm run test:e2e` runs durable Playwright tests in Chromium by default.
+- `npm run test:e2e` runs durable Playwright tests in Chromium by default and
+  starts the Angular dev server through the Playwright config.
 - `npm run test:e2e:all` runs the explicit all-browser Playwright project
   matrix.
 - `npm run test:e2e:ui` opens Playwright UI mode for optional local debugging.
@@ -90,7 +90,8 @@ If browser binaries are missing, run:
 npx playwright install
 ```
 
-Do not document these commands as supported until the scripts exist.
+Use `npx playwright install chromium` when only the default Chromium e2e command
+needs local browser binaries.
 
 ## Authoring Rules
 

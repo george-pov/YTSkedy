@@ -44,6 +44,35 @@ Run frontend unit tests:
 npm test
 ```
 
+## End-to-End Tests
+
+Install Playwright browser binaries when a fresh checkout or local environment
+does not already have them:
+
+```powershell
+npx playwright install chromium
+```
+
+Run durable browser-level tests in Chromium:
+
+```powershell
+npm run test:e2e
+```
+
+Run the full configured browser matrix after installing all Playwright browser
+binaries:
+
+```powershell
+npx playwright install
+npm run test:e2e:all
+```
+
+Open Playwright UI mode for local debugging:
+
+```powershell
+npm run test:e2e:ui
+```
+
 The current frontend has routing and an initial calendar events page. Backend
 API client integration and production deployment workflow are required release
 work.

@@ -36,6 +36,7 @@ yarn-error.log
 /coverage
 /libpeerconnection.log
 testem.log
+/tests/.tmp
 /typings
 __screenshots__/
 
