@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
-import { Toolbar } from '../../shared/components/toolbar/toolbar';
+import { Toolbar } from 'src/app/shared/components/toolbar/toolbar';
 
 @Component({
   selector: 'app-layout',

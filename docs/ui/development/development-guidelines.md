@@ -265,11 +265,13 @@ static markup that does not protect a behavior contract.
 - Use [`naming-conventions.md`](naming-conventions.md) as the canonical UI
   naming reference.
 - Follow existing formatting: Prettier print width 100 and single quotes.
-- Use local `./models...` paths for application-local TypeScript imports when
-  the target is in the same folder or a child folder. Use `src/app/...` import
-  aliases only after the Angular workspace config supports them. Until then,
-  prefer the shallowest clear relative path and avoid typo-prone long traversal
-  paths such as `../../../shared/modles/...`.
+- Use local `./...` paths for TypeScript imports, dynamic imports, SCSS `@use`,
+  and SCSS `@forward` only when the referenced file is in the same folder as
+  the importing file.
+- Use source-root paths for files in any other folder: `src/app/...` for app
+  code and `src/styles/...` for shared styles. Do not use parent-folder
+  traversal such as `../shared/...` or `../../../styles/...` for application
+  source imports.
 - Keep file names kebab-case.
 - Keep one primary concept per file.
 - A `shared/utils/` folder may exist, but files inside it must be named by the

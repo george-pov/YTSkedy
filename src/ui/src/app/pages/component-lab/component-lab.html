@@ -1,0 +1,5 @@
+<h1>Component Lab</h1>
+
+@for (item of labItems; track item.label) {
+  <ng-container *ngComponentOutlet="item.component"></ng-container>
+}

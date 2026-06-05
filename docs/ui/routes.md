@@ -18,6 +18,7 @@ src/ui/src/app/layout/app-layout/
 | --- | --- |
 | `/` | Renders the `CalendarEvents` page component. |
 | `/calendar-events` | Renders the `CalendarEvents` page component. |
+| `/component-lab` | Renders the minimal component lab page for manually demoing shared UI components. |
 | `**` | Redirects to `/`. |
 
 The current `CalendarEvents` page is an initial route component. Loading data

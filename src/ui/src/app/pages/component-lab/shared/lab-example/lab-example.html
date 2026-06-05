@@ -1,0 +1,7 @@
+<section [attr.aria-labelledby]="titleId()">
+  <h4 [id]="titleId()">{{ title() }}</h4>
+  <div [class.items-layout-inline]="itemsLayout() === 'inline'">
+    <ng-content />
+  </div>
+  
+</section>

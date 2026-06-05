@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 
 import { AppLayout } from './layout/app-layout/app-layout';
 import { CalendarEvents } from './pages/calendar-events/calendar-events';
+import { ComponentLab } from './pages/component-lab/component-lab';
 
 export const routes: Routes = [
   {
@@ -16,6 +17,10 @@ export const routes: Routes = [
       {
         path: 'calendar-events',
         component: CalendarEvents,
+      },
+      {
+        path: 'component-lab',
+        component: ComponentLab,
       },
     ],
   },
