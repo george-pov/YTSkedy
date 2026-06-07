@@ -1,0 +1,15 @@
+{
+  "_comment": "Tracked sample for src/ui/public/config/app-config.json. Copy this file to app-config.json (gitignored) and replace <placeholders> with environment-specific values. See docs/ui/architecture/runtime-configuration.md and docs/ui/development/build-and-test.md. All values below are non-secret runtime config shipped to the browser; the auth boundary is server-side scope and role enforcement, not config secrecy.",
+  "api": {
+    "baseUrl": "http://localhost:7087/"
+  },
+  "auth": {
+    "clientId": "<spa-app-client-id-guid>",
+    "authority": "https://<tenantSubdomain>.ciamlogin.com/<tenant-id-guid>/v2.0",
+    "knownAuthorities": ["<tenantSubdomain>.ciamlogin.com"],
+    "redirectUri": "http://localhost:4200",
+    "postLogoutRedirectUri": "http://localhost:4200/signed-out",
+    "calendarEventsReadScope": "api://<api-app-id-uri-or-guid>/CalendarEvents.Read",
+    "calendarEventsWriteScope": "api://<api-app-id-uri-or-guid>/CalendarEvents.Write"
+  }
+}

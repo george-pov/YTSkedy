@@ -5,9 +5,23 @@ Azure Functions `/api` prefix.
 
 ## Authorization
 
-The current HTTP triggers use Azure Functions `Function` authorization level.
-Local manual checks send `x-functions-key` through Visual Studio `.http`
-environment values.
+Calendar event HTTP triggers run at `AuthorizationLevel.Anonymous`. The
+security boundary is the worker-side bearer-token middleware, not the
+Functions host key check.
+
+Every call must:
+
+- Present a Microsoft Entra External ID access token via
+  `Authorization: Bearer <token>`. Missing, invalid, expired, wrong-audience,
+  or wrong-issuer tokens return `401`.
+- Carry the scope required by the endpoint (`CalendarEvents.Read` for `GET`,
+  `CalendarEvents.Write` for `POST`). Wrong scope returns `403`.
+- Carry the `CalendarEvents.Operator` app role in the `roles` claim. Missing
+  role returns `403`.
+
+`x-functions-key` is no longer accepted on these endpoints. Local manual
+checks acquire a bearer token via the `az`-based recipe documented in
+`docs/api/development/build-and-test.md`.
 
 ## Create Calendar Event
 
@@ -123,5 +137,6 @@ Before sending local requests:
 - Use the host port from the Azure Functions launch profile. The current local
   default is `http://localhost:7087`.
 
-Keep deployed URLs, function keys, and personal values in
-`http-client.env.json.user`, not in tracked environment files.
+Keep deployed URLs, bearer access tokens, and personal values in
+`http-client.env.json.user`, not in tracked environment files. Function keys
+no longer apply to these endpoints.

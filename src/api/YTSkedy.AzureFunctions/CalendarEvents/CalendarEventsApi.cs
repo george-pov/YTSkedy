@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Identity.Web.Resource;
 using System.Globalization;
 using System.Text.Json;
 using YTSkedy.Scheduling.Application.CalendarEvents;
@@ -15,8 +16,9 @@ public class CalendarEventsApi(
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [Function("CreateCalendarEvent")]
+    [RequiredScope("CalendarEvents.Write")]
     public async Task<IActionResult> CreateCalendarEventAsync(
-        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "calendar-events")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "calendar-events")]
         HttpRequest request,
         CancellationToken cancellationToken)
     {
@@ -58,8 +60,9 @@ public class CalendarEventsApi(
     }
 
     [Function("ListCalendarEventsByMonth")]
+    [RequiredScope("CalendarEvents.Read")]
     public async Task<IActionResult> ListByMonthAsync(
-        [HttpTrigger(AuthorizationLevel.Function, "get", Route = "calendar-events")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "calendar-events")]
         HttpRequest request,
         CancellationToken cancellationToken)
     {

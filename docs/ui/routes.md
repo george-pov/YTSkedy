@@ -14,17 +14,34 @@ src/ui/src/app/layout/app-layout/
 
 ## Current Routes
 
-| Path | Behavior |
-| --- | --- |
-| `/` | Renders `CalendarEvents` and loads the current browser month. |
-| `/calendar-events` | Renders the same `CalendarEvents` page behavior as `/`. |
-| `/component-lab` | Renders the minimal component lab page for manually demoing shared UI components. |
-| `**` | Redirects to `/`. |
+| Path | Auth | Behavior |
+| --- | --- | --- |
+| `/` | Public | Renders `Home` with a sign-in button. Auto-redirects signed-in visitors to `/calendar-events`. |
+| `/calendar-events` | Protected | Renders `CalendarEvents` and loads the current browser month. Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`. |
+| `/signed-out` | Public | Renders post-logout confirmation. Auto-redirects already-authenticated visitors to `/calendar-events`. |
+| `/component-lab` | Public | Renders the minimal component lab page for manually demoing shared UI components. |
+| `**` | Public | Redirects to `/`. |
 
-The current `CalendarEvents` page calls
+The `CalendarEvents` page calls
 `GET /api/calendar-events?year={year}&month={month}` through the shared API
-service and renders a basic table. Richer calendar navigation and scheduling
-workflow behavior remain required before the route is product-complete.
+service. The HTTP client attaches an Entra External ID access token via the
+YTSkedy-owned `AuthFacade` and bearer interceptor (see
+[`development/end-to-end-testing.md`](development/end-to-end-testing.md) and
+[`../architecture/integration-contracts.md`](../architecture/integration-contracts.md)).
+Richer calendar navigation and scheduling workflow behavior remain required
+before the route is product-complete.
+
+## Route Protection
+
+`/calendar-events` is guarded by the YTSkedy-owned `authenticatedGuard`
+(in `src/ui/src/app/shared/auth/authenticated-guard.ts`). The guard:
+
+- Consults `AuthFacade.isAuthenticated()`.
+- Calls `AuthFacade.signIn(returnUrl)` when not authenticated, capturing
+  the requested URL so a direct deep link returns to the same route after
+  sign-in.
+- Never imports `@azure/msal-angular`; consumers depend on the facade only
+  so MSAL stays a swappable adapter.
 
 ## Route Ownership
 

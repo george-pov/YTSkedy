@@ -14,13 +14,21 @@
   border-bottom: 1px solid $app-color-border;
 }
 
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $app-space-4;
+  width: 100%;
+}
+
 .brand {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: $app-space-3;
 
   .mark {
-    display: inline-flex;
+    display: flex;
     width: 2.25rem;
     height: 2.25rem;
     align-items: center;

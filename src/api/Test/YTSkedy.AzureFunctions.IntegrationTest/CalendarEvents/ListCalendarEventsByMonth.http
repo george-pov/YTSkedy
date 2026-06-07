@@ -1,19 +1,49 @@
 ### List calendar events for a month
-# Run Azurite and the Azure Functions host before sending this request.
-# Select the local environment in the Visual Studio HTTP editor.
-# Create at least one June 2026 calendar event first if a non-empty response is needed.
+# Prereqs:
+# - Azurite running and the Azure Functions host started.
+# - The `local` environment is selected in the Visual Studio HTTP editor.
+# - `accessToken` is set in `http-client.env.json.user` (not committed).
+#   See docs/api/development/build-and-test.md, "Acquiring a development
+#   access token".
+# - Create at least one June 2026 calendar event first if a non-empty
+#   response is needed.
 
 GET {{HostAddress}}/api/calendar-events?year=2026&month=6
-x-functions-key: {{FunctionKey}}
+Authorization: Bearer {{accessToken}}
 
 ### List calendar events for a likely empty month
-# The expected response is 200 OK with [] when local storage has no matching rows.
+# Expected response: 200 OK with [] when local storage has no matching rows.
 
 GET {{HostAddress}}/api/calendar-events?year=2099&month=1
-x-functions-key: {{FunctionKey}}
+Authorization: Bearer {{accessToken}}
 
 ### Invalid list query
-# The expected response is 400 Bad Request.
+# Expected response: 400 Bad Request (validation rejects month 13).
+# Authorization still required; without it the auth check returns 401
+# before validation runs.
 
 GET {{HostAddress}}/api/calendar-events?year=2026&month=13
-x-functions-key: {{FunctionKey}}
+Authorization: Bearer {{accessToken}}
+
+### Missing bearer token
+# Expected response: 401 Unauthorized with an empty body
+# (BearerTokenMiddleware short-circuits on AuthenticateAsync failure).
+
+GET {{HostAddress}}/api/calendar-events?year=2026&month=6
+
+### Invalid bearer token
+# Expected response: 401 Unauthorized.
+# Any non-JWT or wrong-signature token fails signature/issuer validation.
+
+GET {{HostAddress}}/api/calendar-events?year=2026&month=6
+Authorization: Bearer not-a-jwt
+
+### Read endpoint with a write-only token
+# Optional: paste a token that only carries the `CalendarEvents.Write`
+# scope into `accessTokenWriteOnly` (set in `http-client.env.json.user`).
+# Expected response: 403 Forbidden (AuthorizationMiddleware short-circuits
+# when the required `CalendarEvents.Read` scope is absent).
+# Skip this request if a write-only token is not available.
+
+GET {{HostAddress}}/api/calendar-events?year=2026&month=6
+Authorization: Bearer {{accessTokenWriteOnly}}

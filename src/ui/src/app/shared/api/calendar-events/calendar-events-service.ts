@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { APP_CONFIG } from 'src/app/shared/config/app-config';
-import { normalizeApiBaseUrl } from 'src/app/shared/config/app-config-loader';
+import { calendarEventsUrl } from './calendar-events-endpoint';
 
 export interface CalendarEvent {
   calendarEventId: string;
@@ -34,13 +34,8 @@ export class CalendarEventsService {
       .set('year', year.toString())
       .set('month', month.toString());
 
-    return this.http.get<CalendarEvent[]>(this.calendarEventsUrl(), { params });
-  }
-
-  private calendarEventsUrl(): string {
-    return new URL(
-      'api/calendar-events',
-      normalizeApiBaseUrl(this.appConfig.api.baseUrl),
-    ).toString();
+    return this.http.get<CalendarEvent[]>(calendarEventsUrl(this.appConfig.api), {
+      params,
+    });
   }
 }

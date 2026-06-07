@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
 import {
   afterEach,
@@ -94,6 +95,26 @@ describe('CalendarEvents', () => {
 
     expect(fixture.nativeElement.textContent).toContain(
       'Calendar events could not be loaded.',
+    );
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
+  });
+
+  it('renders an authorization-specific message on 403', async () => {
+    service.listByMonth.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 403,
+            statusText: 'Forbidden',
+            url: 'https://api.example.test/api/calendar-events',
+          }),
+      ),
+    );
+
+    await createComponent();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'You do not have permission to view calendar events.',
     );
     expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
   });

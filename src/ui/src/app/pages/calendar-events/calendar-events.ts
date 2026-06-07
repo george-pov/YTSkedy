@@ -5,6 +5,7 @@ import {
   type OnInit,
   signal,
 } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { finalize } from 'rxjs';
 
 import {
@@ -37,9 +38,9 @@ export class CalendarEvents implements OnInit {
           this.errorMessage.set(null);
           this.events.set(events);
         },
-        error: () => {
+        error: (error: unknown) => {
           this.events.set([]);
-          this.errorMessage.set('Calendar events could not be loaded.');
+          this.errorMessage.set(describeLoadError(error));
         },
       });
   }
@@ -78,4 +79,17 @@ function formatMonthLabel(query: CalendarMonthQuery): string {
     month: 'long',
     year: 'numeric',
   }).format(new Date(query.year, query.month - 1, 1));
+}
+
+function describeLoadError(error: unknown): string {
+  // 401 is handled centrally by the bearer-token interceptor (interactive
+  // sign-in recovery). If we still surface a 401 to the page, it means
+  // recovery is already in progress or has been skipped to break a loop;
+  // a neutral message is appropriate. 403 indicates the signed-in user
+  // lacks the required scope or app role and re-authenticating will not
+  // change that, so call it out distinctly.
+  if (error instanceof HttpErrorResponse && error.status === 403) {
+    return 'You do not have permission to view calendar events.';
+  }
+  return 'Calendar events could not be loaded.';
 }

@@ -11,28 +11,60 @@ The ignored Azure Functions local settings file is:
 src/api/YTSkedy.AzureFunctions/local.settings.json
 ```
 
+The tracked placeholder template is:
+
+```text
+src/api/YTSkedy.AzureFunctions/local.settings.sample.json
+```
+
+For local development, copy the sample to `local.settings.json` and replace
+every `<placeholder>` value with environment-specific values.
+
 Do not commit OAuth client secrets, refresh tokens, access tokens, API keys,
 storage connection strings for real accounts, or local credential stores.
 
-## Local Debug CORS
+## Entra External ID Settings
 
-For local browser development from the Angular dev server, add local-only CORS
-settings to `src/api/YTSkedy.AzureFunctions/local.settings.json`:
+The Entra External ID authentication configuration uses these local settings
+keys:
 
-```json
-{
-  "Host": {
-    "CORS": "http://localhost:4200,http://127.0.0.1:4200",
-    "CORSCredentials": false
-  }
-}
-```
+| Setting | Classification | Purpose |
+| --- | --- | --- |
+| `Auth:Instance` | Non-secret | Authority instance URL used for Entra metadata. |
+| `Auth:TenantId` | Non-secret | Entra External ID tenant identifier. |
+| `Auth:ClientId` | Non-secret | API app registration client ID and expected token audience. |
+| `Auth:Issuer` | Non-secret | Expected issuer URL when issuer validation needs the exact metadata value. |
+| `Auth:RequiredAppRole` | Non-secret | Required app role value, currently `CalendarEvents.Operator`. |
 
-The same origins can be passed directly when starting the Functions host:
+All `Auth:` keys are non-secret. The API does not require a client secret
+for Entra External ID bearer-token validation. Hosted environments should
+set the same keys through app settings.
 
-```powershell
-func start --port 7087 --cors "http://localhost:4200,http://127.0.0.1:4200"
-```
+Entra External ID quirk: the authority host uses the tenant short subdomain
+(`<tenant>.ciamlogin.com`) while the `iss` claim uses the tenant-GUID
+subdomain. Set `Auth:Issuer` to the verbatim `issuer` value from the user
+flow's **Endpoints** metadata when `Microsoft.Identity.Web`'s derived
+issuer rejects valid tokens.
+
+## CORS
+
+Browser bearer-token calls cross an origin boundary; CORS is enforced in
+worker code (`CorsMiddleware` ahead of `BearerTokenMiddleware`), not via
+the Functions host's `--cors` flag, so preflight `OPTIONS` returns 204
+without invoking the authentication pipeline.
+
+| Setting | Classification | Purpose |
+| --- | --- | --- |
+| `Cors:AllowedOrigins:<index>` | Non-secret | Allow-listed browser origins. Seed `http://localhost:4200` locally; add the deployed SPA origin per environment. |
+
+The policy allows headers `Content-Type, Authorization`, methods
+`GET, POST, OPTIONS`, and does not enable `AllowCredentials`. Disallowed
+origins receive no CORS headers and the browser blocks the call
+client-side.
+
+Do not configure CORS through the Functions host's `Host:CORS` or
+`func start --cors ...`; those paths short-circuit the worker pipeline
+and bypass `CorsMiddleware`'s contract with authentication.
 
 ## Azure Storage
 
@@ -58,10 +90,19 @@ Calendar event table name lookup:
 
 ## Function Authorization
 
-Current HTTP triggers use Azure Functions `Function` authorization level. Local
-manual checks pass the function key with `x-functions-key`.
+Calendar event HTTP triggers run at `AuthorizationLevel.Anonymous`; the
+Functions host no longer gates them. The security boundary is the worker
+pipeline: `Microsoft.Identity.Web` validates the bearer token,
+`[RequiredScope]` enforces the per-endpoint scope, and a workspace-wide
+check enforces the `CalendarEvents.Operator` app role on every protected
+endpoint.
 
-Personal function keys and deployed host URLs belong in
+Local manual checks send `Authorization: Bearer <token>` with an Entra
+External ID access token obtained via the `az`-based recipe in
+`docs/api/development/build-and-test.md`. Function keys do not apply to
+these endpoints; do not pass `x-functions-key`.
+
+Per-contributor bearer tokens and deployed host URLs belong in
 `http-client.env.json.user`, not in tracked `.http` environment files.
 
 ## Production Configuration Requirements

@@ -1,15 +1,20 @@
 ### Create calendar event
-# Run Azurite and the Azure Functions host before sending this request.
-# Select the local environment in the Visual Studio HTTP editor.
-# Change localDateTime after a successful run because the UTC start time is the calendar event ID.
+# Prereqs:
+# - Azurite running and the Azure Functions host started.
+# - The `local` environment is selected in the Visual Studio HTTP editor.
+# - `accessToken` is set in `http-client.env.json.user` (not committed).
+#   See docs/api/development/build-and-test.md, "Acquiring a development
+#   access token".
+# - Change `localDateTime` after a successful run because the UTC start
+#   time is the calendar event ID.
 
 POST {{HostAddress}}/api/calendar-events
 Content-Type: application/json
-x-functions-key: {{FunctionKey}}
+Authorization: Bearer {{accessToken}}
 
 {
   "start": {
-    "localDateTime": "2026-06-06T10:00:00",
+    "localDateTime": "2026-06-07T10:00:00",
     "timeZoneId": "America/Vancouver"
   },
   "descriptions": [
@@ -22,5 +27,59 @@ x-functions-key: {{FunctionKey}}
       "title": "English stream 1",
       "description": "Description for stream 1 in English"
     }
+  ]
+}
+
+### Create calendar event with no bearer token
+# Expected response: 401 Unauthorized with an empty body.
+
+POST {{HostAddress}}/api/calendar-events
+Content-Type: application/json
+
+{
+  "start": {
+    "localDateTime": "2026-06-07T10:00:00",
+    "timeZoneId": "America/Vancouver"
+  },
+  "descriptions": [
+    { "language": "en", "title": "Auth-missing probe" }
+  ]
+}
+
+### Create calendar event with an invalid bearer token
+# Expected response: 401 Unauthorized.
+
+POST {{HostAddress}}/api/calendar-events
+Content-Type: application/json
+Authorization: Bearer not-a-jwt
+
+{
+  "start": {
+    "localDateTime": "2026-06-08T10:00:00",
+    "timeZoneId": "America/Vancouver"
+  },
+  "descriptions": [
+    { "language": "en", "title": "Auth-invalid probe" }
+  ]
+}
+
+### Create calendar event with a read-only token
+# Optional: paste a token that only carries the `CalendarEvents.Read`
+# scope into `accessTokenReadOnly` (set in `http-client.env.json.user`).
+# Expected response: 403 Forbidden (AuthorizationMiddleware short-circuits
+# when the required `CalendarEvents.Write` scope is absent).
+# Skip this request if a read-only token is not available.
+
+POST {{HostAddress}}/api/calendar-events
+Content-Type: application/json
+Authorization: Bearer {{accessTokenReadOnly}}
+
+{
+  "start": {
+    "localDateTime": "2026-06-09T10:00:00",
+    "timeZoneId": "America/Vancouver"
+  },
+  "descriptions": [
+    { "language": "en", "title": "Scope-insufficient probe" }
   ]
 }

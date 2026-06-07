@@ -187,6 +187,21 @@ Do not write CSS layout assertions in unit tests. Use visual review, browser
 tests, or visual regression tooling when layout fidelity needs automated
 coverage.
 
+Do not use exact-string assertions unless the string itself is an app-owned
+contract. Exact-string assertions create maintenance drag: they make harmless
+copy, formatting, punctuation, and wording changes look like behavior
+regressions.
+
+Prefer behavior assertions, structured fields, or short regex matches on stable
+tokens such as route names, field names, status codes, or semantic keywords.
+For error messages, assert that the error is thrown and narrow only when the
+source of the throw is ambiguous:
+
+```typescript
+expect(() => parseAppConfig({})).toThrow();
+expect(() => parseAppConfig({ api: { baseUrl: '' } })).toThrow(/baseUrl/);
+```
+
 ## Review Questions
 
 Before adding or keeping a unit test, ask:
@@ -199,5 +214,6 @@ Before adding or keeping a unit test, ask:
 6. Is jsdom enough, or is this really browser or end-to-end coverage?
 7. Does the assertion inspect generated DOM, visual mapping, or private
    component state?
+8. Does the assertion depend on an exact string that is not a contract?
 
 If a test does not protect a meaningful app behavior or contract, delete it.

@@ -1,10 +1,13 @@
 <div class="layout">
   <app-toolbar class="header" label="Application header">
-    <div class="app-container app-grid content">
+    <div class="app-container header-row">
       <div class="brand">
         <span class="mark" aria-hidden="true">YT</span>
         <span class="name">YTSkedy</span>
       </div>
+      @if (isAuthenticated()) {
+        <app-button appearance="text" (click)="signOut()">Sign out</app-button>
+      }
     </div>
   </app-toolbar>
 

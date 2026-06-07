@@ -43,3 +43,9 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Runtime config (environment-specific). The tracked sample is
+# public/config/app-config.sample.json; copy it to app-config.json and
+# fill in tenant-specific values. See
+# .work/features/006-azure-entra-auth/plan.md Decision #25.
+public/config/app-config.json

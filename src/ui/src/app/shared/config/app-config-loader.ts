@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { inject, Injectable } from '@angular/core';
 
-import { AppConfig } from './app-config';
+import { AppConfig, AuthConfig } from './app-config';
 
 const configPath = 'config/app-config.json';
 
@@ -46,10 +46,13 @@ export function parseAppConfig(value: unknown): AppConfig {
     throw new Error('Runtime config api.baseUrl must be a non-empty string.');
   }
 
+  const auth = parseAuthConfig(value['auth']);
+
   return {
     api: {
       baseUrl: normalizeApiBaseUrl(baseUrl),
     },
+    auth,
   };
 }
 
@@ -57,6 +60,77 @@ export function normalizeApiBaseUrl(baseUrl: string): string {
   const trimmedBaseUrl = baseUrl.trim();
 
   return trimmedBaseUrl.endsWith('/') ? trimmedBaseUrl : `${trimmedBaseUrl}/`;
+}
+
+export function parseAuthConfig(value: unknown): AuthConfig {
+  if (!isRecord(value)) {
+    throw new Error('Runtime config auth must be a JSON object.');
+  }
+
+  const clientId = requireNonEmptyString(value, 'auth.clientId');
+  const authority = requireNonEmptyString(value, 'auth.authority');
+  const knownAuthorities = requireNonEmptyStringArray(
+    value,
+    'auth.knownAuthorities',
+  );
+  const redirectUri = requireNonEmptyString(value, 'auth.redirectUri');
+  const postLogoutRedirectUri = requireNonEmptyString(
+    value,
+    'auth.postLogoutRedirectUri',
+  );
+  const calendarEventsReadScope = requireNonEmptyString(
+    value,
+    'auth.calendarEventsReadScope',
+  );
+  const calendarEventsWriteScope = requireNonEmptyString(
+    value,
+    'auth.calendarEventsWriteScope',
+  );
+
+  return {
+    clientId,
+    authority,
+    knownAuthorities,
+    redirectUri,
+    postLogoutRedirectUri,
+    calendarEventsReadScope,
+    calendarEventsWriteScope,
+  };
+}
+
+function requireNonEmptyString(
+  source: Record<string, unknown>,
+  path: string,
+): string {
+  const key = path.substring(path.indexOf('.') + 1);
+  const raw = source[key];
+
+  if (typeof raw !== 'string' || raw.trim().length === 0) {
+    throw new Error(`Runtime config ${path} must be a non-empty string.`);
+  }
+
+  return raw.trim();
+}
+
+function requireNonEmptyStringArray(
+  source: Record<string, unknown>,
+  path: string,
+): string[] {
+  const key = path.substring(path.indexOf('.') + 1);
+  const raw = source[key];
+
+  if (!Array.isArray(raw) || raw.length === 0) {
+    throw new Error(`Runtime config ${path} must be a non-empty array.`);
+  }
+
+  return raw.map((entry, index) => {
+    if (typeof entry !== 'string' || entry.trim().length === 0) {
+      throw new Error(
+        `Runtime config ${path}[${index}] must be a non-empty string.`,
+      );
+    }
+    return entry.trim();
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

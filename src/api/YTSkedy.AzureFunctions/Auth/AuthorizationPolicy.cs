@@ -1,0 +1,121 @@
+using System.Reflection;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Identity.Web.Resource;
+
+namespace YTSkedy.AzureFunctions.Auth;
+
+/// <summary>
+/// Pure scope/role authorization logic for HTTP-triggered functions.
+/// Lives separate from <see cref="AuthorizationMiddleware"/> so it can be
+/// tested directly against a synthesized <see cref="ClaimsPrincipal"/>
+/// without booting the Functions worker, mirroring the
+/// <c>CorsPolicy</c>/<c>CorsMiddleware</c> split.
+/// </summary>
+public static class AuthorizationPolicy
+{
+    // Entra emits delegated scopes in the short JWT claim `scp`. Some
+    // legacy paths (and Microsoft.Identity.Web's claim mapping) surface
+    // the same value under the long schema URL; honor both.
+    private const string ScopeSchemaClaim = "http://schemas.microsoft.com/identity/claims/scope";
+
+    /// <summary>
+    /// Resolves accepted scopes and the opt-out marker from
+    /// <paramref name="method"/> and delegates to the primitive overload.
+    /// Deny by default: a null method (entry point could not be resolved)
+    /// or a method without <see cref="AllowAnonymousAttribute"/> is still
+    /// subject to the role check.
+    /// </summary>
+    public static AuthorizationOutcome Evaluate(
+        MethodInfo? method,
+        string requiredRole,
+        ClaimsPrincipal user)
+    {
+        if (method?.GetCustomAttribute<AllowAnonymousAttribute>() is not null)
+        {
+            return AuthorizationOutcome.Allow;
+        }
+
+        var acceptedScopes =
+            method?.GetCustomAttribute<RequiredScopeAttribute>()?.AcceptedScope ?? [];
+
+        return Evaluate(acceptedScopes, requiredRole, user);
+    }
+
+    /// <summary>
+    /// Decides whether <paramref name="user"/> may invoke an endpoint
+    /// whose <c>[RequiredScope]</c> accepts any of
+    /// <paramref name="acceptedScopes"/> and whose workspace-wide
+    /// app-role requirement is <paramref name="requiredRole"/>.
+    /// </summary>
+    public static AuthorizationOutcome Evaluate(
+        IReadOnlyCollection<string> acceptedScopes,
+        string requiredRole,
+        ClaimsPrincipal user)
+    {
+        if (!UserHasAnyScope(user, acceptedScopes))
+        {
+            return AuthorizationOutcome.InsufficientScope;
+        }
+
+        if (!UserHasRole(user, requiredRole))
+        {
+            return AuthorizationOutcome.MissingRole;
+        }
+
+        return AuthorizationOutcome.Allow;
+    }
+
+    private static bool UserHasAnyScope(ClaimsPrincipal user, IReadOnlyCollection<string> required)
+    {
+        if (required.Count == 0)
+        {
+            return true;
+        }
+
+        var scopes = GetScopeClaims(user);
+        return required.Any(scopes.Contains);
+    }
+
+    private static HashSet<string> GetScopeClaims(ClaimsPrincipal user)
+    {
+        var scopes = new HashSet<string>(StringComparer.Ordinal);
+        AddSpaceSeparated(scopes, user.FindFirst("scp")?.Value);
+        AddSpaceSeparated(scopes, user.FindFirst(ScopeSchemaClaim)?.Value);
+        return scopes;
+    }
+
+    private static void AddSpaceSeparated(HashSet<string> sink, string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return;
+        }
+
+        foreach (var token in raw.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            sink.Add(token);
+        }
+    }
+
+    private static bool UserHasRole(ClaimsPrincipal user, string requiredRole)
+    {
+        if (string.IsNullOrWhiteSpace(requiredRole))
+        {
+            return true;
+        }
+
+        // Microsoft.Identity.Web maps `roles` to ClaimTypes.Role so IsInRole
+        // works in production, but check the raw claim too in case the
+        // mapping is suppressed by host configuration.
+        return user.IsInRole(requiredRole)
+            || user.FindAll("roles").Any(claim => string.Equals(claim.Value, requiredRole, StringComparison.Ordinal));
+    }
+}
+
+public enum AuthorizationOutcome
+{
+    Allow,
+    InsufficientScope,
+    MissingRole,
+}

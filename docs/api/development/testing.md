@@ -35,8 +35,11 @@ framework wiring.
   checks. They are not executed by `dotnet test`.
 - Use Azurite for local Azure Table Storage checks unless a real storage
   account has been explicitly selected for the run.
-- Keep deployed host URLs, function keys, and other personal HTTP environment
-  values in `http-client.env.json.user`, not in tracked environment files.
+- Keep deployed host URLs, bearer access tokens, and other personal HTTP
+  environment values in `http-client.env.json.user`, not in tracked
+  environment files. Calendar event endpoints no longer accept
+  `x-functions-key`; use `Authorization: Bearer <token>` (see
+  [`build-and-test.md`](build-and-test.md)).
 - Do not create, update, or delete real YouTube resources by default.
 - Use local emulators, fakes, or explicitly approved test resources for
   integration coverage.

@@ -1,0 +1,14 @@
+{
+  "_comment": "Tracked sample for src/api/YTSkedy.AzureFunctions/local.settings.json. Copy this file to local.settings.json (gitignored) and replace <placeholders> with environment-specific values. See docs/api/configuration.md for key classifications. All Auth keys below are non-secret for the Entra External ID authentication configuration; no client secret is required.",
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "Auth:Instance": "https://<tenantSubdomain>.ciamlogin.com/",
+    "Auth:TenantId": "<tenant-id-guid>",
+    "Auth:ClientId": "<api-app-client-id-guid>",
+    "Auth:Issuer": "https://<tenant-id-guid>.ciamlogin.com/<tenant-id-guid>/v2.0",
+    "Auth:RequiredAppRole": "CalendarEvents.Operator",
+    "Cors:AllowedOrigins:0": "http://localhost:4200"
+  }
+}

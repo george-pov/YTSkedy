@@ -7,6 +7,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { APP_CONFIG } from 'src/app/shared/config/app-config';
+import { testAppConfig } from 'src/app/shared/config/testing/app-config.fixture';
 import {
   CalendarEvent,
   CalendarEventsService,
@@ -23,11 +24,9 @@ describe('CalendarEventsService', () => {
         provideHttpClientTesting(),
         {
           provide: APP_CONFIG,
-          useValue: {
-            api: {
-              baseUrl: 'https://api.example.test',
-            },
-          },
+          useValue: testAppConfig({
+            api: { baseUrl: 'https://api.example.test' },
+          }),
         },
       ],
     });

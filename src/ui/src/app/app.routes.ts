@@ -3,6 +3,10 @@ import { Routes } from '@angular/router';
 import { AppLayout } from './layout/app-layout/app-layout';
 import { CalendarEvents } from './pages/calendar-events/calendar-events';
 import { ComponentLab } from './pages/component-lab/component-lab';
+import { Home } from './pages/home/home';
+import { SignedOut } from './pages/signed-out/signed-out';
+import { authenticatedGuard } from './shared/auth/authenticated-guard';
+import { redirectAuthenticatedGuard } from './shared/auth/redirect-authenticated-guard';
 
 export const routes: Routes = [
   {
@@ -11,12 +15,19 @@ export const routes: Routes = [
     children: [
       {
         path: '',
-        component: CalendarEvents,
+        component: Home,
         pathMatch: 'full',
+        canActivate: [redirectAuthenticatedGuard],
       },
       {
         path: 'calendar-events',
         component: CalendarEvents,
+        canActivate: [authenticatedGuard],
+      },
+      {
+        path: 'signed-out',
+        component: SignedOut,
+        canActivate: [redirectAuthenticatedGuard],
       },
       {
         path: 'component-lab',

@@ -70,12 +70,12 @@ $app-layout-spaces: (
   gap: var(--app-actions-gap, #{$app-space-4});
 }
 
-.app-actions--end {
+.app-actions-end {
   justify-content: flex-end;
 }
 
 @media (max-width: ($app-breakpoint-sm - 1px)) {
-  .app-actions--stack-mobile {
+  .app-actions-stack-mobile {
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
