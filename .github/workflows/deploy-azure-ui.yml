@@ -1,0 +1,236 @@
+name: Deploy Azure UI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      github_environment:
+        description: GitHub Environment containing the Azure deployment variables.
+        required: true
+        default: production
+        type: environment
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-azure-ui-${{ github.ref }}-${{ github.event.inputs.github_environment || 'production' }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 24.x
+  NPM_VERSION: 11.13.0
+  UI_WORKSPACE_PATH: src/ui
+  UI_BUILD_OUTPUT_PATH: src/ui/dist/ytskedy-ui/browser
+  DEPLOY_PACKAGE_PATH: build/deploy/ytskedy-ui
+  DEPLOY_ARTIFACT_NAME: ytskedy-ui-static-site
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: src/ui/package-lock.json
+
+      - name: Install npm
+        shell: bash
+        run: |
+          current_version="$(npm --version)"
+          if [ "$current_version" != "$NPM_VERSION" ]; then
+            npm install --global "npm@$NPM_VERSION"
+          fi
+
+      - name: Install dependencies
+        working-directory: ${{ env.UI_WORKSPACE_PATH }}
+        run: npm ci
+
+      - name: Build UI
+        working-directory: ${{ env.UI_WORKSPACE_PATH }}
+        run: npm run build
+
+      - name: Run UI tests
+        working-directory: ${{ env.UI_WORKSPACE_PATH }}
+        run: npm test
+
+      - name: Verify build output
+        shell: bash
+        run: |
+          if [ ! -f "${UI_BUILD_OUTPUT_PATH}/index.html" ]; then
+            echo "::error::${UI_BUILD_OUTPUT_PATH}/index.html was not created."
+            exit 1
+          fi
+
+      - name: Upload deployment package
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.DEPLOY_ARTIFACT_NAME }}
+          path: ${{ env.UI_BUILD_OUTPUT_PATH }}
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: ${{ github.event.inputs.github_environment || 'production' }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Download deployment package
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.DEPLOY_ARTIFACT_NAME }}
+          path: ${{ env.DEPLOY_PACKAGE_PATH }}
+
+      - name: Verify deployment variables
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          AZURE_UI_RESOURCE_GROUP: ${{ vars.AZURE_UI_RESOURCE_GROUP }}
+          AZURE_UI_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_UI_STORAGE_ACCOUNT_NAME }}
+          AZURE_UI_STATIC_WEBSITE_URL: ${{ vars.AZURE_UI_STATIC_WEBSITE_URL }}
+          UI_APP_CONFIG_JSON: ${{ vars.UI_APP_CONFIG_JSON }}
+        run: |
+          missing=0
+          for name in \
+            AZURE_CLIENT_ID \
+            AZURE_TENANT_ID \
+            AZURE_SUBSCRIPTION_ID \
+            AZURE_UI_RESOURCE_GROUP \
+            AZURE_UI_STORAGE_ACCOUNT_NAME \
+            AZURE_UI_STATIC_WEBSITE_URL \
+            UI_APP_CONFIG_JSON
+          do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not configured in this GitHub Environment."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Log in to Azure
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Write runtime config
+        shell: bash
+        env:
+          UI_APP_CONFIG_JSON: ${{ vars.UI_APP_CONFIG_JSON }}
+        run: |
+          config_path="${DEPLOY_PACKAGE_PATH}/config/app-config.json"
+          mkdir -p "$(dirname "$config_path")"
+          printf '%s\n' "$UI_APP_CONFIG_JSON" > "$config_path"
+          rm -f "${DEPLOY_PACKAGE_PATH}/config/app-config.sample.json"
+          node -e "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'))" "$config_path"
+          CONFIG_PATH="$config_path" node <<'NODE'
+          const fs = require('fs');
+          const config = fs.readFileSync(process.env.CONFIG_PATH, 'utf8');
+          const forbiddenPatterns = [
+            /x-functions-key/i,
+            /client_secret/i,
+            /access_token/i,
+            /refresh_token/i,
+            /DefaultEndpointsProtocol=/i,
+            /AccountKey=/i,
+            /SharedAccessSignature=/i,
+            /Bearer\s+/i
+          ];
+          if (forbiddenPatterns.some((pattern) => pattern.test(config))) {
+            console.error('Runtime config contains a forbidden secret-like value.');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Verify deployment package
+        shell: bash
+        run: |
+          if [ ! -f "${DEPLOY_PACKAGE_PATH}/index.html" ]; then
+            echo "::error::${DEPLOY_PACKAGE_PATH}/index.html is missing."
+            exit 1
+          fi
+
+          if [ ! -f "${DEPLOY_PACKAGE_PATH}/config/app-config.json" ]; then
+            echo "::error::${DEPLOY_PACKAGE_PATH}/config/app-config.json is missing."
+            exit 1
+          fi
+
+      - name: Clear static website container
+        shell: bash
+        env:
+          AZURE_UI_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_UI_STORAGE_ACCOUNT_NAME }}
+        run: |
+          az storage blob delete-batch \
+            --account-name "$AZURE_UI_STORAGE_ACCOUNT_NAME" \
+            --source '$web' \
+            --auth-mode login \
+            --only-show-errors
+
+      - name: Upload versioned assets
+        shell: bash
+        env:
+          AZURE_UI_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_UI_STORAGE_ACCOUNT_NAME }}
+        run: |
+          while IFS= read -r -d '' file; do
+            relative_path="${file#${DEPLOY_PACKAGE_PATH}/}"
+            content_type="$(python3 -c "import mimetypes, sys; print(mimetypes.guess_type(sys.argv[1])[0] or 'application/octet-stream')" "$file")"
+            az storage blob upload \
+              --account-name "$AZURE_UI_STORAGE_ACCOUNT_NAME" \
+              --container-name '$web' \
+              --name "$relative_path" \
+              --file "$file" \
+              --auth-mode login \
+              --overwrite true \
+              --content-type "$content_type" \
+              --content-cache-control "public, max-age=31536000, immutable" \
+              --only-show-errors
+          done < <(find "$DEPLOY_PACKAGE_PATH" -type f ! -name 'index.html' ! -path "${DEPLOY_PACKAGE_PATH}/config/app-config.json" -print0)
+
+      - name: Upload runtime config
+        shell: bash
+        env:
+          AZURE_UI_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_UI_STORAGE_ACCOUNT_NAME }}
+        run: |
+          az storage blob upload \
+            --account-name "$AZURE_UI_STORAGE_ACCOUNT_NAME" \
+            --container-name '$web' \
+            --name "config/app-config.json" \
+            --file "${DEPLOY_PACKAGE_PATH}/config/app-config.json" \
+            --auth-mode login \
+            --overwrite true \
+            --content-type "application/json" \
+            --content-cache-control "no-cache, no-store, must-revalidate" \
+            --only-show-errors
+
+      - name: Upload index document
+        shell: bash
+        env:
+          AZURE_UI_STORAGE_ACCOUNT_NAME: ${{ vars.AZURE_UI_STORAGE_ACCOUNT_NAME }}
+        run: |
+          az storage blob upload \
+            --account-name "$AZURE_UI_STORAGE_ACCOUNT_NAME" \
+            --container-name '$web' \
+            --name "index.html" \
+            --file "${DEPLOY_PACKAGE_PATH}/index.html" \
+            --auth-mode login \
+            --overwrite true \
+            --content-type "text/html; charset=utf-8" \
+            --content-cache-control "no-cache, no-store, must-revalidate" \
+            --only-show-errors
