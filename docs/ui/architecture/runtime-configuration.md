@@ -37,9 +37,11 @@ Copy-Item src/ui/public/config/app-config.sample.json `
           src/ui/public/config/app-config.json
 ```
 
-The deployed environment supplies its own `app-config.json` during release
-(see "Environment Templates" below); the gitignored local copy is never
-shipped.
+The deployed environment supplies its own `app-config.json` during release.
+For the Azure Storage deployment, GitHub stores the complete file content in
+the `UI_APP_CONFIG_JSON` Environment variable. The deployment workflow writes
+that value to the built artifact before upload. The gitignored local copy is
+never committed.
 
 Angular serves files from `public/` as static assets. At runtime the app
 loads:
@@ -76,26 +78,24 @@ External ID browser settings:
 `api.baseUrl` and every `auth` value shown above are required. The app should
 fail startup if the config file is missing or invalid.
 
-## Environment Templates
+## Deployment Source
 
-When multiple deployment targets exist, keep templates outside `public/`:
+The current production deployment does not use multiple tracked environment
+templates. GitHub owns the complete deployed runtime config value:
 
 ```text
-src/ui/config/environments/app-config.dev.json
-src/ui/config/environments/app-config.qa.json
-src/ui/config/environments/app-config.prod.json
+UI_APP_CONFIG_JSON
 ```
 
-Only the active `app-config.json` under `public/config/` should be served by the
-running app. Deployment should copy the correct environment config to the built
-asset location:
+The workflow writes that value as-is to the built asset location:
 
 ```text
 src/ui/dist/ytskedy-ui/browser/config/app-config.json
 ```
 
-Use the same Angular build artifact for each environment when possible. Change
-only `app-config.json` during release or deployment.
+Only the active `app-config.json` under `public/config/` or the deployed
+`config/app-config.json` should be served by the running app. Do not ship
+`app-config.sample.json` in the deployed static website.
 
 ## Angular Boundary
 
@@ -116,7 +116,7 @@ When a new deploy-specific setting is needed:
 1. Add the property to `AppConfig` or a nested config interface.
 2. Update loader validation so required values fail fast at startup.
 3. Update `src/ui/public/config/app-config.sample.json`.
-4. Update every template under `src/ui/config/environments/`.
+4. Update the GitHub `UI_APP_CONFIG_JSON` value for deployed environments.
 5. Inject the typed config boundary from application or service code.
 6. Add or update focused tests for the loader and consuming service.
 
