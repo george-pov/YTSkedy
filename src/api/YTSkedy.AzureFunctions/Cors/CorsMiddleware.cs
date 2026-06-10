@@ -41,6 +41,7 @@ internal sealed class CorsMiddleware : IFunctionsWorkerMiddleware
             // Always answer preflight ourselves so it does not flow into
             // BearerTokenMiddleware, which would reject the unauthenticated
             // OPTIONS call with 401.
+            await httpContext.Response.CompleteAsync();
             return;
         }
 
