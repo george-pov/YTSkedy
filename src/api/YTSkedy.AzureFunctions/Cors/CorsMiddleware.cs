@@ -3,6 +3,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.Options;
+using System.Net;
 
 namespace YTSkedy.AzureFunctions.Cors;
 
@@ -41,7 +42,16 @@ internal sealed class CorsMiddleware : IFunctionsWorkerMiddleware
             // Always answer preflight ourselves so it does not flow into
             // BearerTokenMiddleware, which would reject the unauthenticated
             // OPTIONS call with 401.
-            await httpContext.Response.CompleteAsync();
+            var requestData = await context.GetHttpRequestDataAsync();
+            if (requestData is not null)
+            {
+                var responseData = requestData.CreateResponse(HttpStatusCode.NoContent);
+                foreach (var header in httpContext.Response.Headers)
+                {
+                    responseData.Headers.Add(header.Key, header.Value.ToArray());
+                }
+                context.GetInvocationResult().Value = responseData;
+            }
             return;
         }
 
