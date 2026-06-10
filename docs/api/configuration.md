@@ -48,23 +48,52 @@ issuer rejects valid tokens.
 
 ## CORS
 
-Browser bearer-token calls cross an origin boundary; CORS is enforced in
-worker code (`CorsMiddleware` ahead of `BearerTokenMiddleware`), not via
-the Functions host's `--cors` flag, so preflight `OPTIONS` returns 204
-without invoking the authentication pipeline.
+Browser bearer-token calls cross an origin boundary. CORS for the deployed
+API is owned by Azure Functions platform CORS, not by API worker code and not
+by deployment workflows. The worker no longer contains CORS middleware,
+options, or a policy. Authentication and authorization remain API-owned; the
+platform handles preflight `OPTIONS` and the `Access-Control-Allow-*`
+response headers.
 
-| Setting | Classification | Purpose |
-| --- | --- | --- |
-| `Cors:AllowedOrigins:<index>` | Non-secret | Allow-listed browser origins. Seed `http://localhost:4200` locally; add the deployed SPA origin per environment. |
+Platform CORS is managed manually in Azure. Deployment workflows must not add,
+remove, or update CORS settings, and the Function App app settings must not
+contain `Cors__AllowedOrigins__*` entries.
 
-The policy allows headers `Content-Type, Authorization`, methods
-`GET, POST, OPTIONS`, and does not enable `AllowCredentials`. Disallowed
-origins receive no CORS headers and the browser blocks the call
-client-side.
+Allowed origins:
 
-Do not configure CORS through the Functions host's `Host:CORS` or
-`func start --cors ...`; those paths short-circuit the worker pipeline
-and bypass `CorsMiddleware`'s contract with authentication.
+| Origin | Purpose |
+| --- | --- |
+| `http://localhost:4200` | Local Angular dev server. |
+| `http://127.0.0.1:4201` | Local UI end-to-end test origin. |
+| `<deployed-ui-origin>` | Deployed static website UI origin. |
+
+Credentials behavior stays at the Azure default (`supportCredentials` is
+`false`). Disallowed origins receive no `Access-Control-Allow-Origin` header,
+so the browser blocks the call client-side.
+
+Inspect and verify platform CORS with the Azure CLI:
+
+```powershell
+az functionapp cors show --name <function-app-name> --resource-group <resource-group> -o json
+```
+
+Add or remove an origin manually when the allow-list changes:
+
+```powershell
+az functionapp cors add --name <function-app-name> --resource-group <resource-group> `
+  --allowed-origins "<origin without trailing slash>"
+
+az functionapp cors remove --name <function-app-name> --resource-group <resource-group> `
+  --allowed-origins "<origin without trailing slash>"
+```
+
+Environment-specific resource names and the deployed UI origin are recorded in
+the local-only UI deployment operations runbook, not in durable documentation.
+
+For local development with the Functions host, pass origins to
+`func start --cors`; see
+[`development/build-and-test.md`](development/build-and-test.md). Platform
+CORS does not apply to the local `func` host.
 
 ## Azure Storage
 

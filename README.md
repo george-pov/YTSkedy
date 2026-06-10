@@ -51,4 +51,3 @@ This README is the human developer table of contents for durable docs.
 - UI build and test commands: [`docs/ui/development/build-and-test.md`](docs/ui/development/build-and-test.md)
 - UI unit testing: [`docs/ui/development/unit-testing.md`](docs/ui/development/unit-testing.md)
 - UI end-to-end testing: [`docs/ui/development/end-to-end-testing.md`](docs/ui/development/end-to-end-testing.md)
-- UI deployment: [`docs/ui/operations/deployment.md`](docs/ui/operations/deployment.md)

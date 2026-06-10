@@ -62,8 +62,15 @@ dotnet build src/api/YTSkedy.slnx
 
 ```powershell
 cd src/api/YTSkedy.AzureFunctions
-func start --port 7087 --cors "http://localhost:4200,http://127.0.0.1:4200"
+func start --port 7087 --cors "http://localhost:4200,http://127.0.0.1:4201"
 ```
+
+The deployed API uses Azure Functions platform CORS (see
+[`../configuration.md`](../configuration.md)). Platform CORS does not apply to
+the local `func` host, so pass the browser origins you develop against to
+`func start --cors`. Use the same origins the platform allow-list carries
+(`http://localhost:4200` for the dev server and `http://127.0.0.1:4201` for
+end-to-end runs) so local and deployed behavior match.
 
 For Azurite, set `AzureWebJobsStorage` to `UseDevelopmentStorage=true` in
 `src/api/YTSkedy.AzureFunctions/local.settings.json`. That file is ignored and

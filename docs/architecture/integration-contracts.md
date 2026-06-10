@@ -53,6 +53,11 @@ Azure Functions worker pipeline (not the Functions host key check).
 The UI maps `401` to a sign-in recovery flow and `403` to an authorization
 message; the interceptor avoids infinite interactive-auth loops.
 
+Cross-origin access is a separate concern owned by infrastructure, not the API
+auth contract. CORS for the deployed API is configured in Azure Functions
+platform CORS and managed manually; `401` and `403` behavior stays API-owned.
+See [`../api/configuration.md`](../api/configuration.md) for the CORS model.
+
 For backend validation internals and tenant configuration constraints (Entra
 External ID issuer-host quirk, allow-list via Enterprise App Assignment
 required), see [`../api/configuration.md`](../api/configuration.md).

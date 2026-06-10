@@ -7,7 +7,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Logging;
 using YTSkedy.AzureFunctions.Auth;
-using YTSkedy.AzureFunctions.Cors;
 using YTSkedy.Infrastructure.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 
@@ -22,10 +21,6 @@ IdentityModelEventSource.LogCompleteSecurityArtifact = false;
 
 builder.ConfigureFunctionsWebApplication();
 
-// CORS runs first so preflight OPTIONS short-circuits with 204 before the
-// bearer-token check rejects the unauthenticated preflight as 401
-// (Decision #23, T029a).
-builder.UseMiddleware<CorsMiddleware>();
 builder.UseMiddleware<BearerTokenMiddleware>();
 builder.UseMiddleware<AuthorizationMiddleware>();
 
@@ -36,12 +31,6 @@ builder.Services
 builder.Services
     .AddOptions<AuthOptions>()
     .Bind(builder.Configuration.GetSection(AuthOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services
-    .AddOptions<CorsOptions>()
-    .Bind(builder.Configuration.GetSection(CorsOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
