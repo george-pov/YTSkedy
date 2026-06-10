@@ -8,7 +8,6 @@
     "Auth:TenantId": "<tenant-id-guid>",
     "Auth:ClientId": "<api-app-client-id-guid>",
     "Auth:Issuer": "https://<tenant-id-guid>.ciamlogin.com/<tenant-id-guid>/v2.0",
-    "Auth:RequiredAppRole": "CalendarEvents.Operator",
-    "Cors:AllowedOrigins:0": "http://localhost:4200"
+    "Auth:RequiredAppRole": "CalendarEvents.Operator"
   }
 }
