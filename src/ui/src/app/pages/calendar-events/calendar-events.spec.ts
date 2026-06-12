@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
+import { provideRouter, Router } from '@angular/router';
 import { Observable, of, throwError } from 'rxjs';
 import {
   afterEach,
@@ -24,11 +25,13 @@ describe('CalendarEvents', () => {
       (year: number, month: number) => Observable<CalendarEvent[]>
     >;
   };
+  let navigations: string[];
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-06-05T12:00:00Z'));
 
+    navigations = [];
     service = {
       listByMonth: vi.fn<
         (year: number, month: number) => Observable<CalendarEvent[]>
@@ -119,16 +122,36 @@ describe('CalendarEvents', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
   });
 
+  it('navigates to the create form when "Add new event" is clicked', async () => {
+    service.listByMonth.mockReturnValue(of([]));
+
+    await createComponent();
+
+    const addButton = fixture.nativeElement.querySelector('.add-new-button');
+    expect(addButton).not.toBeNull();
+
+    addButton.dispatchEvent(new Event('click'));
+
+    expect(navigations).toEqual(['/calendar-events/new']);
+  });
+
   async function createComponent(): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [CalendarEvents],
       providers: [
+        provideRouter([]),
         {
           provide: CalendarEventsService,
           useValue: service,
         },
       ],
     }).compileComponents();
+
+    const router = TestBed.inject(Router);
+    router.navigateByUrl = ((url: string) => {
+      navigations.push(url);
+      return Promise.resolve(true);
+    }) as Router['navigateByUrl'];
 
     fixture = TestBed.createComponent(CalendarEvents);
     fixture.detectChanges();

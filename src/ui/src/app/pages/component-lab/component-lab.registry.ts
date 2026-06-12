@@ -1,6 +1,7 @@
 import { Type } from '@angular/core';
 
 import { ButtonLab } from './button-lab/button-lab';
+import { FormControlsLab } from './form-controls-lab/form-controls-lab';
 import { ToolbarLab } from './toolbar-lab/toolbar-lab';
 
 export interface ComponentLabItem {
@@ -16,5 +17,9 @@ export const componentLabItems: readonly ComponentLabItem[] = [
   {
     label: 'Button',
     component: ButtonLab,
+  },
+  {
+    label: 'Form Controls',
+    component: FormControlsLab,
   },
 ];

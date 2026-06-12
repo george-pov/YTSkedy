@@ -1,0 +1,30 @@
+<app-lab-page titleId="form-controls-lab-title" title="Form Controls">
+  <app-lab-example titleId="form-controls-date-example-title" title="Date">
+    <app-date [control]="dateControl" label="Start date" [errorMessages]="dateErrors" />
+    <app-date
+      [control]="requiredDateControl"
+      label="Start date (required, invalid)"
+      [errorMessages]="dateErrors" />
+  </app-lab-example>
+  <app-lab-example titleId="form-controls-time-example-title" title="Time">
+    <app-time [control]="timeControl" label="Start time" [errorMessages]="timeErrors" />
+    <app-time
+      [control]="requiredTimeControl"
+      label="Start time (required, invalid)"
+      [errorMessages]="timeErrors" />
+  </app-lab-example>
+  <app-lab-example titleId="form-controls-select-example-title" title="Select">
+    <app-select
+      [control]="timeZoneControl"
+      label="Time zone"
+      [options]="timeZoneOptions"
+      [required]="true"
+      [errorMessages]="timeZoneErrors" />
+    <app-select
+      [control]="requiredTimeZoneControl"
+      label="Time zone (required, invalid)"
+      [options]="timeZoneOptions"
+      [required]="true"
+      [errorMessages]="timeZoneErrors" />
+  </app-lab-example>
+</app-lab-page>

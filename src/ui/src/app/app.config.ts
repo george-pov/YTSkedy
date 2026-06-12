@@ -45,7 +45,7 @@ export function msalInstanceFactory(
         piiLoggingEnabled: false,
         logLevel: LogLevel.Warning,
         loggerCallback: () => {
-          // T014/Decision: do not forward MSAL log messages anywhere.
+          // do not forward MSAL log messages anywhere.
           // piiLoggingEnabled + LogLevel.Warning already gate PII and verbose
           // output, but an explicit no-op callback prevents future MSAL
           // versions from accidentally writing to console.* and removes the

@@ -13,6 +13,12 @@ Current implemented HTTP surface:
 - `POST /api/calendar-events`
 - `GET /api/calendar-events?year={year}&month={month}`
 
+Both endpoints are now consumed by the UI: the `CalendarEvents` list page calls
+the `GET` endpoint, and the `CalendarEventDetails` create form
+(`/calendar-events/new`) calls the `POST` endpoint with a body of
+`{ start: { localDateTime, timeZoneId }, descriptions: [{ language, title, description? }] }`
+and reads `{ calendarEventId }` from the response.
+
 The UI must treat API request and response shapes as integration contracts.
 When a contract changes, update:
 

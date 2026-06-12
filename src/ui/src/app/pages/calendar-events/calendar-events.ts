@@ -12,15 +12,19 @@ import {
   CalendarEvent,
   CalendarEventsService,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import { Button } from "src/app/shared/components/button/button";
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-calendar-events',
-  imports: [],
+  imports: [Button],
   templateUrl: './calendar-events.html',
   styleUrl: './calendar-events.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CalendarEvents implements OnInit {
+
+  private readonly router = inject(Router);
   private readonly calendarEventsService = inject(CalendarEventsService);
   private readonly monthQuery = getCurrentMonthQuery();
 
@@ -43,6 +47,10 @@ export class CalendarEvents implements OnInit {
           this.errorMessage.set(describeLoadError(error));
         },
       });
+  }
+
+  protected addNewEvent() {
+    this.router.navigateByUrl('/calendar-events/new');
   }
 
   protected describeEvent(event: CalendarEvent): string {

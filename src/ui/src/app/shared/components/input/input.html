@@ -1,0 +1,13 @@
+<mat-form-field appearance="outline">
+  @if (label()) {
+    <mat-label>{{ label() }}</mat-label>
+  }
+  <input
+    matInput
+    [type]="type()"
+    [formControl]="control()"
+    [placeholder]="placeholder()">
+  @if (currentErrorMessage(); as message) {
+    <mat-error>{{ message }}</mat-error>
+  }
+</mat-form-field>

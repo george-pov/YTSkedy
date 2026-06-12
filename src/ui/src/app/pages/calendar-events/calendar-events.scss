@@ -10,8 +10,16 @@
 
 .header {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  .header-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
 
   h1,
   p {

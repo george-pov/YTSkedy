@@ -22,6 +22,26 @@ export interface CalendarEventDescription {
   description: string | null;
 }
 
+export interface CreateCalendarEventRequest {
+  start: ScheduledStart;
+  descriptions: LocalizedDescription[];
+}
+
+export interface ScheduledStart {
+  localDateTime: string;
+  timeZoneId: string;
+}
+
+export interface LocalizedDescription {
+  language: string;
+  title: string;
+  description?: string;
+}
+
+export interface CreateCalendarEventResponse {
+  calendarEventId: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -37,5 +57,14 @@ export class CalendarEventsService {
     return this.http.get<CalendarEvent[]>(calendarEventsUrl(this.appConfig.api), {
       params,
     });
+  }
+
+  create(
+    request: CreateCalendarEventRequest,
+  ): Observable<CreateCalendarEventResponse> {
+    return this.http.post<CreateCalendarEventResponse>(
+      calendarEventsUrl(this.appConfig.api),
+      request,
+    );
   }
 }

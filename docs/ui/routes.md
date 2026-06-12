@@ -18,6 +18,7 @@ src/ui/src/app/layout/app-layout/
 | --- | --- | --- |
 | `/` | Public | Renders `Home` with a sign-in button. Auto-redirects signed-in visitors to `/calendar-events`. |
 | `/calendar-events` | Protected | Renders `CalendarEvents` and loads the current browser month. Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`. |
+| `/calendar-events/new` | Protected | Renders `CalendarEventDetails`, a reactive form that creates an event via `POST /api/calendar-events` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
 | `/signed-out` | Public | Renders post-logout confirmation. Auto-redirects already-authenticated visitors to `/calendar-events`. |
 | `/component-lab` | Public | Renders the minimal component lab page for manually demoing shared UI components. |
 | `**` | Public | Redirects to `/`. |
@@ -30,6 +31,12 @@ YTSkedy-owned `AuthFacade` and bearer interceptor (see
 [`../architecture/integration-contracts.md`](../architecture/integration-contracts.md)).
 Richer calendar navigation and scheduling workflow behavior remain required
 before the route is product-complete.
+
+The `CalendarEventDetails` page calls `POST /api/calendar-events` through the
+same shared API service and bearer interceptor, then navigates back to
+`/calendar-events` on success. An event created outside the current browser
+month does not appear in the list immediately, which is a known limitation
+until month navigation lands.
 
 ## Route Protection
 

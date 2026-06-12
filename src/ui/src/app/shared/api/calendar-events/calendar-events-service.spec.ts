@@ -11,6 +11,8 @@ import { testAppConfig } from 'src/app/shared/config/testing/app-config.fixture'
 import {
   CalendarEvent,
   CalendarEventsService,
+  CreateCalendarEventRequest,
+  CreateCalendarEventResponse,
 } from './calendar-events-service';
 
 describe('CalendarEventsService', () => {
@@ -71,5 +73,45 @@ describe('CalendarEventsService', () => {
     request.flush(apiResponse);
 
     expect(actualEvents).toEqual(apiResponse);
+  });
+
+  it('posts a create request to the calendar events endpoint and returns the API response', () => {
+    const createRequest: CreateCalendarEventRequest = {
+      start: {
+        localDateTime: '2026-06-06T10:00:00',
+        timeZoneId: 'America/Vancouver',
+      },
+      descriptions: [
+        {
+          language: 'en',
+          title: 'English stream 1',
+          description: 'Description for stream 1 in English',
+        },
+        {
+          language: 'ru',
+          title: 'Russian stream 1',
+          description: 'Description for stream 1 in Russian',
+        },
+      ],
+    };
+    const apiResponse: CreateCalendarEventResponse = {
+      calendarEventId: '20260606T170000Z',
+    };
+
+    let actualResponse: CreateCalendarEventResponse | undefined;
+    service.create(createRequest).subscribe((response) => {
+      actualResponse = response;
+    });
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events',
+    );
+
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(createRequest);
+
+    request.flush(apiResponse);
+
+    expect(actualResponse).toEqual(apiResponse);
   });
 });

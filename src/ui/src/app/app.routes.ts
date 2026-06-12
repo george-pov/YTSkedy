@@ -7,6 +7,7 @@ import { Home } from './pages/home/home';
 import { SignedOut } from './pages/signed-out/signed-out';
 import { authenticatedGuard } from './shared/auth/authenticated-guard';
 import { redirectAuthenticatedGuard } from './shared/auth/redirect-authenticated-guard';
+import { CalendarEventDetails } from './pages/calendar-event-details/calendar-event-details';
 
 export const routes: Routes = [
   {
@@ -22,7 +23,12 @@ export const routes: Routes = [
       {
         path: 'calendar-events',
         component: CalendarEvents,
-        canActivate: [authenticatedGuard],
+        canActivate: [authenticatedGuard]        
+      },
+      {
+        path: 'calendar-events/new',
+        component: CalendarEventDetails,
+        canActivate: [authenticatedGuard]
       },
       {
         path: 'signed-out',

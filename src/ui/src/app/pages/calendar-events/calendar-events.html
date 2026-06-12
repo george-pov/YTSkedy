@@ -1,7 +1,12 @@
 <section class="layout">
   <header class="header">
-    <h1>Calendar Events</h1>
-    <p>{{ monthLabel }}</p>
+    <div class="header-text">
+      <h1>Calendar Events</h1>
+      <p>{{ monthLabel }}</p>
+    </div>
+    <app-button class="add-new-button" (click)="addNewEvent()">
+      Add new event
+    </app-button>
   </header>
 
   @if (isLoading()) {
