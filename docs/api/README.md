@@ -14,6 +14,8 @@ Durable documentation for the backend API under `src/api/`.
   [`development/build-and-test.md`](development/build-and-test.md)
 - Testing guidance: [`development/testing.md`](development/testing.md)
 - Deployment: [`operations/deployment.md`](operations/deployment.md)
+- YouTube publish setup:
+  [`operations/youtube-publish-setup.md`](operations/youtube-publish-setup.md)
 
 ## Scope
 

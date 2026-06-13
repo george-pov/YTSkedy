@@ -3,12 +3,18 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { APP_CONFIG } from 'src/app/shared/config/app-config';
-import { calendarEventsUrl } from './calendar-events-endpoint';
+import {
+  calendarEventsUrl,
+  publishCalendarEventUrl,
+} from './calendar-events-endpoint';
+
+export type CalendarEventStatus = 'Draft' | 'Published';
 
 export interface CalendarEvent {
   calendarEventId: string;
   start: CalendarEventStart;
   descriptions: CalendarEventDescription[];
+  status: CalendarEventStatus;
 }
 
 export interface CalendarEventStart {
@@ -42,6 +48,12 @@ export interface CreateCalendarEventResponse {
   calendarEventId: string;
 }
 
+export interface PublishCalendarEventResponse {
+  calendarEventId: string;
+  status: CalendarEventStatus;
+  youTubeBroadcastId: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -65,6 +77,15 @@ export class CalendarEventsService {
     return this.http.post<CreateCalendarEventResponse>(
       calendarEventsUrl(this.appConfig.api),
       request,
+    );
+  }
+
+  publish(
+    calendarEventId: string,
+  ): Observable<PublishCalendarEventResponse> {
+    return this.http.post<PublishCalendarEventResponse>(
+      publishCalendarEventUrl(this.appConfig.api, calendarEventId),
+      {},
     );
   }
 }

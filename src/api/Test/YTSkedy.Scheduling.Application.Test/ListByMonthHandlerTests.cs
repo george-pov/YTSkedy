@@ -60,7 +60,8 @@ public class ListByMonthHandlerTests
                     "en",
                     $"English stream {calendarEventId}",
                     $"Description for {calendarEventId}")
-            ]);
+            ],
+            CalendarEventStatus.Draft);
 
     private sealed class FakeCalendarEventReader(
         IReadOnlyList<CalendarEventListItem> calendarEvents) : ICalendarEventReader
@@ -78,5 +79,10 @@ public class ListByMonthHandlerTests
 
             return Task.FromResult(calendarEvents);
         }
+
+        public Task<CalendarEventDetail?> GetByIdAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<CalendarEventDetail?>(null);
     }
 }

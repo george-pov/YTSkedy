@@ -3,4 +3,5 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 public sealed record CalendarEventListItemResponse(
     string CalendarEventId,
     CalendarEventStart Start,
-    IReadOnlyList<LocalizedCalendarEventText> Descriptions);
+    IReadOnlyList<LocalizedCalendarEventText> Descriptions,
+    string Status);

@@ -13,6 +13,7 @@ import {
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
+  PublishCalendarEventResponse,
 } from './calendar-events-service';
 
 describe('CalendarEventsService', () => {
@@ -56,6 +57,7 @@ describe('CalendarEventsService', () => {
             description: 'Synthetic API response fixture.',
           },
         ],
+        status: 'Draft',
       },
     ];
 
@@ -109,6 +111,30 @@ describe('CalendarEventsService', () => {
 
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual(createRequest);
+
+    request.flush(apiResponse);
+
+    expect(actualResponse).toEqual(apiResponse);
+  });
+
+  it('posts a publish request to the calendar event publish endpoint and returns the API response', () => {
+    const apiResponse: PublishCalendarEventResponse = {
+      calendarEventId: '20260615T170000Z',
+      status: 'Published',
+      youTubeBroadcastId: 'broadcast-123',
+    };
+
+    let actualResponse: PublishCalendarEventResponse | undefined;
+    service.publish('20260615T170000Z').subscribe((response) => {
+      actualResponse = response;
+    });
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/20260615T170000Z/publish',
+    );
+
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
 
     request.flush(apiResponse);
 

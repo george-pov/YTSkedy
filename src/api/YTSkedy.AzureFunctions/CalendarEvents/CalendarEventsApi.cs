@@ -11,7 +11,8 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 
 public class CalendarEventsApi(
     CreateCalendarEventHandler createHandler,
-    ListByMonthHandler listByMonthHandler)
+    ListByMonthHandler listByMonthHandler,
+    PublishCalendarEventHandler publishHandler)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -102,10 +103,45 @@ public class CalendarEventsApi(
                         description.Language,
                         description.Title,
                         description.Description))
-                    .ToArray()))
+                    .ToArray(),
+                calendarEvent.Status.ToString()))
             .ToArray();
 
         return new OkObjectResult(response);
+    }
+
+    [Function("PublishCalendarEvent")]
+    [RequiredScope("CalendarEvents.Write")]
+    public async Task<IActionResult> PublishCalendarEventAsync(
+        [HttpTrigger(
+            AuthorizationLevel.Anonymous,
+            "post",
+            Route = "calendar-events/{calendarEventId}/publish")]
+        HttpRequest request,
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        var result = await publishHandler.HandleAsync(
+            calendarEventId,
+            cancellationToken);
+
+        return result.Outcome switch
+        {
+            PublishCalendarEventOutcome.Published => new OkObjectResult(
+                new PublishCalendarEventResponse(
+                    calendarEventId,
+                    CalendarEventStatus.Published.ToString(),
+                    result.YouTubeBroadcastId!)),
+            PublishCalendarEventOutcome.NotFound => new NotFoundObjectResult(
+                $"Calendar event '{calendarEventId}' was not found."),
+            PublishCalendarEventOutcome.AlreadyPublished => new ConflictObjectResult(
+                $"Calendar event '{calendarEventId}' is already published."),
+            PublishCalendarEventOutcome.StartInPast => new BadRequestObjectResult(
+                "Calendar event start time must be in the future."),
+            PublishCalendarEventOutcome.MissingEnglishDescription => new BadRequestObjectResult(
+                "Calendar event has no English description to publish."),
+            _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
+        };
     }
 
     private static bool TryParseNumber(

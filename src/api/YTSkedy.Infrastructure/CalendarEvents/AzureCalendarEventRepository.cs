@@ -30,6 +30,7 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
             LocalDateTime = FormatLocalDateTime(calendarEvent.Start.LocalDateTime),
             TimeZoneId = calendarEvent.Start.TimeZoneId,
             DescriptionsJson = JsonSerializer.Serialize(calendarEvent.Descriptions, JsonOptions),
+            Status = calendarEvent.Status.ToString(),
             CreatedUtc = DateTimeOffset.UtcNow
         };
 
@@ -81,6 +82,63 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
             criteria);
     }
 
+    public async Task<CalendarEventDetail?> GetByIdAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+
+        if (!TryParseScheduledStartUtc(calendarEventId, out var scheduledStartUtc))
+        {
+            return null;
+        }
+
+        try
+        {
+            var response = await tableClient.GetEntityAsync<CalendarEventEntity>(
+                GetPartitionKey(scheduledStartUtc),
+                calendarEventId,
+                cancellationToken: cancellationToken);
+
+            return CalendarEventReadMapper.ToDetail(response.Value);
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            return null;
+        }
+    }
+
+    public async Task UpdateStatusAsync(
+        string calendarEventId,
+        CalendarEventStatus status,
+        string youTubeBroadcastId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(youTubeBroadcastId);
+
+        if (!TryParseScheduledStartUtc(calendarEventId, out var scheduledStartUtc))
+        {
+            throw new InvalidOperationException(
+                $"Calendar event id '{calendarEventId}' is not a valid identifier.");
+        }
+
+        var response = await tableClient.GetEntityAsync<CalendarEventEntity>(
+            GetPartitionKey(scheduledStartUtc),
+            calendarEventId,
+            cancellationToken: cancellationToken);
+
+        var entity = response.Value;
+        entity.Status = status.ToString();
+        entity.YouTubeLink = youTubeBroadcastId;
+
+        await tableClient.UpdateEntityAsync(
+            entity,
+            entity.ETag,
+            TableUpdateMode.Replace,
+            cancellationToken);
+    }
+
     private static DateTimeOffset ToUtc(ScheduledStart start)
     {
         var localDateTime = DateTime.SpecifyKind(
@@ -122,6 +180,25 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
         scheduledStartUtc.UtcDateTime.ToString(
             "yyyyMMdd'T'HHmmss'Z'",
             CultureInfo.InvariantCulture);
+
+    private static bool TryParseScheduledStartUtc(
+        string calendarEventId,
+        out DateTimeOffset scheduledStartUtc)
+    {
+        if (DateTime.TryParseExact(
+                calendarEventId,
+                "yyyyMMdd'T'HHmmss'Z'",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var parsed))
+        {
+            scheduledStartUtc = new DateTimeOffset(parsed, TimeSpan.Zero);
+            return true;
+        }
+
+        scheduledStartUtc = default;
+        return false;
+    }
 
     internal static string GetPartitionKey(DateTimeOffset scheduledStartUtc) =>
         scheduledStartUtc.UtcDateTime.ToString(

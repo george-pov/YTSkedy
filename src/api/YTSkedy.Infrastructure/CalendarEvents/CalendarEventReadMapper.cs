@@ -83,11 +83,31 @@ internal static class CalendarEventReadMapper
                 $"Calendar event '{entity.CalendarEventId}' has invalid local date-time.");
         }
 
-        LocalizedDescription[] descriptions;
+        return new CalendarEventListItem(
+            entity.CalendarEventId,
+            new ScheduledStart(
+                localDateTime,
+                entity.TimeZoneId),
+            DeserializeDescriptions(entity),
+            ParseStatus(entity.Status));
+    }
 
+    public static CalendarEventDetail ToDetail(CalendarEventEntity entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+
+        return new CalendarEventDetail(
+            entity.CalendarEventId,
+            entity.ScheduledStartUtc,
+            DeserializeDescriptions(entity),
+            ParseStatus(entity.Status));
+    }
+
+    private static LocalizedDescription[] DeserializeDescriptions(CalendarEventEntity entity)
+    {
         try
         {
-            descriptions = JsonSerializer.Deserialize<LocalizedDescription[]>(
+            return JsonSerializer.Deserialize<LocalizedDescription[]>(
                 entity.DescriptionsJson,
                 JsonOptions) ?? throw new InvalidOperationException(
                 $"Calendar event '{entity.CalendarEventId}' has missing descriptions JSON.");
@@ -98,14 +118,12 @@ internal static class CalendarEventReadMapper
                 $"Calendar event '{entity.CalendarEventId}' has malformed descriptions JSON.",
                 exception);
         }
-
-        return new CalendarEventListItem(
-            entity.CalendarEventId,
-            new ScheduledStart(
-                localDateTime,
-                entity.TimeZoneId),
-            descriptions);
     }
+
+    private static CalendarEventStatus ParseStatus(string? status) =>
+        Enum.TryParse<CalendarEventStatus>(status, ignoreCase: true, out var parsed)
+            ? parsed
+            : CalendarEventStatus.Draft;
 
     private static string ToPartitionKey(DateTime utcMonth) =>
         AzureCalendarEventRepository.GetPartitionKey(

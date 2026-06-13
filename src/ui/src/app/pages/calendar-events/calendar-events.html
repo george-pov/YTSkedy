@@ -18,6 +18,11 @@
   } @else if (events().length === 0) {
     <p class="status">No calendar events found.</p>
   } @else {
+    @if (publishError()) {
+      <p class="status has-error" role="alert">
+        {{ publishError() }}
+      </p>
+    }
     <div class="table-wrap">
       <table class="events-table">
         <caption>
@@ -29,6 +34,8 @@
             <th scope="col">Scheduled Start</th>
             <th scope="col">Time Zone</th>
             <th scope="col">Descriptions</th>
+            <th scope="col">Status</th>
+            <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -38,6 +45,19 @@
               <td>{{ event.start.localDateTime }}</td>
               <td>{{ event.start.timeZoneId }}</td>
               <td>{{ describeEvent(event) }}</td>
+              <td>{{ event.status }}</td>
+              <td>
+                @if (canPublish(event)) {
+                  <app-button
+                    class="publish-button"
+                    appearance="outlined"
+                    [disabled]="publishingId() === event.calendarEventId"
+                    (click)="publish(event)"
+                  >
+                    Publish
+                  </app-button>
+                }
+              </td>
             </tr>
           }
         </tbody>

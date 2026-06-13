@@ -27,6 +27,7 @@ public class CreateCalendarEventHandlerTests
         Assert.NotNull(createdCalendarEvent);
         Assert.Equal(start, createdCalendarEvent!.Start);
         Assert.Equal(descriptions, createdCalendarEvent.Descriptions);
+        Assert.Equal(CalendarEventStatus.Draft, createdCalendarEvent.Status);
     }
 
     private sealed class FakeCalendarEventRepository(string calendarEventId) : ICalendarEventRepository
@@ -41,5 +42,12 @@ public class CreateCalendarEventHandlerTests
 
             return Task.FromResult(calendarEventId);
         }
+
+        public Task UpdateStatusAsync(
+            string calendarEventId,
+            CalendarEventStatus status,
+            string youTubeBroadcastId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }

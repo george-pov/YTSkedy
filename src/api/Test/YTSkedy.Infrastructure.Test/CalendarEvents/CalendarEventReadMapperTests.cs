@@ -36,6 +36,60 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
+    public void ToListItemsForMonth_EmptyStatus_DefaultsToDraft()
+    {
+        var entity = CreateEntity(
+            "20260605T170000Z",
+            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
+            "2026-06-05T10:00:00");
+        entity.Status = string.Empty;
+        var criteria = new CalendarEventMonthCriteria(2026, 6);
+
+        var result = CalendarEventReadMapper.ToListItemsForMonth(
+            [entity],
+            criteria);
+
+        var calendarEvent = Assert.Single(result);
+        Assert.Equal(CalendarEventStatus.Draft, calendarEvent.Status);
+    }
+
+    [Fact]
+    public void ToListItemsForMonth_PublishedStatus_MapsToPublished()
+    {
+        var entity = CreateEntity(
+            "20260605T170000Z",
+            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
+            "2026-06-05T10:00:00");
+        entity.Status = "Published";
+        var criteria = new CalendarEventMonthCriteria(2026, 6);
+
+        var result = CalendarEventReadMapper.ToListItemsForMonth(
+            [entity],
+            criteria);
+
+        var calendarEvent = Assert.Single(result);
+        Assert.Equal(CalendarEventStatus.Published, calendarEvent.Status);
+    }
+
+    [Fact]
+    public void ToListItemsForMonth_UnknownStatus_DefaultsToDraft()
+    {
+        var entity = CreateEntity(
+            "20260605T170000Z",
+            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
+            "2026-06-05T10:00:00");
+        entity.Status = "not-a-real-status";
+        var criteria = new CalendarEventMonthCriteria(2026, 6);
+
+        var result = CalendarEventReadMapper.ToListItemsForMonth(
+            [entity],
+            criteria);
+
+        var calendarEvent = Assert.Single(result);
+        Assert.Equal(CalendarEventStatus.Draft, calendarEvent.Status);
+    }
+
+    [Fact]
     public void ToListItemsForMonth_MixedLocalMonths_FiltersByRequestedMonth()
     {
         var entities = new[]

@@ -8,7 +8,9 @@ using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Logging;
 using YTSkedy.AzureFunctions.Auth;
 using YTSkedy.Infrastructure.CalendarEvents;
+using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.YouTube;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -31,6 +33,18 @@ builder.Services
 builder.Services
     .AddOptions<AuthOptions>()
     .Bind(builder.Configuration.GetSection(AuthOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services
+    .AddOptions<YouTubeOptions>()
+    .Bind(builder.Configuration.GetSection(YouTubeOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services
+    .AddOptions<YouTubeBroadcastOptions>()
+    .Bind(builder.Configuration.GetSection(YouTubeBroadcastOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
@@ -92,10 +106,14 @@ builder.Services.AddSingleton(_ =>
 
 builder.Services.AddScoped<CreateCalendarEventHandler>();
 builder.Services.AddScoped<ListByMonthHandler>();
+builder.Services.AddScoped<PublishCalendarEventHandler>();
 builder.Services.AddScoped<AzureCalendarEventRepository>();
 builder.Services.AddScoped<ICalendarEventRepository>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
 builder.Services.AddScoped<ICalendarEventReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
+
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IYouTubeBroadcastPublisher, YouTubeBroadcastPublisher>();
 
 builder.Build().Run();

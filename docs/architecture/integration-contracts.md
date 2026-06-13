@@ -12,12 +12,18 @@ Current implemented HTTP surface:
 
 - `POST /api/calendar-events`
 - `GET /api/calendar-events?year={year}&month={month}`
+- `POST /api/calendar-events/{calendarEventId}/publish`
 
-Both endpoints are now consumed by the UI: the `CalendarEvents` list page calls
-the `GET` endpoint, and the `CalendarEventDetails` create form
+Both list and create endpoints are consumed by the UI: the `CalendarEvents`
+list page calls the `GET` endpoint, and the `CalendarEventDetails` create form
 (`/calendar-events/new`) calls the `POST` endpoint with a body of
 `{ start: { localDateTime, timeZoneId }, descriptions: [{ language, title, description? }] }`
 and reads `{ calendarEventId }` from the response.
+
+List items carry a `status` field (`Draft` or `Published`). The list page shows
+a Publish action for future `Draft` events that calls the publish endpoint
+(empty body) and reads `{ calendarEventId, status, youTubeBroadcastId }`. New
+events are `Draft`; rows stored before the field existed read as `Draft`.
 
 The UI must treat API request and response shapes as integration contracts.
 When a contract changes, update:
@@ -37,7 +43,8 @@ Azure Functions worker pipeline (not the Functions host key check).
   [`../api/configuration.md`](../api/configuration.md)).
 - Required scopes:
   - `CalendarEvents.Read` for `GET /api/calendar-events`.
-  - `CalendarEvents.Write` for `POST /api/calendar-events`.
+  - `CalendarEvents.Write` for `POST /api/calendar-events` and
+    `POST /api/calendar-events/{calendarEventId}/publish`.
 - Required app role on every protected endpoint:
   `CalendarEvents.Operator` (in the `roles` claim).
 - Frontend access tokens are obtained through MSAL via the YTSkedy-owned
@@ -90,7 +97,15 @@ explicitly exposes them through HTTP.
 
 ## External Integrations
 
-YouTube API, OAuth, WordPress, credential storage, and production telemetry are
+YouTube live broadcast scheduling has an initial proof-of-concept integration:
+`POST /api/calendar-events/{calendarEventId}/publish` creates a scheduled
+YouTube `liveBroadcast` from static, shared Google OAuth credentials. It is
+deliberately limited (broadcast insert only, single shared channel, no
+thumbnail, no state transition, no retry) and is documented in
+[`../api/http/calendar-events.md`](../api/http/calendar-events.md) and
+[`../api/configuration.md`](../api/configuration.md).
+
+WordPress, per-user OAuth, credential storage, and production telemetry remain
 roadmap integration surfaces. Implementation must satisfy these requirements:
 
 - Verify contract-sensitive behavior against official provider

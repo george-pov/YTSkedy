@@ -46,6 +46,38 @@ subdomain. Set `Auth:Issuer` to the verbatim `issuer` value from the user
 flow's **Endpoints** metadata when `Microsoft.Identity.Web`'s derived
 issuer rejects valid tokens.
 
+## YouTube Publish Settings
+
+Publishing a calendar event as a scheduled YouTube live broadcast uses static,
+predefined Google OAuth credentials. The backend exchanges the refresh token
+for short-lived access tokens at runtime, so there is no interactive Google
+consent at request time.
+
+| Setting | Classification | Purpose |
+| --- | --- | --- |
+| `YouTube:ClientId` | Non-secret | Google OAuth 2.0 client identifier. |
+| `YouTube:ClientSecret` | Secret | Google OAuth 2.0 client secret. |
+| `YouTube:RefreshToken` | Secret | Long-lived refresh token minted once during setup with the YouTube scope. |
+| `YouTubeBroadcast:PrivacyStatus` | Non-secret | Privacy applied to created broadcasts. Defaults to `private`. |
+| `YouTubeBroadcast:SelfDeclaredMadeForKids` | Non-secret | Made-for-kids flag required by the API. Defaults to `false`. |
+
+`YouTube:ClientSecret` and `YouTube:RefreshToken` are secrets. Never commit
+real values; keep them in the ignored `local.settings.json` locally and in
+hosted app settings or a secret store in deployed environments. The options
+bind on host start and fail fast when a required `YouTube:` key is missing.
+
+For the one-time procedure that creates the Google Cloud project, OAuth client,
+and refresh token, see the setup runbook:
+[`operations/youtube-publish-setup.md`](operations/youtube-publish-setup.md).
+
+This is a proof-of-concept integration with deliberate limitations:
+
+- All three credential values are shared. Every publish acts on the single
+  YouTube channel that minted the refresh token, regardless of which user is
+  signed in. A per-user Google OAuth flow is deferred.
+- The broadcast defaults above apply to every publish. Only title, description,
+  and scheduled start come from the calendar event.
+
 ## CORS
 
 Browser bearer-token calls cross an origin boundary. CORS for the deployed

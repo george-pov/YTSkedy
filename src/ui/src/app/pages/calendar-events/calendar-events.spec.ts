@@ -15,6 +15,7 @@ import {
 import {
   CalendarEvent,
   CalendarEventsService,
+  PublishCalendarEventResponse,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { CalendarEvents } from './calendar-events';
 
@@ -23,6 +24,9 @@ describe('CalendarEvents', () => {
   let service: {
     listByMonth: Mock<
       (year: number, month: number) => Observable<CalendarEvent[]>
+    >;
+    publish: Mock<
+      (calendarEventId: string) => Observable<PublishCalendarEventResponse>
     >;
   };
   let navigations: string[];
@@ -35,6 +39,9 @@ describe('CalendarEvents', () => {
     service = {
       listByMonth: vi.fn<
         (year: number, month: number) => Observable<CalendarEvent[]>
+      >(),
+      publish: vi.fn<
+        (calendarEventId: string) => Observable<PublishCalendarEventResponse>
       >(),
     };
   });
@@ -60,6 +67,7 @@ describe('CalendarEvents', () => {
               description: 'Description for stream 1 in English',
             },
           ],
+          status: 'Draft',
         },
       ]),
     );
@@ -134,6 +142,94 @@ describe('CalendarEvents', () => {
 
     expect(navigations).toEqual(['/calendar-events/new']);
   });
+
+  it('shows a Publish action for a future draft event', async () => {
+    service.listByMonth.mockReturnValue(of([draftEvent('20260606T170000Z')]));
+
+    await createComponent();
+
+    expect(
+      fixture.nativeElement.querySelector('.publish-button'),
+    ).not.toBeNull();
+  });
+
+  it('does not show a Publish action for a published event', async () => {
+    service.listByMonth.mockReturnValue(
+      of([{ ...draftEvent('20260606T170000Z'), status: 'Published' }]),
+    );
+
+    await createComponent();
+
+    expect(fixture.nativeElement.querySelector('.publish-button')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Published');
+  });
+
+  it('does not show a Publish action for a past draft event', async () => {
+    service.listByMonth.mockReturnValue(of([draftEvent('20260601T100000Z')]));
+
+    await createComponent();
+
+    expect(fixture.nativeElement.querySelector('.publish-button')).toBeNull();
+  });
+
+  it('publishes a draft event and marks it published', async () => {
+    service.listByMonth.mockReturnValue(of([draftEvent('20260606T170000Z')]));
+    service.publish.mockReturnValue(
+      of({
+        calendarEventId: '20260606T170000Z',
+        status: 'Published',
+        youTubeBroadcastId: 'broadcast-123',
+      }),
+    );
+
+    await createComponent();
+
+    fixture.nativeElement
+      .querySelector('.publish-button')
+      .dispatchEvent(new Event('click'));
+    fixture.detectChanges();
+
+    expect(service.publish).toHaveBeenCalledWith('20260606T170000Z');
+    expect(fixture.nativeElement.querySelector('.publish-button')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Published');
+  });
+
+  it('shows an error when publishing fails', async () => {
+    service.listByMonth.mockReturnValue(of([draftEvent('20260606T170000Z')]));
+    service.publish.mockReturnValue(
+      throwError(() => new Error('Request failed')),
+    );
+
+    await createComponent();
+
+    fixture.nativeElement
+      .querySelector('.publish-button')
+      .dispatchEvent(new Event('click'));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'Calendar event could not be published.',
+    );
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
+  });
+
+  function draftEvent(calendarEventId: string): CalendarEvent {
+    return {
+      calendarEventId,
+      start: {
+        localDateTime: '2026-06-06T10:00:00',
+        timeZoneId: 'America/Vancouver',
+      },
+      descriptions: [
+        {
+          language: 'en',
+          title: 'English stream 1',
+          description: 'Description for stream 1 in English',
+        },
+      ],
+      status: 'Draft',
+    };
+  }
 
   async function createComponent(): Promise<void> {
     await TestBed.configureTestingModule({
