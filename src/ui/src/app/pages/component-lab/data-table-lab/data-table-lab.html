@@ -1,0 +1,18 @@
+<app-lab-page titleId="data-table-lab-title" title="Data Table">
+  <app-lab-example
+    titleId="data-table-basic-example-title"
+    title="Sortable and paginated"
+  >
+    <app-data-table
+      [data]="rows"
+      [columns]="columns"
+      caption="Demo recordings"
+      [pageSize]="10"
+      emptyText="No recordings to show."
+    >
+      <ng-template appDataTableCell="actions" let-row>
+        <app-button appearance="outlined">Edit {{ row.name }}</app-button>
+      </ng-template>
+    </app-data-table>
+  </app-lab-example>
+</app-lab-page>
