@@ -58,13 +58,19 @@ consent at request time.
 | `YouTube:ClientId` | Non-secret | Google OAuth 2.0 client identifier. |
 | `YouTube:ClientSecret` | Secret | Google OAuth 2.0 client secret. |
 | `YouTube:RefreshToken` | Secret | Long-lived refresh token minted once during setup with the YouTube scope. |
-| `YouTubeBroadcast:PrivacyStatus` | Non-secret | Privacy applied to created broadcasts. Defaults to `private`. |
+| `YouTubeBroadcast:PrivacyStatus` | Non-secret | Privacy applied to created broadcasts. Must be `private`, `public`, or `unlisted` (lowercase); other values fail validation on host start. Defaults to `private`. |
 | `YouTubeBroadcast:SelfDeclaredMadeForKids` | Non-secret | Made-for-kids flag required by the API. Defaults to `false`. |
 
 `YouTube:ClientSecret` and `YouTube:RefreshToken` are secrets. Never commit
 real values; keep them in the ignored `local.settings.json` locally and in
 hosted app settings or a secret store in deployed environments. The options
 bind on host start and fail fast when a required `YouTube:` key is missing.
+This is deliberate and host-wide: the API treats YouTube credentials as
+required configuration, so a missing `YouTube:` key stops the whole Functions
+host from starting, including the calendar-event list and create endpoints that
+do not call YouTube. Running the API without publishing configured is not a
+supported mode; do not remove the `ValidateOnStart` guard to boot a partial
+host.
 
 For the one-time procedure that creates the Google Cloud project, OAuth client,
 and refresh token, see the setup runbook:

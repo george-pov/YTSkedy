@@ -113,8 +113,9 @@ Success response:
 ]
 ```
 
-`status` is `Draft` or `Published`. New events are `Draft`. Rows stored before
-the status field existed are read as `Draft`.
+`status` is `Draft`, `Publishing`, or `Published`. New events are `Draft`. A
+`Publishing` row has a publish in progress. Rows stored before the status field
+existed are read as `Draft`.
 
 No matching rows return `200 OK` with `[]`.
 
@@ -155,13 +156,19 @@ Success response:
 Current behavior and error mapping:
 
 - Unknown `calendarEventId` returns `404 Not Found`.
-- An event already in `Published` status returns `409 Conflict` and does not
-  call YouTube.
+- Before calling YouTube the event is reserved by moving it atomically from
+  `Draft` to `Publishing`. A second concurrent publish loses that reservation
+  and is rejected with `409 Conflict`, so no duplicate broadcast is created.
+- An event already in `Published` or `Publishing` status returns `409 Conflict`
+  and does not call YouTube.
 - A start instant that is not in the future returns `400 Bad Request` and does
   not call YouTube.
 - An event with no English (`en`) description returns `400 Bad Request`.
-- Any failure from the YouTube call surfaces as `500` and leaves the event
-  `Draft`. There is no retry, partial-state reconciliation, or detailed error
+- Any failure from the YouTube call releases the reservation back to `Draft`,
+  surfaces as `500`, and leaves the event retryable. A hard interruption (such
+  as a host crash) between the reservation and the result can leave the event
+  stuck in `Publishing`; recovering it currently requires manual inspection.
+  There is no automatic retry, partial-state reconciliation, or detailed error
   surface in this proof-of-concept iteration.
 
 Proof-of-concept limitations:

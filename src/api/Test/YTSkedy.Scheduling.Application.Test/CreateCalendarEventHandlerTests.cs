@@ -43,10 +43,19 @@ public class CreateCalendarEventHandlerTests
             return Task.FromResult(calendarEventId);
         }
 
-        public Task UpdateStatusAsync(
+        public Task<bool> TryReserveForPublishingAsync(
             string calendarEventId,
-            CalendarEventStatus status,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task MarkPublishedAsync(
+            string calendarEventId,
             string youTubeBroadcastId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task ReleaseReservationAsync(
+            string calendarEventId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }

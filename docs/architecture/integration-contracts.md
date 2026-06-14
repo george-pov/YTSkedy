@@ -20,10 +20,13 @@ list page calls the `GET` endpoint, and the `CalendarEventDetails` create form
 `{ start: { localDateTime, timeZoneId }, descriptions: [{ language, title, description? }] }`
 and reads `{ calendarEventId }` from the response.
 
-List items carry a `status` field (`Draft` or `Published`). The list page shows
-a Publish action for future `Draft` events that calls the publish endpoint
-(empty body) and reads `{ calendarEventId, status, youTubeBroadcastId }`. New
-events are `Draft`; rows stored before the field existed read as `Draft`.
+List items carry a `status` field (`Draft`, `Publishing`, or `Published`). The
+list page shows a Publish action for future `Draft` events that calls the
+publish endpoint (empty body) and reads
+`{ calendarEventId, status, youTubeBroadcastId }`. New events are `Draft`; rows
+stored before the field existed read as `Draft`. Publishing reserves the event
+(`Draft` to `Publishing`) before the YouTube call so a second concurrent publish
+is rejected; a failed broadcast releases the event back to `Draft`.
 
 The UI must treat API request and response shapes as integration contracts.
 When a contract changes, update:
@@ -101,7 +104,10 @@ YouTube live broadcast scheduling has an initial proof-of-concept integration:
 `POST /api/calendar-events/{calendarEventId}/publish` creates a scheduled
 YouTube `liveBroadcast` from static, shared Google OAuth credentials. It is
 deliberately limited (broadcast insert only, single shared channel, no
-thumbnail, no state transition, no retry) and is documented in
+thumbnail, no YouTube broadcast lifecycle transition, no retry). The calendar
+event status is reserved (`Draft` to `Publishing`) before the broadcast call to
+prevent duplicate broadcasts and is set to `Published` only after the broadcast
+is created. It is documented in
 [`../api/http/calendar-events.md`](../api/http/calendar-events.md) and
 [`../api/configuration.md`](../api/configuration.md).
 

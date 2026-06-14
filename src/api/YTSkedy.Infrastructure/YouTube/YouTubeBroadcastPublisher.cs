@@ -4,6 +4,7 @@ using Google.Apis.Auth.OAuth2.Responses;
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using YTSkedy.Scheduling.Application.YouTube;
 
@@ -21,16 +22,20 @@ public sealed class YouTubeBroadcastPublisher : IYouTubeBroadcastPublisher
 
     private readonly YouTubeService youTubeService;
     private readonly YouTubeBroadcastOptions broadcastOptions;
+    private readonly ILogger<YouTubeBroadcastPublisher> logger;
 
     public YouTubeBroadcastPublisher(
         IOptions<YouTubeOptions> youTubeOptions,
-        IOptions<YouTubeBroadcastOptions> broadcastOptions)
+        IOptions<YouTubeBroadcastOptions> broadcastOptions,
+        ILogger<YouTubeBroadcastPublisher> logger)
     {
         ArgumentNullException.ThrowIfNull(youTubeOptions);
         ArgumentNullException.ThrowIfNull(broadcastOptions);
+        ArgumentNullException.ThrowIfNull(logger);
 
         var credentials = youTubeOptions.Value;
         this.broadcastOptions = broadcastOptions.Value;
+        this.logger = logger;
 
         var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
         {
@@ -74,8 +79,34 @@ public sealed class YouTubeBroadcastPublisher : IYouTubeBroadcastPublisher
         };
 
         var insertRequest = youTubeService.LiveBroadcasts.Insert(broadcast, "snippet,status");
-        var created = await insertRequest.ExecuteAsync(cancellationToken);
 
-        return created.Id;
+        try
+        {
+            var created = await insertRequest.ExecuteAsync(cancellationToken);
+
+            logger.LogInformation(
+                "Created YouTube live broadcast {BroadcastId} scheduled for " +
+                "{ScheduledStartUtc:o} with privacy {PrivacyStatus}.",
+                created.Id,
+                request.ScheduledStartUtc,
+                broadcastOptions.PrivacyStatus);
+
+            return created.Id;
+        }
+        catch (Exception exception)
+        {
+            // The Google API exception carries API-side error details (quota,
+            // validation, auth rejection) but not our client secret or tokens,
+            // so it is safe to log. The handler turns this into a 500 and
+            // releases the publish reservation.
+            logger.LogError(
+                exception,
+                "Failed to create YouTube live broadcast scheduled for " +
+                "{ScheduledStartUtc:o} with privacy {PrivacyStatus}.",
+                request.ScheduledStartUtc,
+                broadcastOptions.PrivacyStatus);
+
+            throw;
+        }
     }
 }

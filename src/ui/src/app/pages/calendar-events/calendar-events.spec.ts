@@ -165,7 +165,9 @@ describe('CalendarEvents', () => {
   });
 
   it('does not show a Publish action for a past draft event', async () => {
-    service.listByMonth.mockReturnValue(of([draftEvent('20260601T100000Z')]));
+    service.listByMonth.mockReturnValue(
+      of([draftEvent('20260601T100000Z', '2026-06-01T10:00:00')]),
+    );
 
     await createComponent();
 
@@ -213,11 +215,14 @@ describe('CalendarEvents', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
   });
 
-  function draftEvent(calendarEventId: string): CalendarEvent {
+  function draftEvent(
+    calendarEventId: string,
+    localDateTime = '2026-06-06T10:00:00',
+  ): CalendarEvent {
     return {
       calendarEventId,
       start: {
-        localDateTime: '2026-06-06T10:00:00',
+        localDateTime,
         timeZoneId: 'America/Vancouver',
       },
       descriptions: [

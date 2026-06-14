@@ -23,7 +23,8 @@ public class PublishCalendarEventHandlerTests
 
         Assert.Equal(PublishCalendarEventOutcome.NotFound, result.Outcome);
         Assert.Equal(0, publisher.CallCount);
-        Assert.Equal(0, repository.UpdateCallCount);
+        Assert.Equal(0, repository.ReserveCallCount);
+        Assert.Equal(0, repository.MarkPublishedCallCount);
     }
 
     [Fact]
@@ -41,7 +42,8 @@ public class PublishCalendarEventHandlerTests
 
         Assert.Equal(PublishCalendarEventOutcome.AlreadyPublished, result.Outcome);
         Assert.Equal(0, publisher.CallCount);
-        Assert.Equal(0, repository.UpdateCallCount);
+        Assert.Equal(0, repository.ReserveCallCount);
+        Assert.Equal(0, repository.MarkPublishedCallCount);
     }
 
     [Fact]
@@ -60,7 +62,8 @@ public class PublishCalendarEventHandlerTests
 
         Assert.Equal(PublishCalendarEventOutcome.StartInPast, result.Outcome);
         Assert.Equal(0, publisher.CallCount);
-        Assert.Equal(0, repository.UpdateCallCount);
+        Assert.Equal(0, repository.ReserveCallCount);
+        Assert.Equal(0, repository.MarkPublishedCallCount);
     }
 
     [Fact]
@@ -78,7 +81,8 @@ public class PublishCalendarEventHandlerTests
 
         Assert.Equal(PublishCalendarEventOutcome.MissingEnglishDescription, result.Outcome);
         Assert.Equal(0, publisher.CallCount);
-        Assert.Equal(0, repository.UpdateCallCount);
+        Assert.Equal(0, repository.ReserveCallCount);
+        Assert.Equal(0, repository.MarkPublishedCallCount);
     }
 
     [Fact]
@@ -106,10 +110,53 @@ public class PublishCalendarEventHandlerTests
         Assert.Equal("English description", publisher.Request.Description);
         Assert.Equal(FutureStartUtc, publisher.Request.ScheduledStartUtc);
 
-        Assert.Equal(1, repository.UpdateCallCount);
-        Assert.Equal(CalendarEventId, repository.UpdatedCalendarEventId);
-        Assert.Equal(CalendarEventStatus.Published, repository.UpdatedStatus);
-        Assert.Equal("broadcast-123", repository.UpdatedBroadcastId);
+        Assert.Equal(1, repository.ReserveCallCount);
+        Assert.Equal(1, repository.MarkPublishedCallCount);
+        Assert.Equal(0, repository.ReleaseCallCount);
+        Assert.Equal(CalendarEventId, repository.MarkedCalendarEventId);
+        Assert.Equal("broadcast-123", repository.MarkedBroadcastId);
+    }
+
+    [Fact]
+    public async Task Publish_ReservationLost_ReturnsAlreadyPublishedWithoutPublishing()
+    {
+        var publisher = new FakeBroadcastPublisher("broadcast-123");
+        var repository = new FakeCalendarEventRepository { ReserveResult = false };
+        var detail = CreateDetail(
+            FutureStartUtc,
+            CalendarEventStatus.Draft,
+            [new LocalizedDescription("en", "English title", "English description")]);
+        var handler = CreateHandler(detail, publisher, repository);
+
+        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+
+        Assert.Equal(PublishCalendarEventOutcome.AlreadyPublished, result.Outcome);
+        Assert.Equal(1, repository.ReserveCallCount);
+        Assert.Equal(0, publisher.CallCount);
+        Assert.Equal(0, repository.MarkPublishedCallCount);
+        Assert.Equal(0, repository.ReleaseCallCount);
+    }
+
+    [Fact]
+    public async Task Publish_BroadcastFailsAfterReservation_ReleasesReservationAndThrows()
+    {
+        var publisher = new FakeBroadcastPublisher(
+            "broadcast-123",
+            new InvalidOperationException("YouTube insert failed"));
+        var repository = new FakeCalendarEventRepository();
+        var detail = CreateDetail(
+            FutureStartUtc,
+            CalendarEventStatus.Draft,
+            [new LocalizedDescription("en", "English title", "English description")]);
+        var handler = CreateHandler(detail, publisher, repository);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => handler.HandleAsync(CalendarEventId, CancellationToken.None));
+
+        Assert.Equal(1, repository.ReserveCallCount);
+        Assert.Equal(1, publisher.CallCount);
+        Assert.Equal(1, repository.ReleaseCallCount);
+        Assert.Equal(0, repository.MarkPublishedCallCount);
     }
 
     private static PublishCalendarEventHandler CreateHandler(
@@ -148,35 +195,56 @@ public class PublishCalendarEventHandlerTests
 
     private sealed class FakeCalendarEventRepository : ICalendarEventRepository
     {
-        public int UpdateCallCount { get; private set; }
+        public bool ReserveResult { get; init; } = true;
 
-        public string? UpdatedCalendarEventId { get; private set; }
+        public int ReserveCallCount { get; private set; }
 
-        public CalendarEventStatus? UpdatedStatus { get; private set; }
+        public int MarkPublishedCallCount { get; private set; }
 
-        public string? UpdatedBroadcastId { get; private set; }
+        public int ReleaseCallCount { get; private set; }
+
+        public string? MarkedCalendarEventId { get; private set; }
+
+        public string? MarkedBroadcastId { get; private set; }
 
         public Task<string> CreateAsync(
             CalendarEvent calendarEvent,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task UpdateStatusAsync(
+        public Task<bool> TryReserveForPublishingAsync(
             string calendarEventId,
-            CalendarEventStatus status,
+            CancellationToken cancellationToken)
+        {
+            ReserveCallCount++;
+
+            return Task.FromResult(ReserveResult);
+        }
+
+        public Task MarkPublishedAsync(
+            string calendarEventId,
             string youTubeBroadcastId,
             CancellationToken cancellationToken)
         {
-            UpdateCallCount++;
-            UpdatedCalendarEventId = calendarEventId;
-            UpdatedStatus = status;
-            UpdatedBroadcastId = youTubeBroadcastId;
+            MarkPublishedCallCount++;
+            MarkedCalendarEventId = calendarEventId;
+            MarkedBroadcastId = youTubeBroadcastId;
+
+            return Task.CompletedTask;
+        }
+
+        public Task ReleaseReservationAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken)
+        {
+            ReleaseCallCount++;
 
             return Task.CompletedTask;
         }
     }
 
-    private sealed class FakeBroadcastPublisher(string broadcastId) : IYouTubeBroadcastPublisher
+    private sealed class FakeBroadcastPublisher(string broadcastId, Exception? failure = null)
+        : IYouTubeBroadcastPublisher
     {
         public int CallCount { get; private set; }
 
@@ -189,7 +257,9 @@ public class PublishCalendarEventHandlerTests
             CallCount++;
             Request = request;
 
-            return Task.FromResult(broadcastId);
+            return failure is null
+                ? Task.FromResult(broadcastId)
+                : Task.FromException<string>(failure);
         }
     }
 }

@@ -13,6 +13,8 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    private const string CalendarEventIdFormat = "yyyyMMdd'T'HHmmss'Z'";
+
     public async Task<string> CreateAsync(
         CalendarEvent calendarEvent,
         CancellationToken cancellationToken)
@@ -88,6 +90,85 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
 
+        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
+
+        return entity is null ? null : CalendarEventReadMapper.ToDetail(entity);
+    }
+
+    public async Task<bool> TryReserveForPublishingAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+
+        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
+
+        if (entity is null ||
+            CalendarEventReadMapper.ParseStatus(entity.Status) != CalendarEventStatus.Draft)
+        {
+            return false;
+        }
+
+        entity.Status = CalendarEventStatus.Publishing.ToString();
+
+        try
+        {
+            await tableClient.UpdateEntityAsync(
+                entity,
+                entity.ETag,
+                TableUpdateMode.Replace,
+                cancellationToken);
+
+            return true;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 412)
+        {
+            // A concurrent publish changed the row between the read and this
+            // write. That request owns the reservation, so this one must not
+            // proceed to YouTube.
+            return false;
+        }
+    }
+
+    public async Task MarkPublishedAsync(
+        string calendarEventId,
+        string youTubeBroadcastId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(youTubeBroadcastId);
+
+        var entity = await GetEntityOrThrowAsync(calendarEventId, cancellationToken);
+        entity.Status = CalendarEventStatus.Published.ToString();
+        entity.YouTubeBroadcastId = youTubeBroadcastId;
+
+        await tableClient.UpdateEntityAsync(
+            entity,
+            entity.ETag,
+            TableUpdateMode.Replace,
+            cancellationToken);
+    }
+
+    public async Task ReleaseReservationAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+
+        var entity = await GetEntityOrThrowAsync(calendarEventId, cancellationToken);
+        entity.Status = CalendarEventStatus.Draft.ToString();
+
+        await tableClient.UpdateEntityAsync(
+            entity,
+            entity.ETag,
+            TableUpdateMode.Replace,
+            cancellationToken);
+    }
+
+    private async Task<CalendarEventEntity?> TryGetEntityAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
         if (!TryParseScheduledStartUtc(calendarEventId, out var scheduledStartUtc))
         {
             return null;
@@ -100,7 +181,7 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
                 calendarEventId,
                 cancellationToken: cancellationToken);
 
-            return CalendarEventReadMapper.ToDetail(response.Value);
+            return response.Value;
         }
         catch (RequestFailedException exception) when (exception.Status == 404)
         {
@@ -108,35 +189,14 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
         }
     }
 
-    public async Task UpdateStatusAsync(
+    private async Task<CalendarEventEntity> GetEntityOrThrowAsync(
         string calendarEventId,
-        CalendarEventStatus status,
-        string youTubeBroadcastId,
         CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(youTubeBroadcastId);
+        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
 
-        if (!TryParseScheduledStartUtc(calendarEventId, out var scheduledStartUtc))
-        {
-            throw new InvalidOperationException(
-                $"Calendar event id '{calendarEventId}' is not a valid identifier.");
-        }
-
-        var response = await tableClient.GetEntityAsync<CalendarEventEntity>(
-            GetPartitionKey(scheduledStartUtc),
-            calendarEventId,
-            cancellationToken: cancellationToken);
-
-        var entity = response.Value;
-        entity.Status = status.ToString();
-        entity.YouTubeLink = youTubeBroadcastId;
-
-        await tableClient.UpdateEntityAsync(
-            entity,
-            entity.ETag,
-            TableUpdateMode.Replace,
-            cancellationToken);
+        return entity ?? throw new InvalidOperationException(
+            $"Calendar event '{calendarEventId}' was not found while completing a publish.");
     }
 
     private static DateTimeOffset ToUtc(ScheduledStart start)
@@ -178,7 +238,7 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
 
     private static string FormatCalendarEventId(DateTimeOffset scheduledStartUtc) =>
         scheduledStartUtc.UtcDateTime.ToString(
-            "yyyyMMdd'T'HHmmss'Z'",
+            CalendarEventIdFormat,
             CultureInfo.InvariantCulture);
 
     private static bool TryParseScheduledStartUtc(
@@ -187,7 +247,7 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
     {
         if (DateTime.TryParseExact(
                 calendarEventId,
-                "yyyyMMdd'T'HHmmss'Z'",
+                CalendarEventIdFormat,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.None,
                 out var parsed))

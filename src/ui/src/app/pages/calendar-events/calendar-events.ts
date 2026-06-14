@@ -10,6 +10,7 @@ import { finalize } from 'rxjs';
 
 import {
   CalendarEvent,
+  CalendarEventStart,
   CalendarEventsService,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { Button } from "src/app/shared/components/button/button";
@@ -56,7 +57,7 @@ export class CalendarEvents implements OnInit {
   }
 
   protected canPublish(event: CalendarEvent): boolean {
-    return event.status === 'Draft' && isFutureEvent(event.calendarEventId);
+    return event.status === 'Draft' && isFutureEvent(event.start);
   }
 
   protected publish(event: CalendarEvent): void {
@@ -142,18 +143,29 @@ function describePublishError(error: unknown): string {
   return 'Calendar event could not be published.';
 }
 
-function isFutureEvent(calendarEventId: string, now: Date = new Date()): boolean {
-  const instantUtc = parseEventInstantUtc(calendarEventId);
+function isFutureEvent(
+  start: CalendarEventStart,
+  now: Date = new Date(),
+): boolean {
+  const startValue = wallClockValue(start.localDateTime);
+  const nowValue = currentWallClockValue(start.timeZoneId, now);
 
-  // When the id is not the expected UTC-instant format, do not hide the
-  // action; the backend still rejects past-dated publishes.
-  return instantUtc === null ? true : instantUtc > now.getTime();
+  // When the local date-time or time zone can't be interpreted, do not hide
+  // the action; the backend still rejects past-dated publishes.
+  if (startValue === null || nowValue === null) {
+    return true;
+  }
+
+  return startValue > nowValue;
 }
 
-function parseEventInstantUtc(calendarEventId: string): number | null {
-  const match = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(
-    calendarEventId,
-  );
+// Compares the event's wall-clock start against the current wall clock in the
+// same time zone. Both sides reduce to comparable component values, so a
+// daylight-saving boundary can only shift the result by the offset delta, which
+// is immaterial for gating a button the backend re-validates.
+function wallClockValue(localDateTime: string): number | null {
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/.exec(localDateTime);
 
   if (match === null) {
     return null;
@@ -168,5 +180,36 @@ function parseEventInstantUtc(calendarEventId: string): number | null {
     Number(hour),
     Number(minute),
     Number(second),
+  );
+}
+
+function currentWallClockValue(timeZoneId: string, now: Date): number | null {
+  let parts: Intl.DateTimeFormatPart[];
+
+  try {
+    parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timeZoneId,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).formatToParts(now);
+  } catch {
+    return null;
+  }
+
+  const lookup = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((part) => part.type === type)?.value);
+
+  return Date.UTC(
+    lookup('year'),
+    lookup('month') - 1,
+    lookup('day'),
+    lookup('hour'),
+    lookup('minute'),
+    lookup('second'),
   );
 }

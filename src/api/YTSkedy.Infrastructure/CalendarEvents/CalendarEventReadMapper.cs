@@ -120,7 +120,7 @@ internal static class CalendarEventReadMapper
         }
     }
 
-    private static CalendarEventStatus ParseStatus(string? status) =>
+    internal static CalendarEventStatus ParseStatus(string? status) =>
         Enum.TryParse<CalendarEventStatus>(status, ignoreCase: true, out var parsed)
             ? parsed
             : CalendarEventStatus.Draft;

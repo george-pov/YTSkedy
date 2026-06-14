@@ -72,6 +72,24 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
+    public void ToListItemsForMonth_PublishingStatus_MapsToPublishing()
+    {
+        var entity = CreateEntity(
+            "20260605T170000Z",
+            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
+            "2026-06-05T10:00:00");
+        entity.Status = "Publishing";
+        var criteria = new CalendarEventMonthCriteria(2026, 6);
+
+        var result = CalendarEventReadMapper.ToListItemsForMonth(
+            [entity],
+            criteria);
+
+        var calendarEvent = Assert.Single(result);
+        Assert.Equal(CalendarEventStatus.Publishing, calendarEvent.Status);
+    }
+
+    [Fact]
     public void ToListItemsForMonth_UnknownStatus_DefaultsToDraft()
     {
         var entity = CreateEntity(

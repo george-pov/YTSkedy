@@ -31,5 +31,5 @@ internal sealed class CalendarEventEntity : ITableEntity
 
     public string? YouTubeDescription { get; set; }
 
-    public string? YouTubeLink { get; set; }
+    public string? YouTubeBroadcastId { get; set; }
 }

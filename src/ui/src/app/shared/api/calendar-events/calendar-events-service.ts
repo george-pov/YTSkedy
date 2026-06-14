@@ -8,7 +8,7 @@ import {
   publishCalendarEventUrl,
 } from './calendar-events-endpoint';
 
-export type CalendarEventStatus = 'Draft' | 'Published';
+export type CalendarEventStatus = 'Draft' | 'Publishing' | 'Published';
 
 export interface CalendarEvent {
   calendarEventId: string;
