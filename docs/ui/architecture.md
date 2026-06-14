@@ -17,8 +17,11 @@ The Angular frontend lives under `src/ui/`.
 - Routed pages render through the `AppLayout` route shell.
 - Runtime API base URL configuration is loaded from
   `src/ui/public/config/app-config.json`.
-- The app has a `calendar-events` page route that loads the current browser
-  month through the calendar events API service and displays a basic table.
+- The `calendar-events` page route loads the current browser month through the
+  calendar events API service and renders the result through the shared
+  `app-data-table` component, with client-side sorting and pagination. Rows
+  keep API order until the user sorts; Scheduled Start, Time Zone, and Status
+  are sortable, and the Actions column projects the conditional Publish button.
 - Calendar events API service code lives under
   `src/ui/src/app/shared/api/calendar-events/`.
 
@@ -39,6 +42,7 @@ src/ui/src/app/pages/calendar-events/
 src/ui/src/app/shared/api/calendar-events/
 src/ui/src/app/shared/config/
 src/ui/src/app/shared/components/button/
+src/ui/src/app/shared/components/data-table/
 src/ui/src/app/shared/components/toolbar/
 ```
 
@@ -46,6 +50,39 @@ Use the page-first structure in
 [`architecture/application-structure.md`](architecture/application-structure.md)
 as the UI grows. Keep route-level pages under `pages/`, reusable browser UI
 under `shared/`, and persistent application chrome under `layout/`.
+
+## Shared Components
+
+App-owned Angular Material usage is isolated behind shared components under
+`src/ui/src/app/shared/components/`. Pages compose these components and do not
+import Angular Material directly for those concerns.
+
+### Data Table
+
+`app-data-table` (`DataTable<T>` in
+`src/ui/src/app/shared/components/data-table/`) is a generic, reusable table
+that wraps Angular Material `MatTable`, `MatSort`, and `MatPaginator`. Sorting
+and pagination run client-side on the supplied rows, and all Material table
+directives stay internal to the component.
+
+Inputs:
+
+- `data` (`readonly T[]`, default `[]`): rows to render.
+- `columns` (required `readonly DataTableColumn<T>[]`): column configuration.
+- `caption` (default `''`): accessible name rendered as a visually hidden
+  `<caption>`.
+- `pageSize` (default `10`) and `pageSizeOptions` (default `[10, 25, 50]`).
+- `sortActive` (default `''`) and `sortDirection` (`SortDirection`, default
+  `''`): optional initial sort; empty means rows keep their supplied order
+  until the user sorts.
+- `emptyText` (default `''`): optional empty-state text.
+
+`DataTableColumn<T>` carries `key`, `header`, `sortable?`, `value?`,
+`cellClass?`, `align?`, and `truncate?`. A text column renders `value(row)`; a
+column is sortable only when `sortable: true`; `truncate: true` clamps the cell
+to one line with an ellipsis and sets the native `title` to the full value for
+hover. Pages supply custom cell content with the `appDataTableCell` directive,
+matched to a column by `key` and rendered with the row as context.
 
 ## Responsibilities
 

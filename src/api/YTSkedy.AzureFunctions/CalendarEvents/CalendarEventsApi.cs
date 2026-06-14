@@ -130,7 +130,7 @@ public class CalendarEventsApi(
             PublishCalendarEventOutcome.Published => new OkObjectResult(
                 new PublishCalendarEventResponse(
                     calendarEventId,
-                    CalendarEventStatus.Published.ToString(),
+                    nameof(CalendarEventStatus.Published),
                     result.YouTubeBroadcastId!)),
             PublishCalendarEventOutcome.NotFound => new NotFoundObjectResult(
                 $"Calendar event '{calendarEventId}' was not found."),
@@ -195,13 +195,15 @@ public class CalendarEventsApi(
     {
         error = new EmptyResult();
 
-        if (value < minValue || value > maxValue)
+        if (value >= minValue && value <= maxValue)
         {
-            error = new BadRequestObjectResult(
-                $"Query parameter '{name}' must be between {minValue} and {maxValue}.");
-            return false;
+            return true;
         }
 
-        return true;
+        error = new BadRequestObjectResult(
+            $"Query parameter '{name}' must be between {minValue} and {maxValue}.");
+
+        return false;
+
     }
 }

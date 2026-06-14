@@ -20,9 +20,9 @@ public sealed class YouTubeBroadcastPublisher : IYouTubeBroadcastPublisher
 {
     private const string ApplicationName = "YTSkedy";
 
-    private readonly YouTubeService youTubeService;
-    private readonly YouTubeBroadcastOptions broadcastOptions;
-    private readonly ILogger<YouTubeBroadcastPublisher> logger;
+    private readonly YouTubeService _youTubeService;
+    private readonly YouTubeBroadcastOptions _broadcastOptions;
+    private readonly ILogger<YouTubeBroadcastPublisher> _logger;
 
     public YouTubeBroadcastPublisher(
         IOptions<YouTubeOptions> youTubeOptions,
@@ -34,8 +34,8 @@ public sealed class YouTubeBroadcastPublisher : IYouTubeBroadcastPublisher
         ArgumentNullException.ThrowIfNull(logger);
 
         var credentials = youTubeOptions.Value;
-        this.broadcastOptions = broadcastOptions.Value;
-        this.logger = logger;
+        this._broadcastOptions = broadcastOptions.Value;
+        this._logger = logger;
 
         var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
         {
@@ -50,7 +50,7 @@ public sealed class YouTubeBroadcastPublisher : IYouTubeBroadcastPublisher
         var token = new TokenResponse { RefreshToken = credentials.RefreshToken };
         var credential = new UserCredential(flow, ApplicationName, token);
 
-        youTubeService = new YouTubeService(new BaseClientService.Initializer
+        _youTubeService = new YouTubeService(new BaseClientService.Initializer
         {
             HttpClientInitializer = credential,
             ApplicationName = ApplicationName
@@ -73,23 +73,23 @@ public sealed class YouTubeBroadcastPublisher : IYouTubeBroadcastPublisher
             },
             Status = new LiveBroadcastStatus
             {
-                PrivacyStatus = broadcastOptions.PrivacyStatus,
-                SelfDeclaredMadeForKids = broadcastOptions.SelfDeclaredMadeForKids
+                PrivacyStatus = _broadcastOptions.PrivacyStatus,
+                SelfDeclaredMadeForKids = _broadcastOptions.SelfDeclaredMadeForKids
             }
         };
 
-        var insertRequest = youTubeService.LiveBroadcasts.Insert(broadcast, "snippet,status");
+        var insertRequest = _youTubeService.LiveBroadcasts.Insert(broadcast, "snippet,status");
 
         try
         {
             var created = await insertRequest.ExecuteAsync(cancellationToken);
 
-            logger.LogInformation(
+            _logger.LogInformation(
                 "Created YouTube live broadcast {BroadcastId} scheduled for " +
                 "{ScheduledStartUtc:o} with privacy {PrivacyStatus}.",
                 created.Id,
                 request.ScheduledStartUtc,
-                broadcastOptions.PrivacyStatus);
+                _broadcastOptions.PrivacyStatus);
 
             return created.Id;
         }
@@ -99,12 +99,12 @@ public sealed class YouTubeBroadcastPublisher : IYouTubeBroadcastPublisher
             // validation, auth rejection) but not our client secret or tokens,
             // so it is safe to log. The handler turns this into a 500 and
             // releases the publish reservation.
-            logger.LogError(
+            _logger.LogError(
                 exception,
                 "Failed to create YouTube live broadcast scheduled for " +
                 "{ScheduledStartUtc:o} with privacy {PrivacyStatus}.",
                 request.ScheduledStartUtc,
-                broadcastOptions.PrivacyStatus);
+                _broadcastOptions.PrivacyStatus);
 
             throw;
         }

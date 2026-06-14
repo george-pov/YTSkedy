@@ -1,14 +1,5 @@
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
-public enum PublishCalendarEventOutcome
-{
-    Published,
-    NotFound,
-    AlreadyPublished,
-    StartInPast,
-    MissingEnglishDescription
-}
-
 /// <summary>
 /// Outcome of a publish attempt. <see cref="YouTubeBroadcastId"/> is set only
 /// when <see cref="Outcome"/> is <see cref="PublishCalendarEventOutcome.Published"/>.
