@@ -14,11 +14,14 @@ import {
   CalendarEventsService,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { Button } from "src/app/shared/components/button/button";
+import { DataTable } from 'src/app/shared/components/data-table/data-table';
+import { DataTableCell } from 'src/app/shared/components/data-table/data-table-cell';
+import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-calendar-events',
-  imports: [Button],
+  imports: [Button, DataTable, DataTableCell],
   templateUrl: './calendar-events.html',
   styleUrl: './calendar-events.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,6 +38,43 @@ export class CalendarEvents implements OnInit {
   protected readonly publishingId = signal<string | null>(null);
   protected readonly publishError = signal<string | null>(null);
   protected readonly monthLabel = formatMonthLabel(this.monthQuery);
+
+  protected readonly columns: DataTableColumn<CalendarEvent>[] = [
+    {
+      key: 'calendarEventId',
+      header: 'Event ID',
+      value: (event) => event.calendarEventId,
+      cellClass: 'mono',
+    },
+    {
+      key: 'start',
+      header: 'Scheduled Start',
+      value: (event) => event.start.localDateTime,
+      sortable: true,
+    },
+    {
+      key: 'timeZone',
+      header: 'Time Zone',
+      value: (event) => event.start.timeZoneId,
+      sortable: true,
+    },
+    {
+      key: 'descriptions',
+      header: 'Descriptions',
+      value: (event) => this.describeEvent(event),
+      truncate: true,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      value: (event) => event.status,
+      sortable: true,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+    },
+  ];
 
   ngOnInit(): void {
     this.calendarEventsService

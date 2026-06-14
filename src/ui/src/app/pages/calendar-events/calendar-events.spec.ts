@@ -78,6 +78,11 @@ describe('CalendarEvents', () => {
     expect(fixture.nativeElement.querySelector('table')).not.toBeNull();
 
     const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Event ID');
+    expect(text).toContain('Scheduled Start');
+    expect(text).toContain('Time Zone');
+    expect(text).toContain('Descriptions');
+    expect(text).toContain('Status');
     expect(text).toContain('20260606T170000Z');
     expect(text).toContain('2026-06-06T10:00:00');
     expect(text).toContain('America/Vancouver');
