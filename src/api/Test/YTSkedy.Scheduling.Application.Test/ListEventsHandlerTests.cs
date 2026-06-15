@@ -123,6 +123,29 @@ public class ListEventsHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_TitleAscending_SortsByEnglishTitleOrdinal()
+    {
+        var reader = new FakeCalendarEventReader(
+        [
+            CreateListItem("20260101T000000Z", englishTitle: "Charlie stream"),
+            CreateListItem("20260102T000000Z", englishTitle: "Alpha stream"),
+            CreateListItem("20260103T000000Z", englishTitle: "Bravo stream")
+        ]);
+        var handler = new ListEventsHandler(reader);
+
+        var result = await handler.HandleAsync(
+            Query(sort: CalendarEventSortField.Title, direction: CalendarEventSortDirection.Ascending),
+            CancellationToken.None);
+
+        // English title order ascending: Alpha, Bravo, Charlie. This differs
+        // from the calendar event id order, so it proves the English title is
+        // the sort key rather than the id.
+        Assert.Equal(
+            ["20260102T000000Z", "20260103T000000Z", "20260101T000000Z"],
+            Ids(result));
+    }
+
+    [Fact]
     public async Task HandleAsync_FirstPage_ReturnsFirstSlice()
     {
         var handler = new ListEventsHandler(new FakeCalendarEventReader(FiveAscendingItems()));
@@ -278,11 +301,12 @@ public class ListEventsHandlerTests
     private static CalendarEventListItem CreateListItem(
         string calendarEventId,
         CalendarEventStatus status = CalendarEventStatus.Draft,
-        string timeZoneId = "America/Vancouver") =>
+        string timeZoneId = "America/Vancouver",
+        string? englishTitle = null) =>
         new(
             calendarEventId,
             new ScheduledStart(new DateTime(2026, 1, 1, 0, 0, 0), timeZoneId),
-            [new LocalizedDescription("en", $"Title {calendarEventId}", null)],
+            [new LocalizedDescription("en", englishTitle ?? $"Title {calendarEventId}", null)],
             status);
 
     private static string[] Ids(CalendarEventListPage page) =>

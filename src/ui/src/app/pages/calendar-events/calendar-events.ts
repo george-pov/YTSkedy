@@ -74,6 +74,7 @@ export class CalendarEvents implements OnInit {
       key: 'title',
       header: 'Title',
       value: (event) => englishTitle(event),
+      sortable: true,
       truncate: true,
     },
     {
@@ -197,6 +198,8 @@ function toSortField(columnKey: string): CalendarEventSortField {
       return 'status';
     case 'timeZone':
       return 'timeZone';
+    case 'title':
+      return 'title';
     default:
       return 'scheduledStart';
   }

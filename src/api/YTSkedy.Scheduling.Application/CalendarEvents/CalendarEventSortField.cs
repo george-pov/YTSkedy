@@ -9,5 +9,6 @@ public enum CalendarEventSortField
 {
     ScheduledStart = 0,
     Status = 1,
-    TimeZone = 2
+    TimeZone = 2,
+    Title = 3
 }

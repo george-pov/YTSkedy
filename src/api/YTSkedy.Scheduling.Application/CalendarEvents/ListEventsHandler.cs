@@ -55,6 +55,15 @@ public sealed class ListEventsHandler(ICalendarEventReader calendarEvents)
         {
             CalendarEventSortField.Status => item => item.Status.ToString(),
             CalendarEventSortField.TimeZone => item => item.Start.TimeZoneId,
+            CalendarEventSortField.Title => EnglishTitle,
             _ => item => item.CalendarEventId
         };
+
+    // Sort key for the Title column: the English (en) description title. Both
+    // languages are required when an event is created, so the English entry is
+    // normally present; a missing entry sorts as an empty string.
+    private static string EnglishTitle(CalendarEventListItem item) =>
+        item.Descriptions
+            .FirstOrDefault(description => description.Language == "en")
+            ?.Title ?? string.Empty;
 }

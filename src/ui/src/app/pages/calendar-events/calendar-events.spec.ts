@@ -174,6 +174,29 @@ describe('CalendarEvents', () => {
     });
   });
 
+  it('maps the Title column to the title sort field', async () => {
+    service.list.mockReturnValue(
+      of(pageOf([draftEvent('20260606T170000Z')], 40)),
+    );
+
+    await createComponent();
+    service.list.mockClear();
+
+    emitTableState({
+      pageIndex: 0,
+      pageSize: 10,
+      sortActive: 'title',
+      sortDirection: 'asc',
+    });
+
+    expect(service.list).toHaveBeenCalledWith({
+      page: 0,
+      pageSize: 10,
+      sort: 'title',
+      direction: 'asc',
+    });
+  });
+
   it('re-fetches the requested page when the page index changes', async () => {
     service.list.mockReturnValue(
       of(pageOf([draftEvent('20260606T170000Z')], 40)),

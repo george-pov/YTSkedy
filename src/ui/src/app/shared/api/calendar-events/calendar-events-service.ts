@@ -28,7 +28,11 @@ export interface CalendarEventDescription {
   description: string | null;
 }
 
-export type CalendarEventSortField = 'scheduledStart' | 'status' | 'timeZone';
+export type CalendarEventSortField =
+  | 'scheduledStart'
+  | 'status'
+  | 'timeZone'
+  | 'title';
 
 export type CalendarEventSortDirection = 'asc' | 'desc';
 

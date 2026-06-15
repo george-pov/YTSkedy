@@ -86,9 +86,9 @@ Query parameters (all optional):
 
 - `page`: zero-based page index. Non-negative integer. Default `0`.
 - `pageSize`: page size from `1` through `100`. Default `10`.
-- `sort`: sort field, one of `scheduledStart`, `status`, or `timeZone`
+- `sort`: sort field, one of `scheduledStart`, `status`, `timeZone`, or `title`
   (case-insensitive). Default `scheduledStart`. `scheduledStart` orders by the
-  UTC start instant.
+  UTC start instant. `title` orders by the English (`en`) description title.
 - `direction`: `asc` or `desc` (case-insensitive). Default `desc`.
 - `year` and `month`: optional local-calendar-month filter. When supplied they
   must be supplied together; `year` is `1000` through `9999` and `month` is `1`
@@ -149,7 +149,7 @@ Current invalid query behavior:
 - `page` that is not a non-negative integer returns `400 Bad Request`.
 - `pageSize` outside `1` through `100`, or not an integer, returns
   `400 Bad Request`.
-- `sort` outside `scheduledStart`, `status`, `timeZone` returns
+- `sort` outside `scheduledStart`, `status`, `timeZone`, `title` returns
   `400 Bad Request`.
 - `direction` outside `asc`, `desc` returns `400 Bad Request`.
 - Supplying only one of `year`/`month` returns `400 Bad Request`; an out-of-range

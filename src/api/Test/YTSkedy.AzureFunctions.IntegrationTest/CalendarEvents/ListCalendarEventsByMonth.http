@@ -14,8 +14,8 @@ GET {{HostAddress}}/api/calendar-events
 Authorization: Bearer {{accessToken}}
 
 ### List calendar events with explicit paging and sort
-# Expected response: 200 OK. Sortable fields are scheduledStart, status, and
-# timeZone; direction is asc or desc.
+# Expected response: 200 OK. Sortable fields are scheduledStart, status,
+# timeZone, and title; direction is asc or desc.
 
 GET {{HostAddress}}/api/calendar-events?page=0&pageSize=10&sort=scheduledStart&direction=desc
 Authorization: Bearer {{accessToken}}
@@ -47,8 +47,8 @@ GET {{HostAddress}}/api/calendar-events?pageSize=0
 Authorization: Bearer {{accessToken}}
 
 ### Invalid sort field
-# Expected response: 400 Bad Request (sort must be scheduledStart, status, or
-# timeZone).
+# Expected response: 400 Bad Request (sort must be scheduledStart, status,
+# timeZone, or title).
 
 GET {{HostAddress}}/api/calendar-events?sort=descriptions
 Authorization: Bearer {{accessToken}}

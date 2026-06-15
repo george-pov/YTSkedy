@@ -23,7 +23,7 @@ and reads `{ calendarEventId }` from the response.
 The `GET` endpoint returns a server-side sorted paged envelope
 `{ items, page, pageSize, totalCount, sort, direction }`. The query carries
 `page` (default `0`), `pageSize` (default `10`), `sort`
-(`scheduledStart` | `status` | `timeZone`, default `scheduledStart`),
+(`scheduledStart` | `status` | `timeZone` | `title`, default `scheduledStart`),
 `direction` (`asc` | `desc`, default `desc`), and an optional both-or-neither
 `year`/`month` filter. The default page is the first page sorted by scheduled
 start descending. The UI consumes one page at a time and uses `totalCount` to
