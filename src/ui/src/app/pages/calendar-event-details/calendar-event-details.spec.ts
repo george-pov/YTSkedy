@@ -9,6 +9,7 @@ import {
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { CalendarEventDetails } from './calendar-event-details';
 import { CalendarEventDetailsForm } from './calendar-event-details.form';
 
@@ -19,6 +20,7 @@ describe('CalendarEventDetails', () => {
       (request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>
     >;
   };
+  let notifications: { showSuccess: Mock<(message: string) => void> };
   let navigations: string[];
 
   beforeEach(() => {
@@ -27,6 +29,7 @@ describe('CalendarEventDetails', () => {
         (request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>
       >(),
     };
+    notifications = { showSuccess: vi.fn<(message: string) => void>() };
     navigations = [];
 
     TestBed.configureTestingModule({
@@ -34,6 +37,7 @@ describe('CalendarEventDetails', () => {
         provideZonelessChangeDetection(),
         provideRouter([]),
         { provide: CalendarEventsService, useValue: service },
+        { provide: NotificationService, useValue: notifications },
       ],
     });
 
@@ -138,6 +142,17 @@ describe('CalendarEventDetails', () => {
       ],
     });
     expect(navigations).toEqual(['/calendar-events']);
+  });
+
+  it('shows a success notification on a successful create', async () => {
+    service.create.mockReturnValue(of({ calendarEventId: '20990101T100000Z' }));
+    fillValidForm();
+
+    await submitForm();
+
+    expect(notifications.showSuccess).toHaveBeenCalledWith(
+      'Calendar event created.',
+    );
   });
 
   it('shows a generic error and does not navigate when the create fails', async () => {

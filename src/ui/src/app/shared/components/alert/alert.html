@@ -1,0 +1,16 @@
+<mat-icon class="icon" aria-hidden="true">{{ icon() }}</mat-icon>
+
+<div class="content">
+  <ng-content />
+</div>
+
+@if (dismissible()) {
+  <button
+    type="button"
+    class="close"
+    aria-label="Dismiss"
+    (click)="dismiss()"
+  >
+    <mat-icon aria-hidden="true">close</mat-icon>
+  </button>
+}

@@ -1,0 +1,68 @@
+@use 'src/styles/variables' as *;
+
+:host {
+  display: flex;
+  align-items: flex-start;
+  gap: $app-space-3;
+  padding: $app-space-3 $app-space-4;
+  border: 1px solid;
+  border-radius: 8px;
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.content {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover {
+    opacity: 0.7;
+  }
+
+  &:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+}
+
+// Variant palettes. Each pairs a tinted surface with an accessible text color
+// so the icon (currentColor) and message read clearly without relying on color
+// alone.
+:host(.success) {
+  border-color: $app-color-success-border;
+  background: $app-color-success-surface;
+  color: $app-color-success-text;
+}
+
+:host(.error) {
+  border-color: $app-color-error-border;
+  background: $app-color-error-surface;
+  color: $app-color-error-text;
+}
+
+:host(.info) {
+  border-color: $app-color-info-border;
+  background: $app-color-info-surface;
+  color: $app-color-info-text;
+}
+
+:host(.warning) {
+  border-color: $app-color-warning-border;
+  background: $app-color-warning-surface;
+  color: $app-color-warning-text;
+}

@@ -1,3 +1,5 @@
+@use 'src/styles/variables' as *;
+
 :host {
   display: block;
 }
@@ -69,14 +71,5 @@
 
 .field-error {
   margin: 0;
-  color: #b42318;
-}
-
-.form-error {
-  margin: 0;
-  padding: 0.75rem 1rem;
-  border: 1px solid #fda29b;
-  border-radius: 8px;
-  background: #fff1f0;
-  color: #b42318;
+  color: $app-color-error-text;
 }

@@ -1,5 +1,6 @@
 import { Type } from '@angular/core';
 
+import { AlertLab } from './alert-lab/alert-lab';
 import { ButtonLab } from './button-lab/button-lab';
 import { DataTableLab } from './data-table-lab/data-table-lab';
 import { FormControlsLab } from './form-controls-lab/form-controls-lab';
@@ -26,5 +27,9 @@ export const componentLabItems: readonly ComponentLabItem[] = [
   {
     label: 'Data Table',
     component: DataTableLab,
+  },
+  {
+    label: 'Alert',
+    component: AlertLab,
   },
 ];

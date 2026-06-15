@@ -15,6 +15,8 @@ import {
   CalendarEventStart,
   CalendarEventsService,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import { NotificationService } from 'src/app/shared/notifications/notification-service';
+import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from "src/app/shared/components/button/button";
 import {
   DataTable,
@@ -26,7 +28,7 @@ import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-calendar-events',
-  imports: [Button, DataTable, DataTableCell],
+  imports: [Alert, Button, DataTable, DataTableCell],
   templateUrl: './calendar-events.html',
   styleUrl: './calendar-events.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,6 +37,7 @@ export class CalendarEvents implements OnInit {
 
   private readonly router = inject(Router);
   private readonly calendarEventsService = inject(CalendarEventsService);
+  private readonly notifications = inject(NotificationService);
 
   protected readonly events = signal<CalendarEvent[]>([]);
   // Single error surface for the page. Both a failed page load and a failed
@@ -126,6 +129,7 @@ export class CalendarEvents implements OnInit {
           // Re-fetch the current page so the published row keeps its place in
           // the server ordering instead of being patched in place.
           this.fetchPage();
+          this.notifications.showSuccess('Calendar event published.');
         },
         error: (error: unknown) => {
           this.errorMessage.set(describePublishError(error));

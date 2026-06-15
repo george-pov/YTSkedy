@@ -12,6 +12,8 @@ import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { CalendarEventsService } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import { NotificationService } from 'src/app/shared/notifications/notification-service';
+import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from 'src/app/shared/components/button/button';
 import { DateField } from 'src/app/shared/components/date/date';
 import { Input } from 'src/app/shared/components/input/input';
@@ -25,7 +27,7 @@ import {
 
 @Component({
   selector: 'app-calendar-event-details',
-  imports: [ReactiveFormsModule, Button, Input, DateField, TimeField, Select],
+  imports: [ReactiveFormsModule, Alert, Button, Input, DateField, TimeField, Select],
   templateUrl: './calendar-event-details.html',
   styleUrl: './calendar-event-details.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -33,6 +35,7 @@ import {
 export class CalendarEventDetails {
   private readonly router = inject(Router);
   private readonly calendarEventsService = inject(CalendarEventsService);
+  private readonly notifications = inject(NotificationService);
 
   protected readonly form = createCalendarEventDetailsForm();
   protected readonly timeZoneOptions = timeZoneOptions;
@@ -40,8 +43,9 @@ export class CalendarEventDetails {
   protected readonly isSubmitting = signal(false);
   protected readonly submitFailed = signal(false);
 
-  private readonly errorRegion =
-    viewChild<ElementRef<HTMLElement>>('errorRegion');
+  private readonly errorRegion = viewChild('errorRegion', {
+    read: ElementRef<HTMLElement>,
+  });
 
   protected readonly startDateErrors = {
     required: 'Start date is required.',
@@ -101,6 +105,7 @@ export class CalendarEventDetails {
       .pipe(finalize(() => this.isSubmitting.set(false)))
       .subscribe({
         next: () => {
+          this.notifications.showSuccess('Calendar event created.');
           this.router.navigateByUrl('/calendar-events');
         },
         error: () => {

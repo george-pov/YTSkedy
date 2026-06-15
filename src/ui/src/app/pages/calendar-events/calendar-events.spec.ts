@@ -20,6 +20,7 @@ import {
   CalendarEventsService,
   PublishCalendarEventResponse,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import {
   DataTable,
   DataTableState,
@@ -36,6 +37,7 @@ describe('CalendarEvents', () => {
       (calendarEventId: string) => Observable<PublishCalendarEventResponse>
     >;
   };
+  let notifications: { showSuccess: Mock<(message: string) => void> };
   let navigations: string[];
 
   beforeEach(() => {
@@ -51,6 +53,7 @@ describe('CalendarEvents', () => {
         (calendarEventId: string) => Observable<PublishCalendarEventResponse>
       >(),
     };
+    notifications = { showSuccess: vi.fn<(message: string) => void>() };
   });
 
   afterEach(() => {
@@ -292,6 +295,31 @@ describe('CalendarEvents', () => {
     expect(fixture.nativeElement.textContent).toContain('Published');
   });
 
+  it('shows a success notification after a successful publish', async () => {
+    const draft = draftEvent('20260606T170000Z');
+    service.list
+      .mockReturnValueOnce(of(pageOf([draft])))
+      .mockReturnValueOnce(of(pageOf([{ ...draft, status: 'Published' }])));
+    service.publish.mockReturnValue(
+      of({
+        calendarEventId: '20260606T170000Z',
+        status: 'Published',
+        youTubeBroadcastId: 'broadcast-123',
+      }),
+    );
+
+    await createComponent();
+
+    fixture.nativeElement
+      .querySelector('.publish-button')
+      .dispatchEvent(new Event('click'));
+    fixture.detectChanges();
+
+    expect(notifications.showSuccess).toHaveBeenCalledWith(
+      'Calendar event published.',
+    );
+  });
+
   it('shows an error when publishing fails', async () => {
     service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
     service.publish.mockReturnValue(
@@ -361,6 +389,10 @@ describe('CalendarEvents', () => {
         {
           provide: CalendarEventsService,
           useValue: service,
+        },
+        {
+          provide: NotificationService,
+          useValue: notifications,
         },
       ],
     }).compileComponents();

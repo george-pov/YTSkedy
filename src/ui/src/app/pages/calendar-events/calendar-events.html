@@ -10,7 +10,7 @@
     <p class="status" role="status">Loading calendar events...</p>
   } @else {
     @if (errorMessage(); as message) {
-      <p class="status has-error" role="alert">{{ message }}</p>
+      <app-alert variant="error">{{ message }}</app-alert>
     }
     <app-data-table
       [data]="events()"
