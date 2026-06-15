@@ -336,5 +336,10 @@ public class ListEventsHandlerTests
             string calendarEventId,
             CancellationToken cancellationToken) =>
             Task.FromResult<CalendarEventDetail?>(null);
+
+        public Task<CalendarEventListItem?> GetListItemByIdAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<CalendarEventListItem?>(null);
     }
 }

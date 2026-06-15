@@ -191,6 +191,11 @@ public class PublishCalendarEventHandlerTests
             string calendarEventId,
             CancellationToken cancellationToken) =>
             Task.FromResult(detail);
+
+        public Task<CalendarEventListItem?> GetListItemByIdAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeCalendarEventRepository : ICalendarEventRepository

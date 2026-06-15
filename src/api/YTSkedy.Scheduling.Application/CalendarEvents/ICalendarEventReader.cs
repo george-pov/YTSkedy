@@ -15,4 +15,14 @@ public interface ICalendarEventReader
     Task<CalendarEventDetail?> GetByIdAsync(
         string calendarEventId,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads a single calendar event read model by id, or null when no event
+    /// has the id. Carries the wall-clock local start and time zone, unlike
+    /// <see cref="GetByIdAsync"/> which carries the UTC instant for publishing,
+    /// so the edit UI can repopulate its form from stored local time.
+    /// </summary>
+    Task<CalendarEventListItem?> GetListItemByIdAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken);
 }

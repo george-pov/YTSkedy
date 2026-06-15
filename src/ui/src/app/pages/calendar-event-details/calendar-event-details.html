@@ -1,83 +1,105 @@
 <section class="layout">
   <header class="header">
-    <h1>Add Calendar Event</h1>
-    <p>Schedule a new stream and its descriptions.</p>
+    <h1>{{ isEditMode ? 'Edit Calendar Event' : 'Add Calendar Event' }}</h1>
+    <p>
+      {{
+        isEditMode
+          ? 'Update this stream and its descriptions.'
+          : 'Schedule a new stream and its descriptions.'
+      }}
+    </p>
   </header>
 
-  <form class="event-form" [formGroup]="form" (ngSubmit)="submit()">
-    <fieldset class="section">
-      <legend>Scheduled start</legend>
-      <div class="app-grid app-gap-4">
-        <app-date
-          class="app-col-md-4"
-          [control]="form.controls.start.controls.date"
-          label="Start date"
-          [errorMessages]="startDateErrors" />
-        <app-time
-          class="app-col-md-4"
-          [control]="form.controls.start.controls.time"
-          label="Start time"
-          [errorMessages]="startTimeErrors" />
-        <app-select
-          class="app-col-md-4"
-          [control]="form.controls.start.controls.timeZoneId"
-          label="Time zone"
-          [options]="timeZoneOptions"
-          [required]="true"
-          [errorMessages]="timeZoneErrors" />
-      </div>
-      @if (startHasFutureError) {
-        <p class="field-error">Start must be in the future.</p>
+  @if (isLoading()) {
+    <app-progress-bar label="Loading calendar event" />
+  } @else if (loadFailed()) {
+    <app-alert variant="error">
+      The calendar event could not be loaded. Check your connection and try again.
+    </app-alert>
+  } @else {
+    <form class="event-form" [formGroup]="form" (ngSubmit)="submit()">
+      <fieldset class="section">
+        <legend>Scheduled start</legend>
+        <div class="app-grid app-gap-4">
+          <app-date
+            class="app-col-md-4"
+            [control]="form.controls.start.controls.date"
+            label="Start date"
+            [errorMessages]="startDateErrors"
+          />
+          <app-time
+            class="app-col-md-4"
+            [control]="form.controls.start.controls.time"
+            label="Start time"
+            [errorMessages]="startTimeErrors"
+          />
+          <app-select
+            class="app-col-md-4"
+            [control]="form.controls.start.controls.timeZoneId"
+            label="Time zone"
+            [options]="timeZoneOptions"
+            [required]="true"
+            [errorMessages]="timeZoneErrors"
+          />
+        </div>
+        @if (startHasFutureError) {
+          <p class="field-error">Start must be in the future.</p>
+        }
+      </fieldset>
+
+      <fieldset class="section">
+        <legend>Descriptions</legend>
+        <p class="section-hint">
+          English and Russian are both required, each with a title and a description.
+        </p>
+
+        <div class="app-grid app-gap-6">
+          <div class="description-item app-col-md-6">
+            <h2 class="description-language">English</h2>
+            <app-input
+              [control]="form.controls.descriptions.controls.en.controls.title"
+              label="Title"
+              [errorMessages]="enTitleErrors"
+            />
+            <app-input
+              [control]="form.controls.descriptions.controls.en.controls.description"
+              label="Description"
+              [errorMessages]="enDescriptionErrors"
+            />
+          </div>
+
+          <div class="description-item app-col-md-6">
+            <h2 class="description-language">Russian</h2>
+            <app-input
+              [control]="form.controls.descriptions.controls.ru.controls.title"
+              label="Title"
+              [errorMessages]="ruTitleErrors"
+            />
+            <app-input
+              [control]="form.controls.descriptions.controls.ru.controls.description"
+              label="Description"
+              [errorMessages]="ruDescriptionErrors"
+            />
+          </div>
+        </div>
+      </fieldset>
+
+      @if (submitFailed()) {
+        <app-alert #errorRegion variant="error" tabindex="-1">
+          The event could not be saved. Check your connection and try again.
+        </app-alert>
       }
-    </fieldset>
 
-    <fieldset class="section">
-      <legend>Descriptions</legend>
-      <p class="section-hint">
-        English and Russian are both required, each with a title and a
-        description.
-      </p>
+      @if (isEditMode) {
+        <p class="section-hint">Saving changes is not available yet.</p>
+      }
 
-      <div class="app-grid app-gap-6">
-        <div class="description-item app-col-md-6">
-          <h2 class="description-language">English</h2>
-          <app-input
-            [control]="form.controls.descriptions.controls.en.controls.title"
-            label="Title"
-            [errorMessages]="enTitleErrors" />
-          <app-input
-            [control]="form.controls.descriptions.controls.en.controls.description"
-            label="Description"
-            [errorMessages]="enDescriptionErrors" />
-        </div>
-
-        <div class="description-item app-col-md-6">
-          <h2 class="description-language">Russian</h2>
-          <app-input
-            [control]="form.controls.descriptions.controls.ru.controls.title"
-            label="Title"
-            [errorMessages]="ruTitleErrors" />
-          <app-input
-            [control]="form.controls.descriptions.controls.ru.controls.description"
-            label="Description"
-            [errorMessages]="ruDescriptionErrors" />
-        </div>
+      <div class="app-actions app-actions-end app-actions-stack-mobile">
+        <app-button type="button" appearance="outlined" (click)="cancel()"> Cancel </app-button>
+        <app-button type="submit" [disabled]="isSubmitting() || isEditMode">
+          Save event
+        </app-button>
       </div>
-    </fieldset>
-
-    @if (submitFailed()) {
-      <app-alert #errorRegion variant="error" tabindex="-1">
-        The event could not be saved. Check your connection and try again.
-      </app-alert>
-    }
-
-    <div class="app-actions app-actions-end app-actions-stack-mobile">
-      <app-button type="button" appearance="outlined" (click)="cancel()">
-        Cancel
-      </app-button>
-      <app-button type="submit" [disabled]="isSubmitting()">
-        Save event
-      </app-button>
-    </div>
-  </form>
+    </form>
+  }
 </section>

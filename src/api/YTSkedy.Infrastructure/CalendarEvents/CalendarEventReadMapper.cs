@@ -80,8 +80,10 @@ internal static class CalendarEventReadMapper
             StringComparison.Ordinal);
     }
 
-    private static CalendarEventListItem ToListItem(CalendarEventEntity entity)
+    public static CalendarEventListItem ToListItem(CalendarEventEntity entity)
     {
+        ArgumentNullException.ThrowIfNull(entity);
+
         if (!DateTime.TryParseExact(
                 entity.LocalDateTime,
                 "yyyy-MM-dd'T'HH:mm:ss",

@@ -158,6 +158,49 @@ Current invalid query behavior:
   `400 Bad Request`.
 - Error responses currently use specific plain string messages.
 
+## Get Calendar Event
+
+```text
+GET /api/calendar-events/{calendarEventId}
+```
+
+Returns a single calendar event by id. Requires the `CalendarEvents.Read` scope.
+The response item has the same shape as one `items[]` entry from the list
+endpoint, carrying the wall-clock local start and time zone (not the UTC
+instant) so the UI edit form can repopulate from stored local time.
+
+Success response (`200 OK`):
+
+```json
+{
+  "calendarEventId": "20260606T170000Z",
+  "start": {
+    "localDateTime": "2026-06-06T10:00:00",
+    "timeZoneId": "America/Vancouver"
+  },
+  "descriptions": [
+    {
+      "language": "ru",
+      "title": "Russian stream 1",
+      "description": null
+    },
+    {
+      "language": "en",
+      "title": "English stream 1",
+      "description": "Description for stream 1 in English"
+    }
+  ],
+  "status": "Draft"
+}
+```
+
+Current behavior:
+
+- Unknown `calendarEventId` returns `404 Not Found`.
+- The `CalendarEventDetails` edit route (`/calendar-events/{calendarEventId}/edit`)
+  consumes this endpoint to load an event into the form. Saving an edit is not
+  implemented yet.
+
 ## Publish Calendar Event
 
 ```text

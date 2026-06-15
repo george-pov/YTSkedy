@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { APP_CONFIG } from 'src/app/shared/config/app-config';
 import {
+  calendarEventByIdUrl,
   calendarEventsUrl,
   publishCalendarEventUrl,
 } from './calendar-events-endpoint';
@@ -28,11 +29,7 @@ export interface CalendarEventDescription {
   description: string | null;
 }
 
-export type CalendarEventSortField =
-  | 'scheduledStart'
-  | 'status'
-  | 'timeZone'
-  | 'title';
+export type CalendarEventSortField = 'scheduledStart' | 'status' | 'timeZone' | 'title';
 
 export type CalendarEventSortDirection = 'asc' | 'desc';
 
@@ -101,29 +98,24 @@ export class CalendarEventsService {
       .set('direction', query.direction);
 
     if (query.year !== undefined && query.month !== undefined) {
-      params = params
-        .set('year', query.year.toString())
-        .set('month', query.month.toString());
+      params = params.set('year', query.year.toString()).set('month', query.month.toString());
     }
 
-    return this.http.get<CalendarEventListPage>(
-      calendarEventsUrl(this.appConfig.api),
-      { params },
-    );
+    return this.http.get<CalendarEventListPage>(calendarEventsUrl(this.appConfig.api), { params });
   }
 
-  create(
-    request: CreateCalendarEventRequest,
-  ): Observable<CreateCalendarEventResponse> {
+  getById(calendarEventId: string): Observable<CalendarEvent> {
+    return this.http.get<CalendarEvent>(calendarEventByIdUrl(this.appConfig.api, calendarEventId));
+  }
+
+  create(request: CreateCalendarEventRequest): Observable<CreateCalendarEventResponse> {
     return this.http.post<CreateCalendarEventResponse>(
       calendarEventsUrl(this.appConfig.api),
       request,
     );
   }
 
-  publish(
-    calendarEventId: string,
-  ): Observable<PublishCalendarEventResponse> {
+  publish(calendarEventId: string): Observable<PublishCalendarEventResponse> {
     return this.http.post<PublishCalendarEventResponse>(
       publishCalendarEventUrl(this.appConfig.api, calendarEventId),
       {},

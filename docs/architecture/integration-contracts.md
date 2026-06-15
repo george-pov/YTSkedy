@@ -12,13 +12,19 @@ Current implemented HTTP surface:
 
 - `POST /api/calendar-events`
 - `GET /api/calendar-events?page={page}&pageSize={pageSize}&sort={sort}&direction={direction}`
+- `GET /api/calendar-events/{calendarEventId}`
 - `POST /api/calendar-events/{calendarEventId}/publish`
 
 Both list and create endpoints are consumed by the UI: the `CalendarEvents`
 list page calls the `GET` endpoint, and the `CalendarEventDetails` create form
 (`/calendar-events/new`) calls the `POST` endpoint with a body of
 `{ start: { localDateTime, timeZoneId }, descriptions: [{ language, title, description? }] }`
-and reads `{ calendarEventId }` from the response.
+and reads `{ calendarEventId }` from the response. The `CalendarEventDetails`
+edit route (`/calendar-events/{calendarEventId}/edit`) calls
+`GET /api/calendar-events/{calendarEventId}` to load an event into the form;
+that endpoint returns a single item in the list-item shape
+`{ calendarEventId, start: { localDateTime, timeZoneId }, descriptions, status }`
+or `404` when the id is unknown. Saving an edit is not implemented yet.
 
 The `GET` endpoint returns a server-side sorted paged envelope
 `{ items, page, pageSize, totalCount, sort, direction }`. The query carries

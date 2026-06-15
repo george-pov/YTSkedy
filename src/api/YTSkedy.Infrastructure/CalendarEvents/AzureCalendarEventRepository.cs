@@ -124,6 +124,17 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
         return entity is null ? null : CalendarEventReadMapper.ToDetail(entity);
     }
 
+    public async Task<CalendarEventListItem?> GetListItemByIdAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+
+        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
+
+        return entity is null ? null : CalendarEventReadMapper.ToListItem(entity);
+    }
+
     public async Task<bool> TryReserveForPublishingAsync(
         string calendarEventId,
         CancellationToken cancellationToken)

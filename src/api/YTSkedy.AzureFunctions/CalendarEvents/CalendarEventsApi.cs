@@ -12,6 +12,7 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 public class CalendarEventsApi(
     CreateCalendarEventHandler createHandler,
     ListEventsHandler listHandler,
+    GetCalendarEventHandler getHandler,
     PublishCalendarEventHandler publishHandler)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -94,6 +95,21 @@ public class CalendarEventsApi(
             ToDirectionString(result.Direction));
 
         return new OkObjectResult(response);
+    }
+
+    [Function("GetCalendarEvent")]
+    [RequiredScope("CalendarEvents.Read")]
+    public async Task<IActionResult> GetCalendarEventAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "calendar-events/{calendarEventId}")]
+        HttpRequest request,
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        var calendarEvent = await getHandler.HandleAsync(calendarEventId, cancellationToken);
+
+        return calendarEvent is null
+            ? new NotFoundResult()
+            : new OkObjectResult(ToListItemResponse(calendarEvent));
     }
 
     [Function("PublishCalendarEvent")]

@@ -6,7 +6,10 @@ import {
   Validators,
 } from '@angular/forms';
 
-import { CreateCalendarEventRequest } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import {
+  CalendarEvent,
+  CreateCalendarEventRequest,
+} from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { SelectOption } from 'src/app/shared/components/select/select';
 
 export const titleMaxLength = 100;
@@ -47,17 +50,13 @@ export function detectPreselectedTimeZone(
   options: readonly SelectOption[] = timeZoneOptions,
   detectedTimeZone: string = Intl.DateTimeFormat().resolvedOptions().timeZone,
 ): string {
-  return options.some((option) => option.value === detectedTimeZone)
-    ? detectedTimeZone
-    : '';
+  return options.some((option) => option.value === detectedTimeZone) ? detectedTimeZone : '';
 }
 
 // Fails as `required` when the value is empty after trimming, so whitespace
 // alone does not satisfy a required text field. Reuses the `required` key so
 // pages map a single message.
-export function requiredTrimmed(
-  control: AbstractControl,
-): ValidationErrors | null {
+export function requiredTrimmed(control: AbstractControl): ValidationErrors | null {
   const value = (control.value ?? '') as string;
   return value.trim().length === 0 ? { required: true } : null;
 }
@@ -67,9 +66,7 @@ export function requiredTrimmed(
 // present, resolves the wall-clock time in the selected zone to an instant and
 // flags `startInPast` when it is not in the future. Client-side only, for
 // responsiveness; the backend remains the durable validator.
-export function futureStartValidator(
-  group: AbstractControl,
-): ValidationErrors | null {
+export function futureStartValidator(group: AbstractControl): ValidationErrors | null {
   const date = group.get('date')?.value as string | undefined;
   const time = group.get('time')?.value as string | undefined;
   const timeZoneId = group.get('timeZoneId')?.value as string | undefined;
@@ -89,10 +86,7 @@ export function futureStartValidator(
 // Resolves a wall-clock local date-time in a named time zone to an epoch
 // milliseconds instant. Uses the zone offset reported by Intl for that instant.
 // DST transition edges are approximate; acceptable for client-side gating only.
-function zonedWallTimeToInstant(
-  localDateTime: string,
-  timeZoneId: string,
-): number | null {
+function zonedWallTimeToInstant(localDateTime: string, timeZoneId: string): number | null {
   const naiveUtc = Date.parse(`${localDateTime}Z`);
   if (Number.isNaN(naiveUtc)) {
     return null;
@@ -208,4 +202,41 @@ export function toCreateCalendarEventRequest(
       },
     ],
   };
+}
+
+// Reverse mapping used by edit mode. Splits the stored wall-clock
+// `YYYY-MM-DDTHH:mm:ss` into the native date (`YYYY-MM-DD`) and time (`HH:mm`)
+// the controls hold, selects the stored time zone, and fills each language from
+// its description (a missing language or null description becomes empty). Saving
+// an edit is not wired yet; this only repopulates the form for display.
+export function patchCalendarEventDetailsForm(
+  form: CalendarEventDetailsForm,
+  event: CalendarEvent,
+): void {
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(event.start.localDateTime);
+  const date = match === null ? '' : match[1];
+  const time = match === null ? '' : match[2];
+
+  const descriptionFor = (language: string) =>
+    event.descriptions.find((entry) => entry.language === language);
+  const en = descriptionFor('en');
+  const ru = descriptionFor('ru');
+
+  form.setValue({
+    start: {
+      date,
+      time,
+      timeZoneId: event.start.timeZoneId,
+    },
+    descriptions: {
+      en: {
+        title: en?.title ?? '',
+        description: en?.description ?? '',
+      },
+      ru: {
+        title: ru?.title ?? '',
+        description: ru?.description ?? '',
+      },
+    },
+  });
 }

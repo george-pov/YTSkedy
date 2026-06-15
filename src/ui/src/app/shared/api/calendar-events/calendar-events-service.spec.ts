@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { APP_CONFIG } from 'src/app/shared/config/app-config';
 import { testAppConfig } from 'src/app/shared/config/testing/app-config.fixture';
 import {
+  CalendarEvent,
   CalendarEventListPage,
   CalendarEventsService,
   CreateCalendarEventRequest,
@@ -159,6 +160,39 @@ describe('CalendarEventsService', () => {
     request.flush(apiResponse);
 
     expect(actualResponse).toEqual(apiResponse);
+  });
+
+  it('requests a single calendar event by id and returns it', () => {
+    const apiResponse: CalendarEvent = {
+      calendarEventId: '20260606T170000Z',
+      start: {
+        localDateTime: '2026-06-06T10:00:00',
+        timeZoneId: 'America/Vancouver',
+      },
+      descriptions: [
+        {
+          language: 'en',
+          title: 'English stream 1',
+          description: 'Description for stream 1 in English',
+        },
+      ],
+      status: 'Draft',
+    };
+
+    let actual: CalendarEvent | undefined;
+    service.getById('20260606T170000Z').subscribe((event) => {
+      actual = event;
+    });
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/20260606T170000Z',
+    );
+
+    expect(request.request.method).toBe('GET');
+
+    request.flush(apiResponse);
+
+    expect(actual).toEqual(apiResponse);
   });
 
   it('posts a publish request to the calendar event publish endpoint and returns the API response', () => {

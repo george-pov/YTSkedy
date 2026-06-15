@@ -1,10 +1,16 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
-import { Observable, of, throwError } from 'rxjs';
+import {
+  ActivatedRoute,
+  convertToParamMap,
+  provideRouter,
+  Router,
+} from '@angular/router';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
+  CalendarEvent,
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
@@ -19,6 +25,7 @@ describe('CalendarEventDetails', () => {
     create: Mock<
       (request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>
     >;
+    getById: Mock<(calendarEventId: string) => Observable<CalendarEvent>>;
   };
   let notifications: { showSuccess: Mock<(message: string) => void> };
   let navigations: string[];
@@ -28,6 +35,7 @@ describe('CalendarEventDetails', () => {
       create: vi.fn<
         (request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>
       >(),
+      getById: vi.fn<(calendarEventId: string) => Observable<CalendarEvent>>(),
     };
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
     navigations = [];
@@ -38,6 +46,7 @@ describe('CalendarEventDetails', () => {
         provideRouter([]),
         { provide: CalendarEventsService, useValue: service },
         { provide: NotificationService, useValue: notifications },
+        { provide: ActivatedRoute, useValue: routeWithId(null) },
       ],
     });
 
@@ -175,4 +184,134 @@ describe('CalendarEventDetails', () => {
     expect(navigations).toEqual(['/calendar-events']);
     expect(service.create).not.toHaveBeenCalled();
   });
+
+  describe('edit mode', () => {
+    const editId = '20260606T170000Z';
+
+    function createEditComponent(): void {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          provideZonelessChangeDetection(),
+          provideRouter([]),
+          { provide: CalendarEventsService, useValue: service },
+          { provide: NotificationService, useValue: notifications },
+          { provide: ActivatedRoute, useValue: routeWithId(editId) },
+        ],
+      });
+
+      fixture = TestBed.createComponent(CalendarEventDetails);
+
+      const router = TestBed.inject(Router);
+      router.navigateByUrl = ((url: string) => {
+        navigations.push(url);
+        return Promise.resolve(true);
+      }) as Router['navigateByUrl'];
+
+      fixture.detectChanges();
+    }
+
+    it('loads the event by id and populates the form', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+
+      expect(service.getById).toHaveBeenCalledWith(editId);
+      expect(form().getRawValue()).toEqual({
+        start: {
+          date: '2030-03-04',
+          time: '09:30',
+          timeZoneId: 'Europe/London',
+        },
+        descriptions: {
+          en: { title: 'English title', description: 'English description' },
+          ru: { title: 'Russian title', description: 'Russian description' },
+        },
+      });
+    });
+
+    it('shows the edit heading', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+
+      expect(fixture.nativeElement.querySelector('h1').textContent).toContain(
+        'Edit Calendar Event',
+      );
+    });
+
+    it('keeps Save disabled and does not create on submit', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+
+      const save = fixture.nativeElement.querySelector(
+        'button[type="submit"]',
+      ) as HTMLButtonElement;
+      expect(save.disabled).toBe(true);
+
+      fixture.nativeElement
+        .querySelector('form')
+        .dispatchEvent(new Event('submit'));
+      fixture.detectChanges();
+
+      expect(service.create).not.toHaveBeenCalled();
+      expect(navigations).toEqual([]);
+    });
+
+    it('shows an error and no form when the event cannot be loaded', () => {
+      service.getById.mockReturnValue(throwError(() => new Error('boom')));
+
+      createEditComponent();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'The calendar event could not be loaded.',
+      );
+      expect(fixture.nativeElement.querySelector('form')).toBeNull();
+    });
+
+    it('shows a progress bar while the event is loading', () => {
+      service.getById.mockReturnValue(new Subject<CalendarEvent>());
+
+      createEditComponent();
+
+      expect(
+        fixture.nativeElement.querySelector('app-progress-bar'),
+      ).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('form')).toBeNull();
+    });
+  });
+
+  function routeWithId(calendarEventId: string | null): ActivatedRoute {
+    return {
+      snapshot: {
+        paramMap: convertToParamMap(
+          calendarEventId === null ? {} : { calendarEventId },
+        ),
+      },
+    } as ActivatedRoute;
+  }
+
+  function sampleEvent(): CalendarEvent {
+    return {
+      calendarEventId: '20260606T170000Z',
+      start: {
+        localDateTime: '2030-03-04T09:30:00',
+        timeZoneId: 'Europe/London',
+      },
+      descriptions: [
+        {
+          language: 'en',
+          title: 'English title',
+          description: 'English description',
+        },
+        {
+          language: 'ru',
+          title: 'Russian title',
+          description: 'Russian description',
+        },
+      ],
+      status: 'Draft',
+    };
+  }
 });
