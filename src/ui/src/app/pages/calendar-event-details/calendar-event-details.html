@@ -45,6 +45,10 @@
         @if (startHasFutureError) {
           <p class="field-error">Start must be in the future.</p>
         }
+        <p class="utc-preview">
+          <span>Scheduled start (UTC)</span>
+          <strong>{{ scheduledStartUtcDisplay() || 'Not set' }}</strong>
+        </p>
       </fieldset>
 
       <fieldset class="section">

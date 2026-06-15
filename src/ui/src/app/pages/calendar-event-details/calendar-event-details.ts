@@ -1,12 +1,14 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   ElementRef,
   inject,
   signal,
   viewChild,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize, Observable } from 'rxjs';
@@ -22,7 +24,9 @@ import { Select } from 'src/app/shared/components/select/select';
 import { TimeField } from 'src/app/shared/components/time/time';
 import {
   createCalendarEventDetailsForm,
+  formatScheduledStartUtcIso,
   patchCalendarEventDetailsForm,
+  scheduledStartUtcPreview,
   timeZoneOptions,
   toCreateCalendarEventRequest,
   toUpdateCalendarEventRequest,
@@ -54,6 +58,23 @@ export class CalendarEventDetails {
   protected readonly submitFailed = signal(false);
   protected readonly isLoading = signal(false);
   protected readonly loadFailed = signal(false);
+
+  // In edit mode the stored UTC instant comes from the loaded event (exact). In
+  // create mode it is derived live from the start controls so the operator sees
+  // how the chosen local start translates to UTC.
+  private readonly loadedScheduledStartUtc = signal<string | null>(null);
+  private readonly startValue = toSignal(this.form.controls.start.valueChanges, {
+    initialValue: this.form.controls.start.getRawValue(),
+  });
+  protected readonly scheduledStartUtcDisplay = computed(() => {
+    const loaded = this.loadedScheduledStartUtc();
+    if (loaded !== null) {
+      return formatScheduledStartUtcIso(loaded);
+    }
+
+    const start = this.startValue();
+    return scheduledStartUtcPreview(start.date, start.time, start.timeZoneId);
+  });
 
   private readonly errorRegion = viewChild('errorRegion', {
     read: ElementRef<HTMLElement>,
@@ -107,6 +128,7 @@ export class CalendarEventDetails {
       .subscribe({
         next: (event) => {
           patchCalendarEventDetailsForm(this.form, event);
+          this.loadedScheduledStartUtc.set(event.scheduledStartUtc);
           // Descriptions-only edit: the scheduled start is the event identity
           // and cannot change, so disable those controls. Disabling also
           // excludes them from validation, so a past start does not block

@@ -306,6 +306,7 @@ public class ListEventsHandlerTests
         new(
             calendarEventId,
             new ScheduledStart(new DateTime(2026, 1, 1, 0, 0, 0), timeZoneId),
+            new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
             [new LocalizedDescription("en", englishTitle ?? $"Title {calendarEventId}", null)],
             status);
 

@@ -112,6 +112,7 @@ Success response (`200 OK`) is a paged envelope:
         "localDateTime": "2026-06-06T10:00:00",
         "timeZoneId": "America/Vancouver"
       },
+      "scheduledStartUtc": "2026-06-06T17:00:00+00:00",
       "descriptions": [
         {
           "language": "ru",
@@ -138,6 +139,10 @@ Success response (`200 OK`) is a paged envelope:
 - `items` is the requested page of events. `page`, `pageSize`, and the echoed
   `sort`/`direction` reflect the applied query; `totalCount` is the full
   candidate count across all pages and drives the client paginator.
+- Each item carries both `start` (the submitted wall-clock `localDateTime` and
+  `timeZoneId`) and `scheduledStartUtc`, the same instant as a UTC ISO-8601
+  offset string. The UI list renders `scheduledStartUtc`; the create/edit form
+  works in local time and zone.
 - `status` is `Draft`, `Publishing`, or `Published`. New events are `Draft`. A
   `Publishing` row has a publish in progress. Rows stored before the status
   field existed are read as `Draft`.
@@ -167,7 +172,9 @@ GET /api/calendar-events/{calendarEventId}
 Returns a single calendar event by id. Requires the `CalendarEvents.Read` scope.
 The response item has the same shape as one `items[]` entry from the list
 endpoint, carrying the wall-clock local start and time zone (not the UTC
-instant) so the UI edit form can repopulate from stored local time.
+instant) so the UI edit form can repopulate from stored local time. It also
+carries `scheduledStartUtc`, the same instant as a UTC ISO-8601 string, which the
+edit form shows as a read-only translation of the local start.
 
 Success response (`200 OK`):
 
@@ -178,6 +185,7 @@ Success response (`200 OK`):
     "localDateTime": "2026-06-06T10:00:00",
     "timeZoneId": "America/Vancouver"
   },
+  "scheduledStartUtc": "2026-06-06T17:00:00+00:00",
   "descriptions": [
     {
       "language": "ru",

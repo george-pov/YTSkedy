@@ -51,6 +51,7 @@ describe('CalendarEventsService', () => {
             localDateTime: '2026-01-15T09:30:00',
             timeZoneId: 'Etc/UTC',
           },
+          scheduledStartUtc: '2026-01-15T09:30:00+00:00',
           descriptions: [
             {
               language: 'en',
@@ -166,6 +167,7 @@ describe('CalendarEventsService', () => {
         localDateTime: '2026-06-06T10:00:00',
         timeZoneId: 'America/Vancouver',
       },
+      scheduledStartUtc: '2026-06-06T17:00:00+00:00',
       descriptions: [
         {
           language: 'en',

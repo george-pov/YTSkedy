@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  type OnInit,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, type OnInit, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { finalize } from 'rxjs';
 
@@ -17,11 +11,8 @@ import {
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Alert } from 'src/app/shared/components/alert/alert';
-import { Button } from "src/app/shared/components/button/button";
-import {
-  DataTable,
-  DataTableState,
-} from 'src/app/shared/components/data-table/data-table';
+import { Button } from 'src/app/shared/components/button/button';
+import { DataTable, DataTableState } from 'src/app/shared/components/data-table/data-table';
 import { DataTableCell } from 'src/app/shared/components/data-table/data-table-cell';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
@@ -35,7 +26,6 @@ import { Router } from '@angular/router';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CalendarEvents implements OnInit {
-
   private readonly router = inject(Router);
   private readonly calendarEventsService = inject(CalendarEventsService);
   private readonly notifications = inject(NotificationService);
@@ -55,20 +45,13 @@ export class CalendarEvents implements OnInit {
   protected readonly pageIndex = signal(0);
   protected readonly pageSize = signal(10);
   protected readonly sortActive = signal('start');
-  protected readonly sortDirection =
-    signal<DataTableState['sortDirection']>('desc');
+  protected readonly sortDirection = signal<DataTableState['sortDirection']>('desc');
 
   protected readonly columns: DataTableColumn<CalendarEvent>[] = [
     {
       key: 'start',
-      header: 'Scheduled Start',
-      value: (event) => formatScheduledStart(event.start.localDateTime),
-      sortable: true,
-    },
-    {
-      key: 'timeZone',
-      header: 'Time Zone',
-      value: (event) => event.start.timeZoneId,
+      header: 'Scheduled Start (UTC)',
+      value: (event) => formatScheduledStartUtc(event.scheduledStartUtc),
       sortable: true,
     },
     {
@@ -101,9 +84,7 @@ export class CalendarEvents implements OnInit {
   protected editEvent(event: CalendarEvent): void {
     // Edit mode is not implemented yet; this only routes to the details page
     // with the calendar event id so the future edit form can load that event.
-    this.router.navigateByUrl(
-      `/calendar-events/${event.calendarEventId}/edit`,
-    );
+    this.router.navigateByUrl(`/calendar-events/${event.calendarEventId}/edit`);
   }
 
   protected onTableStateChange(state: DataTableState): void {
@@ -177,14 +158,26 @@ export class CalendarEvents implements OnInit {
   }
 }
 
-// Presentation-only formatting of the wall-clock start as `YYYY-MM-DD HH:mm`,
-// dropping the ISO `T` separator and the seconds. Sorting is server-side and
-// unaffected by this; see `toSortField` and the data-table `server` mode.
-// Falls back to the raw value if the expected shape is not present.
-function formatScheduledStart(localDateTime: string): string {
-  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(localDateTime);
+// Presentation-only formatting of the UTC scheduled start as
+// `YYYY-MM-DD HH:mm`. The value is the API's ISO-8601 instant; normalizing
+// through Date and reading the UTC components renders the instant in UTC
+// regardless of the browser's local zone. Sorting is server-side and unaffected;
+// see `toSortField` and the data-table `server` mode. Falls back to the raw
+// value if it cannot be parsed.
+function formatScheduledStartUtc(scheduledStartUtc: string): string {
+  const instant = new Date(scheduledStartUtc);
 
-  return match === null ? localDateTime : `${match[1]} ${match[2]}`;
+  if (Number.isNaN(instant.getTime())) {
+    return scheduledStartUtc;
+  }
+
+  const pad = (value: number): string => value.toString().padStart(2, '0');
+
+  return (
+    `${instant.getUTCFullYear()}-${pad(instant.getUTCMonth() + 1)}-` +
+    `${pad(instant.getUTCDate())} ${pad(instant.getUTCHours())}:` +
+    `${pad(instant.getUTCMinutes())}`
+  );
 }
 
 // Presentation-only English title for the list column. Returns the title of the
@@ -192,9 +185,7 @@ function formatScheduledStart(localDateTime: string): string {
 // event is created, so a missing English entry renders as an empty cell rather
 // than falling back to another language.
 function englishTitle(event: CalendarEvent): string {
-  const english = event.descriptions.find(
-    (description) => description.language === 'en',
-  );
+  const english = event.descriptions.find((description) => description.language === 'en');
 
   return english?.title ?? '';
 }
@@ -205,8 +196,6 @@ function toSortField(columnKey: string): CalendarEventSortField {
   switch (columnKey) {
     case 'status':
       return 'status';
-    case 'timeZone':
-      return 'timeZone';
     case 'title':
       return 'title';
     default:
@@ -234,10 +223,7 @@ function describePublishError(error: unknown): string {
   return 'Calendar event could not be published.';
 }
 
-function isFutureEvent(
-  start: CalendarEventStart,
-  now: Date = new Date(),
-): boolean {
+function isFutureEvent(start: CalendarEventStart, now: Date = new Date()): boolean {
   const startValue = wallClockValue(start.localDateTime);
   const nowValue = currentWallClockValue(start.timeZoneId, now);
 
@@ -255,8 +241,7 @@ function isFutureEvent(
 // daylight-saving boundary can only shift the result by the offset delta, which
 // is immaterial for gating a button the backend re-validates.
 function wallClockValue(localDateTime: string): number | null {
-  const match =
-    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/.exec(localDateTime);
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/.exec(localDateTime);
 
   if (match === null) {
     return null;

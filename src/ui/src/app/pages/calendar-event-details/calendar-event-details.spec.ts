@@ -178,6 +178,21 @@ describe('CalendarEventDetails', () => {
     expect(service.create).not.toHaveBeenCalled();
   });
 
+  it('previews the UTC instant for the entered local start in create mode', () => {
+    // The default component is in create mode (no route id).
+    form().controls.start.setValue({
+      date: '2030-07-04',
+      time: '10:00',
+      timeZoneId: 'America/Vancouver',
+    });
+    fixture.detectChanges();
+
+    // 10:00 in America/Vancouver (PDT, UTC-7) is 17:00 UTC.
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Scheduled start (UTC)');
+    expect(text).toContain('2030-07-04 17:00');
+  });
+
   describe('edit mode', () => {
     const editId = '20260606T170000Z';
 
@@ -212,7 +227,7 @@ describe('CalendarEventDetails', () => {
       expect(service.getById).toHaveBeenCalledWith(editId);
       expect(form().getRawValue()).toEqual({
         start: {
-          date: '2030-03-04',
+          date: '2030-07-04',
           time: '09:30',
           timeZoneId: 'Europe/London',
         },
@@ -231,6 +246,17 @@ describe('CalendarEventDetails', () => {
       expect(fixture.nativeElement.querySelector('h1').textContent).toContain(
         'Edit Calendar Event',
       );
+    });
+
+    it('shows the stored UTC instant in edit mode', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+
+      // Local start is 09:30 Europe/London in July (BST, UTC+1) = 08:30 UTC.
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Scheduled start (UTC)');
+      expect(text).toContain('2030-07-04 08:30');
     });
 
     it('disables the scheduled start controls in edit mode', () => {
@@ -329,9 +355,10 @@ describe('CalendarEventDetails', () => {
     return {
       calendarEventId: '20260606T170000Z',
       start: {
-        localDateTime: '2030-03-04T09:30:00',
+        localDateTime: '2030-07-04T09:30:00',
         timeZoneId: 'Europe/London',
       },
+      scheduledStartUtc: '2030-07-04T08:30:00+00:00',
       descriptions: [
         {
           language: 'en',

@@ -21,9 +21,11 @@ The Angular frontend lives under `src/ui/`.
   through the calendar events API service and renders the result through the
   shared `app-data-table` component in server mode. It defaults to the first
   page sorted by scheduled start descending, re-fetches on each sort, page, or
-  page-size change, and re-fetches the current page after a publish. Scheduled
-  Start, Time Zone, and Status are sortable, and the Actions column projects the
-  conditional Publish button.
+  page-size change, and re-fetches the current page after a publish. The
+  Scheduled Start (UTC), Title, and Status columns are sortable, and the Actions
+  column projects the conditional Publish button alongside Edit. The scheduled
+  start is rendered as the UTC instant; local time and zone are shown on the
+  create/edit form.
 - Calendar events API service code lives under
   `src/ui/src/app/shared/api/calendar-events/`.
 

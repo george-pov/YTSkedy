@@ -3,15 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { provideRouter, Router } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { Observable, of, throwError } from 'rxjs';
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  type Mock,
-  vi,
-} from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
   CalendarEvent,
@@ -21,21 +13,14 @@ import {
   PublishCalendarEventResponse,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
-import {
-  DataTable,
-  DataTableState,
-} from 'src/app/shared/components/data-table/data-table';
+import { DataTable, DataTableState } from 'src/app/shared/components/data-table/data-table';
 import { CalendarEvents } from './calendar-events';
 
 describe('CalendarEvents', () => {
   let fixture: ComponentFixture<CalendarEvents>;
   let service: {
-    list: Mock<
-      (query: CalendarEventListQuery) => Observable<CalendarEventListPage>
-    >;
-    publish: Mock<
-      (calendarEventId: string) => Observable<PublishCalendarEventResponse>
-    >;
+    list: Mock<(query: CalendarEventListQuery) => Observable<CalendarEventListPage>>;
+    publish: Mock<(calendarEventId: string) => Observable<PublishCalendarEventResponse>>;
   };
   let notifications: { showSuccess: Mock<(message: string) => void> };
   let navigations: string[];
@@ -46,12 +31,8 @@ describe('CalendarEvents', () => {
 
     navigations = [];
     service = {
-      list: vi.fn<
-        (query: CalendarEventListQuery) => Observable<CalendarEventListPage>
-      >(),
-      publish: vi.fn<
-        (calendarEventId: string) => Observable<PublishCalendarEventResponse>
-      >(),
+      list: vi.fn<(query: CalendarEventListQuery) => Observable<CalendarEventListPage>>(),
+      publish: vi.fn<(calendarEventId: string) => Observable<PublishCalendarEventResponse>>(),
     };
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
   });
@@ -83,12 +64,11 @@ describe('CalendarEvents', () => {
     expect(fixture.nativeElement.querySelector('table')).not.toBeNull();
 
     const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Scheduled Start');
-    expect(text).toContain('Time Zone');
+    expect(text).toContain('Scheduled Start (UTC)');
     expect(text).toContain('Title');
     expect(text).toContain('Status');
-    expect(text).toContain('2026-06-06 10:00');
-    expect(text).toContain('America/Vancouver');
+    expect(text).toContain('2026-06-06 17:00');
+    expect(text).not.toContain('Time Zone');
     expect(text).toContain('English stream 1');
     expect(text).not.toContain('Description for stream 1 in English');
   });
@@ -100,9 +80,7 @@ describe('CalendarEvents', () => {
 
     // The empty text is rendered by the data table's no-data row, so the table
     // is present even when there are no items.
-    expect(fixture.nativeElement.textContent).toContain(
-      'No calendar events found.',
-    );
+    expect(fixture.nativeElement.textContent).toContain('No calendar events found.');
     expect(fixture.nativeElement.querySelector('table')).not.toBeNull();
   });
 
@@ -111,9 +89,7 @@ describe('CalendarEvents', () => {
 
     await createComponent();
 
-    expect(fixture.nativeElement.textContent).toContain(
-      'Calendar events could not be loaded.',
-    );
+    expect(fixture.nativeElement.textContent).toContain('Calendar events could not be loaded.');
     expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
   });
 
@@ -164,9 +140,7 @@ describe('CalendarEvents', () => {
   });
 
   it('re-fetches with the mapped sort field and direction on a table state change', async () => {
-    service.list.mockReturnValue(
-      of(pageOf([draftEvent('20260606T170000Z')], 40)),
-    );
+    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')], 40)));
 
     await createComponent();
     service.list.mockClear();
@@ -188,9 +162,7 @@ describe('CalendarEvents', () => {
   });
 
   it('maps the Title column to the title sort field', async () => {
-    service.list.mockReturnValue(
-      of(pageOf([draftEvent('20260606T170000Z')], 40)),
-    );
+    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')], 40)));
 
     await createComponent();
     service.list.mockClear();
@@ -211,9 +183,7 @@ describe('CalendarEvents', () => {
   });
 
   it('re-fetches the requested page when the page index changes', async () => {
-    service.list.mockReturnValue(
-      of(pageOf([draftEvent('20260606T170000Z')], 40)),
-    );
+    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')], 40)));
 
     await createComponent();
     service.list.mockClear();
@@ -234,9 +204,7 @@ describe('CalendarEvents', () => {
   });
 
   it('resets to the first page when the page size changes', async () => {
-    service.list.mockReturnValue(
-      of(pageOf([draftEvent('20260606T170000Z')], 40)),
-    );
+    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')], 40)));
 
     await createComponent();
 
@@ -271,9 +239,7 @@ describe('CalendarEvents', () => {
 
     await createComponent();
 
-    expect(
-      fixture.nativeElement.querySelector('.publish-button'),
-    ).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.publish-button')).not.toBeNull();
   });
 
   it('does not show a Publish action for a published event', async () => {
@@ -313,9 +279,7 @@ describe('CalendarEvents', () => {
     await createComponent();
     service.list.mockClear();
 
-    fixture.nativeElement
-      .querySelector('.publish-button')
-      .dispatchEvent(new Event('click'));
+    fixture.nativeElement.querySelector('.publish-button').dispatchEvent(new Event('click'));
     fixture.detectChanges();
 
     expect(service.publish).toHaveBeenCalledWith('20260606T170000Z');
@@ -345,32 +309,22 @@ describe('CalendarEvents', () => {
 
     await createComponent();
 
-    fixture.nativeElement
-      .querySelector('.publish-button')
-      .dispatchEvent(new Event('click'));
+    fixture.nativeElement.querySelector('.publish-button').dispatchEvent(new Event('click'));
     fixture.detectChanges();
 
-    expect(notifications.showSuccess).toHaveBeenCalledWith(
-      'Calendar event published.',
-    );
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event published.');
   });
 
   it('shows an error when publishing fails', async () => {
     service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
-    service.publish.mockReturnValue(
-      throwError(() => new Error('Request failed')),
-    );
+    service.publish.mockReturnValue(throwError(() => new Error('Request failed')));
 
     await createComponent();
 
-    fixture.nativeElement
-      .querySelector('.publish-button')
-      .dispatchEvent(new Event('click'));
+    fixture.nativeElement.querySelector('.publish-button').dispatchEvent(new Event('click'));
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain(
-      'Calendar event could not be published.',
-    );
+    expect(fixture.nativeElement.textContent).toContain('Calendar event could not be published.');
     expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
   });
 
@@ -384,6 +338,7 @@ describe('CalendarEvents', () => {
   function draftEvent(
     calendarEventId: string,
     localDateTime = '2026-06-06T10:00:00',
+    scheduledStartUtc = '2026-06-06T17:00:00+00:00',
   ): CalendarEvent {
     return {
       calendarEventId,
@@ -391,6 +346,7 @@ describe('CalendarEvents', () => {
         localDateTime,
         timeZoneId: 'America/Vancouver',
       },
+      scheduledStartUtc,
       descriptions: [
         {
           language: 'en',
@@ -402,10 +358,7 @@ describe('CalendarEvents', () => {
     };
   }
 
-  function pageOf(
-    items: CalendarEvent[],
-    totalCount = items.length,
-  ): CalendarEventListPage {
+  function pageOf(items: CalendarEvent[], totalCount = items.length): CalendarEventListPage {
     return {
       items,
       page: 0,

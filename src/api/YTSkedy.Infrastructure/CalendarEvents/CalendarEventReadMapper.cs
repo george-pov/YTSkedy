@@ -100,6 +100,7 @@ internal static class CalendarEventReadMapper
             new ScheduledStart(
                 localDateTime,
                 entity.TimeZoneId),
+            entity.ScheduledStartUtc,
             DeserializeDescriptions(entity),
             ParseStatus(entity.Status));
     }

@@ -14,6 +14,7 @@ export type CalendarEventStatus = 'Draft' | 'Publishing' | 'Published';
 export interface CalendarEvent {
   calendarEventId: string;
   start: CalendarEventStart;
+  scheduledStartUtc: string;
   descriptions: CalendarEventDescription[];
   status: CalendarEventStatus;
 }

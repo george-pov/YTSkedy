@@ -24,7 +24,7 @@ and reads `{ calendarEventId }` from the response. The `CalendarEventDetails`
 edit route (`/calendar-events/{calendarEventId}/edit`) calls
 `GET /api/calendar-events/{calendarEventId}` to load an event into the form;
 that endpoint returns a single item in the list-item shape
-`{ calendarEventId, start: { localDateTime, timeZoneId }, descriptions, status }`
+`{ calendarEventId, start: { localDateTime, timeZoneId }, scheduledStartUtc, descriptions, status }`
 or `404` when the id is unknown. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with a body of
 `{ descriptions: [{ language, title, description? }] }` and reads

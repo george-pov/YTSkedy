@@ -265,3 +265,44 @@ export function toUpdateCalendarEventRequest(
     ],
   };
 }
+
+// Formats an epoch-milliseconds instant as `YYYY-MM-DD HH:mm` in UTC, matching
+// the calendar events list rendering of the scheduled start.
+function formatUtcInstant(epochMs: number): string {
+  const instant = new Date(epochMs);
+  const pad = (value: number): string => value.toString().padStart(2, '0');
+
+  return (
+    `${instant.getUTCFullYear()}-${pad(instant.getUTCMonth() + 1)}-` +
+    `${pad(instant.getUTCDate())} ${pad(instant.getUTCHours())}:` +
+    `${pad(instant.getUTCMinutes())}`
+  );
+}
+
+// Create-mode preview: resolves the chosen local date, time, and zone to the UTC
+// instant the backend would store, so the form can show how the local start
+// translates to UTC. Returns an empty string while any part is missing or the
+// zone cannot be interpreted. Parts are optional because a typed form group's
+// value omits disabled controls. Client-side conversion is approximate at DST
+// edges; it is informational and the backend remains authoritative.
+export function scheduledStartUtcPreview(
+  date: string | undefined,
+  time: string | undefined,
+  timeZoneId: string | undefined,
+): string {
+  if (!date || !time || !timeZoneId) {
+    return '';
+  }
+
+  const instant = zonedWallTimeToInstant(`${date}T${time}:00`, timeZoneId);
+
+  return instant === null ? '' : formatUtcInstant(instant);
+}
+
+// Edit-mode: formats the stored UTC instant (an ISO-8601 string from the API)
+// for the read-only display. Returns an empty string when it cannot be parsed.
+export function formatScheduledStartUtcIso(scheduledStartUtc: string): string {
+  const epochMs = Date.parse(scheduledStartUtc);
+
+  return Number.isNaN(epochMs) ? '' : formatUtcInstant(epochMs);
+}

@@ -46,6 +46,7 @@ public class GetCalendarEventHandlerTests
         new(
             calendarEventId,
             new ScheduledStart(new DateTime(2026, 6, 6, 10, 0, 0), "America/Vancouver"),
+            new DateTimeOffset(2026, 6, 6, 17, 0, 0, TimeSpan.Zero),
             [new LocalizedDescription("en", "English stream 1", null)],
             CalendarEventStatus.Draft);
 

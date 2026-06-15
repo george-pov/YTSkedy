@@ -73,3 +73,14 @@
   margin: 0;
   color: $app-color-error-text;
 }
+
+.utc-preview {
+  display: flex;
+  gap: $app-space-2;
+  margin: 0;
+  color: $app-color-muted;
+
+  strong {
+    color: $app-color-text;
+  }
+}

@@ -387,6 +387,7 @@ public class CalendarEventsApi(
             new CalendarEventStart(
                 calendarEvent.Start.LocalDateTime,
                 calendarEvent.Start.TimeZoneId),
+            calendarEvent.ScheduledStartUtc,
             calendarEvent.Descriptions
                 .Select(description => new LocalizedCalendarEventText(
                     description.Language,
