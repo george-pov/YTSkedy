@@ -1,7 +1,7 @@
 <section class="layout">
   <header class="header">
     <h1>Calendar Events</h1>
-    <app-button class="add-new-button" (click)="addNewEvent()">
+    <app-button icon="add" class="add-new-button" (click)="addNewEvent()">
       Add new event
     </app-button>
   </header>
@@ -29,20 +29,20 @@
         <div class="app-actions">
           <app-button
             class="edit-button"
-            appearance="outlined"
+            iconButton
+            icon="edit"
+            ariaLabel="Edit"
             (click)="editEvent(event)"
-          >
-            Edit
-          </app-button>
+          />
           @if (canPublish(event)) {
             <app-button
               class="publish-button"
-              appearance="outlined"
+              iconButton
+              icon="publish"
+              ariaLabel="Publish"
               [disabled]="publishingId() === event.calendarEventId"
               (click)="publish(event)"
-            >
-              Publish
-            </app-button>
+            />
           }
         </div>
       </ng-template>

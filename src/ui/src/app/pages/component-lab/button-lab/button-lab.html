@@ -12,4 +12,13 @@
     <app-button [disabled]="true" appearance="outlined">Cancel</app-button>
     <app-button [disabled]="true">Disabled</app-button>
   </app-lab-example>
+  <app-lab-example titleId="button-icon-text-example-title" title="Icon and text" itemsLayout="inline">
+    <app-button icon="add">Add new event</app-button>
+    <app-button appearance="outlined" icon="save">Save</app-button>
+  </app-lab-example>
+  <app-lab-example titleId="button-icon-only-example-title" title="Icon only" itemsLayout="inline">
+    <app-button iconButton icon="edit" ariaLabel="Edit" />
+    <app-button iconButton icon="publish" ariaLabel="Publish" />
+    <app-button iconButton icon="delete" ariaLabel="Delete" [disabled]="true" />
+  </app-lab-example>
 </app-lab-page>

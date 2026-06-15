@@ -1,3 +1,22 @@
-<button [matButton]="appearance()" [disabled]="disabled()" [type]="type()">
-  <ng-content />
-</button>
+@if (iconButton()) {
+  <button
+    matIconButton
+    [disabled]="disabled()"
+    [type]="type()"
+    [attr.aria-label]="ariaLabel()"
+  >
+    <mat-icon aria-hidden="true">{{ icon() }}</mat-icon>
+  </button>
+} @else {
+  <button
+    [matButton]="appearance()"
+    [disabled]="disabled()"
+    [type]="type()"
+    [attr.aria-label]="ariaLabel() || null"
+  >
+    @if (icon(); as iconName) {
+      <mat-icon aria-hidden="true">{{ iconName }}</mat-icon>
+    }
+    <ng-content />
+  </button>
+}
