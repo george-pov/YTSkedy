@@ -1,13 +1,23 @@
 import { NgComponentOutlet } from '@angular/common';
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { MatListModule } from '@angular/material/list';
 
-import { componentLabItems } from './component-lab.registry';
+import { ComponentLabItem, componentLabItems } from './component-lab.registry';
 
 @Component({
   selector: 'app-component-lab',
-  imports: [NgComponentOutlet],
+  imports: [NgComponentOutlet, MatListModule],
   templateUrl: './component-lab.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ComponentLab {
   protected readonly labItems = componentLabItems;
+
+  // Which lab is shown on the right. Defaults to the first registered item so
+  // the page is never empty on load.
+  protected readonly selected = signal<ComponentLabItem>(componentLabItems[0]);
+
+  protected select(item: ComponentLabItem): void {
+    this.selected.set(item);
+  }
 }

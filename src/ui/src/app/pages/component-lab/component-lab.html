@@ -1,5 +1,21 @@
 <h1>Component Lab</h1>
 
-@for (item of labItems; track item.label) {
-  <ng-container *ngComponentOutlet="item.component"></ng-container>
-}
+<div class="app-grid">
+  <nav class="app-col-md-3" aria-label="Components">
+    <mat-action-list>
+      @for (item of labItems; track item.label) {
+        <button
+          mat-list-item
+          [activated]="item === selected()"
+          (click)="select(item)"
+        >
+          {{ item.label }}
+        </button>
+      }
+    </mat-action-list>
+  </nav>
+
+  <div class="app-col-md-9">
+    <ng-container *ngComponentOutlet="selected().component" />
+  </div>
+</div>
