@@ -144,7 +144,9 @@ nondeterministic boundaries.
 
 For calendar events, protect these contracts:
 
-- `GET /api/calendar-events?year={year}&month={month}` query shape
+- `GET /api/calendar-events?page={page}&pageSize={pageSize}&sort={sort}&direction={direction}`
+  query shape and the `{ items, page, pageSize, totalCount, sort, direction }`
+  response envelope
 - local date-time and time-zone values are not converted to browser local time
 - English and Russian titles are mapped by language code, not array order
 - missing localized titles map to blank display values

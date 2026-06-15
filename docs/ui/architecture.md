@@ -17,11 +17,13 @@ The Angular frontend lives under `src/ui/`.
 - Routed pages render through the `AppLayout` route shell.
 - Runtime API base URL configuration is loaded from
   `src/ui/public/config/app-config.json`.
-- The `calendar-events` page route loads the current browser month through the
-  calendar events API service and renders the result through the shared
-  `app-data-table` component, with client-side sorting and pagination. Rows
-  keep API order until the user sorts; Scheduled Start, Time Zone, and Status
-  are sortable, and the Actions column projects the conditional Publish button.
+- The `calendar-events` page route loads one server-side sorted page of events
+  through the calendar events API service and renders the result through the
+  shared `app-data-table` component in server mode. It defaults to the first
+  page sorted by scheduled start descending, re-fetches on each sort, page, or
+  page-size change, and re-fetches the current page after a publish. Scheduled
+  Start, Time Zone, and Status are sortable, and the Actions column projects the
+  conditional Publish button.
 - Calendar events API service code lives under
   `src/ui/src/app/shared/api/calendar-events/`.
 
@@ -61,21 +63,40 @@ import Angular Material directly for those concerns.
 
 `app-data-table` (`DataTable<T>` in
 `src/ui/src/app/shared/components/data-table/`) is a generic, reusable table
-that wraps Angular Material `MatTable`, `MatSort`, and `MatPaginator`. Sorting
-and pagination run client-side on the supplied rows, and all Material table
-directives stay internal to the component.
+that wraps Angular Material `MatTable`, `MatSort`, and `MatPaginator`. It
+supports two modes through the `mode` input. In the default `client` mode,
+sorting and pagination run client-side on the supplied rows. In `server` mode,
+the component renders the supplied page as-is and emits state so the page can
+fetch the matching server page. All Material table directives stay internal to
+the component.
 
 Inputs:
 
-- `data` (`readonly T[]`, default `[]`): rows to render.
+- `data` (`readonly T[]`, default `[]`): rows to render. In server mode this is
+  the current page, rendered unsliced and unsorted by the client.
 - `columns` (required `readonly DataTableColumn<T>[]`): column configuration.
 - `caption` (default `''`): accessible name rendered as a visually hidden
   `<caption>`.
 - `pageSize` (default `10`) and `pageSizeOptions` (default `[10, 25, 50]`).
 - `sortActive` (default `''`) and `sortDirection` (`SortDirection`, default
-  `''`): optional initial sort; empty means rows keep their supplied order
-  until the user sorts.
+  `''`): the active sort column key and direction. In client mode this is the
+  optional initial sort; in server mode it reflects the server-applied sort.
+- `mode` (`'client' | 'server'`, default `'client'`): paging and sorting mode.
+- `totalCount` (default `0`): total row count across all server pages; drives
+  the paginator length in server mode (client mode falls back to the data
+  length).
+- `pageIndex` (default `0`): active zero-based page index, bound to the
+  paginator in server mode.
 - `emptyText` (default `''`): optional empty-state text.
+
+Output:
+
+- `stateChange` (`DataTableState`): emitted in server mode on each page index,
+  page size, sort column, or sort direction change. `DataTableState` is
+  `{ pageIndex, pageSize, sortActive, sortDirection }`. Not emitted in client
+  mode. In server mode the headers only toggle ascending/descending (sort
+  clearing is disabled). The page maps the column key to its API sort field and
+  fetches the matching page.
 
 `DataTableColumn<T>` carries `key`, `header`, `sortable?`, `value?`,
 `cellClass?`, `align?`, and `truncate?`. A text column renders `value(row)`; a

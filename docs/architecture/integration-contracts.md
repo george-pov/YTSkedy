@@ -11,7 +11,7 @@ current canonical API contract docs live under [`../api/http/`](../api/http/).
 Current implemented HTTP surface:
 
 - `POST /api/calendar-events`
-- `GET /api/calendar-events?year={year}&month={month}`
+- `GET /api/calendar-events?page={page}&pageSize={pageSize}&sort={sort}&direction={direction}`
 - `POST /api/calendar-events/{calendarEventId}/publish`
 
 Both list and create endpoints are consumed by the UI: the `CalendarEvents`
@@ -19,6 +19,17 @@ list page calls the `GET` endpoint, and the `CalendarEventDetails` create form
 (`/calendar-events/new`) calls the `POST` endpoint with a body of
 `{ start: { localDateTime, timeZoneId }, descriptions: [{ language, title, description? }] }`
 and reads `{ calendarEventId }` from the response.
+
+The `GET` endpoint returns a server-side sorted paged envelope
+`{ items, page, pageSize, totalCount, sort, direction }`. The query carries
+`page` (default `0`), `pageSize` (default `10`), `sort`
+(`scheduledStart` | `status` | `timeZone`, default `scheduledStart`),
+`direction` (`asc` | `desc`, default `desc`), and an optional both-or-neither
+`year`/`month` filter. The default page is the first page sorted by scheduled
+start descending. The UI consumes one page at a time and uses `totalCount` to
+drive its paginator; it no longer scopes the list to a month. The canonical
+parameter, envelope, and validation details live in
+[`../api/http/calendar-events.md`](../api/http/calendar-events.md).
 
 List items carry a `status` field (`Draft`, `Publishing`, or `Published`). The
 list page shows a Publish action for future `Draft` events that calls the

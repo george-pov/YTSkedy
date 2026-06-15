@@ -72,60 +72,90 @@ Production release requirements:
 - Storage conflicts must map to stable HTTP responses.
 - Unexpected storage failures must avoid leaking provider details or secrets.
 
-## List Calendar Events By Month
+## List Calendar Events
 
 ```text
-GET /api/calendar-events?year={year}&month={month}
+GET /api/calendar-events?page={page}&pageSize={pageSize}&sort={sort}&direction={direction}
 ```
 
-Query parameters:
+Returns one server-side sorted page of calendar events. The page is computed
+over all stored events; sorting, paging, and the total count are applied by the
+API.
 
-- `year`: required integer from `1000` through `9999`.
-- `month`: required integer from `1` through `12`.
+Query parameters (all optional):
 
-Month and year refer to the event's submitted local calendar month. The API
-does not infer the current month, current year, or machine local time zone.
+- `page`: zero-based page index. Non-negative integer. Default `0`.
+- `pageSize`: page size from `1` through `100`. Default `10`.
+- `sort`: sort field, one of `scheduledStart`, `status`, or `timeZone`
+  (case-insensitive). Default `scheduledStart`. `scheduledStart` orders by the
+  UTC start instant.
+- `direction`: `asc` or `desc` (case-insensitive). Default `desc`.
+- `year` and `month`: optional local-calendar-month filter. When supplied they
+  must be supplied together; `year` is `1000` through `9999` and `month` is `1`
+  through `12`. When omitted, all events are candidates.
 
-Success response:
+With no query parameters the API returns the first page (`page=0`,
+`pageSize=10`) sorted by scheduled start descending. Every sort applies the
+calendar event id ascending as a deterministic secondary key, so paging stays
+stable when the primary field ties. `year`/`month` refer to the event's
+submitted local calendar month; the API does not infer the current month,
+current year, or machine local time zone.
+
+Success response (`200 OK`) is a paged envelope:
 
 ```json
-[
-  {
-    "calendarEventId": "20260606T170000Z",
-    "start": {
-      "localDateTime": "2026-06-06T10:00:00",
-      "timeZoneId": "America/Vancouver"
-    },
-    "descriptions": [
-      {
-        "language": "ru",
-        "title": "Russian stream 1",
-        "description": null
+{
+  "items": [
+    {
+      "calendarEventId": "20260606T170000Z",
+      "start": {
+        "localDateTime": "2026-06-06T10:00:00",
+        "timeZoneId": "America/Vancouver"
       },
-      {
-        "language": "en",
-        "title": "English stream 1",
-        "description": "Description for stream 1 in English"
-      }
-    ],
-    "status": "Draft"
-  }
-]
+      "descriptions": [
+        {
+          "language": "ru",
+          "title": "Russian stream 1",
+          "description": null
+        },
+        {
+          "language": "en",
+          "title": "English stream 1",
+          "description": "Description for stream 1 in English"
+        }
+      ],
+      "status": "Draft"
+    }
+  ],
+  "page": 0,
+  "pageSize": 10,
+  "totalCount": 1,
+  "sort": "scheduledStart",
+  "direction": "desc"
+}
 ```
 
-`status` is `Draft`, `Publishing`, or `Published`. New events are `Draft`. A
-`Publishing` row has a publish in progress. Rows stored before the status field
-existed are read as `Draft`.
-
-No matching rows return `200 OK` with `[]`.
+- `items` is the requested page of events. `page`, `pageSize`, and the echoed
+  `sort`/`direction` reflect the applied query; `totalCount` is the full
+  candidate count across all pages and drives the client paginator.
+- `status` is `Draft`, `Publishing`, or `Published`. New events are `Draft`. A
+  `Publishing` row has a publish in progress. Rows stored before the status
+  field existed are read as `Draft`.
+- A page past the end returns `200 OK` with `items` as `[]` and the real
+  `totalCount`. No stored events returns `items` as `[]` with `totalCount` `0`.
 
 Current invalid query behavior:
 
-- Missing `year` or `month` returns `400 Bad Request`.
-- Empty values return `400 Bad Request`.
-- Non-integer values return `400 Bad Request`.
-- `year` outside `1000` through `9999` returns `400 Bad Request`.
-- `month` outside `1` through `12` returns `400 Bad Request`.
+- `page` that is not a non-negative integer returns `400 Bad Request`.
+- `pageSize` outside `1` through `100`, or not an integer, returns
+  `400 Bad Request`.
+- `sort` outside `scheduledStart`, `status`, `timeZone` returns
+  `400 Bad Request`.
+- `direction` outside `asc`, `desc` returns `400 Bad Request`.
+- Supplying only one of `year`/`month` returns `400 Bad Request`; an out-of-range
+  `year` or `month` returns `400 Bad Request`.
+- A repeated query parameter (more than one value) or an empty value returns
+  `400 Bad Request`.
 - Error responses currently use specific plain string messages.
 
 ## Publish Calendar Event

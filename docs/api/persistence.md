@@ -40,9 +40,11 @@ exist, then inserts one calendar event row.
 Entity fields, table keys, and formatting details are defined in code rather
 than duplicated in documentation.
 
-`AzureCalendarEventRepository.ListByMonthAsync` reads calendar event rows for a
-requested local calendar month and returns application read models ordered by
-the mapper.
+`AzureCalendarEventRepository.ListAsync` reads candidate calendar event rows and
+returns application read models. When a local-calendar-month criteria is
+supplied it scopes the read to that month; when none is supplied it reads all
+stored events. Sorting, paging, and the total count are applied by the
+application handler, so the returned candidate order is not significant.
 
 ## Time Zone Handling
 
