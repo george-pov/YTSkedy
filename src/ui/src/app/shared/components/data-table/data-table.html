@@ -5,6 +5,8 @@
     [dataSource]="dataSource"
     [matSortActive]="sortActive()"
     [matSortDirection]="sortDirection()"
+    [matSortDisableClear]="mode() === 'server'"
+    (matSortChange)="onSortChange()"
   >
     @if (caption()) {
       <caption class="visually-hidden">{{ caption() }}</caption>
@@ -55,4 +57,7 @@
 <mat-paginator
   [pageSize]="pageSize()"
   [pageSizeOptions]="pageSizeOptions()"
+  [length]="paginatorLength()"
+  [pageIndex]="pageIndex()"
+  (page)="onPageChange()"
 ></mat-paginator>

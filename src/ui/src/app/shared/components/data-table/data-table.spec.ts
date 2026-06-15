@@ -1,8 +1,11 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatPaginator } from '@angular/material/paginator';
+import { SortDirection } from '@angular/material/sort';
+import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { DataTable } from './data-table';
+import { DataTable, DataTableState } from './data-table';
 import { DataTableCell } from './data-table-cell';
 import { DataTableColumn } from './data-table-column';
 
@@ -56,7 +59,7 @@ class DataTableHost {
   ];
 }
 
-function dataRows(fixture: ComponentFixture<DataTableHost>): HTMLTableRowElement[] {
+function dataRows(fixture: ComponentFixture<unknown>): HTMLTableRowElement[] {
   const rows = Array.from(
     fixture.nativeElement.querySelectorAll('tr'),
   ) as HTMLTableRowElement[];
@@ -64,7 +67,7 @@ function dataRows(fixture: ComponentFixture<DataTableHost>): HTMLTableRowElement
 }
 
 function headerByText(
-  fixture: ComponentFixture<DataTableHost>,
+  fixture: ComponentFixture<unknown>,
   text: string,
 ): HTMLElement | undefined {
   const headers = Array.from(
@@ -150,5 +153,138 @@ describe('DataTable', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text.indexOf('Item 01')).toBeLessThan(text.indexOf('Item 02'));
     expect(text.indexOf('Item 02')).toBeLessThan(text.indexOf('Item 03'));
+  });
+});
+
+@Component({
+  selector: 'app-data-table-server-host',
+  imports: [DataTable],
+  template: `
+    <app-data-table
+      [data]="rows()"
+      [columns]="columns"
+      mode="server"
+      [totalCount]="totalCount()"
+      [pageIndex]="pageIndex()"
+      [pageSize]="pageSize()"
+      [sortActive]="sortActive()"
+      [sortDirection]="sortDirection()"
+      (stateChange)="onStateChange($event)"
+    ></app-data-table>
+  `,
+})
+class DataTableServerHost {
+  // Twelve supplied rows with a page size of 10 prove the server page renders
+  // unsliced. The total count simulates a larger backend set behind the page.
+  readonly rows = signal<SampleRow[]>(makeRows());
+  readonly totalCount = signal(40);
+  readonly pageIndex = signal(0);
+  readonly pageSize = signal(10);
+  readonly sortActive = signal('name');
+  readonly sortDirection = signal<SortDirection>('asc');
+
+  readonly states: DataTableState[] = [];
+
+  readonly columns: DataTableColumn<SampleRow>[] = [
+    { key: 'id', header: 'ID', value: (row) => row.id },
+    { key: 'name', header: 'Name', value: (row) => row.name, sortable: true },
+    {
+      key: 'size',
+      header: 'Size',
+      value: (row) => row.size,
+      sortable: true,
+      align: 'end',
+    },
+    { key: 'status', header: 'Status', value: (row) => row.status },
+  ];
+
+  onStateChange(state: DataTableState): void {
+    this.states.push(state);
+  }
+}
+
+describe('DataTable server mode', () => {
+  let fixture: ComponentFixture<DataTableServerHost>;
+  let host: DataTableServerHost;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection()],
+    });
+    fixture = TestBed.createComponent(DataTableServerHost);
+    host = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('renders the supplied page unsliced regardless of page size', () => {
+    // Client mode would slice to the page size of 10; server mode renders all
+    // supplied rows because the data source is not paginated.
+    expect(dataRows(fixture)).toHaveLength(12);
+  });
+
+  it('reflects the total count in the paginator range, not the row count', () => {
+    const paginator = fixture.nativeElement.querySelector(
+      'mat-paginator',
+    ) as HTMLElement;
+
+    expect(paginator.textContent).toContain('of 40');
+  });
+
+  it('emits stateChange with the new column on a sort column change', () => {
+    headerByText(fixture, 'Size')?.click();
+    fixture.detectChanges();
+
+    expect(host.states).toHaveLength(1);
+    expect(host.states[0]).toEqual({
+      pageIndex: 0,
+      pageSize: 10,
+      sortActive: 'size',
+      sortDirection: 'asc',
+    });
+  });
+
+  it('emits stateChange with the toggled direction on a sort direction change', () => {
+    // Name starts active ascending; with clearing disabled the next click
+    // toggles to descending rather than clearing the sort.
+    headerByText(fixture, 'Name')?.click();
+    fixture.detectChanges();
+
+    expect(host.states).toHaveLength(1);
+    expect(host.states[0]).toEqual({
+      pageIndex: 0,
+      pageSize: 10,
+      sortActive: 'name',
+      sortDirection: 'desc',
+    });
+  });
+
+  it('emits stateChange with the new page index on a page change', () => {
+    const nextButton = fixture.nativeElement.querySelector(
+      'button[aria-label="Next page"]',
+    ) as HTMLButtonElement;
+    nextButton.click();
+    fixture.detectChanges();
+
+    expect(host.states).toHaveLength(1);
+    expect(host.states[0].pageIndex).toBe(1);
+    expect(host.states[0].pageSize).toBe(10);
+    expect(host.states[0].sortActive).toBe('name');
+  });
+
+  it('emits stateChange with the new page size on a page size change', () => {
+    const paginator = fixture.debugElement.query(By.directive(MatPaginator))
+      .componentInstance as MatPaginator;
+    paginator.pageSize = 25;
+    paginator.page.emit({
+      previousPageIndex: 0,
+      pageIndex: 0,
+      pageSize: 25,
+      length: 40,
+    });
+    fixture.detectChanges();
+
+    expect(host.states).toHaveLength(1);
+    expect(host.states[0].pageSize).toBe(25);
+    expect(host.states[0].pageIndex).toBe(0);
   });
 });
