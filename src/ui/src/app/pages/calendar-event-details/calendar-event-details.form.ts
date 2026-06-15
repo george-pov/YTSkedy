@@ -9,6 +9,7 @@ import {
 import {
   CalendarEvent,
   CreateCalendarEventRequest,
+  UpdateCalendarEventRequest,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { SelectOption } from 'src/app/shared/components/select/select';
 
@@ -239,4 +240,28 @@ export function patchCalendarEventDetailsForm(
       },
     },
   });
+}
+
+// Pure mapping from the form value to the update request. Edit changes only the
+// descriptions (the start is immutable), so it carries no start. Trims text and
+// orders descriptions `en` then `ru`, mirroring the create request.
+export function toUpdateCalendarEventRequest(
+  form: CalendarEventDetailsForm,
+): UpdateCalendarEventRequest {
+  const value = form.getRawValue();
+
+  return {
+    descriptions: [
+      {
+        language: 'en',
+        title: value.descriptions.en.title.trim(),
+        description: value.descriptions.en.description.trim(),
+      },
+      {
+        language: 'ru',
+        title: value.descriptions.ru.title.trim(),
+        description: value.descriptions.ru.description.trim(),
+      },
+    ],
+  };
 }

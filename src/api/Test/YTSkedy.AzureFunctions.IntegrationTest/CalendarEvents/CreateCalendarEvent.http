@@ -83,3 +83,47 @@ Authorization: Bearer {{accessTokenReadOnly}}
     { "language": "en", "title": "Scope-insufficient probe" }
   ]
 }
+
+### Get a calendar event by id
+# Replace the id with one returned by a create above. Used by the UI edit form
+# to load an event. Expected response: 200 OK with a single list-item-shaped
+# event, or 404 Not Found for an unknown id.
+
+GET {{HostAddress}}/api/calendar-events/20260607T170000Z
+Authorization: Bearer {{accessToken}}
+
+### Update a calendar event's descriptions
+# Replace the id with one returned by a create above. Only the descriptions
+# change; the scheduled start is immutable. Expected response: 200 OK with
+# { calendarEventId }, or 404 Not Found for an unknown id.
+
+PUT {{HostAddress}}/api/calendar-events/20260607T170000Z
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "descriptions": [
+    { "language": "ru", "title": "Russian stream 1 (edited)" },
+    {
+      "language": "en",
+      "title": "English stream 1 (edited)",
+      "description": "Updated description for stream 1 in English"
+    }
+  ]
+}
+
+### Update a calendar event with a read-only token
+# Optional: paste a `CalendarEvents.Read`-only token into `accessTokenReadOnly`.
+# Expected response: 403 Forbidden (the update requires `CalendarEvents.Write`).
+# Skip this request if a read-only token is not available.
+
+PUT {{HostAddress}}/api/calendar-events/20260607T170000Z
+Content-Type: application/json
+Authorization: Bearer {{accessTokenReadOnly}}
+
+{
+  "descriptions": [
+    { "language": "en", "title": "Scope-insufficient update probe" }
+  ]
+}
+

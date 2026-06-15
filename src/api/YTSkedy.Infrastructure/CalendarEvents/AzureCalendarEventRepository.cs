@@ -135,6 +135,35 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
         return entity is null ? null : CalendarEventReadMapper.ToListItem(entity);
     }
 
+    public async Task<bool> UpdateDescriptionsAsync(
+        string calendarEventId,
+        IReadOnlyList<LocalizedDescription> descriptions,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+        ArgumentNullException.ThrowIfNull(descriptions);
+
+        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
+
+        if (entity is null)
+        {
+            return false;
+        }
+
+        entity.DescriptionsJson = JsonSerializer.Serialize(descriptions, JsonOptions);
+
+        // Conditional on the read ETag so a concurrent change to the same row is
+        // not silently overwritten. The start, identity, and status are left
+        // untouched; only the descriptions blob is replaced.
+        await tableClient.UpdateEntityAsync(
+            entity,
+            entity.ETag,
+            TableUpdateMode.Replace,
+            cancellationToken);
+
+        return true;
+    }
+
     public async Task<bool> TryReserveForPublishingAsync(
         string calendarEventId,
         CancellationToken cancellationToken)

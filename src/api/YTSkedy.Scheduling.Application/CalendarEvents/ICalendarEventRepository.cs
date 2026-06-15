@@ -9,6 +9,16 @@ public interface ICalendarEventRepository
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Replaces the localized descriptions of an existing event in place,
+    /// leaving its scheduled start, identity, and status unchanged. Returns
+    /// false when no event has the id.
+    /// </summary>
+    Task<bool> UpdateDescriptionsAsync(
+        string calendarEventId,
+        IReadOnlyList<LocalizedDescription> descriptions,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Atomically moves a Draft event to Publishing so only one publish can
     /// proceed to YouTube. Returns false when the event is not currently Draft
     /// (missing, already publishing, already published, or a concurrent

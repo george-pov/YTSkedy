@@ -90,14 +90,10 @@
         </app-alert>
       }
 
-      @if (isEditMode) {
-        <p class="section-hint">Saving changes is not available yet.</p>
-      }
-
       <div class="app-actions app-actions-end app-actions-stack-mobile">
         <app-button type="button" appearance="outlined" (click)="cancel()"> Cancel </app-button>
-        <app-button type="submit" [disabled]="isSubmitting() || isEditMode">
-          Save event
+        <app-button type="submit" [disabled]="isSubmitting()">
+          {{ isEditMode ? 'Save changes' : 'Save event' }}
         </app-button>
       </div>
     </form>

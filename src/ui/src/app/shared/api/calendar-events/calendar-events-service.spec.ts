@@ -1,8 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
-import {
-  HttpTestingController,
-  provideHttpClientTesting,
-} from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -15,6 +12,8 @@ import {
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
   PublishCalendarEventResponse,
+  UpdateCalendarEventRequest,
+  UpdateCalendarEventResponse,
 } from './calendar-events-service';
 
 describe('CalendarEventsService', () => {
@@ -150,9 +149,7 @@ describe('CalendarEventsService', () => {
       actualResponse = response;
     });
 
-    const request = http.expectOne(
-      'https://api.example.test/api/calendar-events',
-    );
+    const request = http.expectOne('https://api.example.test/api/calendar-events');
 
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual(createRequest);
@@ -184,11 +181,43 @@ describe('CalendarEventsService', () => {
       actual = event;
     });
 
-    const request = http.expectOne(
-      'https://api.example.test/api/calendar-events/20260606T170000Z',
-    );
+    const request = http.expectOne('https://api.example.test/api/calendar-events/20260606T170000Z');
 
     expect(request.request.method).toBe('GET');
+
+    request.flush(apiResponse);
+
+    expect(actual).toEqual(apiResponse);
+  });
+
+  it('puts an update request to the by-id endpoint and returns the API response', () => {
+    const updateRequest: UpdateCalendarEventRequest = {
+      descriptions: [
+        {
+          language: 'en',
+          title: 'Updated English title',
+          description: 'Updated English description',
+        },
+        {
+          language: 'ru',
+          title: 'Updated Russian title',
+          description: 'Updated Russian description',
+        },
+      ],
+    };
+    const apiResponse: UpdateCalendarEventResponse = {
+      calendarEventId: '20260606T170000Z',
+    };
+
+    let actual: UpdateCalendarEventResponse | undefined;
+    service.update('20260606T170000Z', updateRequest).subscribe((response) => {
+      actual = response;
+    });
+
+    const request = http.expectOne('https://api.example.test/api/calendar-events/20260606T170000Z');
+
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual(updateRequest);
 
     request.flush(apiResponse);
 

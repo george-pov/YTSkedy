@@ -43,6 +43,12 @@ public class CreateCalendarEventHandlerTests
             return Task.FromResult(calendarEventId);
         }
 
+        public Task<bool> UpdateDescriptionsAsync(
+            string calendarEventId,
+            IReadOnlyList<LocalizedDescription> descriptions,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<bool> TryReserveForPublishingAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>

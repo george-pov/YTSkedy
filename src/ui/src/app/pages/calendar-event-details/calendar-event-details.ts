@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize } from 'rxjs';
+import { finalize, Observable } from 'rxjs';
 
 import { CalendarEventsService } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
@@ -25,6 +25,7 @@ import {
   patchCalendarEventDetailsForm,
   timeZoneOptions,
   toCreateCalendarEventRequest,
+  toUpdateCalendarEventRequest,
 } from './calendar-event-details.form';
 
 @Component({
@@ -106,6 +107,11 @@ export class CalendarEventDetails {
       .subscribe({
         next: (event) => {
           patchCalendarEventDetailsForm(this.form, event);
+          // Descriptions-only edit: the scheduled start is the event identity
+          // and cannot change, so disable those controls. Disabling also
+          // excludes them from validation, so a past start does not block
+          // editing the descriptions of an existing event.
+          this.form.controls.start.disable();
         },
         error: () => {
           this.loadFailed.set(true);
@@ -119,9 +125,7 @@ export class CalendarEventDetails {
   }
 
   protected submit(): void {
-    // Saving an edit is not implemented yet, so edit mode never creates a new
-    // event. Submitting (including via Enter) is a no-op in edit mode.
-    if (this.isSubmitting() || this.isEditMode) {
+    if (this.isSubmitting()) {
       return;
     }
 
@@ -134,18 +138,27 @@ export class CalendarEventDetails {
 
     this.isSubmitting.set(true);
 
-    this.calendarEventsService
-      .create(toCreateCalendarEventRequest(this.form))
-      .pipe(finalize(() => this.isSubmitting.set(false)))
-      .subscribe({
-        next: () => {
-          this.notifications.showSuccess('Calendar event created.');
-          this.router.navigateByUrl('/calendar-events');
-        },
-        error: () => {
-          this.submitFailed.set(true);
-        },
-      });
+    // Edit updates descriptions in place; create posts a new event. Both
+    // responses are ignored, so the union is typed as the wider observable.
+    const request$: Observable<unknown> =
+      this.editingId === null
+        ? this.calendarEventsService.create(toCreateCalendarEventRequest(this.form))
+        : this.calendarEventsService.update(
+            this.editingId,
+            toUpdateCalendarEventRequest(this.form),
+          );
+
+    request$.pipe(finalize(() => this.isSubmitting.set(false))).subscribe({
+      next: () => {
+        this.notifications.showSuccess(
+          this.isEditMode ? 'Calendar event updated.' : 'Calendar event created.',
+        );
+        this.router.navigateByUrl('/calendar-events');
+      },
+      error: () => {
+        this.submitFailed.set(true);
+      },
+    });
   }
 
   protected cancel(): void {

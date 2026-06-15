@@ -13,6 +13,7 @@ public class CalendarEventsApi(
     CreateCalendarEventHandler createHandler,
     ListEventsHandler listHandler,
     GetCalendarEventHandler getHandler,
+    UpdateCalendarEventHandler updateHandler,
     PublishCalendarEventHandler publishHandler)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -110,6 +111,49 @@ public class CalendarEventsApi(
         return calendarEvent is null
             ? new NotFoundResult()
             : new OkObjectResult(ToListItemResponse(calendarEvent));
+    }
+
+    [Function("UpdateCalendarEvent")]
+    [RequiredScope("CalendarEvents.Write")]
+    public async Task<IActionResult> UpdateCalendarEventAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "calendar-events/{calendarEventId}")]
+        HttpRequest request,
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        UpdateCalendarEventRequest? updateRequest;
+
+        try
+        {
+            updateRequest = await JsonSerializer.DeserializeAsync<UpdateCalendarEventRequest>(
+                request.Body,
+                JsonOptions,
+                cancellationToken);
+        }
+        catch (JsonException)
+        {
+            return new BadRequestObjectResult("Request body must be valid JSON.");
+        }
+
+        if (updateRequest is null)
+        {
+            return new BadRequestObjectResult("Request body is required.");
+        }
+
+        var command = new UpdateCalendarEventDescriptionsCommand(
+            calendarEventId,
+            updateRequest.Descriptions
+                .Select(description => new LocalizedDescription(
+                    description.Language,
+                    description.Title,
+                    description.Description))
+                .ToArray());
+
+        var updated = await updateHandler.HandleAsync(command, cancellationToken);
+
+        return updated
+            ? new OkObjectResult(new UpdateCalendarEventResponse(calendarEventId))
+            : new NotFoundResult();
     }
 
     [Function("PublishCalendarEvent")]

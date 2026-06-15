@@ -198,8 +198,63 @@ Current behavior:
 
 - Unknown `calendarEventId` returns `404 Not Found`.
 - The `CalendarEventDetails` edit route (`/calendar-events/{calendarEventId}/edit`)
-  consumes this endpoint to load an event into the form. Saving an edit is not
-  implemented yet.
+  consumes this endpoint to load an event into the form.
+
+## Update Calendar Event
+
+```text
+PUT /api/calendar-events/{calendarEventId}
+```
+
+Replaces the localized descriptions of an existing calendar event in place.
+Requires the `CalendarEvents.Write` scope. Only the descriptions can change: the
+scheduled start is immutable because the event id is derived from its UTC start
+instant, so the request body carries no start.
+
+Request body:
+
+```json
+{
+  "descriptions": [
+    {
+      "language": "ru",
+      "title": "Russian stream 1 (edited)"
+    },
+    {
+      "language": "en",
+      "title": "English stream 1 (edited)",
+      "description": "Updated description for stream 1 in English"
+    }
+  ]
+}
+```
+
+Success response (`200 OK`):
+
+```json
+{
+  "calendarEventId": "20260606T170000Z"
+}
+```
+
+The update is an in-place ETag-conditional write of the descriptions blob; the
+event identity, scheduled start, and status are left unchanged. The list page
+re-fetches its current page after a successful edit, so the new descriptions
+appear in the active sort order.
+
+Current behavior and error mapping:
+
+- Unknown `calendarEventId` returns `404 Not Found`.
+- Invalid JSON returns `400 Bad Request` with a plain string message.
+- Missing request body returns `400 Bad Request` with a plain string message.
+- The `CalendarEventDetails` edit route (`/calendar-events/{calendarEventId}/edit`)
+  consumes this endpoint on save, sending the English and Russian descriptions.
+
+Production release requirements:
+
+- Broader command validation must return stable client-facing errors.
+- A concurrent edit that loses the ETag race currently surfaces as `500`; it
+  must map to a stable conflict response.
 
 ## Publish Calendar Event
 

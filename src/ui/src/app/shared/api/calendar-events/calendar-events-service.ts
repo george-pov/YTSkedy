@@ -77,6 +77,14 @@ export interface CreateCalendarEventResponse {
   calendarEventId: string;
 }
 
+export interface UpdateCalendarEventRequest {
+  descriptions: LocalizedDescription[];
+}
+
+export interface UpdateCalendarEventResponse {
+  calendarEventId: string;
+}
+
 export interface PublishCalendarEventResponse {
   calendarEventId: string;
   status: CalendarEventStatus;
@@ -106,6 +114,16 @@ export class CalendarEventsService {
 
   getById(calendarEventId: string): Observable<CalendarEvent> {
     return this.http.get<CalendarEvent>(calendarEventByIdUrl(this.appConfig.api, calendarEventId));
+  }
+
+  update(
+    calendarEventId: string,
+    request: UpdateCalendarEventRequest,
+  ): Observable<UpdateCalendarEventResponse> {
+    return this.http.put<UpdateCalendarEventResponse>(
+      calendarEventByIdUrl(this.appConfig.api, calendarEventId),
+      request,
+    );
   }
 
   create(request: CreateCalendarEventRequest): Observable<CreateCalendarEventResponse> {

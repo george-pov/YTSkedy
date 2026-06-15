@@ -19,7 +19,7 @@ src/ui/src/app/layout/app-layout/
 | `/` | Public | Renders `Home` with a sign-in button. Auto-redirects signed-in visitors to `/calendar-events`. |
 | `/calendar-events` | Protected | Renders `CalendarEvents` and loads the first page of all events sorted by scheduled start descending. Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`. |
 | `/calendar-events/new` | Protected | Renders `CalendarEventDetails`, a reactive form that creates an event via `POST /api/calendar-events` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
-| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}` and repopulates the form. Saving an edit is not implemented yet, so the Save action is disabled. Guarded by `authenticatedGuard`. |
+| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, repopulates the form, and keeps the scheduled start read-only. Save sends `PUT /api/calendar-events/{calendarEventId}` with the descriptions. Guarded by `authenticatedGuard`. |
 | `/signed-out` | Public | Renders post-logout confirmation. Auto-redirects already-authenticated visitors to `/calendar-events`. |
 | `/component-lab` | Public | Renders the minimal component lab page for manually demoing shared UI components. |
 | `**` | Public | Redirects to `/`. |
@@ -47,8 +47,10 @@ In edit mode (`/calendar-events/:calendarEventId/edit`) the page reads the id
 from the route, calls `GET /api/calendar-events/{calendarEventId}` through the
 same shared API service, and patches the loaded local start, time zone, and
 descriptions into the form. While loading it shows a progress bar; a failed load
-shows an inline error. Saving an edit is not implemented yet, so the Save action
-is disabled in edit mode.
+shows an inline error. The scheduled start is read-only in edit mode (the id is
+derived from it), so only the descriptions are editable. Save sends
+`PUT /api/calendar-events/{calendarEventId}` with the descriptions and navigates
+back to `/calendar-events` on success.
 
 ## Route Protection
 

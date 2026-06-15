@@ -1,11 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import {
-  ActivatedRoute,
-  convertToParamMap,
-  provideRouter,
-  Router,
-} from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
@@ -14,6 +9,8 @@ import {
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
+  UpdateCalendarEventRequest,
+  UpdateCalendarEventResponse,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { CalendarEventDetails } from './calendar-event-details';
@@ -22,20 +19,30 @@ import { CalendarEventDetailsForm } from './calendar-event-details.form';
 describe('CalendarEventDetails', () => {
   let fixture: ComponentFixture<CalendarEventDetails>;
   let service: {
-    create: Mock<
-      (request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>
-    >;
+    create: Mock<(request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>>;
     getById: Mock<(calendarEventId: string) => Observable<CalendarEvent>>;
+    update: Mock<
+      (
+        calendarEventId: string,
+        request: UpdateCalendarEventRequest,
+      ) => Observable<UpdateCalendarEventResponse>
+    >;
   };
   let notifications: { showSuccess: Mock<(message: string) => void> };
   let navigations: string[];
 
   beforeEach(() => {
     service = {
-      create: vi.fn<
-        (request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>
-      >(),
+      create:
+        vi.fn<(request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>>(),
       getById: vi.fn<(calendarEventId: string) => Observable<CalendarEvent>>(),
+      update:
+        vi.fn<
+          (
+            calendarEventId: string,
+            request: UpdateCalendarEventRequest,
+          ) => Observable<UpdateCalendarEventResponse>
+        >(),
     };
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
     navigations = [];
@@ -62,9 +69,11 @@ describe('CalendarEventDetails', () => {
   });
 
   function form(): CalendarEventDetailsForm {
-    return (fixture.componentInstance as unknown as {
-      form: CalendarEventDetailsForm;
-    }).form;
+    return (
+      fixture.componentInstance as unknown as {
+        form: CalendarEventDetailsForm;
+      }
+    ).form;
   }
 
   function fillValidForm(): void {
@@ -78,9 +87,7 @@ describe('CalendarEventDetails', () => {
   }
 
   async function submitForm(): Promise<void> {
-    fixture.nativeElement
-      .querySelector('form')
-      .dispatchEvent(new Event('submit'));
+    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -90,27 +97,19 @@ describe('CalendarEventDetails', () => {
     await submitForm();
 
     expect(service.create).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.textContent).toContain(
-      'Start date is required.',
-    );
-    expect(fixture.nativeElement.textContent).toContain(
-      'English title is required.',
-    );
+    expect(fixture.nativeElement.textContent).toContain('Start date is required.');
+    expect(fixture.nativeElement.textContent).toContain('English title is required.');
     expect(navigations).toEqual([]);
   });
 
   it('blocks submit when a title exceeds the max length', async () => {
     fillValidForm();
-    form().controls.descriptions.controls.en.controls.title.setValue(
-      'a'.repeat(101),
-    );
+    form().controls.descriptions.controls.en.controls.title.setValue('a'.repeat(101));
 
     await submitForm();
 
     expect(service.create).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.textContent).toContain(
-      'English title is too long.',
-    );
+    expect(fixture.nativeElement.textContent).toContain('English title is too long.');
   });
 
   it('blocks submit when the scheduled start is in the past', async () => {
@@ -120,17 +119,13 @@ describe('CalendarEventDetails', () => {
     await submitForm();
 
     expect(service.create).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.textContent).toContain(
-      'Start must be in the future.',
-    );
+    expect(fixture.nativeElement.textContent).toContain('Start must be in the future.');
   });
 
   it('posts a contract-correct request and navigates to the list on success', async () => {
     service.create.mockReturnValue(of({ calendarEventId: '20990101T100000Z' }));
     fillValidForm();
-    form().controls.descriptions.controls.en.controls.title.setValue(
-      '  English title  ',
-    );
+    form().controls.descriptions.controls.en.controls.title.setValue('  English title  ');
 
     await submitForm();
 
@@ -159,9 +154,7 @@ describe('CalendarEventDetails', () => {
 
     await submitForm();
 
-    expect(notifications.showSuccess).toHaveBeenCalledWith(
-      'Calendar event created.',
-    );
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event created.');
   });
 
   it('shows a generic error and does not navigate when the create fails', async () => {
@@ -240,22 +233,66 @@ describe('CalendarEventDetails', () => {
       );
     });
 
-    it('keeps Save disabled and does not create on submit', () => {
+    it('disables the scheduled start controls in edit mode', () => {
       service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+
+      const start = (fixture.componentInstance as unknown as { form: CalendarEventDetailsForm })
+        .form.controls.start;
+      expect(start.disabled).toBe(true);
+    });
+
+    it('keeps Save enabled and updates descriptions on submit', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.update.mockReturnValue(of({ calendarEventId: editId }));
 
       createEditComponent();
 
       const save = fixture.nativeElement.querySelector(
         'button[type="submit"]',
       ) as HTMLButtonElement;
-      expect(save.disabled).toBe(true);
+      expect(save.disabled).toBe(false);
 
-      fixture.nativeElement
-        .querySelector('form')
-        .dispatchEvent(new Event('submit'));
+      form().controls.descriptions.controls.en.controls.title.setValue('  Updated English title  ');
+
+      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
       fixture.detectChanges();
+      await fixture.whenStable();
 
       expect(service.create).not.toHaveBeenCalled();
+      expect(service.update).toHaveBeenCalledTimes(1);
+      expect(service.update).toHaveBeenCalledWith(editId, {
+        descriptions: [
+          {
+            language: 'en',
+            title: 'Updated English title',
+            description: 'English description',
+          },
+          {
+            language: 'ru',
+            title: 'Russian title',
+            description: 'Russian description',
+          },
+        ],
+      });
+      expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event updated.');
+      expect(navigations).toEqual(['/calendar-events']);
+    });
+
+    it('shows a save error and does not navigate when the update fails', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.update.mockReturnValue(throwError(() => new Error('boom')));
+
+      createEditComponent();
+
+      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const alert = fixture.nativeElement.querySelector('[role="alert"]');
+      expect(alert).not.toBeNull();
+      expect(alert.textContent).toContain('The event could not be saved.');
       expect(navigations).toEqual([]);
     });
 
@@ -275,9 +312,7 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
 
-      expect(
-        fixture.nativeElement.querySelector('app-progress-bar'),
-      ).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('app-progress-bar')).not.toBeNull();
       expect(fixture.nativeElement.querySelector('form')).toBeNull();
     });
   });
@@ -285,9 +320,7 @@ describe('CalendarEventDetails', () => {
   function routeWithId(calendarEventId: string | null): ActivatedRoute {
     return {
       snapshot: {
-        paramMap: convertToParamMap(
-          calendarEventId === null ? {} : { calendarEventId },
-        ),
+        paramMap: convertToParamMap(calendarEventId === null ? {} : { calendarEventId }),
       },
     } as ActivatedRoute;
   }
