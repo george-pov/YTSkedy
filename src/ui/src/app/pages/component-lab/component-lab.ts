@@ -1,13 +1,23 @@
 import { NgComponentOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
 
 import { ComponentLabItem, componentLabItems } from './component-lab.registry';
 
 @Component({
   selector: 'app-component-lab',
-  imports: [NgComponentOutlet, MatListModule],
+  imports: [
+    NgComponentOutlet,
+    MatButtonModule,
+    MatIconModule,
+    MatListModule,
+    MatMenuModule,
+  ],
   templateUrl: './component-lab.html',
+  styleUrl: './component-lab.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ComponentLab {

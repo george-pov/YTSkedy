@@ -1,0 +1,23 @@
+@use 'src/styles/variables' as *;
+
+// Two presentations of the same navigation. Exactly one shows, switching at the
+// md breakpoint where the grid goes from one column to two. The hamburger lives
+// in a plain wrapper so toggling its visibility never fights the Material
+// button's own display rules.
+.lab-menu {
+  margin-bottom: $app-space-4;
+}
+
+// Wide: inline list in the left column, hamburger hidden.
+@media (min-width: $app-breakpoint-md) {
+  .lab-menu {
+    display: none;
+  }
+}
+
+// Narrow: hamburger at the top, inline list hidden.
+@media (max-width: #{$app-breakpoint-md - 1px}) {
+  .lab-nav {
+    display: none;
+  }
+}

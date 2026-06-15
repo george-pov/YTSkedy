@@ -1,7 +1,24 @@
 <h1>Component Lab</h1>
 
+<div class="lab-menu">
+  <button
+    type="button"
+    mat-icon-button
+    aria-label="Open components menu"
+    [matMenuTriggerFor]="componentsMenu"
+  >
+    <mat-icon aria-hidden="true">menu</mat-icon>
+  </button>
+</div>
+
+<mat-menu #componentsMenu="matMenu">
+  @for (item of labItems; track item.label) {
+    <button mat-menu-item (click)="select(item)">{{ item.label }}</button>
+  }
+</mat-menu>
+
 <div class="app-grid">
-  <nav class="app-col-md-3" aria-label="Components">
+  <nav class="lab-nav app-col-md-3" aria-label="Components">
     <mat-action-list>
       @for (item of labItems; track item.label) {
         <button
