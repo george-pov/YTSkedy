@@ -98,6 +98,14 @@ export class CalendarEvents implements OnInit {
     this.router.navigateByUrl('/calendar-events/new');
   }
 
+  protected editEvent(event: CalendarEvent): void {
+    // Edit mode is not implemented yet; this only routes to the details page
+    // with the calendar event id so the future edit form can load that event.
+    this.router.navigateByUrl(
+      `/calendar-events/${event.calendarEventId}/edit`,
+    );
+  }
+
   protected onTableStateChange(state: DataTableState): void {
     this.sortActive.set(state.sortActive);
     this.sortDirection.set(state.sortDirection);

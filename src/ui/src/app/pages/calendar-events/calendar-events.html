@@ -26,16 +26,25 @@
       (stateChange)="onTableStateChange($event)"
     >
       <ng-template appDataTableCell="actions" let-event>
-        @if (canPublish(event)) {
+        <div class="app-actions">
           <app-button
-            class="publish-button"
+            class="edit-button"
             appearance="outlined"
-            [disabled]="publishingId() === event.calendarEventId"
-            (click)="publish(event)"
+            (click)="editEvent(event)"
           >
-            Publish
+            Edit
           </app-button>
-        }
+          @if (canPublish(event)) {
+            <app-button
+              class="publish-button"
+              appearance="outlined"
+              [disabled]="publishingId() === event.calendarEventId"
+              (click)="publish(event)"
+            >
+              Publish
+            </app-button>
+          }
+        </div>
       </ng-template>
     </app-data-table>
   }

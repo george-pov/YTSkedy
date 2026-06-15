@@ -31,6 +31,11 @@ export const routes: Routes = [
         canActivate: [authenticatedGuard]
       },
       {
+        path: 'calendar-events/:calendarEventId/edit',
+        component: CalendarEventDetails,
+        canActivate: [authenticatedGuard]
+      },
+      {
         path: 'signed-out',
         component: SignedOut,
         canActivate: [redirectAuthenticatedGuard],

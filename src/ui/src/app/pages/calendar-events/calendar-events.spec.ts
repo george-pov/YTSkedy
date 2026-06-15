@@ -150,6 +150,19 @@ describe('CalendarEvents', () => {
     expect(navigations).toEqual(['/calendar-events/new']);
   });
 
+  it('navigates to the edit form for the row when "Edit" is clicked', async () => {
+    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
+
+    await createComponent();
+
+    const editButton = fixture.nativeElement.querySelector('.edit-button');
+    expect(editButton).not.toBeNull();
+
+    editButton.dispatchEvent(new Event('click'));
+
+    expect(navigations).toEqual(['/calendar-events/20260606T170000Z/edit']);
+  });
+
   it('re-fetches with the mapped sort field and direction on a table state change', async () => {
     service.list.mockReturnValue(
       of(pageOf([draftEvent('20260606T170000Z')], 40)),
