@@ -85,13 +85,12 @@ describe('CalendarEvents', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Scheduled Start');
     expect(text).toContain('Time Zone');
-    expect(text).toContain('Descriptions');
+    expect(text).toContain('Title');
     expect(text).toContain('Status');
-    expect(text).toContain('2026-06-06T10:00:00');
+    expect(text).toContain('2026-06-06 10:00');
     expect(text).toContain('America/Vancouver');
-    expect(text).toContain(
-      'en: English stream 1 - Description for stream 1 in English',
-    );
+    expect(text).toContain('English stream 1');
+    expect(text).not.toContain('Description for stream 1 in English');
   });
 
   it('renders an empty state when the page has no items', async () => {

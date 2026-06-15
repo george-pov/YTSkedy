@@ -61,7 +61,7 @@ export class CalendarEvents implements OnInit {
     {
       key: 'start',
       header: 'Scheduled Start',
-      value: (event) => event.start.localDateTime,
+      value: (event) => formatScheduledStart(event.start.localDateTime),
       sortable: true,
     },
     {
@@ -71,9 +71,9 @@ export class CalendarEvents implements OnInit {
       sortable: true,
     },
     {
-      key: 'descriptions',
-      header: 'Descriptions',
-      value: (event) => this.describeEvent(event),
+      key: 'title',
+      header: 'Title',
+      value: (event) => englishTitle(event),
       truncate: true,
     },
     {
@@ -137,22 +137,6 @@ export class CalendarEvents implements OnInit {
       });
   }
 
-  protected describeEvent(event: CalendarEvent): string {
-    if (event.descriptions.length === 0) {
-      return 'No descriptions';
-    }
-
-    return event.descriptions
-      .map((description) => {
-        const summary = `${description.language}: ${description.title}`;
-
-        return description.description === null
-          ? summary
-          : `${summary} - ${description.description}`;
-      })
-      .join('; ');
-  }
-
   private fetchPage(): void {
     this.isLoading.set(true);
     // Clear any prior error (from an earlier load or a failed publish) so a
@@ -181,6 +165,28 @@ export class CalendarEvents implements OnInit {
         },
       });
   }
+}
+
+// Presentation-only formatting of the wall-clock start as `YYYY-MM-DD HH:mm`,
+// dropping the ISO `T` separator and the seconds. Sorting is server-side and
+// unaffected by this; see `toSortField` and the data-table `server` mode.
+// Falls back to the raw value if the expected shape is not present.
+function formatScheduledStart(localDateTime: string): string {
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(localDateTime);
+
+  return match === null ? localDateTime : `${match[1]} ${match[2]}`;
+}
+
+// Presentation-only English title for the list column. Returns the title of the
+// English (`en`) localized description; both languages are required when an
+// event is created, so a missing English entry renders as an empty cell rather
+// than falling back to another language.
+function englishTitle(event: CalendarEvent): string {
+  const english = event.descriptions.find(
+    (description) => description.language === 'en',
+  );
+
+  return english?.title ?? '';
 }
 
 // Maps a table column key to its API sort field. Only the sortable columns are
