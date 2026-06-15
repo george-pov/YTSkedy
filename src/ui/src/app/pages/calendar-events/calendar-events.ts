@@ -24,11 +24,12 @@ import {
 } from 'src/app/shared/components/data-table/data-table';
 import { DataTableCell } from 'src/app/shared/components/data-table/data-table-cell';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
+import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
 import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-calendar-events',
-  imports: [Alert, Button, DataTable, DataTableCell],
+  imports: [Alert, Button, DataTable, DataTableCell, ProgressBar],
   templateUrl: './calendar-events.html',
   styleUrl: './calendar-events.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

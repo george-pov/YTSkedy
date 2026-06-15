@@ -4,6 +4,7 @@ import { AlertLab } from './alert-lab/alert-lab';
 import { ButtonLab } from './button-lab/button-lab';
 import { DataTableLab } from './data-table-lab/data-table-lab';
 import { FormControlsLab } from './form-controls-lab/form-controls-lab';
+import { ProgressBarLab } from './progress-bar-lab/progress-bar-lab';
 import { ToolbarLab } from './toolbar-lab/toolbar-lab';
 
 export interface ComponentLabItem {
@@ -31,5 +32,9 @@ export const componentLabItems: readonly ComponentLabItem[] = [
   {
     label: 'Alert',
     component: AlertLab,
+  },
+  {
+    label: 'Progress Bar',
+    component: ProgressBarLab,
   },
 ];

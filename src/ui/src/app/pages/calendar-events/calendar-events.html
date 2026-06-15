@@ -7,7 +7,7 @@
   </header>
 
   @if (isLoading() && events().length === 0) {
-    <p class="status" role="status">Loading calendar events...</p>
+    <app-progress-bar label="Loading calendar events" />
   } @else {
     @if (errorMessage(); as message) {
       <app-alert variant="error">{{ message }}</app-alert>
