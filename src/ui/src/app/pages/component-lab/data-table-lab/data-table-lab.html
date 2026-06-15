@@ -15,4 +15,23 @@
       </ng-template>
     </app-data-table>
   </app-lab-example>
+
+  <app-lab-example
+    titleId="data-table-server-example-title"
+    title="Server-side sorting and pagination"
+  >
+    <app-data-table
+      [data]="serverPageData()"
+      [columns]="serverColumns"
+      caption="Demo recordings (server-side)"
+      mode="server"
+      [totalCount]="serverTotalCount()"
+      [pageIndex]="serverPageIndex()"
+      [pageSize]="serverPageSize()"
+      [sortActive]="serverSortActive()"
+      [sortDirection]="serverSortDirection()"
+      emptyText="No recordings to show."
+      (stateChange)="onServerStateChange($event)"
+    ></app-data-table>
+  </app-lab-example>
 </app-lab-page>
