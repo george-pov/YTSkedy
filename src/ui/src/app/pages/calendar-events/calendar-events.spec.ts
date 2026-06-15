@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { provideRouter, Router } from '@angular/router';
+import { By } from '@angular/platform-browser';
 import { Observable, of, throwError } from 'rxjs';
 import {
   afterEach,
@@ -14,16 +15,22 @@ import {
 
 import {
   CalendarEvent,
+  CalendarEventListPage,
+  CalendarEventListQuery,
   CalendarEventsService,
   PublishCalendarEventResponse,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import {
+  DataTable,
+  DataTableState,
+} from 'src/app/shared/components/data-table/data-table';
 import { CalendarEvents } from './calendar-events';
 
 describe('CalendarEvents', () => {
   let fixture: ComponentFixture<CalendarEvents>;
   let service: {
-    listByMonth: Mock<
-      (year: number, month: number) => Observable<CalendarEvent[]>
+    list: Mock<
+      (query: CalendarEventListQuery) => Observable<CalendarEventListPage>
     >;
     publish: Mock<
       (calendarEventId: string) => Observable<PublishCalendarEventResponse>
@@ -37,8 +44,8 @@ describe('CalendarEvents', () => {
 
     navigations = [];
     service = {
-      listByMonth: vi.fn<
-        (year: number, month: number) => Observable<CalendarEvent[]>
+      list: vi.fn<
+        (query: CalendarEventListQuery) => Observable<CalendarEventListPage>
       >(),
       publish: vi.fn<
         (calendarEventId: string) => Observable<PublishCalendarEventResponse>
@@ -51,30 +58,25 @@ describe('CalendarEvents', () => {
     vi.useRealTimers();
   });
 
-  it('loads and renders calendar events in a table', async () => {
-    service.listByMonth.mockReturnValue(
-      of([
-        {
-          calendarEventId: '20260606T170000Z',
-          start: {
-            localDateTime: '2026-06-06T10:00:00',
-            timeZoneId: 'America/Vancouver',
-          },
-          descriptions: [
-            {
-              language: 'en',
-              title: 'English stream 1',
-              description: 'Description for stream 1 in English',
-            },
-          ],
-          status: 'Draft',
-        },
-      ]),
-    );
+  it('requests the first page sorted by scheduled start descending with no month scope', async () => {
+    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
 
     await createComponent();
 
-    expect(service.listByMonth).toHaveBeenCalledWith(2026, 6);
+    expect(service.list).toHaveBeenCalledTimes(1);
+    expect(service.list).toHaveBeenCalledWith({
+      page: 0,
+      pageSize: 10,
+      sort: 'scheduledStart',
+      direction: 'desc',
+    });
+  });
+
+  it('renders the returned page items in a table', async () => {
+    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
+
+    await createComponent();
+
     expect(fixture.nativeElement.querySelector('table')).not.toBeNull();
 
     const text = fixture.nativeElement.textContent;
@@ -91,8 +93,8 @@ describe('CalendarEvents', () => {
     );
   });
 
-  it('renders an empty state when the API response has no calendar events', async () => {
-    service.listByMonth.mockReturnValue(of([]));
+  it('renders an empty state when the page has no items', async () => {
+    service.list.mockReturnValue(of(pageOf([])));
 
     await createComponent();
 
@@ -103,9 +105,7 @@ describe('CalendarEvents', () => {
   });
 
   it('renders an error when calendar events cannot be loaded', async () => {
-    service.listByMonth.mockReturnValue(
-      throwError(() => new Error('Request failed')),
-    );
+    service.list.mockReturnValue(throwError(() => new Error('Request failed')));
 
     await createComponent();
 
@@ -116,7 +116,7 @@ describe('CalendarEvents', () => {
   });
 
   it('renders an authorization-specific message on 403', async () => {
-    service.listByMonth.mockReturnValue(
+    service.list.mockReturnValue(
       throwError(
         () =>
           new HttpErrorResponse({
@@ -136,7 +136,7 @@ describe('CalendarEvents', () => {
   });
 
   it('navigates to the create form when "Add new event" is clicked', async () => {
-    service.listByMonth.mockReturnValue(of([]));
+    service.list.mockReturnValue(of(pageOf([])));
 
     await createComponent();
 
@@ -148,8 +148,88 @@ describe('CalendarEvents', () => {
     expect(navigations).toEqual(['/calendar-events/new']);
   });
 
+  it('re-fetches with the mapped sort field and direction on a table state change', async () => {
+    service.list.mockReturnValue(
+      of(pageOf([draftEvent('20260606T170000Z')], 40)),
+    );
+
+    await createComponent();
+    service.list.mockClear();
+
+    emitTableState({
+      pageIndex: 0,
+      pageSize: 10,
+      sortActive: 'status',
+      sortDirection: 'asc',
+    });
+
+    expect(service.list).toHaveBeenCalledTimes(1);
+    expect(service.list).toHaveBeenCalledWith({
+      page: 0,
+      pageSize: 10,
+      sort: 'status',
+      direction: 'asc',
+    });
+  });
+
+  it('re-fetches the requested page when the page index changes', async () => {
+    service.list.mockReturnValue(
+      of(pageOf([draftEvent('20260606T170000Z')], 40)),
+    );
+
+    await createComponent();
+    service.list.mockClear();
+
+    emitTableState({
+      pageIndex: 2,
+      pageSize: 10,
+      sortActive: 'start',
+      sortDirection: 'desc',
+    });
+
+    expect(service.list).toHaveBeenCalledWith({
+      page: 2,
+      pageSize: 10,
+      sort: 'scheduledStart',
+      direction: 'desc',
+    });
+  });
+
+  it('resets to the first page when the page size changes', async () => {
+    service.list.mockReturnValue(
+      of(pageOf([draftEvent('20260606T170000Z')], 40)),
+    );
+
+    await createComponent();
+
+    // Move to a later page first.
+    emitTableState({
+      pageIndex: 2,
+      pageSize: 10,
+      sortActive: 'start',
+      sortDirection: 'desc',
+    });
+    service.list.mockClear();
+
+    // A page-size change must restart at page 0 even though the emitted index
+    // is still 2.
+    emitTableState({
+      pageIndex: 2,
+      pageSize: 25,
+      sortActive: 'start',
+      sortDirection: 'desc',
+    });
+
+    expect(service.list).toHaveBeenCalledWith({
+      page: 0,
+      pageSize: 25,
+      sort: 'scheduledStart',
+      direction: 'desc',
+    });
+  });
+
   it('shows a Publish action for a future draft event', async () => {
-    service.listByMonth.mockReturnValue(of([draftEvent('20260606T170000Z')]));
+    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
 
     await createComponent();
 
@@ -159,8 +239,8 @@ describe('CalendarEvents', () => {
   });
 
   it('does not show a Publish action for a published event', async () => {
-    service.listByMonth.mockReturnValue(
-      of([{ ...draftEvent('20260606T170000Z'), status: 'Published' }]),
+    service.list.mockReturnValue(
+      of(pageOf([{ ...draftEvent('20260606T170000Z'), status: 'Published' }])),
     );
 
     await createComponent();
@@ -170,8 +250,8 @@ describe('CalendarEvents', () => {
   });
 
   it('does not show a Publish action for a past draft event', async () => {
-    service.listByMonth.mockReturnValue(
-      of([draftEvent('20260601T100000Z', '2026-06-01T10:00:00')]),
+    service.list.mockReturnValue(
+      of(pageOf([draftEvent('20260601T100000Z', '2026-06-01T10:00:00')])),
     );
 
     await createComponent();
@@ -179,8 +259,11 @@ describe('CalendarEvents', () => {
     expect(fixture.nativeElement.querySelector('.publish-button')).toBeNull();
   });
 
-  it('publishes a draft event and marks it published', async () => {
-    service.listByMonth.mockReturnValue(of([draftEvent('20260606T170000Z')]));
+  it('publishes a draft event and re-fetches the current page', async () => {
+    const draft = draftEvent('20260606T170000Z');
+    service.list
+      .mockReturnValueOnce(of(pageOf([draft])))
+      .mockReturnValueOnce(of(pageOf([{ ...draft, status: 'Published' }])));
     service.publish.mockReturnValue(
       of({
         calendarEventId: '20260606T170000Z',
@@ -190,6 +273,7 @@ describe('CalendarEvents', () => {
     );
 
     await createComponent();
+    service.list.mockClear();
 
     fixture.nativeElement
       .querySelector('.publish-button')
@@ -197,12 +281,19 @@ describe('CalendarEvents', () => {
     fixture.detectChanges();
 
     expect(service.publish).toHaveBeenCalledWith('20260606T170000Z');
+    expect(service.list).toHaveBeenCalledTimes(1);
+    expect(service.list).toHaveBeenCalledWith({
+      page: 0,
+      pageSize: 10,
+      sort: 'scheduledStart',
+      direction: 'desc',
+    });
     expect(fixture.nativeElement.querySelector('.publish-button')).toBeNull();
     expect(fixture.nativeElement.textContent).toContain('Published');
   });
 
   it('shows an error when publishing fails', async () => {
-    service.listByMonth.mockReturnValue(of([draftEvent('20260606T170000Z')]));
+    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
     service.publish.mockReturnValue(
       throwError(() => new Error('Request failed')),
     );
@@ -219,6 +310,13 @@ describe('CalendarEvents', () => {
     );
     expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
   });
+
+  function emitTableState(state: DataTableState): void {
+    const table = fixture.debugElement.query(By.directive(DataTable))
+      .componentInstance as DataTable<CalendarEvent>;
+    table.stateChange.emit(state);
+    fixture.detectChanges();
+  }
 
   function draftEvent(
     calendarEventId: string,
@@ -238,6 +336,20 @@ describe('CalendarEvents', () => {
         },
       ],
       status: 'Draft',
+    };
+  }
+
+  function pageOf(
+    items: CalendarEvent[],
+    totalCount = items.length,
+  ): CalendarEventListPage {
+    return {
+      items,
+      page: 0,
+      pageSize: 10,
+      totalCount,
+      sort: 'scheduledStart',
+      direction: 'desc',
     };
   }
 

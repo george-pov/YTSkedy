@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { APP_CONFIG } from 'src/app/shared/config/app-config';
 import { testAppConfig } from 'src/app/shared/config/testing/app-config.fixture';
 import {
-  CalendarEvent,
+  CalendarEventListPage,
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
@@ -42,39 +42,83 @@ describe('CalendarEventsService', () => {
     http.verify();
   });
 
-  it('requests calendar events by local calendar month and returns the API response', () => {
-    const apiResponse: CalendarEvent[] = [
-      {
-        calendarEventId: 'calendar-event-1',
-        start: {
-          localDateTime: '2026-01-15T09:30:00',
-          timeZoneId: 'Etc/UTC',
-        },
-        descriptions: [
-          {
-            language: 'en',
-            title: 'Test stream',
-            description: 'Synthetic API response fixture.',
+  it('requests a calendar events page with the paging and sorting query and returns the envelope', () => {
+    const apiResponse: CalendarEventListPage = {
+      items: [
+        {
+          calendarEventId: 'calendar-event-1',
+          start: {
+            localDateTime: '2026-01-15T09:30:00',
+            timeZoneId: 'Etc/UTC',
           },
-        ],
-        status: 'Draft',
-      },
-    ];
+          descriptions: [
+            {
+              language: 'en',
+              title: 'Test stream',
+              description: 'Synthetic API response fixture.',
+            },
+          ],
+          status: 'Draft',
+        },
+      ],
+      page: 0,
+      pageSize: 10,
+      totalCount: 1,
+      sort: 'scheduledStart',
+      direction: 'desc',
+    };
 
-    let actualEvents: CalendarEvent[] | undefined;
-    service.listByMonth(2026, 6).subscribe((events) => {
-      actualEvents = events;
-    });
+    let actualPage: CalendarEventListPage | undefined;
+    service
+      .list({ page: 0, pageSize: 10, sort: 'scheduledStart', direction: 'desc' })
+      .subscribe((page) => {
+        actualPage = page;
+      });
 
     const request = http.expectOne(
-      'https://api.example.test/api/calendar-events?year=2026&month=6',
+      'https://api.example.test/api/calendar-events?page=0&pageSize=10&sort=scheduledStart&direction=desc',
     );
 
     expect(request.request.method).toBe('GET');
 
     request.flush(apiResponse);
 
-    expect(actualEvents).toEqual(apiResponse);
+    expect(actualPage).toEqual(apiResponse);
+  });
+
+  it('includes the optional year and month params when both are provided', () => {
+    const apiResponse: CalendarEventListPage = {
+      items: [],
+      page: 1,
+      pageSize: 25,
+      totalCount: 0,
+      sort: 'status',
+      direction: 'asc',
+    };
+
+    let actualPage: CalendarEventListPage | undefined;
+    service
+      .list({
+        page: 1,
+        pageSize: 25,
+        sort: 'status',
+        direction: 'asc',
+        year: 2026,
+        month: 6,
+      })
+      .subscribe((page) => {
+        actualPage = page;
+      });
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events?page=1&pageSize=25&sort=status&direction=asc&year=2026&month=6',
+    );
+
+    expect(request.request.method).toBe('GET');
+
+    request.flush(apiResponse);
+
+    expect(actualPage).toEqual(apiResponse);
   });
 
   it('posts a create request to the calendar events endpoint and returns the API response', () => {

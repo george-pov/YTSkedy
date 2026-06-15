@@ -2,7 +2,6 @@
   <header class="header">
     <div class="header-text">
       <h1>Calendar Events</h1>
-      <p>{{ monthLabel }}</p>
     </div>
     <app-button class="add-new-button" (click)="addNewEvent()">
       Add new event
@@ -26,7 +25,14 @@
     <app-data-table
       [data]="events()"
       [columns]="columns"
-      [caption]="'Calendar events for ' + monthLabel"
+      caption="Calendar events"
+      mode="server"
+      [totalCount]="totalCount()"
+      [pageIndex]="pageIndex()"
+      [pageSize]="pageSize()"
+      [sortActive]="sortActive()"
+      [sortDirection]="sortDirection()"
+      (stateChange)="onTableStateChange($event)"
     >
       <ng-template appDataTableCell="actions" let-event>
         @if (canPublish(event)) {

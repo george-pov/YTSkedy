@@ -10,11 +10,16 @@ import { finalize } from 'rxjs';
 
 import {
   CalendarEvent,
+  CalendarEventListQuery,
+  CalendarEventSortField,
   CalendarEventStart,
   CalendarEventsService,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { Button } from "src/app/shared/components/button/button";
-import { DataTable } from 'src/app/shared/components/data-table/data-table';
+import {
+  DataTable,
+  DataTableState,
+} from 'src/app/shared/components/data-table/data-table';
 import { DataTableCell } from 'src/app/shared/components/data-table/data-table-cell';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { Router } from '@angular/router';
@@ -30,14 +35,23 @@ export class CalendarEvents implements OnInit {
 
   private readonly router = inject(Router);
   private readonly calendarEventsService = inject(CalendarEventsService);
-  private readonly monthQuery = getCurrentMonthQuery();
 
   protected readonly events = signal<CalendarEvent[]>([]);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly isLoading = signal(true);
   protected readonly publishingId = signal<string | null>(null);
   protected readonly publishError = signal<string | null>(null);
-  protected readonly monthLabel = formatMonthLabel(this.monthQuery);
+
+  // Server-side paging and sorting state. `sortActive` is the table column key;
+  // it is mapped to the API sort field when a request is built. The defaults
+  // mirror the API defaults: the first page sorted by scheduled start
+  // descending.
+  protected readonly totalCount = signal(0);
+  protected readonly pageIndex = signal(0);
+  protected readonly pageSize = signal(10);
+  protected readonly sortActive = signal('start');
+  protected readonly sortDirection =
+    signal<DataTableState['sortDirection']>('desc');
 
   protected readonly columns: DataTableColumn<CalendarEvent>[] = [
     {
@@ -77,23 +91,24 @@ export class CalendarEvents implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.calendarEventsService
-      .listByMonth(this.monthQuery.year, this.monthQuery.month)
-      .pipe(finalize(() => this.isLoading.set(false)))
-      .subscribe({
-        next: (events) => {
-          this.errorMessage.set(null);
-          this.events.set(events);
-        },
-        error: (error: unknown) => {
-          this.events.set([]);
-          this.errorMessage.set(describeLoadError(error));
-        },
-      });
+    this.fetchPage();
   }
 
   protected addNewEvent() {
     this.router.navigateByUrl('/calendar-events/new');
+  }
+
+  protected onTableStateChange(state: DataTableState): void {
+    this.sortActive.set(state.sortActive);
+    this.sortDirection.set(state.sortDirection);
+
+    // A page-size change invalidates the requested page index, so restart at
+    // the first page; otherwise honor the requested page.
+    const pageSizeChanged = state.pageSize !== this.pageSize();
+    this.pageIndex.set(pageSizeChanged ? 0 : state.pageIndex);
+    this.pageSize.set(state.pageSize);
+
+    this.fetchPage();
   }
 
   protected canPublish(event: CalendarEvent): boolean {
@@ -112,14 +127,10 @@ export class CalendarEvents implements OnInit {
       .publish(event.calendarEventId)
       .pipe(finalize(() => this.publishingId.set(null)))
       .subscribe({
-        next: (response) => {
-          this.events.update((events) =>
-            events.map((current) =>
-              current.calendarEventId === event.calendarEventId
-                ? { ...current, status: response.status }
-                : current,
-            ),
-          );
+        next: () => {
+          // Re-fetch the current page so the published row keeps its place in
+          // the server ordering instead of being patched in place.
+          this.fetchPage();
         },
         error: (error: unknown) => {
           this.publishError.set(describePublishError(error));
@@ -142,25 +153,46 @@ export class CalendarEvents implements OnInit {
       })
       .join('; ');
   }
+
+  private fetchPage(): void {
+    this.isLoading.set(true);
+
+    const query: CalendarEventListQuery = {
+      page: this.pageIndex(),
+      pageSize: this.pageSize(),
+      sort: toSortField(this.sortActive()),
+      direction: this.sortDirection() === 'asc' ? 'asc' : 'desc',
+    };
+
+    this.calendarEventsService
+      .list(query)
+      .pipe(finalize(() => this.isLoading.set(false)))
+      .subscribe({
+        next: (page) => {
+          this.errorMessage.set(null);
+          this.events.set(page.items);
+          this.totalCount.set(page.totalCount);
+        },
+        error: (error: unknown) => {
+          this.events.set([]);
+          this.totalCount.set(0);
+          this.errorMessage.set(describeLoadError(error));
+        },
+      });
+  }
 }
 
-interface CalendarMonthQuery {
-  year: number;
-  month: number;
-}
-
-function getCurrentMonthQuery(now: Date = new Date()): CalendarMonthQuery {
-  return {
-    year: now.getFullYear(),
-    month: now.getMonth() + 1,
-  };
-}
-
-function formatMonthLabel(query: CalendarMonthQuery): string {
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(query.year, query.month - 1, 1));
+// Maps a table column key to its API sort field. Only the sortable columns are
+// mapped; any other key falls back to the scheduled-start default.
+function toSortField(columnKey: string): CalendarEventSortField {
+  switch (columnKey) {
+    case 'status':
+      return 'status';
+    case 'timeZone':
+      return 'timeZone';
+    default:
+      return 'scheduledStart';
+  }
 }
 
 function describeLoadError(error: unknown): string {

@@ -28,6 +28,34 @@ export interface CalendarEventDescription {
   description: string | null;
 }
 
+export type CalendarEventSortField = 'scheduledStart' | 'status' | 'timeZone';
+
+export type CalendarEventSortDirection = 'asc' | 'desc';
+
+/**
+ * Server-side paged and sorted list query. `year` and `month` are optional and
+ * must be supplied together; the page no longer scopes by month, so they are
+ * currently unused by callers but kept for the backend reader contract.
+ */
+export interface CalendarEventListQuery {
+  page: number;
+  pageSize: number;
+  sort: CalendarEventSortField;
+  direction: CalendarEventSortDirection;
+  year?: number;
+  month?: number;
+}
+
+/** One page of the server-side sorted calendar event list. */
+export interface CalendarEventListPage {
+  items: CalendarEvent[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  sort: CalendarEventSortField;
+  direction: CalendarEventSortDirection;
+}
+
 export interface CreateCalendarEventRequest {
   start: ScheduledStart;
   descriptions: LocalizedDescription[];
@@ -61,14 +89,23 @@ export class CalendarEventsService {
   private readonly http = inject(HttpClient);
   private readonly appConfig = inject(APP_CONFIG);
 
-  listByMonth(year: number, month: number): Observable<CalendarEvent[]> {
-    const params = new HttpParams()
-      .set('year', year.toString())
-      .set('month', month.toString());
+  list(query: CalendarEventListQuery): Observable<CalendarEventListPage> {
+    let params = new HttpParams()
+      .set('page', query.page.toString())
+      .set('pageSize', query.pageSize.toString())
+      .set('sort', query.sort)
+      .set('direction', query.direction);
 
-    return this.http.get<CalendarEvent[]>(calendarEventsUrl(this.appConfig.api), {
-      params,
-    });
+    if (query.year !== undefined && query.month !== undefined) {
+      params = params
+        .set('year', query.year.toString())
+        .set('month', query.month.toString());
+    }
+
+    return this.http.get<CalendarEventListPage>(
+      calendarEventsUrl(this.appConfig.api),
+      { params },
+    );
   }
 
   create(
