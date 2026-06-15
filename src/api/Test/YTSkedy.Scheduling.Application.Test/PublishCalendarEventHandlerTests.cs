@@ -182,8 +182,8 @@ public class PublishCalendarEventHandlerTests
 
     private sealed class FakeCalendarEventReader(CalendarEventDetail? detail) : ICalendarEventReader
     {
-        public Task<IReadOnlyList<CalendarEventListItem>> ListByMonthAsync(
-            CalendarEventMonthCriteria criteria,
+        public Task<IReadOnlyList<CalendarEventListItem>> ListAsync(
+            CalendarEventMonthCriteria? criteria,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

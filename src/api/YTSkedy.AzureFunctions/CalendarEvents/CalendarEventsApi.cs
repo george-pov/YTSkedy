@@ -11,7 +11,7 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 
 public class CalendarEventsApi(
     CreateCalendarEventHandler createHandler,
-    ListByMonthHandler listByMonthHandler,
+    ListEventsHandler listHandler,
     PublishCalendarEventHandler publishHandler)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -60,52 +60,38 @@ public class CalendarEventsApi(
         return new OkObjectResult(new CreateCalendarEventResponse(result.CalendarEventId));
     }
 
-    [Function("ListCalendarEventsByMonth")]
+    [Function("ListCalendarEvents")]
     [RequiredScope("CalendarEvents.Read")]
-    public async Task<IActionResult> ListByMonthAsync(
+    public async Task<IActionResult> ListAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "calendar-events")]
         HttpRequest request,
         CancellationToken cancellationToken)
     {
-        if (!TryParseNumber(request, "year", out var year, out var yearError))
+        if (!TryParsePaging(request, out var page, out var pageSize, out var pagingError))
         {
-            return yearError;
+            return pagingError;
         }
 
-        if (!ValidateRange("year", year, 1000, 9999, out var yearRangeError))
+        if (!TryParseSort(request, out var sort, out var direction, out var sortError))
         {
-            return yearRangeError;
+            return sortError;
         }
 
-        if (!TryParseNumber(request, "month", out var month, out var monthError))
+        if (!TryParseOptionalMonth(request, out var year, out var month, out var monthError))
         {
             return monthError;
         }
 
-        if (!ValidateRange("month", month, 1, 12, out var monthRangeError))
-        {
-            return monthRangeError;
-        }
+        var query = new CalendarEventListQuery(page, pageSize, sort, direction, year, month);
+        var result = await listHandler.HandleAsync(query, cancellationToken);
 
-        var criteria = new CalendarEventMonthCriteria(year, month);
-        var calendarEvents = await listByMonthHandler.HandleAsync(
-            criteria,
-            cancellationToken);
-
-        var response = calendarEvents
-            .Select(calendarEvent => new CalendarEventListItemResponse(
-                calendarEvent.CalendarEventId,
-                new CalendarEventStart(
-                    calendarEvent.Start.LocalDateTime,
-                    calendarEvent.Start.TimeZoneId),
-                calendarEvent.Descriptions
-                    .Select(description => new LocalizedCalendarEventText(
-                        description.Language,
-                        description.Title,
-                        description.Description))
-                    .ToArray(),
-                calendarEvent.Status.ToString()))
-            .ToArray();
+        var response = new CalendarEventListResponse(
+            result.Items.Select(ToListItemResponse).ToArray(),
+            result.Page,
+            result.PageSize,
+            result.TotalCount,
+            ToSortString(result.Sort),
+            ToDirectionString(result.Direction));
 
         return new OkObjectResult(response);
     }
@@ -143,6 +129,219 @@ public class CalendarEventsApi(
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
     }
+
+    private static bool TryParsePaging(
+        HttpRequest request,
+        out int page,
+        out int pageSize,
+        out IActionResult error)
+    {
+        page = 0;
+        pageSize = 10;
+
+        if (!TryGetSingleValue(request, "page", out var pageValue, out error))
+        {
+            return false;
+        }
+
+        if (pageValue is not null &&
+            !int.TryParse(pageValue, NumberStyles.None, CultureInfo.InvariantCulture, out page))
+        {
+            error = new BadRequestObjectResult(
+                "Query parameter 'page' must be a non-negative integer.");
+            return false;
+        }
+
+        if (!TryGetSingleValue(request, "pageSize", out var pageSizeValue, out error))
+        {
+            return false;
+        }
+
+        if (pageSizeValue is not null &&
+            (!int.TryParse(
+                pageSizeValue,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out pageSize) ||
+            pageSize < 1 ||
+            pageSize > 100))
+        {
+            error = new BadRequestObjectResult(
+                "Query parameter 'pageSize' must be an integer between 1 and 100.");
+            return false;
+        }
+
+        error = new EmptyResult();
+        return true;
+    }
+
+    private static bool TryParseSort(
+        HttpRequest request,
+        out CalendarEventSortField sort,
+        out CalendarEventSortDirection direction,
+        out IActionResult error)
+    {
+        sort = CalendarEventSortField.ScheduledStart;
+        direction = CalendarEventSortDirection.Descending;
+
+        if (!TryGetSingleValue(request, "sort", out var sortValue, out error))
+        {
+            return false;
+        }
+
+        if (sortValue is not null)
+        {
+            switch (sortValue.ToLowerInvariant())
+            {
+                case "scheduledstart":
+                    sort = CalendarEventSortField.ScheduledStart;
+                    break;
+                case "status":
+                    sort = CalendarEventSortField.Status;
+                    break;
+                case "timezone":
+                    sort = CalendarEventSortField.TimeZone;
+                    break;
+                default:
+                    error = new BadRequestObjectResult(
+                        "Query parameter 'sort' must be 'scheduledStart', 'status', or 'timeZone'.");
+                    return false;
+            }
+        }
+
+        if (!TryGetSingleValue(request, "direction", out var directionValue, out error))
+        {
+            return false;
+        }
+
+        if (directionValue is not null)
+        {
+            switch (directionValue.ToLowerInvariant())
+            {
+                case "asc":
+                    direction = CalendarEventSortDirection.Ascending;
+                    break;
+                case "desc":
+                    direction = CalendarEventSortDirection.Descending;
+                    break;
+                default:
+                    error = new BadRequestObjectResult(
+                        "Query parameter 'direction' must be 'asc' or 'desc'.");
+                    return false;
+            }
+        }
+
+        error = new EmptyResult();
+        return true;
+    }
+
+    private static bool TryParseOptionalMonth(
+        HttpRequest request,
+        out int? year,
+        out int? month,
+        out IActionResult error)
+    {
+        year = null;
+        month = null;
+        error = new EmptyResult();
+
+        var hasYear = request.Query.ContainsKey("year");
+        var hasMonth = request.Query.ContainsKey("month");
+
+        if (!hasYear && !hasMonth)
+        {
+            return true;
+        }
+
+        if (hasYear != hasMonth)
+        {
+            error = new BadRequestObjectResult(
+                "Query parameters 'year' and 'month' must be provided together.");
+            return false;
+        }
+
+        if (!TryParseNumber(request, "year", out var parsedYear, out error))
+        {
+            return false;
+        }
+
+        if (!ValidateRange("year", parsedYear, 1000, 9999, out error))
+        {
+            return false;
+        }
+
+        if (!TryParseNumber(request, "month", out var parsedMonth, out error))
+        {
+            return false;
+        }
+
+        if (!ValidateRange("month", parsedMonth, 1, 12, out error))
+        {
+            return false;
+        }
+
+        year = parsedYear;
+        month = parsedMonth;
+        return true;
+    }
+
+    private static bool TryGetSingleValue(
+        HttpRequest request,
+        string name,
+        out string? value,
+        out IActionResult error)
+    {
+        value = null;
+        error = new EmptyResult();
+
+        if (!request.Query.TryGetValue(name, out var values) || values.Count == 0)
+        {
+            return true;
+        }
+
+        if (values.Count > 1)
+        {
+            error = new BadRequestObjectResult(
+                $"Query parameter '{name}' must have a single value.");
+            return false;
+        }
+
+        var rawValue = values[0];
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            error = new BadRequestObjectResult($"Query parameter '{name}' must not be empty.");
+            return false;
+        }
+
+        value = rawValue;
+        return true;
+    }
+
+    private static CalendarEventListItemResponse ToListItemResponse(
+        CalendarEventListItem calendarEvent) =>
+        new(
+            calendarEvent.CalendarEventId,
+            new CalendarEventStart(
+                calendarEvent.Start.LocalDateTime,
+                calendarEvent.Start.TimeZoneId),
+            calendarEvent.Descriptions
+                .Select(description => new LocalizedCalendarEventText(
+                    description.Language,
+                    description.Title,
+                    description.Description))
+                .ToArray(),
+            calendarEvent.Status.ToString());
+
+    private static string ToSortString(CalendarEventSortField sort) =>
+        sort switch
+        {
+            CalendarEventSortField.Status => "status",
+            CalendarEventSortField.TimeZone => "timeZone",
+            _ => "scheduledStart"
+        };
+
+    private static string ToDirectionString(CalendarEventSortDirection direction) =>
+        direction == CalendarEventSortDirection.Descending ? "desc" : "asc";
 
     private static bool TryParseNumber(
         HttpRequest request,

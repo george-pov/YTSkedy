@@ -24,6 +24,16 @@ internal static class CalendarEventReadMapper
             .ToArray();
     }
 
+    public static IReadOnlyList<CalendarEventListItem> ToListItems(
+        IEnumerable<CalendarEventEntity> entities)
+    {
+        ArgumentNullException.ThrowIfNull(entities);
+
+        return entities
+            .Select(ToListItem)
+            .ToArray();
+    }
+
     public static IReadOnlyList<string> GetPartitionKeysForLocalMonth(
         CalendarEventMonthCriteria criteria)
     {

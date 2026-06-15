@@ -52,7 +52,14 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
         return calendarEventId;
     }
 
-    public async Task<IReadOnlyList<CalendarEventListItem>> ListByMonthAsync(
+    public async Task<IReadOnlyList<CalendarEventListItem>> ListAsync(
+        CalendarEventMonthCriteria? criteria,
+        CancellationToken cancellationToken) =>
+        criteria is null
+            ? await ListAllAsync(cancellationToken)
+            : await ListByMonthAsync(criteria, cancellationToken);
+
+    private async Task<IReadOnlyList<CalendarEventListItem>> ListByMonthAsync(
         CalendarEventMonthCriteria criteria,
         CancellationToken cancellationToken)
     {
@@ -82,6 +89,28 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
         return CalendarEventReadMapper.ToListItemsForMonth(
             entities,
             criteria);
+    }
+
+    private async Task<IReadOnlyList<CalendarEventListItem>> ListAllAsync(
+        CancellationToken cancellationToken)
+    {
+        var entities = new List<CalendarEventEntity>();
+
+        try
+        {
+            await foreach (var entity in tableClient.QueryAsync<CalendarEventEntity>(
+                filter: (string?)null,
+                cancellationToken: cancellationToken))
+            {
+                entities.Add(entity);
+            }
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            return [];
+        }
+
+        return CalendarEventReadMapper.ToListItems(entities);
     }
 
     public async Task<CalendarEventDetail?> GetByIdAsync(

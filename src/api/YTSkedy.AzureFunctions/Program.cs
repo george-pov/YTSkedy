@@ -105,7 +105,7 @@ builder.Services.AddSingleton(_ =>
 });
 
 builder.Services.AddScoped<CreateCalendarEventHandler>();
-builder.Services.AddScoped<ListByMonthHandler>();
+builder.Services.AddScoped<ListEventsHandler>();
 builder.Services.AddScoped<PublishCalendarEventHandler>();
 builder.Services.AddScoped<AzureCalendarEventRepository>();
 builder.Services.AddScoped<ICalendarEventRepository>(

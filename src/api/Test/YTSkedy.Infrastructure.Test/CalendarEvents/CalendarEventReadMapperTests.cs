@@ -201,6 +201,57 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
+    public void ToListItems_MixedLocalMonths_MapsEveryEntityWithoutFiltering()
+    {
+        var entities = new[]
+        {
+            CreateEntity(
+                "20260615T170000Z",
+                new DateTimeOffset(2026, 06, 15, 17, 00, 00, TimeSpan.Zero),
+                "2026-06-15T10:00:00"),
+            CreateEntity(
+                "20260715T170000Z",
+                new DateTimeOffset(2026, 07, 15, 17, 00, 00, TimeSpan.Zero),
+                "2026-07-15T10:00:00"),
+            CreateEntity(
+                "20251115T170000Z",
+                new DateTimeOffset(2025, 11, 15, 17, 00, 00, TimeSpan.Zero),
+                "2025-11-15T09:00:00")
+        };
+
+        var result = CalendarEventReadMapper.ToListItems(entities);
+
+        Assert.Equal(
+            [
+                "20260615T170000Z",
+                "20260715T170000Z",
+                "20251115T170000Z"
+            ],
+            result.Select(calendarEvent => calendarEvent.CalendarEventId));
+    }
+
+    [Fact]
+    public void ToListItems_Entity_MapsCalendarEventFields()
+    {
+        var entity = CreateEntity(
+            "20260605T170000Z",
+            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
+            "2026-06-05T10:00:00",
+            [
+                new LocalizedDescription("en", "English stream 1", null)
+            ]);
+
+        var result = CalendarEventReadMapper.ToListItems([entity]);
+
+        var calendarEvent = Assert.Single(result);
+        Assert.Equal("20260605T170000Z", calendarEvent.CalendarEventId);
+        Assert.Equal(new DateTime(2026, 06, 05, 10, 00, 00), calendarEvent.Start.LocalDateTime);
+        Assert.Equal("America/Vancouver", calendarEvent.Start.TimeZoneId);
+        var description = Assert.Single(calendarEvent.Descriptions);
+        Assert.Equal("English stream 1", description.Title);
+    }
+
+    [Fact]
     public void GetPartitionKeysForLocalMonth_June2026_ReturnsAdjacentMonthKeys()
     {
         var criteria = new CalendarEventMonthCriteria(2026, 6);
