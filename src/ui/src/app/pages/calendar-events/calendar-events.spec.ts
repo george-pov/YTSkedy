@@ -80,12 +80,10 @@ describe('CalendarEvents', () => {
     expect(fixture.nativeElement.querySelector('table')).not.toBeNull();
 
     const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Event ID');
     expect(text).toContain('Scheduled Start');
     expect(text).toContain('Time Zone');
     expect(text).toContain('Descriptions');
     expect(text).toContain('Status');
-    expect(text).toContain('20260606T170000Z');
     expect(text).toContain('2026-06-06T10:00:00');
     expect(text).toContain('America/Vancouver');
     expect(text).toContain(
@@ -98,10 +96,12 @@ describe('CalendarEvents', () => {
 
     await createComponent();
 
+    // The empty text is rendered by the data table's no-data row, so the table
+    // is present even when there are no items.
     expect(fixture.nativeElement.textContent).toContain(
       'No calendar events found.',
     );
-    expect(fixture.nativeElement.querySelector('table')).toBeNull();
+    expect(fixture.nativeElement.querySelector('table')).not.toBeNull();
   });
 
   it('renders an error when calendar events cannot be loaded', async () => {

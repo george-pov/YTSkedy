@@ -1,32 +1,23 @@
 <section class="layout">
   <header class="header">
-    <div class="header-text">
-      <h1>Calendar Events</h1>
-    </div>
+    <h1>Calendar Events</h1>
     <app-button class="add-new-button" (click)="addNewEvent()">
       Add new event
     </app-button>
   </header>
 
-  @if (isLoading()) {
-    <p class="status">Loading calendar events...</p>
-  } @else if (errorMessage()) {
-    <p class="status has-error" role="alert">
-      {{ errorMessage() }}
-    </p>
-  } @else if (events().length === 0) {
-    <p class="status">No calendar events found.</p>
+  @if (isLoading() && events().length === 0) {
+    <p class="status" role="status">Loading calendar events...</p>
   } @else {
-    @if (publishError()) {
-      <p class="status has-error" role="alert">
-        {{ publishError() }}
-      </p>
+    @if (errorMessage(); as message) {
+      <p class="status has-error" role="alert">{{ message }}</p>
     }
     <app-data-table
       [data]="events()"
       [columns]="columns"
       caption="Calendar events"
       mode="server"
+      [emptyText]="errorMessage() ? '' : 'No calendar events found.'"
       [totalCount]="totalCount()"
       [pageIndex]="pageIndex()"
       [pageSize]="pageSize()"

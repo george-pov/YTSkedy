@@ -37,10 +37,11 @@ export class CalendarEvents implements OnInit {
   private readonly calendarEventsService = inject(CalendarEventsService);
 
   protected readonly events = signal<CalendarEvent[]>([]);
+  // Single error surface for the page. Both a failed page load and a failed
+  // publish set this; the template renders it in one place above the table.
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly isLoading = signal(true);
   protected readonly publishingId = signal<string | null>(null);
-  protected readonly publishError = signal<string | null>(null);
 
   // Server-side paging and sorting state. `sortActive` is the table column key;
   // it is mapped to the API sort field when a request is built. The defaults
@@ -54,12 +55,6 @@ export class CalendarEvents implements OnInit {
     signal<DataTableState['sortDirection']>('desc');
 
   protected readonly columns: DataTableColumn<CalendarEvent>[] = [
-    {
-      key: 'calendarEventId',
-      header: 'Event ID',
-      value: (event) => event.calendarEventId,
-      cellClass: 'mono',
-    },
     {
       key: 'start',
       header: 'Scheduled Start',
@@ -120,7 +115,7 @@ export class CalendarEvents implements OnInit {
       return;
     }
 
-    this.publishError.set(null);
+    this.errorMessage.set(null);
     this.publishingId.set(event.calendarEventId);
 
     this.calendarEventsService
@@ -133,7 +128,7 @@ export class CalendarEvents implements OnInit {
           this.fetchPage();
         },
         error: (error: unknown) => {
-          this.publishError.set(describePublishError(error));
+          this.errorMessage.set(describePublishError(error));
         },
       });
   }
@@ -156,6 +151,9 @@ export class CalendarEvents implements OnInit {
 
   private fetchPage(): void {
     this.isLoading.set(true);
+    // Clear any prior error (from an earlier load or a failed publish) so a
+    // stale message cannot linger above a freshly fetched page.
+    this.errorMessage.set(null);
 
     const query: CalendarEventListQuery = {
       page: this.pageIndex(),
@@ -169,7 +167,6 @@ export class CalendarEvents implements OnInit {
       .pipe(finalize(() => this.isLoading.set(false)))
       .subscribe({
         next: (page) => {
-          this.errorMessage.set(null);
           this.events.set(page.items);
           this.totalCount.set(page.totalCount);
         },
