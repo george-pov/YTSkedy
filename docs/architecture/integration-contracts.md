@@ -30,12 +30,16 @@ or `404` when the id is unknown. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with a body of
 `{ descriptions: [{ language, title, description? }] }` and reads
 `{ calendarEventId }` from the response. The scheduled start is immutable on
-edit because the id is derived from it, so only the descriptions change. The
-edit route also exposes a Delete action that calls
-`DELETE /api/calendar-events/{calendarEventId}` for a loaded `Draft` event and
-reads no body: it returns `204 No Content` on success, `404 Not Found` when the
-id is unknown or already gone, and `409 Conflict` when the event is not (or no
-longer) a `Draft`.
+edit because the id is derived from it, so only the descriptions change, and the
+endpoint accepts the edit only while the event is a `Draft` (a `Publishing` or
+`Published` event returns `409 Conflict`). The edit route also exposes a Delete
+action that calls `DELETE /api/calendar-events/{calendarEventId}` for an event
+the API marks deletable and reads no body: it returns `204 No Content` on
+success (a `Draft`, or a future `Published` event whose YouTube broadcast is
+removed first), `404 Not Found` when the id is unknown or already gone,
+`409 Conflict` when the event is not deletable in its current state (including a
+future `Published` event with no recorded broadcast id), and `502 Bad Gateway`
+when the YouTube broadcast delete fails and the local row is kept.
 
 The `GET` endpoint returns a server-side sorted paged envelope
 `{ items, page, pageSize, totalCount, sort, direction }`. The query carries
@@ -48,13 +52,18 @@ drive its paginator; it no longer scopes the list to a month. The canonical
 parameter, envelope, and validation details live in
 [`../api/http/calendar-events.md`](../api/http/calendar-events.md).
 
-List items carry a `status` field (`Draft`, `Publishing`, or `Published`). The
-list page shows a Publish action for future `Draft` events that calls the
-publish endpoint (empty body) and reads
+List and detail items carry a `status` field (`Draft`, `Publishing`, or
+`Published`) and three server-computed action flags, `canPublish`, `canUpdate`,
+and `canDelete`. The UI uses only these flags for Publish, edit/Save, and Delete
+enablement and does not re-derive eligibility from `status`, scheduled start,
+browser time, or descriptions. The list page shows a Publish action when
+`canPublish` is `true`; it calls the publish endpoint (empty body) and reads
 `{ calendarEventId, status, youTubeBroadcastId }`. New events are `Draft`; rows
 stored before the field existed read as `Draft`. Publishing reserves the event
 (`Draft` to `Publishing`) before the YouTube call so a second concurrent publish
-is rejected; a failed broadcast releases the event back to `Draft`.
+is rejected; a failed broadcast releases the event back to `Draft`. The flags
+are advisory: the backend re-checks eligibility on every publish, update, and
+delete, so a stale flag is still enforced server-side.
 
 The UI must treat API request and response shapes as integration contracts.
 When a contract changes, update:
@@ -130,14 +139,20 @@ explicitly exposes them through HTTP.
 
 ## External Integrations
 
-YouTube live broadcast scheduling has an initial proof-of-concept integration:
+YouTube live broadcast scheduling has an initial proof-of-concept integration.
 `POST /api/calendar-events/{calendarEventId}/publish` creates a scheduled
-YouTube `liveBroadcast` from static, shared Google OAuth credentials. It is
-deliberately limited (broadcast insert only, single shared channel, no
-thumbnail, no YouTube broadcast lifecycle transition, no retry). The calendar
-event status is reserved (`Draft` to `Publishing`) before the broadcast call to
-prevent duplicate broadcasts and is set to `Published` only after the broadcast
-is created. It is documented in
+YouTube `liveBroadcast` from static, shared Google OAuth credentials, and
+`DELETE /api/calendar-events/{calendarEventId}` deletes that `liveBroadcast`
+when a future `Published` event is removed. Both use the same `youtube` scope
+and shared refresh token; no new scope or credential was added for deletion. It
+is deliberately limited (broadcast insert and delete only, single shared
+channel, no `liveStream` create/bind/cleanup, no thumbnail, no YouTube broadcast
+lifecycle transition, no retry). The calendar event status is reserved (`Draft`
+to `Publishing`) before the broadcast call to prevent duplicate broadcasts and
+is set to `Published` only after the broadcast is created. A future `Published`
+delete removes the YouTube broadcast before the local row, treats a YouTube
+not-found as success-equivalent, and returns `502 Bad Gateway` (keeping the
+local row) on any other YouTube failure. It is documented in
 [`../api/http/calendar-events.md`](../api/http/calendar-events.md) and
 [`../api/configuration.md`](../api/configuration.md).
 

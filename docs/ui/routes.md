@@ -19,7 +19,7 @@ src/ui/src/app/layout/app-layout/
 | `/` | Public | Renders `Home` with a sign-in button. Auto-redirects signed-in visitors to `/calendar-events`. |
 | `/calendar-events` | Protected | Renders `CalendarEvents` and loads the first page of all events sorted by scheduled start descending. The scheduled start is shown as the UTC instant (`scheduledStartUtc`). Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`. |
 | `/calendar-events/new` | Protected | Renders `CalendarEventDetails`, a reactive form that creates an event via `POST /api/calendar-events` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
-| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, repopulates the form, and keeps the scheduled start read-only. Save sends `PUT /api/calendar-events/{calendarEventId}` with the descriptions. A Delete action removes a loaded `Draft` event via `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events`. Guarded by `authenticatedGuard`. |
+| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, repopulates the form, and keeps the scheduled start read-only. Save sends `PUT /api/calendar-events/{calendarEventId}` with the descriptions and is enabled only while the API's `canUpdate` flag is `true`. A Delete action removes a loaded event the API marks deletable (`canDelete`: a `Draft`, or a future `Published` event) via `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events`. Guarded by `authenticatedGuard`. |
 | `/signed-out` | Public | Renders post-logout confirmation. Auto-redirects already-authenticated visitors to `/calendar-events`. |
 | `/component-lab` | Public | Renders the minimal component lab page for manually demoing shared UI components. |
 | `**` | Public | Redirects to `/`. |
@@ -29,7 +29,10 @@ The `CalendarEvents` page calls
 through the shared API service. It requests one server-side sorted page at a
 time (the first page defaults to scheduled start descending) and drives the
 shared `app-data-table` in server mode from the returned
-`{ items, page, pageSize, totalCount, sort, direction }` envelope. The HTTP
+`{ items, page, pageSize, totalCount, sort, direction }` envelope. Each row
+shows a Publish action only when the API's `canPublish` flag is `true`, and an
+Edit icon that is always enabled and opens the details/edit view where Save and
+Delete enforce `canUpdate` and `canDelete`. The HTTP
 client attaches an Entra External ID access token via the YTSkedy-owned
 `AuthFacade` and bearer interceptor (see
 [`development/end-to-end-testing.md`](development/end-to-end-testing.md) and
@@ -55,13 +58,21 @@ chosen local date, time, and zone. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with the descriptions and navigates
 back to `/calendar-events` on success.
 
-In edit mode the page also shows a Delete action for a loaded `Draft` event; it
-is hidden in create mode and disabled for `Publishing` or `Published`. Delete
-calls `DELETE /api/calendar-events/{calendarEventId}` and, on success, shows a
-confirmation and navigates back to `/calendar-events`. A `404` is treated as the
-event already being gone (same confirmation and navigation); a `409` keeps the
-page open with an inline error because the event is no longer a `Draft`. Save
-and Delete are mutually exclusive while either is in flight.
+In edit mode the page also shows a Delete action whenever the loaded event's
+API-computed `canDelete` flag is `true` (a `Draft`, or a future `Published`
+event with a recorded broadcast id); it is hidden in create mode. The UI reads
+`canDelete` and does not inspect `status`, scheduled start, or
+`youTubeBroadcastId` itself. Delete calls
+`DELETE /api/calendar-events/{calendarEventId}` immediately with no confirmation
+prompt and, on success, shows the `Calendar event deleted.` notification and
+navigates back to `/calendar-events`. A `404` is treated as the event already
+being gone (`Calendar event no longer exists.` then navigation); a `409` keeps
+the page open with `The event can no longer be deleted. Reload the page and try
+again.`; a `502` keeps the page open with `The YouTube broadcast could not be
+deleted. Try again later.`; other failures show generic delete copy. Save is
+enabled only while `canUpdate` is `true`, and an update `409` keeps the page
+open with `The event can no longer be updated. Reload the page and try again.`
+Save and Delete are mutually exclusive while either is in flight.
 
 ## Route Protection
 
