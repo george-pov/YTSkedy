@@ -109,29 +109,25 @@ public class UpdateCalendarEventHandlerTests
             new FakeCalendarEventReader(CreateDetail(status)),
             repository);
 
-    private static CalendarEventDetail CreateDetail(CalendarEventStatus status) =>
+    private static CalendarEventView CreateDetail(CalendarEventStatus status) =>
         new(
             CalendarEventId,
+            new ScheduledStart(StartUtc.UtcDateTime, "UTC"),
             StartUtc,
             [new LocalizedDescription("en", "English title", "English description")],
             status);
 
-    private sealed class FakeCalendarEventReader(CalendarEventDetail? detail) : ICalendarEventReader
+    private sealed class FakeCalendarEventReader(CalendarEventView? detail) : ICalendarEventReader
     {
-        public Task<IReadOnlyList<CalendarEventListItem>> ListAsync(
+        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
             CalendarEventMonthCriteria? criteria,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<CalendarEventDetail?> GetByIdAsync(
+        public Task<CalendarEventView?> GetByIdAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
             Task.FromResult(detail);
-
-        public Task<CalendarEventListItem?> GetListItemByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
     }
 
     private sealed class FakeCalendarEventRepository(bool updateResult) : ICalendarEventRepository

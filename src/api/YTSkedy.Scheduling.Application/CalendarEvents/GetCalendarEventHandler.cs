@@ -1,3 +1,5 @@
+using YTSkedy.Scheduling.Domain.CalendarEvents;
+
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
 /// <summary>
@@ -8,13 +10,13 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents;
 /// </summary>
 public sealed class GetCalendarEventHandler(ICalendarEventReader calendarEvents)
 {
-    public async Task<CalendarEventListItem?> HandleAsync(
+    public async Task<CalendarEventView?> HandleAsync(
         string calendarEventId,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
 
-        return await calendarEvents.GetListItemByIdAsync(
+        return await calendarEvents.GetByIdAsync(
             calendarEventId,
             cancellationToken);
     }

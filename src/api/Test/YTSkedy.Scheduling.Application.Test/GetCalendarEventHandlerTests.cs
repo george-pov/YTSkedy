@@ -10,7 +10,7 @@ public class GetCalendarEventHandlerTests
     [Fact]
     public async Task HandleAsync_ExistingEvent_ReturnsTheReadModel()
     {
-        var item = CreateListItem(CalendarEventId);
+        var item = CreateView(CalendarEventId);
         var reader = new FakeCalendarEventReader(item);
         var handler = new GetCalendarEventHandler(reader);
 
@@ -42,7 +42,7 @@ public class GetCalendarEventHandlerTests
             () => handler.HandleAsync(calendarEventId, CancellationToken.None));
     }
 
-    private static CalendarEventListItem CreateListItem(string calendarEventId) =>
+    private static CalendarEventView CreateView(string calendarEventId) =>
         new(
             calendarEventId,
             new ScheduledStart(new DateTime(2026, 6, 6, 10, 0, 0), "America/Vancouver"),
@@ -50,22 +50,17 @@ public class GetCalendarEventHandlerTests
             [new LocalizedDescription("en", "English stream 1", null)],
             CalendarEventStatus.Draft);
 
-    private sealed class FakeCalendarEventReader(CalendarEventListItem? item)
+    private sealed class FakeCalendarEventReader(CalendarEventView? item)
         : ICalendarEventReader
     {
         public string? RequestedId { get; private set; }
 
-        public Task<IReadOnlyList<CalendarEventListItem>> ListAsync(
+        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
             CalendarEventMonthCriteria? criteria,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<CalendarEventDetail?> GetByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<CalendarEventListItem?> GetListItemByIdAsync(
+        public Task<CalendarEventView?> GetByIdAsync(
             string calendarEventId,
             CancellationToken cancellationToken)
         {

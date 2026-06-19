@@ -22,22 +22,34 @@ public static class AuthorizationPolicy
     /// <summary>
     /// Resolves accepted scopes and the opt-out marker from
     /// <paramref name="method"/> and delegates to the primitive overload.
-    /// Deny by default: a null method (entry point could not be resolved)
-    /// or a method without <see cref="AllowAnonymousAttribute"/> is still
-    /// subject to the role check.
+    /// Fail closed: a null method means the endpoint could not be resolved, so
+    /// its scope and anonymous intent are unknown and the request is denied with
+    /// <see cref="AuthorizationResult.UnresolvedEndpoint"/> rather than letting
+    /// an empty scope set read as "no scope required" and downgrade the endpoint
+    /// to role-only. A resolved method without
+    /// <see cref="RequiredScopeAttribute"/> is legitimately scope-less and is
+    /// still subject to the role check.
     /// </summary>
     public static AuthorizationResult Evaluate(
         MethodInfo? method,
         string requiredRole,
         ClaimsPrincipal user)
     {
-        if (method?.GetCustomAttribute<AllowAnonymousAttribute>() is not null)
+        if (method is null)
+        {
+            // The endpoint's handler could not be resolved, so its declared
+            // scope and anonymous intent are unknown. Deny instead of treating
+            // "no scopes resolved" as "no scope required".
+            return AuthorizationResult.UnresolvedEndpoint;
+        }
+
+        if (method.GetCustomAttribute<AllowAnonymousAttribute>() is not null)
         {
             return AuthorizationResult.Allow;
         }
 
         var acceptedScopes =
-            method?.GetCustomAttribute<RequiredScopeAttribute>()?.AcceptedScope ?? [];
+            method.GetCustomAttribute<RequiredScopeAttribute>()?.AcceptedScope ?? [];
 
         return Evaluate(acceptedScopes, requiredRole, user);
     }
@@ -118,4 +130,5 @@ public enum AuthorizationResult
     Allow,
     InsufficientScope,
     MissingRole,
+    UnresolvedEndpoint,
 }

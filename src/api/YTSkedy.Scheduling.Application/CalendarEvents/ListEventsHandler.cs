@@ -1,3 +1,5 @@
+using YTSkedy.Scheduling.Domain.CalendarEvents;
+
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
 /// <summary>
@@ -35,8 +37,8 @@ public sealed class ListEventsHandler(ICalendarEventReader calendarEvents)
             query.Direction);
     }
 
-    private static IEnumerable<CalendarEventListItem> Sort(
-        IReadOnlyList<CalendarEventListItem> candidates,
+    private static IEnumerable<CalendarEventView> Sort(
+        IReadOnlyList<CalendarEventView> candidates,
         CalendarEventSortField sort,
         SortDirection direction)
     {
@@ -49,7 +51,7 @@ public sealed class ListEventsHandler(ICalendarEventReader calendarEvents)
         return ordered.ThenBy(item => item.CalendarEventId, StringComparer.Ordinal);
     }
 
-    private static Func<CalendarEventListItem, string> PrimaryKey(
+    private static Func<CalendarEventView, string> PrimaryKey(
         CalendarEventSortField sort) =>
         sort switch
         {
@@ -59,11 +61,13 @@ public sealed class ListEventsHandler(ICalendarEventReader calendarEvents)
             _ => item => item.CalendarEventId
         };
 
-    // Sort key for the Title column: the English (en) description title. Both
-    // languages are required when an event is created, so the English entry is
-    // normally present; a missing entry sorts as an empty string.
-    private static string EnglishTitle(CalendarEventListItem item) =>
+    // Sort key for the Title column: the English description title. English
+    // matching is case-insensitive (see CalendarEventLanguages), so an entry
+    // tagged "en", "EN", or "En" is used identically. Both languages are
+    // required when an event is created, so the English entry is normally
+    // present; a missing entry sorts as an empty string.
+    private static string EnglishTitle(CalendarEventView item) =>
         item.Descriptions
-            .FirstOrDefault(description => description.Language == "en")
+            .FirstOrDefault(description => description.IsEnglish)
             ?.Title ?? string.Empty;
 }

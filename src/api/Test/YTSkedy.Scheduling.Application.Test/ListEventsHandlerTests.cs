@@ -10,9 +10,9 @@ public class ListEventsHandlerTests
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateListItem("20260101T000000Z"),
-            CreateListItem("20260103T000000Z"),
-            CreateListItem("20260102T000000Z")
+            CreateView("20260101T000000Z"),
+            CreateView("20260103T000000Z"),
+            CreateView("20260102T000000Z")
         ]);
         var handler = new ListEventsHandler(reader);
 
@@ -28,9 +28,9 @@ public class ListEventsHandlerTests
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateListItem("20260103T000000Z"),
-            CreateListItem("20260101T000000Z"),
-            CreateListItem("20260102T000000Z")
+            CreateView("20260103T000000Z"),
+            CreateView("20260101T000000Z"),
+            CreateView("20260102T000000Z")
         ]);
         var handler = new ListEventsHandler(reader);
 
@@ -50,10 +50,10 @@ public class ListEventsHandlerTests
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateListItem("20260101T000000Z", CalendarEventStatus.Published),
-            CreateListItem("20260102T000000Z", CalendarEventStatus.Draft),
-            CreateListItem("20260103T000000Z", CalendarEventStatus.Published),
-            CreateListItem("20260104T000000Z", CalendarEventStatus.Draft)
+            CreateView("20260101T000000Z", CalendarEventStatus.Published),
+            CreateView("20260102T000000Z", CalendarEventStatus.Draft),
+            CreateView("20260103T000000Z", CalendarEventStatus.Published),
+            CreateView("20260104T000000Z", CalendarEventStatus.Draft)
         ]);
         var handler = new ListEventsHandler(reader);
 
@@ -78,10 +78,10 @@ public class ListEventsHandlerTests
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateListItem("20260101T000000Z", CalendarEventStatus.Published),
-            CreateListItem("20260102T000000Z", CalendarEventStatus.Draft),
-            CreateListItem("20260103T000000Z", CalendarEventStatus.Published),
-            CreateListItem("20260104T000000Z", CalendarEventStatus.Draft)
+            CreateView("20260101T000000Z", CalendarEventStatus.Published),
+            CreateView("20260102T000000Z", CalendarEventStatus.Draft),
+            CreateView("20260103T000000Z", CalendarEventStatus.Published),
+            CreateView("20260104T000000Z", CalendarEventStatus.Draft)
         ]);
         var handler = new ListEventsHandler(reader);
 
@@ -107,9 +107,9 @@ public class ListEventsHandlerTests
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateListItem("20260101T000000Z", timeZoneId: "Europe/London"),
-            CreateListItem("20260102T000000Z", timeZoneId: "America/Vancouver"),
-            CreateListItem("20260103T000000Z", timeZoneId: "Asia/Tokyo")
+            CreateView("20260101T000000Z", timeZoneId: "Europe/London"),
+            CreateView("20260102T000000Z", timeZoneId: "America/Vancouver"),
+            CreateView("20260103T000000Z", timeZoneId: "Asia/Tokyo")
         ]);
         var handler = new ListEventsHandler(reader);
 
@@ -127,9 +127,9 @@ public class ListEventsHandlerTests
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateListItem("20260101T000000Z", englishTitle: "Charlie stream"),
-            CreateListItem("20260102T000000Z", englishTitle: "Alpha stream"),
-            CreateListItem("20260103T000000Z", englishTitle: "Bravo stream")
+            CreateView("20260101T000000Z", englishTitle: "Charlie stream"),
+            CreateView("20260102T000000Z", englishTitle: "Alpha stream"),
+            CreateView("20260103T000000Z", englishTitle: "Bravo stream")
         ]);
         var handler = new ListEventsHandler(reader);
 
@@ -140,6 +140,30 @@ public class ListEventsHandlerTests
         // English title order ascending: Alpha, Bravo, Charlie. This differs
         // from the calendar event id order, so it proves the English title is
         // the sort key rather than the id.
+        Assert.Equal(
+            ["20260102T000000Z", "20260103T000000Z", "20260101T000000Z"],
+            Ids(result));
+    }
+
+    [Fact]
+    public async Task HandleAsync_TitleAscending_TreatsUppercaseEnglishTagAsTitle()
+    {
+        // A description tagged "EN" is still the English entry (matching is
+        // case-insensitive), so it must sort by its title rather than as an
+        // empty string. Before the shared case-insensitive match this sorted by
+        // id because the ordinal "EN" != "en" comparison found no English title.
+        var reader = new FakeCalendarEventReader(
+        [
+            CreateView("20260101T000000Z", englishTitle: "Charlie stream", language: "EN"),
+            CreateView("20260102T000000Z", englishTitle: "Alpha stream", language: "EN"),
+            CreateView("20260103T000000Z", englishTitle: "Bravo stream", language: "EN")
+        ]);
+        var handler = new ListEventsHandler(reader);
+
+        var result = await handler.HandleAsync(
+            Query(sort: CalendarEventSortField.Title, direction: SortDirection.Ascending),
+            CancellationToken.None);
+
         Assert.Equal(
             ["20260102T000000Z", "20260103T000000Z", "20260101T000000Z"],
             Ids(result));
@@ -289,32 +313,33 @@ public class ListEventsHandlerTests
         int? month = null) =>
         new(page, pageSize, sort, direction, year, month);
 
-    private static IReadOnlyList<CalendarEventListItem> FiveAscendingItems() =>
+    private static IReadOnlyList<CalendarEventView> FiveAscendingItems() =>
     [
-        CreateListItem("20260101T000000Z"),
-        CreateListItem("20260102T000000Z"),
-        CreateListItem("20260103T000000Z"),
-        CreateListItem("20260104T000000Z"),
-        CreateListItem("20260105T000000Z")
+        CreateView("20260101T000000Z"),
+        CreateView("20260102T000000Z"),
+        CreateView("20260103T000000Z"),
+        CreateView("20260104T000000Z"),
+        CreateView("20260105T000000Z")
     ];
 
-    private static CalendarEventListItem CreateListItem(
+    private static CalendarEventView CreateView(
         string calendarEventId,
         CalendarEventStatus status = CalendarEventStatus.Draft,
         string timeZoneId = "America/Vancouver",
-        string? englishTitle = null) =>
+        string? englishTitle = null,
+        string language = "en") =>
         new(
             calendarEventId,
             new ScheduledStart(new DateTime(2026, 1, 1, 0, 0, 0), timeZoneId),
             new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            [new LocalizedDescription("en", englishTitle ?? $"Title {calendarEventId}", null)],
+            [new LocalizedDescription(language, englishTitle ?? $"Title {calendarEventId}", null)],
             status);
 
     private static string[] Ids(CalendarEventListPage page) =>
         page.Items.Select(item => item.CalendarEventId).ToArray();
 
     private sealed class FakeCalendarEventReader(
-        IReadOnlyList<CalendarEventListItem> items) : ICalendarEventReader
+        IReadOnlyList<CalendarEventView> items) : ICalendarEventReader
     {
         public bool ListCalled { get; private set; }
 
@@ -322,7 +347,7 @@ public class ListEventsHandlerTests
 
         public CancellationToken CancellationToken { get; private set; }
 
-        public Task<IReadOnlyList<CalendarEventListItem>> ListAsync(
+        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
             CalendarEventMonthCriteria? criteria,
             CancellationToken cancellationToken)
         {
@@ -333,14 +358,9 @@ public class ListEventsHandlerTests
             return Task.FromResult(items);
         }
 
-        public Task<CalendarEventDetail?> GetByIdAsync(
+        public Task<CalendarEventView?> GetByIdAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
-            Task.FromResult<CalendarEventDetail?>(null);
-
-        public Task<CalendarEventListItem?> GetListItemByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<CalendarEventListItem?>(null);
+            Task.FromResult<CalendarEventView?>(null);
     }
 }

@@ -7,7 +7,9 @@ using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Infrastructure.CalendarEvents;
 
-public sealed class AzureCalendarEventRepository(TableClient tableClient) :
+public sealed class AzureCalendarEventRepository(
+    TableClient tableClient,
+    TimeProvider timeProvider) :
     ICalendarEventRepository,
     ICalendarEventReader
 {
@@ -33,7 +35,7 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
             TimeZoneId = calendarEvent.Start.TimeZoneId,
             DescriptionsJson = JsonSerializer.Serialize(calendarEvent.Descriptions, JsonOptions),
             Status = calendarEvent.Status.ToString(),
-            CreatedUtc = DateTimeOffset.UtcNow
+            CreatedUtc = timeProvider.GetUtcNow()
         };
 
         await tableClient.CreateIfNotExistsAsync(cancellationToken);
@@ -52,14 +54,14 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
         return calendarEventId;
     }
 
-    public async Task<IReadOnlyList<CalendarEventListItem>> ListAsync(
+    public async Task<IReadOnlyList<CalendarEventView>> ListAsync(
         CalendarEventMonthCriteria? criteria,
         CancellationToken cancellationToken) =>
         criteria is null
             ? await ListAllAsync(cancellationToken)
             : await ListByMonthAsync(criteria, cancellationToken);
 
-    private async Task<IReadOnlyList<CalendarEventListItem>> ListByMonthAsync(
+    private async Task<IReadOnlyList<CalendarEventView>> ListByMonthAsync(
         CalendarEventMonthCriteria criteria,
         CancellationToken cancellationToken)
     {
@@ -86,12 +88,12 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
             }
         }
 
-        return CalendarEventReadMapper.ToListItemsForMonth(
+        return CalendarEventReadMapper.ToViewsForMonth(
             entities,
             criteria);
     }
 
-    private async Task<IReadOnlyList<CalendarEventListItem>> ListAllAsync(
+    private async Task<IReadOnlyList<CalendarEventView>> ListAllAsync(
         CancellationToken cancellationToken)
     {
         var entities = new List<CalendarEventEntity>();
@@ -110,10 +112,10 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
             return [];
         }
 
-        return CalendarEventReadMapper.ToListItems(entities);
+        return CalendarEventReadMapper.ToViews(entities);
     }
 
-    public async Task<CalendarEventDetail?> GetByIdAsync(
+    public async Task<CalendarEventView?> GetByIdAsync(
         string calendarEventId,
         CancellationToken cancellationToken)
     {
@@ -121,18 +123,7 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
 
         var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
 
-        return entity is null ? null : CalendarEventReadMapper.ToDetail(entity);
-    }
-
-    public async Task<CalendarEventListItem?> GetListItemByIdAsync(
-        string calendarEventId,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
-
-        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
-
-        return entity is null ? null : CalendarEventReadMapper.ToListItem(entity);
+        return entity is null ? null : CalendarEventReadMapper.ToView(entity);
     }
 
     public async Task<bool> UpdateDescriptionsAsync(
@@ -224,14 +215,34 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
 
-        var entity = await GetEntityOrThrowAsync(calendarEventId, cancellationToken);
+        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
+
+        // Releasing is best-effort compensation. If the row is gone or no longer
+        // reserved by this publish (a concurrent request already advanced or
+        // reset it), there is nothing for this caller to undo, so do not throw
+        // and mask the original failure that triggered the release.
+        if (entity is null ||
+            CalendarEventReadMapper.ParseStatus(entity.Status) != CalendarEventStatus.Publishing)
+        {
+            return;
+        }
+
         entity.Status = CalendarEventStatus.Draft.ToString();
 
-        await tableClient.UpdateEntityAsync(
-            entity,
-            entity.ETag,
-            TableUpdateMode.Replace,
-            cancellationToken);
+        try
+        {
+            await tableClient.UpdateEntityAsync(
+                entity,
+                entity.ETag,
+                TableUpdateMode.Replace,
+                cancellationToken);
+        }
+        catch (RequestFailedException exception) when (exception.Status is 404 or 412)
+        {
+            // A concurrent write changed or removed the row after the read. The
+            // reservation is no longer this caller's to release, so leave the
+            // other writer's state intact.
+        }
     }
 
     public async Task<DeleteDraftCalendarEventResult> DeleteDraftAsync(

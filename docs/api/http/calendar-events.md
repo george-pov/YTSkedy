@@ -126,7 +126,10 @@ Success response (`200 OK`) is a paged envelope:
           "description": "Description for stream 1 in English"
         }
       ],
-      "status": "Draft"
+      "status": "Draft",
+      "canPublish": true,
+      "canUpdate": true,
+      "canDelete": true
     }
   ],
   "page": 0,
@@ -147,6 +150,15 @@ Success response (`200 OK`) is a paged envelope:
 - `status` is `Draft`, `Publishing`, or `Published`. New events are `Draft`. A
   `Publishing` row has a publish in progress. Rows stored before the status
   field existed are read as `Draft`.
+- `canPublish`, `canUpdate`, and `canDelete` are server-computed action flags
+  the UI uses for Publish, edit/Save, and Delete enablement; the client never
+  re-derives them from `status`, `scheduledStartUtc`, or descriptions.
+  `canPublish` is `true` only for a `Draft` whose start is in the future and
+  that has an English (`en`) description. `canUpdate` is `true` only for a
+  `Draft`. `canDelete` is `true` for any `Draft` (future or past) and for a
+  future `Published` event that has a recorded `youTubeBroadcastId`. The flags
+  are advisory: each write re-checks eligibility server-side, so a stale `true`
+  can still be rejected.
 - A page past the end returns `200 OK` with `items` as `[]` and the real
   `totalCount`. No stored events returns `items` as `[]` with `totalCount` `0`.
 
@@ -199,13 +211,18 @@ Success response (`200 OK`):
       "description": "Description for stream 1 in English"
     }
   ],
-  "status": "Draft"
+  "status": "Draft",
+  "canPublish": true,
+  "canUpdate": true,
+  "canDelete": true
 }
 ```
 
 Current behavior:
 
 - Unknown `calendarEventId` returns `404 Not Found`.
+- The response carries the same `canPublish`, `canUpdate`, and `canDelete`
+  action flags on the view, computed for this event.
 - The `CalendarEventDetails` edit route (`/calendar-events/{calendarEventId}/edit`)
   consumes this endpoint to load an event into the form.
 
@@ -215,10 +232,13 @@ Current behavior:
 PUT /api/calendar-events/{calendarEventId}
 ```
 
-Replaces the localized descriptions of an existing calendar event in place.
-Requires the `CalendarEvents.Write` scope. Only the descriptions can change: the
-scheduled start is immutable because the event id is derived from its UTC start
-instant, so the request body carries no start.
+Replaces the localized descriptions of an existing `Draft` calendar event in
+place. Requires the `CalendarEvents.Write` scope. Only `Draft` events are
+updatable, and only the descriptions can change: the scheduled start is
+immutable because the event id is derived from its UTC start instant, so the
+request body carries no start. Once an event is `Publishing` or `Published` its
+descriptions are frozen so they cannot drift from the metadata already sent to
+YouTube.
 
 Request body:
 
@@ -254,6 +274,10 @@ appear in the active sort order.
 Current behavior and error mapping:
 
 - Unknown `calendarEventId` returns `404 Not Found`.
+- A `Publishing` or `Published` event returns `409 Conflict` with wording such
+  as `Calendar event '{calendarEventId}' cannot be updated in its current
+  state.` and is not modified, so already-published descriptions cannot drift
+  from the metadata sent to YouTube.
 - Invalid JSON returns `400 Bad Request` with a plain string message.
 - Missing request body returns `400 Bad Request` with a plain string message.
 - The `CalendarEventDetails` edit route (`/calendar-events/{calendarEventId}/edit`)
@@ -301,12 +325,24 @@ Current behavior and error mapping:
 - A start instant that is not in the future returns `400 Bad Request` and does
   not call YouTube.
 - An event with no English (`en`) description returns `400 Bad Request`.
-- Any failure from the YouTube call releases the reservation back to `Draft`,
-  surfaces as `500`, and leaves the event retryable. A hard interruption (such
-  as a host crash) between the reservation and the result can leave the event
-  stuck in `Publishing`; recovering it currently requires manual inspection.
-  There is no automatic retry, partial-state reconciliation, or detailed error
-  surface in this proof-of-concept iteration.
+- A failure creating the broadcast releases the reservation back to `Draft`,
+  surfaces as `500`, and leaves the event retryable; YouTube is not asked to
+  create the broadcast again until the operator retries.
+- A failure recording the new broadcast id (the finalize write) is retried.
+  If it still cannot be recorded, the handler re-reads the stored state:
+  - If the row already shows `Published` (the write had actually landed), the
+    publish is reported as success.
+  - If the row is still `Publishing`, the just-created broadcast is deleted and
+    the reservation is released back to `Draft` so no orphaned, billable
+    broadcast is left untracked; the call still surfaces as `500` and the event
+    stays retryable.
+  - If that compensating delete also fails, or the stored state cannot be
+    confirmed, the row is left `Publishing` and the broadcast id is logged for
+    manual cleanup rather than silently lost.
+- A hard interruption (such as a host crash) between the reservation and the
+  finalize can still leave the event stuck in `Publishing`; recovering it
+  currently requires manual inspection. There is no background reconciliation
+  or detailed error surface in this iteration.
 
 Proof-of-concept limitations:
 
@@ -322,30 +358,68 @@ Proof-of-concept limitations:
 DELETE /api/calendar-events/{calendarEventId}
 ```
 
-Hard-deletes a `Draft` calendar event. Requires the `CalendarEvents.Write`
-scope. Only `Draft` events are deletable: deleting is local cleanup of an
-unpublished draft, not a YouTube operation, so it never contacts YouTube.
+Deletes a calendar event. Requires the `CalendarEvents.Write` scope. A `Draft`
+event is local cleanup that never contacts YouTube; a future `Published` event
+also removes its scheduled YouTube `liveBroadcast` before the local row. Use the
+`canDelete` response flag to decide whether to offer the action; the backend
+re-checks eligibility, so a stale `canDelete` is still enforced here.
 
 Success returns `204 No Content` with an empty body.
 
-Current behavior and error mapping:
+Deletable states:
 
-- A `Draft` event is deleted and the endpoint returns `204 No Content`.
+- A `Draft` event (future or past) is hard-deleted locally and the endpoint
+  returns `204 No Content`. Deleting a draft is local cleanup, not a YouTube
+  operation, so it never contacts YouTube; the scheduled start does not affect
+  Draft delete eligibility.
+- A future `Published` event with a recorded `youTubeBroadcastId` deletes the
+  YouTube `liveBroadcast` first and then removes the local row, returning
+  `204 No Content`. The broadcast is deleted before the local row so the
+  external resource cannot be orphaned.
+
+YouTube cleanup policy for a future `Published` delete:
+
+- A YouTube not-found for the stored broadcast id is success-equivalent: the
+  intended end state (no broadcast) already holds, so local cleanup continues
+  and the endpoint returns `204 No Content`.
+- Any other YouTube failure returns `502 Bad Gateway` with a generic body
+  (`The YouTube broadcast could not be deleted.`) and keeps the local row so the
+  operator can retry. Provider error details are never surfaced.
+- If the local row has already disappeared after a successful YouTube delete,
+  the endpoint still returns `204 No Content` because both the external and
+  local resources are gone.
+
+Rejected states and error mapping:
+
 - Unknown `calendarEventId` returns `404 Not Found`. A syntactically invalid
   non-empty id also returns `404 Not Found`, matching the by-id read; there is
   no `400` id-format contract.
-- A `Publishing` or `Published` event returns `409 Conflict` and is not
-  deleted.
-- Past `Draft` events remain deletable; the scheduled start does not affect
-  delete eligibility because delete is local cleanup, not a publish.
-- The delete is an ETag-conditional write on the loaded `Draft` row. If a
-  concurrent write moves the event out of `Draft` first, the endpoint returns
-  `409 Conflict`; if the row is already gone, it returns `404 Not Found`.
-- The delete is a hard delete: removed drafts are not recoverable. Tombstones,
+- A `Publishing` event and a past `Published` event return `409 Conflict` and
+  are not deleted.
+- A future `Published` event with a missing or blank `youTubeBroadcastId`
+  returns `409 Conflict` with diagnostic wording such as `Calendar event
+  '{calendarEventId}' cannot be deleted because no YouTube broadcast id is
+  recorded.` and keeps the local row.
+- Other not-deletable states use `409 Conflict` with wording that is not
+  Draft-only, such as `Calendar event '{calendarEventId}' cannot be deleted in
+  its current state.`
+- The `Draft` delete is an ETag-conditional write on the loaded `Draft` row. If
+  a concurrent write moves the event out of `Draft` first, the endpoint returns
+  `409 Conflict`; if the row is already gone, it returns `404 Not Found`. The
+  future `Published` path takes one application read, deletes the broadcast, and
+  then deletes the local row by id without re-reading status.
+
+Scope and proof-of-concept limitations:
+
+- Deleting a `Published` event removes only the scheduled `liveBroadcast`,
+  matching the publish proof of concept. It does not delete or unbind a
+  `liveStream`, and there is no confirmation prompt, retry, audit retention, or
+  restore in this iteration.
+- The delete is a hard delete: removed events are not recoverable. Tombstones,
   recycle-bin behavior, audit retention, and restore are out of scope.
 - The `CalendarEventDetails` edit route
   (`/calendar-events/{calendarEventId}/edit`) consumes this endpoint from its
-  Delete action, shown only for a loaded `Draft` event.
+  Delete action, shown only when the loaded event's `canDelete` flag is `true`.
 
 ## Manual Checks
 

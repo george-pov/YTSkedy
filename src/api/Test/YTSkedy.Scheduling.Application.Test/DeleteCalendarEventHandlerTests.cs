@@ -303,7 +303,7 @@ public class DeleteCalendarEventHandlerTests
         string? broadcastId,
         bool expected)
     {
-        var item = CreateListItem(
+        var item = CreateView(
             status,
             future ? FutureStartUtc : PastStartUtc,
             broadcastId);
@@ -317,7 +317,7 @@ public class DeleteCalendarEventHandlerTests
     [InlineData(CalendarEventStatus.Published, false)]
     public void CanUpdate_TrueOnlyForDraft(CalendarEventStatus status, bool expected)
     {
-        var item = CreateListItem(status, FutureStartUtc, BroadcastId);
+        var item = CreateView(status, FutureStartUtc, BroadcastId);
 
         Assert.Equal(expected, item.CanUpdate());
     }
@@ -325,7 +325,7 @@ public class DeleteCalendarEventHandlerTests
     [Fact]
     public void CanPublish_FutureDraftWithEnglishDescription_IsTrue()
     {
-        var item = CreateListItem(CalendarEventStatus.Draft, FutureStartUtc);
+        var item = CreateView(CalendarEventStatus.Draft, FutureStartUtc);
 
         Assert.True(item.CanPublish(NowUtc));
     }
@@ -333,7 +333,7 @@ public class DeleteCalendarEventHandlerTests
     [Fact]
     public void CanPublish_PastDraft_IsFalse()
     {
-        var item = CreateListItem(CalendarEventStatus.Draft, PastStartUtc);
+        var item = CreateView(CalendarEventStatus.Draft, PastStartUtc);
 
         Assert.False(item.CanPublish(NowUtc));
     }
@@ -341,7 +341,7 @@ public class DeleteCalendarEventHandlerTests
     [Fact]
     public void CanPublish_DraftWithoutEnglishDescription_IsFalse()
     {
-        var item = CreateListItem(
+        var item = CreateView(
             CalendarEventStatus.Draft,
             FutureStartUtc,
             descriptions: [new LocalizedDescription("ru", "Russian title", "Russian description")]);
@@ -354,13 +354,13 @@ public class DeleteCalendarEventHandlerTests
     [InlineData(CalendarEventStatus.Published)]
     public void CanPublish_NonDraft_IsFalse(CalendarEventStatus status)
     {
-        var item = CreateListItem(status, FutureStartUtc, BroadcastId);
+        var item = CreateView(status, FutureStartUtc, BroadcastId);
 
         Assert.False(item.CanPublish(NowUtc));
     }
 
     private static DeleteCalendarEventHandler CreateHandler(
-        CalendarEventDetail? detail,
+        CalendarEventView? detail,
         FakeCalendarEventRepository repository,
         FakeYouTubeDeleter deleter) =>
         new(
@@ -369,18 +369,19 @@ public class DeleteCalendarEventHandlerTests
             deleter,
             new FixedTimeProvider(NowUtc));
 
-    private static CalendarEventDetail CreateDetail(
+    private static CalendarEventView CreateDetail(
         CalendarEventStatus status,
         DateTimeOffset scheduledStartUtc,
         string? youTubeBroadcastId = null) =>
         new(
             CalendarEventId,
+            new ScheduledStart(scheduledStartUtc.UtcDateTime, "UTC"),
             scheduledStartUtc,
             [new LocalizedDescription("en", "English title", "English description")],
             status,
             youTubeBroadcastId);
 
-    private static CalendarEventListItem CreateListItem(
+    private static CalendarEventView CreateView(
         CalendarEventStatus status,
         DateTimeOffset scheduledStartUtc,
         string? youTubeBroadcastId = null,
@@ -398,16 +399,16 @@ public class DeleteCalendarEventHandlerTests
         public override DateTimeOffset GetUtcNow() => utcNow;
     }
 
-    private sealed class FakeCalendarEventReader(CalendarEventDetail? detail) : ICalendarEventReader
+    private sealed class FakeCalendarEventReader(CalendarEventView? detail) : ICalendarEventReader
     {
         public int GetByIdCallCount { get; private set; }
 
-        public Task<IReadOnlyList<CalendarEventListItem>> ListAsync(
+        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
             CalendarEventMonthCriteria? criteria,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<CalendarEventDetail?> GetByIdAsync(
+        public Task<CalendarEventView?> GetByIdAsync(
             string calendarEventId,
             CancellationToken cancellationToken)
         {
@@ -415,11 +416,6 @@ public class DeleteCalendarEventHandlerTests
 
             return Task.FromResult(detail);
         }
-
-        public Task<CalendarEventListItem?> GetListItemByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
     }
 
     private sealed class FakeYouTubeDeleter(List<string>? operations = null)

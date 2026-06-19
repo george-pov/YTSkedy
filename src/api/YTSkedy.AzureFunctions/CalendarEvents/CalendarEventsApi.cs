@@ -90,7 +90,7 @@ public class CalendarEventsApi(
         var result = await listHandler.HandleAsync(query, cancellationToken);
 
         var response = new CalendarEventListResponse(
-            result.Items.Select(ToListItemResponse).ToArray(),
+            result.Items.Select(ToViewResponse).ToArray(),
             result.Page,
             result.PageSize,
             result.TotalCount,
@@ -112,7 +112,7 @@ public class CalendarEventsApi(
 
         return calendarEvent is null
             ? new NotFoundResult()
-            : new OkObjectResult(ToListItemResponse(calendarEvent));
+            : new OkObjectResult(ToViewResponse(calendarEvent));
     }
 
     [Function("UpdateCalendarEvent")]
@@ -434,8 +434,8 @@ public class CalendarEventsApi(
         return true;
     }
 
-    private CalendarEventListItemResponse ToListItemResponse(
-        CalendarEventListItem calendarEvent)
+    private CalendarEventViewResponse ToViewResponse(
+        CalendarEventView calendarEvent)
     {
         var nowUtc = timeProvider.GetUtcNow();
 

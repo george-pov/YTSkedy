@@ -51,7 +51,9 @@ issuer rejects valid tokens.
 Publishing a calendar event as a scheduled YouTube live broadcast uses static,
 predefined Google OAuth credentials. The backend exchanges the refresh token
 for short-lived access tokens at runtime, so there is no interactive Google
-consent at request time.
+consent at request time. The same credentials and `youtube` scope also authorize
+deleting a published broadcast when a future `Published` calendar event is
+deleted; no extra scope, refresh token, or credential was added for deletion.
 
 | Setting | Classification | Purpose |
 | --- | --- | --- |
@@ -78,9 +80,10 @@ and refresh token, see the setup runbook:
 
 This is a proof-of-concept integration with deliberate limitations:
 
-- All three credential values are shared. Every publish acts on the single
-  YouTube channel that minted the refresh token, regardless of which user is
-  signed in. A per-user Google OAuth flow is deferred.
+- All three credential values are shared. Every publish, and every YouTube
+  broadcast deletion triggered by deleting a future `Published` event, acts on
+  the single YouTube channel that minted the refresh token, regardless of which
+  user is signed in. A per-user Google OAuth flow is deferred.
 - The broadcast defaults above apply to every publish. Only title, description,
   and scheduled start come from the calendar event.
 

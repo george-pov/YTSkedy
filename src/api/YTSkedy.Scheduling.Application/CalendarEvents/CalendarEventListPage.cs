@@ -1,3 +1,5 @@
+using YTSkedy.Scheduling.Domain.CalendarEvents;
+
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
 /// <summary>
@@ -5,7 +7,7 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents;
 /// is the full candidate count across all pages, used to drive the paginator.
 /// </summary>
 public sealed record CalendarEventListPage(
-    IReadOnlyList<CalendarEventListItem> Items,
+    IReadOnlyList<CalendarEventView> Items,
     int Page,
     int PageSize,
     int TotalCount,

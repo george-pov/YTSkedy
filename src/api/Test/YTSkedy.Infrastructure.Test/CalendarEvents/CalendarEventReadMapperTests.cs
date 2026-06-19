@@ -10,7 +10,7 @@ public class CalendarEventReadMapperTests
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [Fact]
-    public void ToListItemsForMonth_IncludedEntity_MapsCalendarEventFields()
+    public void ToViewsForMonth_IncludedEntity_MapsCalendarEventFields()
     {
         var entity = CreateEntity(
             "20260605T170000Z",
@@ -21,7 +21,7 @@ public class CalendarEventReadMapperTests
             ]);
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventReadMapper.ToListItemsForMonth(
+        var result = CalendarEventReadMapper.ToViewsForMonth(
             [entity],
             criteria);
 
@@ -36,7 +36,7 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
-    public void ToListItemsForMonth_EmptyStatus_DefaultsToDraft()
+    public void ToViewsForMonth_EmptyStatus_DefaultsToDraft()
     {
         var entity = CreateEntity(
             "20260605T170000Z",
@@ -45,7 +45,7 @@ public class CalendarEventReadMapperTests
         entity.Status = string.Empty;
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventReadMapper.ToListItemsForMonth(
+        var result = CalendarEventReadMapper.ToViewsForMonth(
             [entity],
             criteria);
 
@@ -54,7 +54,7 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
-    public void ToListItemsForMonth_PublishedStatus_MapsToPublished()
+    public void ToViewsForMonth_PublishedStatus_MapsToPublished()
     {
         var entity = CreateEntity(
             "20260605T170000Z",
@@ -63,7 +63,7 @@ public class CalendarEventReadMapperTests
         entity.Status = "Published";
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventReadMapper.ToListItemsForMonth(
+        var result = CalendarEventReadMapper.ToViewsForMonth(
             [entity],
             criteria);
 
@@ -72,7 +72,7 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
-    public void ToListItemsForMonth_PublishingStatus_MapsToPublishing()
+    public void ToViewsForMonth_PublishingStatus_MapsToPublishing()
     {
         var entity = CreateEntity(
             "20260605T170000Z",
@@ -81,7 +81,7 @@ public class CalendarEventReadMapperTests
         entity.Status = "Publishing";
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventReadMapper.ToListItemsForMonth(
+        var result = CalendarEventReadMapper.ToViewsForMonth(
             [entity],
             criteria);
 
@@ -90,7 +90,7 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
-    public void ToListItemsForMonth_UnknownStatus_DefaultsToDraft()
+    public void ToViewsForMonth_UnknownStatus_DefaultsToDraft()
     {
         var entity = CreateEntity(
             "20260605T170000Z",
@@ -99,7 +99,7 @@ public class CalendarEventReadMapperTests
         entity.Status = "not-a-real-status";
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventReadMapper.ToListItemsForMonth(
+        var result = CalendarEventReadMapper.ToViewsForMonth(
             [entity],
             criteria);
 
@@ -108,7 +108,7 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
-    public void ToListItemsForMonth_MixedLocalMonths_FiltersByRequestedMonth()
+    public void ToViewsForMonth_MixedLocalMonths_FiltersByRequestedMonth()
     {
         var entities = new[]
         {
@@ -136,7 +136,7 @@ public class CalendarEventReadMapperTests
         };
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventReadMapper.ToListItemsForMonth(
+        var result = CalendarEventReadMapper.ToViewsForMonth(
             entities,
             criteria);
 
@@ -150,7 +150,7 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
-    public void ToListItemsForMonth_UnorderedEntities_SortsByScheduledStartUtcThenId()
+    public void ToViewsForMonth_UnorderedEntities_SortsByScheduledStartUtcThenId()
     {
         var entities = new[]
         {
@@ -169,7 +169,7 @@ public class CalendarEventReadMapperTests
         };
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventReadMapper.ToListItemsForMonth(
+        var result = CalendarEventReadMapper.ToViewsForMonth(
             entities,
             criteria);
 
@@ -183,7 +183,7 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
-    public void ToListItemsForMonth_MalformedDescriptionsJson_ThrowsInvalidOperationException()
+    public void ToViewsForMonth_MalformedDescriptionsJson_ThrowsInvalidOperationException()
     {
         var entity = CreateEntity(
             "20260605T170000Z",
@@ -193,7 +193,7 @@ public class CalendarEventReadMapperTests
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            CalendarEventReadMapper.ToListItemsForMonth(
+            CalendarEventReadMapper.ToViewsForMonth(
                 [entity],
                 criteria));
 
@@ -201,7 +201,7 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
-    public void ToListItems_MixedLocalMonths_MapsEveryEntityWithoutFiltering()
+    public void ToViews_MixedLocalMonths_MapsEveryEntityWithoutFiltering()
     {
         var entities = new[]
         {
@@ -219,7 +219,7 @@ public class CalendarEventReadMapperTests
                 "2025-11-15T09:00:00")
         };
 
-        var result = CalendarEventReadMapper.ToListItems(entities);
+        var result = CalendarEventReadMapper.ToViews(entities);
 
         Assert.Equal(
             [
@@ -231,7 +231,7 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
-    public void ToListItems_Entity_MapsCalendarEventFields()
+    public void ToViews_Entity_MapsCalendarEventFields()
     {
         var entity = CreateEntity(
             "20260605T170000Z",
@@ -241,7 +241,7 @@ public class CalendarEventReadMapperTests
                 new LocalizedDescription("en", "English stream 1", null)
             ]);
 
-        var result = CalendarEventReadMapper.ToListItems([entity]);
+        var result = CalendarEventReadMapper.ToViews([entity]);
 
         var calendarEvent = Assert.Single(result);
         Assert.Equal("20260605T170000Z", calendarEvent.CalendarEventId);
@@ -252,7 +252,7 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
-    public void ToListItems_PublishedEntity_MapsYouTubeBroadcastId()
+    public void ToViews_PublishedEntity_MapsYouTubeBroadcastId()
     {
         var entity = CreateEntity(
             "20260605T170000Z",
@@ -260,40 +260,10 @@ public class CalendarEventReadMapperTests
             "2026-06-05T10:00:00");
         entity.YouTubeBroadcastId = "broadcast-123";
 
-        var result = CalendarEventReadMapper.ToListItems([entity]);
+        var result = CalendarEventReadMapper.ToViews([entity]);
 
         var calendarEvent = Assert.Single(result);
         Assert.Equal("broadcast-123", calendarEvent.YouTubeBroadcastId);
-    }
-
-    [Fact]
-    public void ToDetail_PublishedEntity_MapsYouTubeBroadcastIdAndStatus()
-    {
-        var entity = CreateEntity(
-            "20260605T170000Z",
-            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
-            "2026-06-05T10:00:00");
-        entity.Status = "Published";
-        entity.YouTubeBroadcastId = "broadcast-123";
-
-        var detail = CalendarEventReadMapper.ToDetail(entity);
-
-        Assert.Equal("20260605T170000Z", detail.CalendarEventId);
-        Assert.Equal(CalendarEventStatus.Published, detail.Status);
-        Assert.Equal("broadcast-123", detail.YouTubeBroadcastId);
-    }
-
-    [Fact]
-    public void ToDetail_DraftEntity_HasNullYouTubeBroadcastId()
-    {
-        var entity = CreateEntity(
-            "20260605T170000Z",
-            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
-            "2026-06-05T10:00:00");
-
-        var detail = CalendarEventReadMapper.ToDetail(entity);
-
-        Assert.Null(detail.YouTubeBroadcastId);
     }
 
     [Fact]
