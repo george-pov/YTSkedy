@@ -7,7 +7,8 @@ The Angular frontend lives under `src/ui/`.
 - `src/ui/` contains an Angular workspace managed with npm.
 - The frontend package is named `ytskedy-ui`.
 - `package.json` declares `npm@11.13.0` as the frontend package manager.
-- Angular packages currently use version `22.0.0` ranges.
+- Angular packages currently use `22.0.x` ranges (`^22.0.2` for the framework,
+  Material, and CDK; `^22.0.3` for the Angular CLI and build tooling).
 - TypeScript currently uses `~6.0.2`.
 - Angular Material and Angular CDK are available UI dependencies. Repeated or
   app-owned Material usage should be isolated behind shared components under
