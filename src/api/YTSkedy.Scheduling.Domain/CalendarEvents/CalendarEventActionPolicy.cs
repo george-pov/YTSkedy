@@ -1,6 +1,4 @@
-using YTSkedy.Scheduling.Domain.CalendarEvents;
-
-namespace YTSkedy.Scheduling.Application.CalendarEvents;
+namespace YTSkedy.Scheduling.Domain.CalendarEvents;
 
 /// <summary>
 /// Single source of truth for calendar event action eligibility. The publish,

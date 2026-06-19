@@ -9,7 +9,7 @@ internal static class CalendarEventReadMapper
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public static IReadOnlyList<CalendarEventListItem> ToListItemsForMonth(
+    public static IReadOnlyList<CalendarEventView> ToViewsForMonth(
         IEnumerable<CalendarEventEntity> entities,
         CalendarEventMonthCriteria criteria)
     {
@@ -20,17 +20,17 @@ internal static class CalendarEventReadMapper
             .Where(entity => IsInLocalMonth(entity, criteria))
             .OrderBy(entity => entity.ScheduledStartUtc)
             .ThenBy(entity => entity.CalendarEventId, StringComparer.Ordinal)
-            .Select(ToListItem)
+            .Select(ToView)
             .ToArray();
     }
 
-    public static IReadOnlyList<CalendarEventListItem> ToListItems(
+    public static IReadOnlyList<CalendarEventView> ToViews(
         IEnumerable<CalendarEventEntity> entities)
     {
         ArgumentNullException.ThrowIfNull(entities);
 
         return entities
-            .Select(ToListItem)
+            .Select(ToView)
             .ToArray();
     }
 
@@ -80,7 +80,7 @@ internal static class CalendarEventReadMapper
             StringComparison.Ordinal);
     }
 
-    public static CalendarEventListItem ToListItem(CalendarEventEntity entity)
+    public static CalendarEventView ToView(CalendarEventEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
 
@@ -95,23 +95,11 @@ internal static class CalendarEventReadMapper
                 $"Calendar event '{entity.CalendarEventId}' has invalid local date-time.");
         }
 
-        return new CalendarEventListItem(
+        return new CalendarEventView(
             entity.CalendarEventId,
             new ScheduledStart(
                 localDateTime,
                 entity.TimeZoneId),
-            entity.ScheduledStartUtc,
-            DeserializeDescriptions(entity),
-            ParseStatus(entity.Status),
-            entity.YouTubeBroadcastId);
-    }
-
-    public static CalendarEventDetail ToDetail(CalendarEventEntity entity)
-    {
-        ArgumentNullException.ThrowIfNull(entity);
-
-        return new CalendarEventDetail(
-            entity.CalendarEventId,
             entity.ScheduledStartUtc,
             DeserializeDescriptions(entity),
             ParseStatus(entity.Status),

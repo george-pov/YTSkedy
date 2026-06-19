@@ -54,14 +54,14 @@ public sealed class AzureCalendarEventRepository(
         return calendarEventId;
     }
 
-    public async Task<IReadOnlyList<CalendarEventListItem>> ListAsync(
+    public async Task<IReadOnlyList<CalendarEventView>> ListAsync(
         CalendarEventMonthCriteria? criteria,
         CancellationToken cancellationToken) =>
         criteria is null
             ? await ListAllAsync(cancellationToken)
             : await ListByMonthAsync(criteria, cancellationToken);
 
-    private async Task<IReadOnlyList<CalendarEventListItem>> ListByMonthAsync(
+    private async Task<IReadOnlyList<CalendarEventView>> ListByMonthAsync(
         CalendarEventMonthCriteria criteria,
         CancellationToken cancellationToken)
     {
@@ -88,12 +88,12 @@ public sealed class AzureCalendarEventRepository(
             }
         }
 
-        return CalendarEventReadMapper.ToListItemsForMonth(
+        return CalendarEventReadMapper.ToViewsForMonth(
             entities,
             criteria);
     }
 
-    private async Task<IReadOnlyList<CalendarEventListItem>> ListAllAsync(
+    private async Task<IReadOnlyList<CalendarEventView>> ListAllAsync(
         CancellationToken cancellationToken)
     {
         var entities = new List<CalendarEventEntity>();
@@ -112,10 +112,10 @@ public sealed class AzureCalendarEventRepository(
             return [];
         }
 
-        return CalendarEventReadMapper.ToListItems(entities);
+        return CalendarEventReadMapper.ToViews(entities);
     }
 
-    public async Task<CalendarEventDetail?> GetByIdAsync(
+    public async Task<CalendarEventView?> GetByIdAsync(
         string calendarEventId,
         CancellationToken cancellationToken)
     {
@@ -123,18 +123,7 @@ public sealed class AzureCalendarEventRepository(
 
         var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
 
-        return entity is null ? null : CalendarEventReadMapper.ToDetail(entity);
-    }
-
-    public async Task<CalendarEventListItem?> GetListItemByIdAsync(
-        string calendarEventId,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
-
-        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
-
-        return entity is null ? null : CalendarEventReadMapper.ToListItem(entity);
+        return entity is null ? null : CalendarEventReadMapper.ToView(entity);
     }
 
     public async Task<bool> UpdateDescriptionsAsync(

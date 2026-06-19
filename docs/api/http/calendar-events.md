@@ -222,7 +222,7 @@ Current behavior:
 
 - Unknown `calendarEventId` returns `404 Not Found`.
 - The response carries the same `canPublish`, `canUpdate`, and `canDelete`
-  action flags as a list item, computed for this event.
+  action flags on the view, computed for this event.
 - The `CalendarEventDetails` edit route (`/calendar-events/{calendarEventId}/edit`)
   consumes this endpoint to load an event into the form.
 

@@ -189,7 +189,7 @@ public sealed class PublishYouTubeHandler(
         string broadcastId,
         Exception markException)
     {
-        CalendarEventDetail? current;
+        CalendarEventView? current;
 
         try
         {

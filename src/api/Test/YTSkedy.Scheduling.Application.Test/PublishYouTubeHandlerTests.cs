@@ -275,11 +275,11 @@ public class PublishYouTubeHandlerTests
     }
 
     private static PublishYouTubeHandler CreateHandler(
-        CalendarEventDetail? detail,
+        CalendarEventView? detail,
         FakeYouTubePublisher publisher,
         FakeCalendarEventRepository repository,
         FakeYouTubeDeleter? deleter = null,
-        CalendarEventDetail? rereadDetail = null) =>
+        CalendarEventView? rereadDetail = null) =>
         new(
             new FakeCalendarEventReader(detail, rereadDetail),
             repository,
@@ -288,11 +288,16 @@ public class PublishYouTubeHandlerTests
             new FixedTimeProvider(NowUtc),
             NullLogger<PublishYouTubeHandler>.Instance);
 
-    private static CalendarEventDetail CreateDetail(
+    private static CalendarEventView CreateDetail(
         DateTimeOffset scheduledStartUtc,
         CalendarEventStatus status,
         IReadOnlyList<LocalizedDescription> descriptions) =>
-        new(CalendarEventId, scheduledStartUtc, descriptions, status);
+        new(
+            CalendarEventId,
+            new ScheduledStart(scheduledStartUtc.UtcDateTime, "UTC"),
+            scheduledStartUtc,
+            descriptions,
+            status);
 
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
@@ -300,17 +305,17 @@ public class PublishYouTubeHandlerTests
     }
 
     private sealed class FakeCalendarEventReader(
-        CalendarEventDetail? detail,
-        CalendarEventDetail? rereadDetail = null) : ICalendarEventReader
+        CalendarEventView? detail,
+        CalendarEventView? rereadDetail = null) : ICalendarEventReader
     {
         private bool _firstReadDone;
 
-        public Task<IReadOnlyList<CalendarEventListItem>> ListAsync(
+        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
             CalendarEventMonthCriteria? criteria,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<CalendarEventDetail?> GetByIdAsync(
+        public Task<CalendarEventView?> GetByIdAsync(
             string calendarEventId,
             CancellationToken cancellationToken)
         {
@@ -325,11 +330,6 @@ public class PublishYouTubeHandlerTests
 
             return Task.FromResult(rereadDetail ?? detail);
         }
-
-        public Task<CalendarEventListItem?> GetListItemByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
     }
 
     private sealed class FakeCalendarEventRepository : ICalendarEventRepository
