@@ -7,7 +7,9 @@ using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Infrastructure.CalendarEvents;
 
-public sealed class AzureCalendarEventRepository(TableClient tableClient) :
+public sealed class AzureCalendarEventRepository(
+    TableClient tableClient,
+    TimeProvider timeProvider) :
     ICalendarEventRepository,
     ICalendarEventReader
 {
@@ -33,7 +35,7 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
             TimeZoneId = calendarEvent.Start.TimeZoneId,
             DescriptionsJson = JsonSerializer.Serialize(calendarEvent.Descriptions, JsonOptions),
             Status = calendarEvent.Status.ToString(),
-            CreatedUtc = DateTimeOffset.UtcNow
+            CreatedUtc = timeProvider.GetUtcNow()
         };
 
         await tableClient.CreateIfNotExistsAsync(cancellationToken);
