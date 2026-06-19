@@ -8,7 +8,8 @@ namespace YTSkedy.Infrastructure.YouTube;
 /// <see cref="IYouTubeClient"/>. The client owns the Google SDK call and
 /// the broadcast options; this adapter maps the publish use case and logs. A
 /// provider failure is logged and rethrown so the publish handler releases its
-/// reservation and the host returns 500. Secrets and tokens are never logged.
+/// reservation and the host returns 500. Cancellation propagates unchanged
+/// without being logged as a failure. Secrets and tokens are never logged.
 /// </summary>
 public sealed class YouTubePublisher : IYouTubePublisher
 {
@@ -42,6 +43,12 @@ public sealed class YouTubePublisher : IYouTubePublisher
                 request.ScheduledStartUtc);
 
             return broadcastId;
+        }
+        catch (OperationCanceledException)
+        {
+            // Respect cancellation: it is not a publish failure, so do not log
+            // it as one. Mirrors YouTubeDeleter.
+            throw;
         }
         catch (Exception exception)
         {
