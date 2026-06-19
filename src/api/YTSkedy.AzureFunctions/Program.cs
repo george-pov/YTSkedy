@@ -108,7 +108,8 @@ builder.Services.AddScoped<CreateCalendarEventHandler>();
 builder.Services.AddScoped<ListEventsHandler>();
 builder.Services.AddScoped<GetCalendarEventHandler>();
 builder.Services.AddScoped<UpdateCalendarEventHandler>();
-builder.Services.AddScoped<PublishCalendarEventHandler>();
+builder.Services.AddScoped<PublishYouTubeHandler>();
+builder.Services.AddScoped<DeleteCalendarEventHandler>();
 builder.Services.AddScoped<AzureCalendarEventRepository>();
 builder.Services.AddScoped<ICalendarEventRepository>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
@@ -116,6 +117,8 @@ builder.Services.AddScoped<ICalendarEventReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
 
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<IYouTubeBroadcastPublisher, YouTubeBroadcastPublisher>();
+builder.Services.AddSingleton<IYouTubeClient, YouTubeClient>();
+builder.Services.AddSingleton<IYouTubePublisher, YouTubePublisher>();
+builder.Services.AddSingleton<IYouTubeDeleter, YouTubeDeleter>();
 
 builder.Build().Run();

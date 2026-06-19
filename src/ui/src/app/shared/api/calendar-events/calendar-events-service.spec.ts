@@ -11,7 +11,7 @@ import {
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
-  PublishCalendarEventResponse,
+  PublishYouTubeResponse,
   UpdateCalendarEventRequest,
   UpdateCalendarEventResponse,
 } from './calendar-events-service';
@@ -60,6 +60,9 @@ describe('CalendarEventsService', () => {
             },
           ],
           status: 'Draft',
+          canPublish: true,
+          canUpdate: true,
+          canDelete: true,
         },
       ],
       page: 0,
@@ -176,6 +179,9 @@ describe('CalendarEventsService', () => {
         },
       ],
       status: 'Draft',
+      canPublish: false,
+      canUpdate: true,
+      canDelete: false,
     };
 
     let actual: CalendarEvent | undefined;
@@ -227,13 +233,13 @@ describe('CalendarEventsService', () => {
   });
 
   it('posts a publish request to the calendar event publish endpoint and returns the API response', () => {
-    const apiResponse: PublishCalendarEventResponse = {
+    const apiResponse: PublishYouTubeResponse = {
       calendarEventId: '20260615T170000Z',
       status: 'Published',
       youTubeBroadcastId: 'broadcast-123',
     };
 
-    let actualResponse: PublishCalendarEventResponse | undefined;
+    let actualResponse: PublishYouTubeResponse | undefined;
     service.publish('20260615T170000Z').subscribe((response) => {
       actualResponse = response;
     });
@@ -248,5 +254,27 @@ describe('CalendarEventsService', () => {
     request.flush(apiResponse);
 
     expect(actualResponse).toEqual(apiResponse);
+  });
+
+  it('issues a DELETE to the by-id endpoint and completes with no body', () => {
+    let completed = false;
+    let emittedBody: unknown = 'unset';
+    service.delete('20260606T170000Z').subscribe({
+      next: (value) => {
+        emittedBody = value;
+      },
+      complete: () => {
+        completed = true;
+      },
+    });
+
+    const request = http.expectOne('https://api.example.test/api/calendar-events/20260606T170000Z');
+
+    expect(request.request.method).toBe('DELETE');
+
+    request.flush(null, { status: 204, statusText: 'No Content' });
+
+    expect(completed).toBe(true);
+    expect(emittedBody).toBeNull();
   });
 });

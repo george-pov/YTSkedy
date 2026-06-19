@@ -1,41 +1,44 @@
+using System.Net;
+using Google;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Auth.OAuth2.Flows;
 using Google.Apis.Auth.OAuth2.Responses;
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using YTSkedy.Scheduling.Application.YouTube;
 
 namespace YTSkedy.Infrastructure.YouTube;
 
 /// <summary>
-/// Creates scheduled YouTube live broadcasts through the official
-/// <c>Google.Apis.YouTube.v3</c> client. A <see cref="UserCredential"/> built
-/// from the static refresh token lets the client obtain and refresh access
-/// tokens silently. Secrets and tokens are never logged.
+/// Real <see cref="IYouTubeClient"/> backed by the official
+/// <c>Google.Apis.YouTube.v3</c> client. It builds one <see cref="YouTubeService"/>
+/// from the static refresh-token credentials and uses the
+/// <see cref="YouTubeService.Scope.Youtube"/> scope, which the YouTube Data API
+/// authorizes for both <c>liveBroadcasts.insert</c> and
+/// <c>liveBroadcasts.delete</c>. Insert returns the created broadcast id; delete
+/// returns HTTP 204 on success and throws <see cref="GoogleApiException"/> with
+/// status 404 when the broadcast is already gone, which is translated here. Every
+/// other failure propagates to the adapter, and Google SDK types never cross this
+/// boundary.
 /// </summary>
-public sealed class YouTubeBroadcastPublisher : IYouTubeBroadcastPublisher
+public sealed class YouTubeClient : IYouTubeClient
 {
     private const string ApplicationName = "YTSkedy";
 
     private readonly YouTubeService _youTubeService;
     private readonly YouTubeBroadcastOptions _broadcastOptions;
-    private readonly ILogger<YouTubeBroadcastPublisher> _logger;
 
-    public YouTubeBroadcastPublisher(
+    public YouTubeClient(
         IOptions<YouTubeOptions> youTubeOptions,
-        IOptions<YouTubeBroadcastOptions> broadcastOptions,
-        ILogger<YouTubeBroadcastPublisher> logger)
+        IOptions<YouTubeBroadcastOptions> broadcastOptions)
     {
         ArgumentNullException.ThrowIfNull(youTubeOptions);
         ArgumentNullException.ThrowIfNull(broadcastOptions);
-        ArgumentNullException.ThrowIfNull(logger);
 
         var credentials = youTubeOptions.Value;
-        this._broadcastOptions = broadcastOptions.Value;
-        this._logger = logger;
+        _broadcastOptions = broadcastOptions.Value;
 
         var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
         {
@@ -57,8 +60,8 @@ public sealed class YouTubeBroadcastPublisher : IYouTubeBroadcastPublisher
         });
     }
 
-    public async Task<string> PublishAsync(
-        YouTubeBroadcastRequest request,
+    public async Task<string> InsertAsync(
+        YouTubeRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -79,34 +82,29 @@ public sealed class YouTubeBroadcastPublisher : IYouTubeBroadcastPublisher
         };
 
         var insertRequest = _youTubeService.LiveBroadcasts.Insert(broadcast, "snippet,status");
+        var created = await insertRequest.ExecuteAsync(cancellationToken);
+
+        return created.Id;
+    }
+
+    public async Task<YouTubeDeleteResult> DeleteAsync(
+        string broadcastId,
+        CancellationToken cancellationToken)
+    {
+        var deleteRequest = _youTubeService.LiveBroadcasts.Delete(broadcastId);
 
         try
         {
-            var created = await insertRequest.ExecuteAsync(cancellationToken);
+            await deleteRequest.ExecuteAsync(cancellationToken);
 
-            _logger.LogInformation(
-                "Created YouTube live broadcast {BroadcastId} scheduled for " +
-                "{ScheduledStartUtc:o} with privacy {PrivacyStatus}.",
-                created.Id,
-                request.ScheduledStartUtc,
-                _broadcastOptions.PrivacyStatus);
-
-            return created.Id;
+            return YouTubeDeleteResult.Deleted;
         }
-        catch (Exception exception)
+        catch (GoogleApiException exception)
+            when (exception.HttpStatusCode == HttpStatusCode.NotFound)
         {
-            // The Google API exception carries API-side error details (quota,
-            // validation, auth rejection) but not our client secret or tokens,
-            // so it is safe to log. The handler turns this into a 500 and
-            // releases the publish reservation.
-            _logger.LogError(
-                exception,
-                "Failed to create YouTube live broadcast scheduled for " +
-                "{ScheduledStartUtc:o} with privacy {PrivacyStatus}.",
-                request.ScheduledStartUtc,
-                _broadcastOptions.PrivacyStatus);
-
-            throw;
+            // The broadcast is already gone. The intended external end state is
+            // already true, so the adapter treats this as success-equivalent.
+            return YouTubeDeleteResult.NotFound;
         }
     }
 }

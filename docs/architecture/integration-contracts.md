@@ -14,6 +14,7 @@ Current implemented HTTP surface:
 - `GET /api/calendar-events?page={page}&pageSize={pageSize}&sort={sort}&direction={direction}`
 - `GET /api/calendar-events/{calendarEventId}`
 - `PUT /api/calendar-events/{calendarEventId}`
+- `DELETE /api/calendar-events/{calendarEventId}`
 - `POST /api/calendar-events/{calendarEventId}/publish`
 
 Both list and create endpoints are consumed by the UI: the `CalendarEvents`
@@ -29,7 +30,12 @@ or `404` when the id is unknown. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with a body of
 `{ descriptions: [{ language, title, description? }] }` and reads
 `{ calendarEventId }` from the response. The scheduled start is immutable on
-edit because the id is derived from it, so only the descriptions change.
+edit because the id is derived from it, so only the descriptions change. The
+edit route also exposes a Delete action that calls
+`DELETE /api/calendar-events/{calendarEventId}` for a loaded `Draft` event and
+reads no body: it returns `204 No Content` on success, `404 Not Found` when the
+id is unknown or already gone, and `409 Conflict` when the event is not (or no
+longer) a `Draft`.
 
 The `GET` endpoint returns a server-side sorted paged envelope
 `{ items, page, pageSize, totalCount, sort, direction }`. The query carries
@@ -68,7 +74,9 @@ Azure Functions worker pipeline (not the Functions host key check).
   [`../api/configuration.md`](../api/configuration.md)).
 - Required scopes:
   - `CalendarEvents.Read` for `GET /api/calendar-events`.
-  - `CalendarEvents.Write` for `POST /api/calendar-events` and
+  - `CalendarEvents.Write` for `POST /api/calendar-events`,
+    `PUT /api/calendar-events/{calendarEventId}`,
+    `DELETE /api/calendar-events/{calendarEventId}`, and
     `POST /api/calendar-events/{calendarEventId}/publish`.
 - Required app role on every protected endpoint:
   `CalendarEvents.Operator` (in the `roles` claim).

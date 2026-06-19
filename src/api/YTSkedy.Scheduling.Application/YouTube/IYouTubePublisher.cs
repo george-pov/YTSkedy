@@ -5,12 +5,12 @@ namespace YTSkedy.Scheduling.Application.YouTube;
 /// Implemented in the infrastructure layer so the domain and application
 /// projects never reference the Google client libraries directly.
 /// </summary>
-public interface IYouTubeBroadcastPublisher
+public interface IYouTubePublisher
 {
     /// <summary>
     /// Creates a scheduled YouTube live broadcast and returns its broadcast id.
     /// </summary>
     Task<string> PublishAsync(
-        YouTubeBroadcastRequest request,
+        YouTubeRequest request,
         CancellationToken cancellationToken);
 }

@@ -9,6 +9,6 @@ public sealed record CalendarEventListQuery(
     int Page,
     int PageSize,
     CalendarEventSortField Sort,
-    CalendarEventSortDirection Direction,
+    SortDirection Direction,
     int? Year,
     int? Month);

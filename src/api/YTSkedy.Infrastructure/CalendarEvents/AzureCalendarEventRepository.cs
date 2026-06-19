@@ -234,6 +234,81 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
             cancellationToken);
     }
 
+    public async Task<DeleteDraftCalendarEventResult> DeleteDraftAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+
+        // Reload here so the delete is conditioned on the latest ETag and storage
+        // identity (partition key, row key) stays inside infrastructure rather
+        // than crossing the application boundary.
+        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
+
+        if (entity is null)
+        {
+            return DeleteDraftCalendarEventResult.NotFound;
+        }
+
+        if (CalendarEventReadMapper.ParseStatus(entity.Status) != CalendarEventStatus.Draft)
+        {
+            return DeleteDraftCalendarEventResult.NotDeletable;
+        }
+
+        try
+        {
+            await tableClient.DeleteEntityAsync(
+                entity.PartitionKey,
+                entity.RowKey,
+                entity.ETag,
+                cancellationToken);
+
+            return DeleteDraftCalendarEventResult.Deleted;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            // The row was removed between the Draft read and this delete.
+            return DeleteDraftCalendarEventResult.NotFound;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 412)
+        {
+            // A concurrent write changed the row (for example a publish
+            // reservation) after the Draft read, so this delete must not proceed.
+            return DeleteDraftCalendarEventResult.NotDeletable;
+        }
+    }
+
+    public async Task<DeleteCalendarEventRowResult> DeleteAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+
+        // Post-YouTube Published cleanup: delete by id without checking status.
+        // An unparseable id can address no row, so it is already gone.
+        if (!TryParseScheduledStartUtc(calendarEventId, out var scheduledStartUtc))
+        {
+            return DeleteCalendarEventRowResult.NotFound;
+        }
+
+        try
+        {
+            // Unconditional delete (wildcard ETag): a row changed after the delete
+            // use case read it is still removed once YouTube cleanup succeeded.
+            await tableClient.DeleteEntityAsync(
+                GetPartitionKey(scheduledStartUtc),
+                calendarEventId,
+                ETag.All,
+                cancellationToken);
+
+            return DeleteCalendarEventRowResult.Deleted;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            return DeleteCalendarEventRowResult.NotFound;
+        }
+    }
+
     private async Task<CalendarEventEntity?> TryGetEntityAsync(
         string calendarEventId,
         CancellationToken cancellationToken)

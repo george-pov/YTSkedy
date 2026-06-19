@@ -38,11 +38,11 @@ public sealed class ListEventsHandler(ICalendarEventReader calendarEvents)
     private static IEnumerable<CalendarEventListItem> Sort(
         IReadOnlyList<CalendarEventListItem> candidates,
         CalendarEventSortField sort,
-        CalendarEventSortDirection direction)
+        SortDirection direction)
     {
         var primaryKey = PrimaryKey(sort);
 
-        var ordered = direction == CalendarEventSortDirection.Descending
+        var ordered = direction == SortDirection.Descending
             ? candidates.OrderByDescending(primaryKey, StringComparer.Ordinal)
             : candidates.OrderBy(primaryKey, StringComparer.Ordinal);
 

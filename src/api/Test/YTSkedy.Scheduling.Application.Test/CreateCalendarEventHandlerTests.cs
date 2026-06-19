@@ -64,5 +64,15 @@ public class CreateCalendarEventHandlerTests
             string calendarEventId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task<DeleteDraftCalendarEventResult> DeleteDraftAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<DeleteCalendarEventRowResult> DeleteAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }

@@ -15,9 +15,10 @@ Every call must:
   `Authorization: Bearer <token>`. Missing, invalid, expired, wrong-audience,
   or wrong-issuer tokens return `401`.
 - Carry the scope required by the endpoint (`CalendarEvents.Read` for `GET`,
-  `CalendarEvents.Write` for `POST`). Wrong scope returns `403`.
-  The publish endpoint (`POST /api/calendar-events/{calendarEventId}/publish`)
-  requires `CalendarEvents.Write`.
+  `CalendarEvents.Write` for `POST`, `PUT`, and `DELETE`). Wrong scope returns
+  `403`. The publish endpoint
+  (`POST /api/calendar-events/{calendarEventId}/publish`) requires
+  `CalendarEvents.Write`.
 - Carry the `CalendarEvents.Operator` app role in the `roles` claim. Missing
   role returns `403`.
 
@@ -314,6 +315,37 @@ Proof-of-concept limitations:
 - Credentials are shared and static, so every publish targets the single
   channel that minted the refresh token. A per-user Google OAuth flow is
   deferred. See [`../configuration.md`](../configuration.md).
+
+## Delete Calendar Event
+
+```text
+DELETE /api/calendar-events/{calendarEventId}
+```
+
+Hard-deletes a `Draft` calendar event. Requires the `CalendarEvents.Write`
+scope. Only `Draft` events are deletable: deleting is local cleanup of an
+unpublished draft, not a YouTube operation, so it never contacts YouTube.
+
+Success returns `204 No Content` with an empty body.
+
+Current behavior and error mapping:
+
+- A `Draft` event is deleted and the endpoint returns `204 No Content`.
+- Unknown `calendarEventId` returns `404 Not Found`. A syntactically invalid
+  non-empty id also returns `404 Not Found`, matching the by-id read; there is
+  no `400` id-format contract.
+- A `Publishing` or `Published` event returns `409 Conflict` and is not
+  deleted.
+- Past `Draft` events remain deletable; the scheduled start does not affect
+  delete eligibility because delete is local cleanup, not a publish.
+- The delete is an ETag-conditional write on the loaded `Draft` row. If a
+  concurrent write moves the event out of `Draft` first, the endpoint returns
+  `409 Conflict`; if the row is already gone, it returns `404 Not Found`.
+- The delete is a hard delete: removed drafts are not recoverable. Tombstones,
+  recycle-bin behavior, audit retention, and restore are out of scope.
+- The `CalendarEventDetails` edit route
+  (`/calendar-events/{calendarEventId}/edit`) consumes this endpoint from its
+  Delete action, shown only for a loaded `Draft` event.
 
 ## Manual Checks
 

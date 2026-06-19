@@ -13,15 +13,15 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents;
 /// the broadcast is created. A failed broadcast releases the reservation back
 /// to Draft.
 /// </summary>
-public sealed class PublishCalendarEventHandler(
+public sealed class PublishYouTubeHandler(
     ICalendarEventReader calendarEventReader,
     ICalendarEventRepository calendarEventRepository,
-    IYouTubeBroadcastPublisher broadcastPublisher,
+    IYouTubePublisher youTubePublisher,
     TimeProvider timeProvider)
 {
     private const string EnglishLanguage = "en";
 
-    public async Task<PublishCalendarEventResult> HandleAsync(
+    public async Task<PublishYouTubeResult> HandleAsync(
         string calendarEventId,
         CancellationToken cancellationToken)
     {
@@ -33,17 +33,17 @@ public sealed class PublishCalendarEventHandler(
 
         if (calendarEvent is null)
         {
-            return PublishCalendarEventResult.NotFound();
+            return PublishYouTubeResult.NotFound();
         }
 
         if (calendarEvent.Status == CalendarEventStatus.Published)
         {
-            return PublishCalendarEventResult.AlreadyPublished();
+            return PublishYouTubeResult.AlreadyPublished();
         }
 
         if (calendarEvent.ScheduledStartUtc <= timeProvider.GetUtcNow())
         {
-            return PublishCalendarEventResult.StartInPast();
+            return PublishYouTubeResult.StartInPast();
         }
 
         var englishDescription = calendarEvent.Descriptions.FirstOrDefault(description =>
@@ -51,7 +51,7 @@ public sealed class PublishCalendarEventHandler(
 
         if (englishDescription is null)
         {
-            return PublishCalendarEventResult.MissingEnglishDescription();
+            return PublishYouTubeResult.MissingEnglishDescription();
         }
 
         // Reserve the publish transition before any external call. A concurrent
@@ -63,15 +63,15 @@ public sealed class PublishCalendarEventHandler(
                 calendarEventId,
                 cancellationToken))
         {
-            return PublishCalendarEventResult.AlreadyPublished();
+            return PublishYouTubeResult.AlreadyPublished();
         }
 
         string broadcastId;
 
         try
         {
-            broadcastId = await broadcastPublisher.PublishAsync(
-                new YouTubeBroadcastRequest(
+            broadcastId = await youTubePublisher.PublishAsync(
+                new YouTubeRequest(
                     englishDescription.Title,
                     englishDescription.Description,
                     calendarEvent.ScheduledStartUtc),
@@ -95,6 +95,6 @@ public sealed class PublishCalendarEventHandler(
             broadcastId,
             cancellationToken);
 
-        return PublishCalendarEventResult.Published(broadcastId);
+        return PublishYouTubeResult.Published(broadcastId);
     }
 }

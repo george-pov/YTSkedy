@@ -10,4 +10,4 @@ public sealed record CalendarEventListPage(
     int PageSize,
     int TotalCount,
     CalendarEventSortField Sort,
-    CalendarEventSortDirection Direction);
+    SortDirection Direction);

@@ -5,7 +5,7 @@ namespace YTSkedy.Scheduling.Application.YouTube;
 /// instant are required; description is optional. Shared static metadata
 /// (privacy, made-for-kids) is supplied by the publisher implementation.
 /// </summary>
-public sealed record YouTubeBroadcastRequest(
+public sealed record YouTubeRequest(
     string Title,
     string? Description,
     DateTimeOffset ScheduledStartUtc);

@@ -26,14 +26,14 @@ public static class AuthorizationPolicy
     /// or a method without <see cref="AllowAnonymousAttribute"/> is still
     /// subject to the role check.
     /// </summary>
-    public static AuthorizationOutcome Evaluate(
+    public static AuthorizationResult Evaluate(
         MethodInfo? method,
         string requiredRole,
         ClaimsPrincipal user)
     {
         if (method?.GetCustomAttribute<AllowAnonymousAttribute>() is not null)
         {
-            return AuthorizationOutcome.Allow;
+            return AuthorizationResult.Allow;
         }
 
         var acceptedScopes =
@@ -48,22 +48,22 @@ public static class AuthorizationPolicy
     /// <paramref name="acceptedScopes"/> and whose workspace-wide
     /// app-role requirement is <paramref name="requiredRole"/>.
     /// </summary>
-    public static AuthorizationOutcome Evaluate(
+    public static AuthorizationResult Evaluate(
         IReadOnlyCollection<string> acceptedScopes,
         string requiredRole,
         ClaimsPrincipal user)
     {
         if (!UserHasAnyScope(user, acceptedScopes))
         {
-            return AuthorizationOutcome.InsufficientScope;
+            return AuthorizationResult.InsufficientScope;
         }
 
         if (!UserHasRole(user, requiredRole))
         {
-            return AuthorizationOutcome.MissingRole;
+            return AuthorizationResult.MissingRole;
         }
 
-        return AuthorizationOutcome.Allow;
+        return AuthorizationResult.Allow;
     }
 
     private static bool UserHasAnyScope(ClaimsPrincipal user, IReadOnlyCollection<string> required)
@@ -113,7 +113,7 @@ public static class AuthorizationPolicy
     }
 }
 
-public enum AuthorizationOutcome
+public enum AuthorizationResult
 {
     Allow,
     InsufficientScope,

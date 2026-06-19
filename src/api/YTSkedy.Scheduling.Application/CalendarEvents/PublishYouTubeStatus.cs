@@ -1,6 +1,6 @@
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
-public enum PublishCalendarEventOutcome
+public enum PublishYouTubeStatus
 {
     Published,
     NotFound,

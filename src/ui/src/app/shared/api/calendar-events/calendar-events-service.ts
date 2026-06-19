@@ -6,7 +6,7 @@ import { APP_CONFIG } from 'src/app/shared/config/app-config';
 import {
   calendarEventByIdUrl,
   calendarEventsUrl,
-  publishCalendarEventUrl,
+  publishYouTubeUrl,
 } from './calendar-events-endpoint';
 
 export type CalendarEventStatus = 'Draft' | 'Publishing' | 'Published';
@@ -17,6 +17,9 @@ export interface CalendarEvent {
   scheduledStartUtc: string;
   descriptions: CalendarEventDescription[];
   status: CalendarEventStatus;
+  canPublish: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
 }
 
 export interface CalendarEventStart {
@@ -86,7 +89,7 @@ export interface UpdateCalendarEventResponse {
   calendarEventId: string;
 }
 
-export interface PublishCalendarEventResponse {
+export interface PublishYouTubeResponse {
   calendarEventId: string;
   status: CalendarEventStatus;
   youTubeBroadcastId: string;
@@ -134,10 +137,14 @@ export class CalendarEventsService {
     );
   }
 
-  publish(calendarEventId: string): Observable<PublishCalendarEventResponse> {
-    return this.http.post<PublishCalendarEventResponse>(
-      publishCalendarEventUrl(this.appConfig.api, calendarEventId),
+  publish(calendarEventId: string): Observable<PublishYouTubeResponse> {
+    return this.http.post<PublishYouTubeResponse>(
+      publishYouTubeUrl(this.appConfig.api, calendarEventId),
       {},
     );
+  }
+
+  delete(calendarEventId: string): Observable<void> {
+    return this.http.delete<void>(calendarEventByIdUrl(this.appConfig.api, calendarEventId));
   }
 }

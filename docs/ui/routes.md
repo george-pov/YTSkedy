@@ -19,7 +19,7 @@ src/ui/src/app/layout/app-layout/
 | `/` | Public | Renders `Home` with a sign-in button. Auto-redirects signed-in visitors to `/calendar-events`. |
 | `/calendar-events` | Protected | Renders `CalendarEvents` and loads the first page of all events sorted by scheduled start descending. The scheduled start is shown as the UTC instant (`scheduledStartUtc`). Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`. |
 | `/calendar-events/new` | Protected | Renders `CalendarEventDetails`, a reactive form that creates an event via `POST /api/calendar-events` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
-| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, repopulates the form, and keeps the scheduled start read-only. Save sends `PUT /api/calendar-events/{calendarEventId}` with the descriptions. Guarded by `authenticatedGuard`. |
+| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, repopulates the form, and keeps the scheduled start read-only. Save sends `PUT /api/calendar-events/{calendarEventId}` with the descriptions. A Delete action removes a loaded `Draft` event via `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events`. Guarded by `authenticatedGuard`. |
 | `/signed-out` | Public | Renders post-logout confirmation. Auto-redirects already-authenticated visitors to `/calendar-events`. |
 | `/component-lab` | Public | Renders the minimal component lab page for manually demoing shared UI components. |
 | `**` | Public | Redirects to `/`. |
@@ -54,6 +54,14 @@ it is the stored `scheduledStartUtc`; in create mode it is derived live from the
 chosen local date, time, and zone. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with the descriptions and navigates
 back to `/calendar-events` on success.
+
+In edit mode the page also shows a Delete action for a loaded `Draft` event; it
+is hidden in create mode and disabled for `Publishing` or `Published`. Delete
+calls `DELETE /api/calendar-events/{calendarEventId}` and, on success, shows a
+confirmation and navigates back to `/calendar-events`. A `404` is treated as the
+event already being gone (same confirmation and navigation); a `409` keeps the
+page open with an inline error because the event is no longer a `Draft`. Save
+and Delete are mutually exclusive while either is in flight.
 
 ## Route Protection
 

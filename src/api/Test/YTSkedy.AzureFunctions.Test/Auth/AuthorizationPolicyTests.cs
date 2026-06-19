@@ -27,9 +27,9 @@ public sealed class AuthorizationPolicyTests
     {
         var user = NewPrincipal(scopeClaim: ReadScope, roles: [OperatorRole]);
 
-        var outcome = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
+        var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
-        Assert.Equal(AuthorizationOutcome.Allow, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.Allow, result);
     }
 
     [Fact]
@@ -37,9 +37,9 @@ public sealed class AuthorizationPolicyTests
     {
         var user = NewPrincipal(scopeClaim: WriteScope, roles: [OperatorRole]);
 
-        var outcome = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
+        var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
-        Assert.Equal(AuthorizationOutcome.InsufficientScope, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.InsufficientScope, result);
     }
 
     [Fact]
@@ -47,9 +47,9 @@ public sealed class AuthorizationPolicyTests
     {
         var user = NewPrincipal(scopeClaim: ReadScope, roles: []);
 
-        var outcome = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
+        var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
-        Assert.Equal(AuthorizationOutcome.MissingRole, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.MissingRole, result);
     }
 
     [Fact]
@@ -57,9 +57,9 @@ public sealed class AuthorizationPolicyTests
     {
         var user = NewPrincipal(scopeClaim: ReadScope, roles: ["CalendarEvents.Reader"]);
 
-        var outcome = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
+        var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
-        Assert.Equal(AuthorizationOutcome.MissingRole, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.MissingRole, result);
     }
 
     [Fact]
@@ -72,9 +72,9 @@ public sealed class AuthorizationPolicyTests
         // the scope check fails first.
         var user = new ClaimsPrincipal(new ClaimsIdentity());
 
-        var outcome = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
+        var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
-        Assert.Equal(AuthorizationOutcome.InsufficientScope, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.InsufficientScope, result);
     }
 
     [Fact]
@@ -86,12 +86,12 @@ public sealed class AuthorizationPolicyTests
             scopeClaim: $"{ReadScope} {WriteScope}",
             roles: [OperatorRole]);
 
-        var outcome = AuthorizationPolicy.Evaluate(
+        var result = AuthorizationPolicy.Evaluate(
             new[] { WriteScope },
             OperatorRole,
             user);
 
-        Assert.Equal(AuthorizationOutcome.Allow, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.Allow, result);
     }
 
     [Fact]
@@ -104,9 +104,9 @@ public sealed class AuthorizationPolicyTests
         identity.AddClaim(new Claim("roles", OperatorRole));
         var user = new ClaimsPrincipal(identity);
 
-        var outcome = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
+        var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
-        Assert.Equal(AuthorizationOutcome.Allow, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.Allow, result);
     }
 
     [Fact]
@@ -117,9 +117,9 @@ public sealed class AuthorizationPolicyTests
         // require a scope, but still requires the role.
         var user = NewPrincipal(scopeClaim: null, roles: [OperatorRole]);
 
-        var outcome = AuthorizationPolicy.Evaluate([], OperatorRole, user);
+        var result = AuthorizationPolicy.Evaluate([], OperatorRole, user);
 
-        Assert.Equal(AuthorizationOutcome.Allow, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.Allow, result);
     }
 
     [Fact]
@@ -129,9 +129,9 @@ public sealed class AuthorizationPolicyTests
         // scope is enforced.
         var user = NewPrincipal(scopeClaim: ReadScope, roles: []);
 
-        var outcome = AuthorizationPolicy.Evaluate(ReadOnly, requiredRole: "", user);
+        var result = AuthorizationPolicy.Evaluate(ReadOnly, requiredRole: "", user);
 
-        Assert.Equal(AuthorizationOutcome.Allow, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.Allow, result);
     }
 
     [Fact]
@@ -147,9 +147,9 @@ public sealed class AuthorizationPolicyTests
         identity.AddClaim(new Claim(ClaimTypes.Role, OperatorRole));
         var user = new ClaimsPrincipal(identity);
 
-        var outcome = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
+        var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
-        Assert.Equal(AuthorizationOutcome.Allow, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.Allow, result);
     }
 
     private static ClaimsPrincipal NewPrincipal(string? scopeClaim, string[] roles)
@@ -195,9 +195,9 @@ public sealed class AuthorizationPolicyMethodInfoTests
         // Deny by default: an unprivileged principal must still be rejected.
         var user = new ClaimsPrincipal(new ClaimsIdentity());
 
-        var outcome = AuthorizationPolicy.Evaluate(method: null, OperatorRole, user);
+        var result = AuthorizationPolicy.Evaluate(method: null, OperatorRole, user);
 
-        Assert.NotEqual(AuthorizationOutcome.Allow, outcome);
+        Assert.NotEqual(AzureFunctions.Auth.AuthorizationResult.Allow, result);
     }
 
     [Fact]
@@ -208,9 +208,9 @@ public sealed class AuthorizationPolicyMethodInfoTests
         // not be located.
         var user = NewPrincipal(scopeClaim: ReadScope, roles: []);
 
-        var outcome = AuthorizationPolicy.Evaluate(method: null, OperatorRole, user);
+        var result = AuthorizationPolicy.Evaluate(method: null, OperatorRole, user);
 
-        Assert.Equal(AuthorizationOutcome.MissingRole, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.MissingRole, result);
     }
 
     [Fact]
@@ -220,12 +220,12 @@ public sealed class AuthorizationPolicyMethodInfoTests
         // without [AllowAnonymous] must still pass the role gate.
         var user = NewPrincipal(scopeClaim: null, roles: []);
 
-        var outcome = AuthorizationPolicy.Evaluate(
+        var result = AuthorizationPolicy.Evaluate(
             MethodOf(nameof(SampleEndpoints.Bare)),
             OperatorRole,
             user);
 
-        Assert.Equal(AuthorizationOutcome.MissingRole, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.MissingRole, result);
     }
 
     [Fact]
@@ -235,12 +235,12 @@ public sealed class AuthorizationPolicyMethodInfoTests
         // role passes even without any scope claim.
         var user = NewPrincipal(scopeClaim: null, roles: [OperatorRole]);
 
-        var outcome = AuthorizationPolicy.Evaluate(
+        var result = AuthorizationPolicy.Evaluate(
             MethodOf(nameof(SampleEndpoints.Bare)),
             OperatorRole,
             user);
 
-        Assert.Equal(AuthorizationOutcome.Allow, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.Allow, result);
     }
 
     [Fact]
@@ -248,12 +248,12 @@ public sealed class AuthorizationPolicyMethodInfoTests
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity());
 
-        var outcome = AuthorizationPolicy.Evaluate(
+        var result = AuthorizationPolicy.Evaluate(
             MethodOf(nameof(SampleEndpoints.Anonymous)),
             OperatorRole,
             user);
 
-        Assert.Equal(AuthorizationOutcome.Allow, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.Allow, result);
     }
 
     [Fact]
@@ -263,12 +263,12 @@ public sealed class AuthorizationPolicyMethodInfoTests
         // contract continues to apply through the MethodInfo overload.
         var user = NewPrincipal(scopeClaim: ReadScope, roles: []);
 
-        var outcome = AuthorizationPolicy.Evaluate(
+        var result = AuthorizationPolicy.Evaluate(
             MethodOf(nameof(SampleEndpoints.ReadOnly)),
             OperatorRole,
             user);
 
-        Assert.Equal(AuthorizationOutcome.MissingRole, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.MissingRole, result);
     }
 
     [Fact]
@@ -276,12 +276,12 @@ public sealed class AuthorizationPolicyMethodInfoTests
     {
         var user = NewPrincipal(scopeClaim: WriteScope, roles: [OperatorRole]);
 
-        var outcome = AuthorizationPolicy.Evaluate(
+        var result = AuthorizationPolicy.Evaluate(
             MethodOf(nameof(SampleEndpoints.ReadOnly)),
             OperatorRole,
             user);
 
-        Assert.Equal(AuthorizationOutcome.InsufficientScope, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.InsufficientScope, result);
     }
 
     [Fact]
@@ -289,12 +289,12 @@ public sealed class AuthorizationPolicyMethodInfoTests
     {
         var user = NewPrincipal(scopeClaim: ReadScope, roles: [OperatorRole]);
 
-        var outcome = AuthorizationPolicy.Evaluate(
+        var result = AuthorizationPolicy.Evaluate(
             MethodOf(nameof(SampleEndpoints.ReadOnly)),
             OperatorRole,
             user);
 
-        Assert.Equal(AuthorizationOutcome.Allow, outcome);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.Allow, result);
     }
 
     private static ClaimsPrincipal NewPrincipal(string? scopeClaim, string[] roles)

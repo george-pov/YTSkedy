@@ -88,17 +88,43 @@
         </div>
       </fieldset>
 
-      @if (submitFailed()) {
+      @if (saveErrorMessage(); as message) {
         <app-alert #errorRegion variant="error" tabindex="-1">
-          The event could not be saved. Check your connection and try again.
+          {{ message }}
         </app-alert>
       }
 
-      <div class="app-actions app-actions-end app-actions-stack-mobile">
-        <app-button type="button" appearance="outlined" (click)="cancel()"> Cancel </app-button>
-        <app-button type="submit" [disabled]="isSubmitting()">
-          {{ isEditMode ? 'Save changes' : 'Save event' }}
-        </app-button>
+      @if (deleteErrorMessage(); as message) {
+        <app-alert variant="error">
+          {{ message }}
+        </app-alert>
+      }
+
+      <div class="app-grid">
+        <div class="app-actions app-actions-end">
+          @if (isEditMode) {
+            <app-button
+              type="button"
+              appearance="outlined"
+              icon="delete"
+              [disabled]="!canDelete() || isDeleting() || isSubmitting()"
+              (click)="deleteEvent()"
+            >
+              {{ isDeleting() ? 'Deleting...' : 'Delete' }}
+            </app-button>
+          }
+          <app-button
+            type="button"
+            appearance="outlined"
+            [disabled]="isDeleting()"
+            (click)="cancel()"
+          >
+            Cancel
+          </app-button>
+          <app-button type="submit" [disabled]="isSubmitting() || isDeleting() || !canSave()">
+            {{ isEditMode ? 'Save changes' : 'Save event' }}
+          </app-button>
+        </div>
       </div>
     </form>
   }

@@ -35,12 +35,12 @@ internal sealed class AuthorizationMiddleware(IOptionsMonitor<AuthOptions> authO
         }
 
         var method = EndpointResolver.ResolveMethod(context.FunctionDefinition);
-        var outcome = AuthorizationPolicy.Evaluate(
+        var result = AuthorizationPolicy.Evaluate(
             method,
             authOptions.CurrentValue.RequiredAppRole,
             httpContext.User);
 
-        if (outcome != AuthorizationOutcome.Allow)
+        if (result != AuthorizationResult.Allow)
         {
             httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;

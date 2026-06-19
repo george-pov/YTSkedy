@@ -8,6 +8,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -55,9 +56,22 @@ export class CalendarEventDetails {
   protected readonly timeZoneOptions = timeZoneOptions;
 
   protected readonly isSubmitting = signal(false);
-  protected readonly submitFailed = signal(false);
+  protected readonly saveErrorMessage = signal<string | null>(null);
   protected readonly isLoading = signal(false);
   protected readonly loadFailed = signal(false);
+
+  protected readonly isDeleting = signal(false);
+  protected readonly deleteErrorMessage = signal<string | null>(null);
+
+  // Action eligibility comes from the loaded event's API-computed flags; the
+  // page never re-derives it from status, scheduled start, or broadcast id.
+  // Delete is hidden entirely in create mode and enabled only when the loaded
+  // event is deletable; Save is always available when creating and enabled when
+  // editing only while the loaded event is updatable (Draft-only).
+  private readonly loadedCanDelete = signal(false);
+  private readonly loadedCanUpdate = signal(false);
+  protected readonly canDelete = computed(() => this.isEditMode && this.loadedCanDelete());
+  protected readonly canSave = computed(() => !this.isEditMode || this.loadedCanUpdate());
 
   // In edit mode the stored UTC instant comes from the loaded event (exact). In
   // create mode it is derived live from the start controls so the operator sees
@@ -108,7 +122,7 @@ export class CalendarEventDetails {
 
   constructor() {
     effect(() => {
-      if (this.submitFailed() && this.errorRegion()) {
+      if (this.saveErrorMessage() !== null && this.errorRegion()) {
         this.errorRegion()!.nativeElement.focus();
       }
     });
@@ -129,6 +143,8 @@ export class CalendarEventDetails {
         next: (event) => {
           patchCalendarEventDetailsForm(this.form, event);
           this.loadedScheduledStartUtc.set(event.scheduledStartUtc);
+          this.loadedCanDelete.set(event.canDelete);
+          this.loadedCanUpdate.set(event.canUpdate);
           // Descriptions-only edit: the scheduled start is the event identity
           // and cannot change, so disable those controls. Disabling also
           // excludes them from validation, so a past start does not block
@@ -147,11 +163,17 @@ export class CalendarEventDetails {
   }
 
   protected submit(): void {
-    if (this.isSubmitting()) {
+    if (this.isSubmitting() || this.isDeleting()) {
       return;
     }
 
-    this.submitFailed.set(false);
+    // Update is Draft-only: a stale client whose loaded event is no longer
+    // updatable must not call the API. The backend rejects it as well.
+    if (this.isEditMode && !this.loadedCanUpdate()) {
+      return;
+    }
+
+    this.saveErrorMessage.set(null);
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -177,8 +199,8 @@ export class CalendarEventDetails {
         );
         this.router.navigateByUrl('/calendar-events');
       },
-      error: () => {
-        this.submitFailed.set(true);
+      error: (error: unknown) => {
+        this.saveErrorMessage.set(describeSaveError(error));
       },
     });
   }
@@ -186,4 +208,67 @@ export class CalendarEventDetails {
   protected cancel(): void {
     this.router.navigateByUrl('/calendar-events');
   }
+
+  protected deleteEvent(): void {
+    // Page mutations are mutually exclusive: a save in flight blocks delete and
+    // an in-flight delete blocks re-entry. Only a loaded Draft in edit mode is
+    // deletable, which canDelete enforces.
+    if (this.isDeleting() || this.isSubmitting() || !this.canDelete()) {
+      return;
+    }
+
+    this.deleteErrorMessage.set(null);
+    this.isDeleting.set(true);
+
+    this.calendarEventsService
+      .delete(this.editingId!)
+      .pipe(finalize(() => this.isDeleting.set(false)))
+      .subscribe({
+        next: () => {
+          this.notifications.showSuccess('Calendar event deleted.');
+          this.router.navigateByUrl('/calendar-events');
+        },
+        error: (error: unknown) => {
+          // 404 means the row is already gone; treat that as completed cleanup
+          // and leave for the list. 409 means it is no longer deletable in its
+          // current state, so keep the operator here with an explanation. 502
+          // means the YouTube broadcast could not be deleted and the local row
+          // was kept. Anything else is a generic transient failure.
+          if (error instanceof HttpErrorResponse && error.status === 404) {
+            this.deleteErrorMessage.set(null);
+            this.notifications.showSuccess('Calendar event no longer exists.');
+            this.router.navigateByUrl('/calendar-events');
+            return;
+          }
+
+          if (error instanceof HttpErrorResponse && error.status === 409) {
+            this.deleteErrorMessage.set(
+              'The event can no longer be deleted. Reload the page and try again.',
+            );
+            return;
+          }
+
+          if (error instanceof HttpErrorResponse && error.status === 502) {
+            this.deleteErrorMessage.set(
+              'The YouTube broadcast could not be deleted. Try again later.',
+            );
+            return;
+          }
+
+          this.deleteErrorMessage.set(
+            'The event could not be deleted. Check your connection and try again.',
+          );
+        },
+      });
+  }
+}
+
+// A 409 means the event is no longer updatable (it left Draft); reloading is the
+// recovery. Anything else is a transient or connection failure.
+function describeSaveError(error: unknown): string {
+  if (error instanceof HttpErrorResponse && error.status === 409) {
+    return 'The event can no longer be updated. Reload the page and try again.';
+  }
+
+  return 'The event could not be saved. Check your connection and try again.';
 }

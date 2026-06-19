@@ -10,7 +10,7 @@ import {
   CalendarEventListPage,
   CalendarEventListQuery,
   CalendarEventsService,
-  PublishCalendarEventResponse,
+  PublishYouTubeResponse,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { DataTable, DataTableState } from 'src/app/shared/components/data-table/data-table';
@@ -20,26 +20,22 @@ describe('CalendarEvents', () => {
   let fixture: ComponentFixture<CalendarEvents>;
   let service: {
     list: Mock<(query: CalendarEventListQuery) => Observable<CalendarEventListPage>>;
-    publish: Mock<(calendarEventId: string) => Observable<PublishCalendarEventResponse>>;
+    publish: Mock<(calendarEventId: string) => Observable<PublishYouTubeResponse>>;
   };
   let notifications: { showSuccess: Mock<(message: string) => void> };
   let navigations: string[];
 
   beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-06-05T12:00:00Z'));
-
     navigations = [];
     service = {
       list: vi.fn<(query: CalendarEventListQuery) => Observable<CalendarEventListPage>>(),
-      publish: vi.fn<(calendarEventId: string) => Observable<PublishCalendarEventResponse>>(),
+      publish: vi.fn<(calendarEventId: string) => Observable<PublishYouTubeResponse>>(),
     };
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
   });
 
   afterEach(() => {
     TestBed.resetTestingModule();
-    vi.useRealTimers();
   });
 
   it('requests the first page sorted by scheduled start descending with no month scope', async () => {
@@ -234,7 +230,7 @@ describe('CalendarEvents', () => {
     });
   });
 
-  it('shows a Publish action for a future draft event', async () => {
+  it('shows a Publish action when the row is publishable', async () => {
     service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
 
     await createComponent();
@@ -242,32 +238,41 @@ describe('CalendarEvents', () => {
     expect(fixture.nativeElement.querySelector('.publish-button')).not.toBeNull();
   });
 
-  it('does not show a Publish action for a published event', async () => {
+  it('does not show a Publish action when the row is not publishable', async () => {
     service.list.mockReturnValue(
-      of(pageOf([{ ...draftEvent('20260606T170000Z'), status: 'Published' }])),
+      of(pageOf([{ ...draftEvent('20260606T170000Z'), canPublish: false }])),
     );
 
     await createComponent();
 
     expect(fixture.nativeElement.querySelector('.publish-button')).toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('Published');
   });
 
-  it('does not show a Publish action for a past draft event', async () => {
+  it('keeps the Edit icon enabled and navigable even when the row is not updatable', async () => {
+    // Edit always opens the details/edit view; update eligibility is enforced on
+    // Save (and Delete) inside that view, not on the list Edit icon.
     service.list.mockReturnValue(
-      of(pageOf([draftEvent('20260601T100000Z', '2026-06-01T10:00:00')])),
+      of(pageOf([{ ...draftEvent('20260606T170000Z'), canUpdate: false }])),
     );
 
     await createComponent();
 
-    expect(fixture.nativeElement.querySelector('.publish-button')).toBeNull();
+    const editButton = fixture.nativeElement.querySelector(
+      '.edit-button button',
+    ) as HTMLButtonElement;
+    expect(editButton).not.toBeNull();
+    expect(editButton.disabled).toBe(false);
+
+    fixture.nativeElement.querySelector('.edit-button').dispatchEvent(new Event('click'));
+
+    expect(navigations).toEqual(['/calendar-events/20260606T170000Z/edit']);
   });
 
   it('publishes a draft event and re-fetches the current page', async () => {
     const draft = draftEvent('20260606T170000Z');
     service.list
       .mockReturnValueOnce(of(pageOf([draft])))
-      .mockReturnValueOnce(of(pageOf([{ ...draft, status: 'Published' }])));
+      .mockReturnValueOnce(of(pageOf([{ ...draft, status: 'Published', canPublish: false }])));
     service.publish.mockReturnValue(
       of({
         calendarEventId: '20260606T170000Z',
@@ -298,7 +303,7 @@ describe('CalendarEvents', () => {
     const draft = draftEvent('20260606T170000Z');
     service.list
       .mockReturnValueOnce(of(pageOf([draft])))
-      .mockReturnValueOnce(of(pageOf([{ ...draft, status: 'Published' }])));
+      .mockReturnValueOnce(of(pageOf([{ ...draft, status: 'Published', canPublish: false }])));
     service.publish.mockReturnValue(
       of({
         calendarEventId: '20260606T170000Z',
@@ -355,6 +360,9 @@ describe('CalendarEvents', () => {
         },
       ],
       status: 'Draft',
+      canPublish: true,
+      canUpdate: true,
+      canDelete: true,
     };
   }
 

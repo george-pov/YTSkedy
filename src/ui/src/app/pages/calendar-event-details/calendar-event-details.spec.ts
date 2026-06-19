@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
@@ -27,6 +28,7 @@ describe('CalendarEventDetails', () => {
         request: UpdateCalendarEventRequest,
       ) => Observable<UpdateCalendarEventResponse>
     >;
+    delete: Mock<(calendarEventId: string) => Observable<void>>;
   };
   let notifications: { showSuccess: Mock<(message: string) => void> };
   let navigations: string[];
@@ -43,6 +45,7 @@ describe('CalendarEventDetails', () => {
             request: UpdateCalendarEventRequest,
           ) => Observable<UpdateCalendarEventResponse>
         >(),
+      delete: vi.fn<(calendarEventId: string) => Observable<void>>(),
     };
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
     navigations = [];
@@ -91,6 +94,25 @@ describe('CalendarEventDetails', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
+  }
+
+  function appButtonHosts(): HTMLElement[] {
+    return Array.from(fixture.nativeElement.querySelectorAll('app-button')) as HTMLElement[];
+  }
+
+  function deleteButtonHost(): HTMLElement | null {
+    // The label is 'Delete' or 'Deleting...'; both contain 'Delet' with a
+    // capital D, which the lowercase 'delete' icon ligature does not.
+    return appButtonHosts().find((host) => (host.textContent ?? '').includes('Delet')) ?? null;
+  }
+
+  function deleteButton(): HTMLButtonElement | null {
+    return deleteButtonHost()?.querySelector('button') ?? null;
+  }
+
+  function cancelButton(): HTMLButtonElement | null {
+    const host = appButtonHosts().find((b) => (b.textContent ?? '').includes('Cancel'));
+    return host?.querySelector('button') ?? null;
   }
 
   it('blocks submit and reveals required errors when the form is empty', async () => {
@@ -191,6 +213,10 @@ describe('CalendarEventDetails', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Scheduled start (UTC)');
     expect(text).toContain('2030-07-04 17:00');
+  });
+
+  it('does not show a delete button in create mode', () => {
+    expect(deleteButtonHost()).toBeNull();
   });
 
   describe('edit mode', () => {
@@ -306,6 +332,17 @@ describe('CalendarEventDetails', () => {
       expect(navigations).toEqual(['/calendar-events']);
     });
 
+    it('disables Save when the loaded event is not updatable', () => {
+      service.getById.mockReturnValue(of(sampleEvent({ canUpdate: false })));
+
+      createEditComponent();
+
+      const save = fixture.nativeElement.querySelector(
+        'button[type="submit"]',
+      ) as HTMLButtonElement;
+      expect(save.disabled).toBe(true);
+    });
+
     it('shows a save error and does not navigate when the update fails', async () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.update.mockReturnValue(throwError(() => new Error('boom')));
@@ -319,6 +356,23 @@ describe('CalendarEventDetails', () => {
       const alert = fixture.nativeElement.querySelector('[role="alert"]');
       expect(alert).not.toBeNull();
       expect(alert.textContent).toContain('The event could not be saved.');
+      expect(navigations).toEqual([]);
+    });
+
+    it('maps an update 409 to a reload message and stays on the page', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.update.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
+
+      createEditComponent();
+
+      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'The event can no longer be updated. Reload the page and try again.',
+      );
       expect(navigations).toEqual([]);
     });
 
@@ -341,6 +395,170 @@ describe('CalendarEventDetails', () => {
       expect(fixture.nativeElement.querySelector('app-progress-bar')).not.toBeNull();
       expect(fixture.nativeElement.querySelector('form')).toBeNull();
     });
+
+    it('enables delete when the loaded event is deletable', () => {
+      service.getById.mockReturnValue(of(sampleEvent({ canDelete: true })));
+
+      createEditComponent();
+
+      expect(deleteButton()).not.toBeNull();
+      expect(deleteButton()!.disabled).toBe(false);
+    });
+
+    it('disables delete when the loaded event is not deletable', () => {
+      service.getById.mockReturnValue(of(sampleEvent({ canDelete: false })));
+
+      createEditComponent();
+
+      expect(deleteButton()!.disabled).toBe(true);
+    });
+
+    it('deletes a draft, notifies, and navigates to the list', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.delete.mockReturnValue(of<void>(undefined));
+
+      createEditComponent();
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(service.delete).toHaveBeenCalledWith(editId);
+      expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event deleted.');
+      expect(navigations).toEqual(['/calendar-events']);
+    });
+
+    it('deletes a future published event immediately without confirmation', async () => {
+      service.getById.mockReturnValue(of(sampleEvent({ status: 'Published', canDelete: true })));
+      service.delete.mockReturnValue(of<void>(undefined));
+
+      createEditComponent();
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(service.delete).toHaveBeenCalledWith(editId);
+      expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event deleted.');
+      expect(navigations).toEqual(['/calendar-events']);
+    });
+
+    it('treats a 404 as already deleted and navigates to the list', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.delete.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
+
+      createEditComponent();
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event no longer exists.');
+      expect(navigations).toEqual(['/calendar-events']);
+    });
+
+    it('shows a conflict message and stays on the page when no longer deletable', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.delete.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
+
+      createEditComponent();
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'The event can no longer be deleted. Reload the page and try again.',
+      );
+      expect(navigations).toEqual([]);
+      expect(notifications.showSuccess).not.toHaveBeenCalled();
+    });
+
+    it('shows a YouTube failure message and stays on the page on 502', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.delete.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 502 })));
+
+      createEditComponent();
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'The YouTube broadcast could not be deleted. Try again later.',
+      );
+      expect(navigations).toEqual([]);
+    });
+
+    it('shows a generic delete error for other failures', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.delete.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+
+      createEditComponent();
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'The event could not be deleted. Check your connection and try again.',
+      );
+      expect(navigations).toEqual([]);
+    });
+
+    it('disables save while a delete is in flight', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.delete.mockReturnValue(new Subject<void>());
+
+      createEditComponent();
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+
+      const save = fixture.nativeElement.querySelector(
+        'button[type="submit"]',
+      ) as HTMLButtonElement;
+      expect(save.disabled).toBe(true);
+    });
+
+    it('disables delete while a save is in flight', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.update.mockReturnValue(new Subject<UpdateCalendarEventResponse>());
+
+      createEditComponent();
+
+      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+      fixture.detectChanges();
+
+      expect(deleteButton()!.disabled).toBe(true);
+    });
+
+    it('disables cancel while a delete is in flight', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.delete.mockReturnValue(new Subject<void>());
+
+      createEditComponent();
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+
+      expect(cancelButton()!.disabled).toBe(true);
+    });
+
+    it('shows a Deleting... label while the delete is in flight', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.delete.mockReturnValue(new Subject<void>());
+
+      createEditComponent();
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+
+      expect(deleteButtonHost()!.textContent).toContain('Deleting...');
+    });
   });
 
   function routeWithId(calendarEventId: string | null): ActivatedRoute {
@@ -351,7 +569,7 @@ describe('CalendarEventDetails', () => {
     } as ActivatedRoute;
   }
 
-  function sampleEvent(): CalendarEvent {
+  function sampleEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     return {
       calendarEventId: '20260606T170000Z',
       start: {
@@ -372,6 +590,10 @@ describe('CalendarEventDetails', () => {
         },
       ],
       status: 'Draft',
+      canPublish: true,
+      canUpdate: true,
+      canDelete: true,
+      ...overrides,
     };
   }
 });

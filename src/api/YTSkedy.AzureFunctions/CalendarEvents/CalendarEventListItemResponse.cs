@@ -5,4 +5,7 @@ public sealed record CalendarEventListItemResponse(
     CalendarEventStart Start,
     DateTimeOffset ScheduledStartUtc,
     IReadOnlyList<LocalizedCalendarEventText> Descriptions,
-    string Status);
+    string Status,
+    bool CanPublish,
+    bool CanUpdate,
+    bool CanDelete);

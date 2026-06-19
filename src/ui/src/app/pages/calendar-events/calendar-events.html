@@ -34,7 +34,7 @@
             ariaLabel="Edit"
             (click)="editEvent(event)"
           />
-          @if (canPublish(event)) {
+          @if (event.canPublish) {
             <app-button
               class="publish-button"
               iconButton

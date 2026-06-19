@@ -37,7 +37,7 @@ public class ListEventsHandlerTests
         var result = await handler.HandleAsync(
             Query(
                 sort: CalendarEventSortField.ScheduledStart,
-                direction: CalendarEventSortDirection.Ascending),
+                direction: SortDirection.Ascending),
             CancellationToken.None);
 
         Assert.Equal(
@@ -58,7 +58,7 @@ public class ListEventsHandlerTests
         var handler = new ListEventsHandler(reader);
 
         var result = await handler.HandleAsync(
-            Query(sort: CalendarEventSortField.Status, direction: CalendarEventSortDirection.Ascending),
+            Query(sort: CalendarEventSortField.Status, direction: SortDirection.Ascending),
             CancellationToken.None);
 
         // Ordinal status order ascending: Draft before Published. Within each
@@ -86,7 +86,7 @@ public class ListEventsHandlerTests
         var handler = new ListEventsHandler(reader);
 
         var result = await handler.HandleAsync(
-            Query(sort: CalendarEventSortField.Status, direction: CalendarEventSortDirection.Descending),
+            Query(sort: CalendarEventSortField.Status, direction: SortDirection.Descending),
             CancellationToken.None);
 
         // Status descending: Published before Draft. The secondary key stays
@@ -114,7 +114,7 @@ public class ListEventsHandlerTests
         var handler = new ListEventsHandler(reader);
 
         var result = await handler.HandleAsync(
-            Query(sort: CalendarEventSortField.TimeZone, direction: CalendarEventSortDirection.Ascending),
+            Query(sort: CalendarEventSortField.TimeZone, direction: SortDirection.Ascending),
             CancellationToken.None);
 
         Assert.Equal(
@@ -134,7 +134,7 @@ public class ListEventsHandlerTests
         var handler = new ListEventsHandler(reader);
 
         var result = await handler.HandleAsync(
-            Query(sort: CalendarEventSortField.Title, direction: CalendarEventSortDirection.Ascending),
+            Query(sort: CalendarEventSortField.Title, direction: SortDirection.Ascending),
             CancellationToken.None);
 
         // English title order ascending: Alpha, Bravo, Charlie. This differs
@@ -151,7 +151,7 @@ public class ListEventsHandlerTests
         var handler = new ListEventsHandler(new FakeCalendarEventReader(FiveAscendingItems()));
 
         var result = await handler.HandleAsync(
-            Query(page: 0, pageSize: 2, direction: CalendarEventSortDirection.Descending),
+            Query(page: 0, pageSize: 2, direction: SortDirection.Descending),
             CancellationToken.None);
 
         Assert.Equal(["20260105T000000Z", "20260104T000000Z"], Ids(result));
@@ -166,7 +166,7 @@ public class ListEventsHandlerTests
         var handler = new ListEventsHandler(new FakeCalendarEventReader(FiveAscendingItems()));
 
         var result = await handler.HandleAsync(
-            Query(page: 1, pageSize: 2, direction: CalendarEventSortDirection.Descending),
+            Query(page: 1, pageSize: 2, direction: SortDirection.Descending),
             CancellationToken.None);
 
         Assert.Equal(["20260103T000000Z", "20260102T000000Z"], Ids(result));
@@ -179,7 +179,7 @@ public class ListEventsHandlerTests
         var handler = new ListEventsHandler(new FakeCalendarEventReader(FiveAscendingItems()));
 
         var result = await handler.HandleAsync(
-            Query(page: 2, pageSize: 2, direction: CalendarEventSortDirection.Descending),
+            Query(page: 2, pageSize: 2, direction: SortDirection.Descending),
             CancellationToken.None);
 
         Assert.Equal(["20260101T000000Z"], Ids(result));
@@ -217,11 +217,11 @@ public class ListEventsHandlerTests
         var handler = new ListEventsHandler(new FakeCalendarEventReader([]));
 
         var result = await handler.HandleAsync(
-            Query(sort: CalendarEventSortField.TimeZone, direction: CalendarEventSortDirection.Ascending),
+            Query(sort: CalendarEventSortField.TimeZone, direction: SortDirection.Ascending),
             CancellationToken.None);
 
         Assert.Equal(CalendarEventSortField.TimeZone, result.Sort);
-        Assert.Equal(CalendarEventSortDirection.Ascending, result.Direction);
+        Assert.Equal(SortDirection.Ascending, result.Direction);
     }
 
     [Fact]
@@ -284,7 +284,7 @@ public class ListEventsHandlerTests
         int page = 0,
         int pageSize = 10,
         CalendarEventSortField sort = CalendarEventSortField.ScheduledStart,
-        CalendarEventSortDirection direction = CalendarEventSortDirection.Descending,
+        SortDirection direction = SortDirection.Descending,
         int? year = null,
         int? month = null) =>
         new(page, pageSize, sort, direction, year, month);

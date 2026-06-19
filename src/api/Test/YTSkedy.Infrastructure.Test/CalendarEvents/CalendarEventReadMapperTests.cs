@@ -252,6 +252,51 @@ public class CalendarEventReadMapperTests
     }
 
     [Fact]
+    public void ToListItems_PublishedEntity_MapsYouTubeBroadcastId()
+    {
+        var entity = CreateEntity(
+            "20260605T170000Z",
+            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
+            "2026-06-05T10:00:00");
+        entity.YouTubeBroadcastId = "broadcast-123";
+
+        var result = CalendarEventReadMapper.ToListItems([entity]);
+
+        var calendarEvent = Assert.Single(result);
+        Assert.Equal("broadcast-123", calendarEvent.YouTubeBroadcastId);
+    }
+
+    [Fact]
+    public void ToDetail_PublishedEntity_MapsYouTubeBroadcastIdAndStatus()
+    {
+        var entity = CreateEntity(
+            "20260605T170000Z",
+            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
+            "2026-06-05T10:00:00");
+        entity.Status = "Published";
+        entity.YouTubeBroadcastId = "broadcast-123";
+
+        var detail = CalendarEventReadMapper.ToDetail(entity);
+
+        Assert.Equal("20260605T170000Z", detail.CalendarEventId);
+        Assert.Equal(CalendarEventStatus.Published, detail.Status);
+        Assert.Equal("broadcast-123", detail.YouTubeBroadcastId);
+    }
+
+    [Fact]
+    public void ToDetail_DraftEntity_HasNullYouTubeBroadcastId()
+    {
+        var entity = CreateEntity(
+            "20260605T170000Z",
+            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
+            "2026-06-05T10:00:00");
+
+        var detail = CalendarEventReadMapper.ToDetail(entity);
+
+        Assert.Null(detail.YouTubeBroadcastId);
+    }
+
+    [Fact]
     public void GetPartitionKeysForLocalMonth_June2026_ReturnsAdjacentMonthKeys()
     {
         var criteria = new CalendarEventMonthCriteria(2026, 6);

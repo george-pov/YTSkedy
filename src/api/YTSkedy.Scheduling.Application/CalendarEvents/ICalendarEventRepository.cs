@@ -43,4 +43,28 @@ public interface ICalendarEventRepository
     Task ReleaseReservationAsync(
         string calendarEventId,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes a calendar event row only while it is still Draft. Returns
+    /// <see cref="DeleteDraftCalendarEventResult.NotFound"/> when no row has the
+    /// id, and <see cref="DeleteDraftCalendarEventResult.NotDeletable"/> when the
+    /// row exists but is not Draft or changed under a concurrent write between the
+    /// read and the conditional delete. The delete is id-based; storage identity
+    /// and ETags stay inside infrastructure.
+    /// </summary>
+    Task<DeleteDraftCalendarEventResult> DeleteDraftAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes a calendar event row by id without checking its status, for
+    /// post-YouTube Published cleanup. The delete is unconditional, so a row that
+    /// changed after the delete use case read it is still removed. Returns
+    /// <see cref="DeleteCalendarEventRowResult.NotFound"/> when no row has the id
+    /// and <see cref="DeleteCalendarEventRowResult.Deleted"/> otherwise. Storage
+    /// identity and ETags stay inside infrastructure.
+    /// </summary>
+    Task<DeleteCalendarEventRowResult> DeleteAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken);
 }

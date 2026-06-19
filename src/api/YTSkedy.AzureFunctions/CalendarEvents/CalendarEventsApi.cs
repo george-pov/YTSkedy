@@ -14,7 +14,9 @@ public class CalendarEventsApi(
     ListEventsHandler listHandler,
     GetCalendarEventHandler getHandler,
     UpdateCalendarEventHandler updateHandler,
-    PublishCalendarEventHandler publishHandler)
+    PublishYouTubeHandler publishHandler,
+    DeleteCalendarEventHandler deleteHandler,
+    TimeProvider timeProvider)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -140,7 +142,7 @@ public class CalendarEventsApi(
             return new BadRequestObjectResult("Request body is required.");
         }
 
-        var command = new UpdateCalendarEventDescriptionsCommand(
+        var command = new UpdateDescriptionsCommand(
             calendarEventId,
             updateRequest.Descriptions
                 .Select(description => new LocalizedDescription(
@@ -149,16 +151,22 @@ public class CalendarEventsApi(
                     description.Description))
                 .ToArray());
 
-        var updated = await updateHandler.HandleAsync(command, cancellationToken);
+        var result = await updateHandler.HandleAsync(command, cancellationToken);
 
-        return updated
-            ? new OkObjectResult(new UpdateCalendarEventResponse(calendarEventId))
-            : new NotFoundResult();
+        return result switch
+        {
+            UpdateCalendarEventResult.Updated => new OkObjectResult(
+                new UpdateCalendarEventResponse(calendarEventId)),
+            UpdateCalendarEventResult.NotFound => new NotFoundResult(),
+            UpdateCalendarEventResult.NotUpdatable => new ConflictObjectResult(
+                $"Calendar event '{calendarEventId}' cannot be updated in its current state."),
+            _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
+        };
     }
 
-    [Function("PublishCalendarEvent")]
+    [Function("PublishYouTube")]
     [RequiredScope("CalendarEvents.Write")]
-    public async Task<IActionResult> PublishCalendarEventAsync(
+    public async Task<IActionResult> PublishYouTubeAsync(
         [HttpTrigger(
             AuthorizationLevel.Anonymous,
             "post",
@@ -171,24 +179,70 @@ public class CalendarEventsApi(
             calendarEventId,
             cancellationToken);
 
-        return result.Outcome switch
+        return result.Status switch
         {
-            PublishCalendarEventOutcome.Published => new OkObjectResult(
-                new PublishCalendarEventResponse(
+            PublishYouTubeStatus.Published => new OkObjectResult(
+                new PublishYouTubeResponse(
                     calendarEventId,
                     nameof(CalendarEventStatus.Published),
                     result.YouTubeBroadcastId!)),
-            PublishCalendarEventOutcome.NotFound => new NotFoundObjectResult(
+            PublishYouTubeStatus.NotFound => new NotFoundObjectResult(
                 $"Calendar event '{calendarEventId}' was not found."),
-            PublishCalendarEventOutcome.AlreadyPublished => new ConflictObjectResult(
+            PublishYouTubeStatus.AlreadyPublished => new ConflictObjectResult(
                 $"Calendar event '{calendarEventId}' is already published."),
-            PublishCalendarEventOutcome.StartInPast => new BadRequestObjectResult(
+            PublishYouTubeStatus.StartInPast => new BadRequestObjectResult(
                 "Calendar event start time must be in the future."),
-            PublishCalendarEventOutcome.MissingEnglishDescription => new BadRequestObjectResult(
+            PublishYouTubeStatus.MissingEnglishDescription => new BadRequestObjectResult(
                 "Calendar event has no English description to publish."),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
     }
+
+    [Function("DeleteCalendarEvent")]
+    [RequiredScope("CalendarEvents.Write")]
+    public async Task<IActionResult> DeleteCalendarEventAsync(
+        [HttpTrigger(
+            AuthorizationLevel.Anonymous,
+            "delete",
+            Route = "calendar-events/{calendarEventId}")]
+        HttpRequest request,
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        var result = await deleteHandler.HandleAsync(
+            calendarEventId,
+            cancellationToken);
+
+        return ToDeleteResult(result, calendarEventId);
+    }
+
+    /// <summary>
+    /// Maps a delete use-case outcome to its HTTP result. Success is 204; an
+    /// unknown id is 404; a Publishing, past Published, or concurrently advanced
+    /// row is 409 with non-Draft-only wording; a future Published row with no
+    /// recorded broadcast id is a distinct 409; and a YouTube delete failure is
+    /// 502 with the local row kept.
+    /// </summary>
+    public static IActionResult ToDeleteResult(
+        DeleteCalendarEventResult result,
+        string calendarEventId) =>
+        result switch
+        {
+            DeleteCalendarEventResult.Deleted => new NoContentResult(),
+            DeleteCalendarEventResult.NotFound => new NotFoundObjectResult(
+                $"Calendar event '{calendarEventId}' was not found."),
+            DeleteCalendarEventResult.NotDeletable => new ConflictObjectResult(
+                $"Calendar event '{calendarEventId}' cannot be deleted in its current state."),
+            DeleteCalendarEventResult.MissingYouTubeBroadcastId => new ConflictObjectResult(
+                $"Calendar event '{calendarEventId}' cannot be deleted because no " +
+                "YouTube broadcast id is recorded."),
+            DeleteCalendarEventResult.YouTubeDeleteFailed => new ObjectResult(
+                "The YouTube broadcast could not be deleted.")
+            {
+                StatusCode = StatusCodes.Status502BadGateway
+            },
+            _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
+        };
 
     private static bool TryParsePaging(
         HttpRequest request,
@@ -238,11 +292,11 @@ public class CalendarEventsApi(
     private static bool TryParseSort(
         HttpRequest request,
         out CalendarEventSortField sort,
-        out CalendarEventSortDirection direction,
+        out SortDirection direction,
         out IActionResult error)
     {
         sort = CalendarEventSortField.ScheduledStart;
-        direction = CalendarEventSortDirection.Descending;
+        direction = SortDirection.Descending;
 
         if (!TryGetSingleValue(request, "sort", out var sortValue, out error))
         {
@@ -282,10 +336,10 @@ public class CalendarEventsApi(
             switch (directionValue.ToLowerInvariant())
             {
                 case "asc":
-                    direction = CalendarEventSortDirection.Ascending;
+                    direction = SortDirection.Ascending;
                     break;
                 case "desc":
-                    direction = CalendarEventSortDirection.Descending;
+                    direction = SortDirection.Descending;
                     break;
                 default:
                     error = new BadRequestObjectResult(
@@ -380,9 +434,12 @@ public class CalendarEventsApi(
         return true;
     }
 
-    private static CalendarEventListItemResponse ToListItemResponse(
-        CalendarEventListItem calendarEvent) =>
-        new(
+    private CalendarEventListItemResponse ToListItemResponse(
+        CalendarEventListItem calendarEvent)
+    {
+        var nowUtc = timeProvider.GetUtcNow();
+
+        return new(
             calendarEvent.CalendarEventId,
             new CalendarEventStart(
                 calendarEvent.Start.LocalDateTime,
@@ -394,7 +451,11 @@ public class CalendarEventsApi(
                     description.Title,
                     description.Description))
                 .ToArray(),
-            calendarEvent.Status.ToString());
+            calendarEvent.Status.ToString(),
+            calendarEvent.CanPublish(nowUtc),
+            calendarEvent.CanUpdate(),
+            calendarEvent.CanDelete(nowUtc));
+    }
 
     private static string ToSortString(CalendarEventSortField sort) =>
         sort switch
@@ -405,8 +466,8 @@ public class CalendarEventsApi(
             _ => "scheduledStart"
         };
 
-    private static string ToDirectionString(CalendarEventSortDirection direction) =>
-        direction == CalendarEventSortDirection.Descending ? "desc" : "asc";
+    private static string ToDirectionString(SortDirection direction) =>
+        direction == SortDirection.Descending ? "desc" : "asc";
 
     private static bool TryParseNumber(
         HttpRequest request,

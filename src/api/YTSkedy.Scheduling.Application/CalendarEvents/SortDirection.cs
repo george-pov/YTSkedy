@@ -1,6 +1,6 @@
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
-public enum CalendarEventSortDirection
+public enum SortDirection
 {
     Ascending = 0,
     Descending = 1
