@@ -37,8 +37,11 @@ public interface ICalendarEventRepository
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Returns a reserved event to Draft after a failed broadcast attempt so it
-    /// stays retryable.
+    /// Returns a reserved event to Draft after a failed publish so it stays
+    /// retryable. Best-effort compensation: it is a no-op when the row is
+    /// missing or no longer reserved by this publish (a concurrent request
+    /// advanced or reset it), and it never throws for those races, so it cannot
+    /// mask the original failure that triggered the release.
     /// </summary>
     Task ReleaseReservationAsync(
         string calendarEventId,

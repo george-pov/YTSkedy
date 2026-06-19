@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.YouTube;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
@@ -159,15 +160,133 @@ public class PublishYouTubeHandlerTests
         Assert.Equal(0, repository.MarkPublishedCallCount);
     }
 
+    [Fact]
+    public async Task Publish_FinalizeFailsThenSucceeds_PublishesWithoutCompensating()
+    {
+        var publisher = new FakeYouTubePublisher("broadcast-123");
+        var repository = new FakeCalendarEventRepository
+        {
+            MarkPublishedFault = new InvalidOperationException("transient storage fault"),
+            MarkPublishedFaultCount = 1
+        };
+        var deleter = new FakeYouTubeDeleter();
+        var detail = CreateDetail(
+            FutureStartUtc,
+            CalendarEventStatus.Draft,
+            [new LocalizedDescription("en", "English title", "English description")]);
+        var handler = CreateHandler(detail, publisher, repository, deleter);
+
+        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+
+        Assert.Equal(PublishYouTubeStatus.Published, result.Status);
+        Assert.Equal("broadcast-123", result.YouTubeBroadcastId);
+        Assert.Equal(2, repository.MarkPublishedCallCount);
+        Assert.Equal(0, deleter.CallCount);
+        Assert.Equal(0, repository.ReleaseCallCount);
+    }
+
+    [Fact]
+    public async Task Publish_FinalizeFailsAndStillPublishing_DeletesBroadcastReleasesAndThrows()
+    {
+        var publisher = new FakeYouTubePublisher("broadcast-123");
+        var markFault = new InvalidOperationException("storage unavailable");
+        var repository = new FakeCalendarEventRepository
+        {
+            MarkPublishedFault = markFault,
+            MarkPublishedFaultCount = int.MaxValue
+        };
+        var deleter = new FakeYouTubeDeleter();
+        var detail = CreateDetail(
+            FutureStartUtc,
+            CalendarEventStatus.Draft,
+            [new LocalizedDescription("en", "English title", "English description")]);
+        var reread = CreateDetail(
+            FutureStartUtc,
+            CalendarEventStatus.Publishing,
+            [new LocalizedDescription("en", "English title", "English description")]);
+        var handler = CreateHandler(detail, publisher, repository, deleter, reread);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => handler.HandleAsync(CalendarEventId, CancellationToken.None));
+
+        Assert.Same(markFault, exception);
+        Assert.Equal(3, repository.MarkPublishedCallCount);
+        Assert.Equal(1, deleter.CallCount);
+        Assert.Equal("broadcast-123", deleter.DeletedBroadcastId);
+        Assert.Equal(1, repository.ReleaseCallCount);
+    }
+
+    [Fact]
+    public async Task Publish_FinalizeFailsButRowAlreadyPublished_ReturnsPublishedWithoutCompensating()
+    {
+        var publisher = new FakeYouTubePublisher("broadcast-123");
+        var repository = new FakeCalendarEventRepository
+        {
+            MarkPublishedFault = new InvalidOperationException("lost acknowledgement"),
+            MarkPublishedFaultCount = int.MaxValue
+        };
+        var deleter = new FakeYouTubeDeleter();
+        var detail = CreateDetail(
+            FutureStartUtc,
+            CalendarEventStatus.Draft,
+            [new LocalizedDescription("en", "English title", "English description")]);
+        var reread = CreateDetail(
+            FutureStartUtc,
+            CalendarEventStatus.Published,
+            [new LocalizedDescription("en", "English title", "English description")]);
+        var handler = CreateHandler(detail, publisher, repository, deleter, reread);
+
+        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+
+        Assert.Equal(PublishYouTubeStatus.Published, result.Status);
+        Assert.Equal("broadcast-123", result.YouTubeBroadcastId);
+        Assert.Equal(0, deleter.CallCount);
+        Assert.Equal(0, repository.ReleaseCallCount);
+    }
+
+    [Fact]
+    public async Task Publish_FinalizeFailsAndBroadcastDeleteFails_KeepsReservationAndThrows()
+    {
+        var publisher = new FakeYouTubePublisher("broadcast-123");
+        var markFault = new InvalidOperationException("storage unavailable");
+        var repository = new FakeCalendarEventRepository
+        {
+            MarkPublishedFault = markFault,
+            MarkPublishedFaultCount = int.MaxValue
+        };
+        var deleter = new FakeYouTubeDeleter(
+            new YouTubeDeleteException("YouTube delete failed"));
+        var detail = CreateDetail(
+            FutureStartUtc,
+            CalendarEventStatus.Draft,
+            [new LocalizedDescription("en", "English title", "English description")]);
+        var reread = CreateDetail(
+            FutureStartUtc,
+            CalendarEventStatus.Publishing,
+            [new LocalizedDescription("en", "English title", "English description")]);
+        var handler = CreateHandler(detail, publisher, repository, deleter, reread);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => handler.HandleAsync(CalendarEventId, CancellationToken.None));
+
+        Assert.Same(markFault, exception);
+        Assert.Equal(1, deleter.CallCount);
+        Assert.Equal(0, repository.ReleaseCallCount);
+    }
+
     private static PublishYouTubeHandler CreateHandler(
         CalendarEventDetail? detail,
         FakeYouTubePublisher publisher,
-        FakeCalendarEventRepository repository) =>
+        FakeCalendarEventRepository repository,
+        FakeYouTubeDeleter? deleter = null,
+        CalendarEventDetail? rereadDetail = null) =>
         new(
-            new FakeCalendarEventReader(detail),
+            new FakeCalendarEventReader(detail, rereadDetail),
             repository,
             publisher,
-            new FixedTimeProvider(NowUtc));
+            deleter ?? new FakeYouTubeDeleter(),
+            new FixedTimeProvider(NowUtc),
+            NullLogger<PublishYouTubeHandler>.Instance);
 
     private static CalendarEventDetail CreateDetail(
         DateTimeOffset scheduledStartUtc,
@@ -180,8 +299,12 @@ public class PublishYouTubeHandlerTests
         public override DateTimeOffset GetUtcNow() => utcNow;
     }
 
-    private sealed class FakeCalendarEventReader(CalendarEventDetail? detail) : ICalendarEventReader
+    private sealed class FakeCalendarEventReader(
+        CalendarEventDetail? detail,
+        CalendarEventDetail? rereadDetail = null) : ICalendarEventReader
     {
+        private bool _firstReadDone;
+
         public Task<IReadOnlyList<CalendarEventListItem>> ListAsync(
             CalendarEventMonthCriteria? criteria,
             CancellationToken cancellationToken) =>
@@ -189,8 +312,19 @@ public class PublishYouTubeHandlerTests
 
         public Task<CalendarEventDetail?> GetByIdAsync(
             string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(detail);
+            CancellationToken cancellationToken)
+        {
+            // The first read drives the handler guards. Later reads model the
+            // state the compensation path observes after a failed finalize.
+            if (!_firstReadDone)
+            {
+                _firstReadDone = true;
+
+                return Task.FromResult(detail);
+            }
+
+            return Task.FromResult(rereadDetail ?? detail);
+        }
 
         public Task<CalendarEventListItem?> GetListItemByIdAsync(
             string calendarEventId,
@@ -211,6 +345,10 @@ public class PublishYouTubeHandlerTests
         public string? MarkedCalendarEventId { get; private set; }
 
         public string? MarkedBroadcastId { get; private set; }
+
+        public Exception? MarkPublishedFault { get; init; }
+
+        public int MarkPublishedFaultCount { get; init; }
 
         public Task<string> CreateAsync(
             CalendarEvent calendarEvent,
@@ -238,6 +376,13 @@ public class PublishYouTubeHandlerTests
             CancellationToken cancellationToken)
         {
             MarkPublishedCallCount++;
+
+            if (MarkPublishedFault is not null &&
+                MarkPublishedCallCount <= MarkPublishedFaultCount)
+            {
+                return Task.FromException(MarkPublishedFault);
+            }
+
             MarkedCalendarEventId = calendarEventId;
             MarkedBroadcastId = youTubeBroadcastId;
 
@@ -281,6 +426,25 @@ public class PublishYouTubeHandlerTests
             return failure is null
                 ? Task.FromResult(broadcastId)
                 : Task.FromException<string>(failure);
+        }
+    }
+
+    private sealed class FakeYouTubeDeleter(Exception? failure = null) : IYouTubeDeleter
+    {
+        public int CallCount { get; private set; }
+
+        public string? DeletedBroadcastId { get; private set; }
+
+        public Task<YouTubeDeleteResult> DeleteAsync(
+            string youTubeBroadcastId,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            DeletedBroadcastId = youTubeBroadcastId;
+
+            return failure is null
+                ? Task.FromResult(YouTubeDeleteResult.Deleted)
+                : Task.FromException<YouTubeDeleteResult>(failure);
         }
     }
 }

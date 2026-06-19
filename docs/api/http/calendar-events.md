@@ -325,12 +325,24 @@ Current behavior and error mapping:
 - A start instant that is not in the future returns `400 Bad Request` and does
   not call YouTube.
 - An event with no English (`en`) description returns `400 Bad Request`.
-- Any failure from the YouTube call releases the reservation back to `Draft`,
-  surfaces as `500`, and leaves the event retryable. A hard interruption (such
-  as a host crash) between the reservation and the result can leave the event
-  stuck in `Publishing`; recovering it currently requires manual inspection.
-  There is no automatic retry, partial-state reconciliation, or detailed error
-  surface in this proof-of-concept iteration.
+- A failure creating the broadcast releases the reservation back to `Draft`,
+  surfaces as `500`, and leaves the event retryable; YouTube is not asked to
+  create the broadcast again until the operator retries.
+- A failure recording the new broadcast id (the finalize write) is retried.
+  If it still cannot be recorded, the handler re-reads the stored state:
+  - If the row already shows `Published` (the write had actually landed), the
+    publish is reported as success.
+  - If the row is still `Publishing`, the just-created broadcast is deleted and
+    the reservation is released back to `Draft` so no orphaned, billable
+    broadcast is left untracked; the call still surfaces as `500` and the event
+    stays retryable.
+  - If that compensating delete also fails, or the stored state cannot be
+    confirmed, the row is left `Publishing` and the broadcast id is logged for
+    manual cleanup rather than silently lost.
+- A hard interruption (such as a host crash) between the reservation and the
+  finalize can still leave the event stuck in `Publishing`; recovering it
+  currently requires manual inspection. There is no background reconciliation
+  or detailed error surface in this iteration.
 
 Proof-of-concept limitations:
 

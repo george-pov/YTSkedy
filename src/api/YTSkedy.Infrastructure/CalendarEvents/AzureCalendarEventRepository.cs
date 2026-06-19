@@ -224,14 +224,34 @@ public sealed class AzureCalendarEventRepository(TableClient tableClient) :
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
 
-        var entity = await GetEntityOrThrowAsync(calendarEventId, cancellationToken);
+        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
+
+        // Releasing is best-effort compensation. If the row is gone or no longer
+        // reserved by this publish (a concurrent request already advanced or
+        // reset it), there is nothing for this caller to undo, so do not throw
+        // and mask the original failure that triggered the release.
+        if (entity is null ||
+            CalendarEventReadMapper.ParseStatus(entity.Status) != CalendarEventStatus.Publishing)
+        {
+            return;
+        }
+
         entity.Status = CalendarEventStatus.Draft.ToString();
 
-        await tableClient.UpdateEntityAsync(
-            entity,
-            entity.ETag,
-            TableUpdateMode.Replace,
-            cancellationToken);
+        try
+        {
+            await tableClient.UpdateEntityAsync(
+                entity,
+                entity.ETag,
+                TableUpdateMode.Replace,
+                cancellationToken);
+        }
+        catch (RequestFailedException exception) when (exception.Status is 404 or 412)
+        {
+            // A concurrent write changed or removed the row after the read. The
+            // reservation is no longer this caller's to release, so leave the
+            // other writer's state intact.
+        }
     }
 
     public async Task<DeleteDraftCalendarEventResult> DeleteDraftAsync(
