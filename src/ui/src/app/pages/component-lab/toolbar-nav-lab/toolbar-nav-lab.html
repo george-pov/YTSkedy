@@ -1,0 +1,26 @@
+<app-lab-page titleId="toolbar-nav-lab-title" title="Toolbar Nav">
+  <app-lab-example
+    titleId="toolbar-nav-links-example-title"
+    title="Navigation links"
+  >
+    <app-toolbar-nav label="Primary navigation" [items]="linkItems" />
+  </app-lab-example>
+
+  <app-lab-example titleId="toolbar-nav-end-example-title" title="Right aligned">
+    <app-toolbar-nav
+      label="Primary navigation"
+      align="end"
+      [items]="linkItems"
+    />
+  </app-lab-example>
+
+  <app-lab-example
+    titleId="toolbar-nav-actions-example-title"
+    title="Action buttons"
+  >
+    <app-toolbar-nav label="Primary actions" [items]="actionItems" />
+    @if (lastAction(); as action) {
+      <p>Activated: {{ action }}</p>
+    }
+  </app-lab-example>
+</app-lab-page>

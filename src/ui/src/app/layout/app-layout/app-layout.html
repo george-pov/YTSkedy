@@ -11,6 +11,10 @@
     </div>
   </app-toolbar>
 
+  @if (isAuthenticated()) {
+    <app-toolbar-nav class="nav" label="Primary navigation" [items]="navItems" />
+  }
+
   <main class="main">
     <div class="app-container">
       <router-outlet />

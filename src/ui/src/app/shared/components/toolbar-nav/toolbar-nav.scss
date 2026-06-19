@@ -1,0 +1,11 @@
+@use 'src/styles/variables' as *;
+
+:host {
+  display: block;
+}
+
+.toolbar-nav {
+  // Pack the items with a small gap (overrides the `app-actions` default); the
+  // surrounding `app-container` centers the row with the rest of the page.
+  --app-actions-gap: #{$app-space-2};
+}

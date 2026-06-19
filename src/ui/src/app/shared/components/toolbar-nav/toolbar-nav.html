@@ -1,0 +1,26 @@
+<app-toolbar [label]="label()">
+  <div class="app-container">
+    <nav
+      class="toolbar-nav app-actions"
+      [class.app-actions-end]="align() === 'end'"
+      [attr.aria-label]="label()"
+    >
+      @for (item of items(); track item.label) {
+        @if (item.link != null) {
+          <a
+            matButton="text"
+            [routerLink]="item.link"
+            routerLinkActive="is-active"
+            [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
+            ariaCurrentWhenActive="page"
+            >{{ item.label }}</a
+          >
+        } @else {
+          <button matButton="text" type="button" (click)="item.action?.()">
+            {{ item.label }}
+          </button>
+        }
+      }
+    </nav>
+  </div>
+</app-toolbar>
