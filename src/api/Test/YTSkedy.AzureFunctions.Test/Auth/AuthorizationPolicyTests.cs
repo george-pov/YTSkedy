@@ -189,28 +189,31 @@ public sealed class AuthorizationPolicyMethodInfoTests
         ?? throw new InvalidOperationException($"Test fixture missing method {name}.");
 
     [Fact]
-    public void Evaluate_NullMethod_DeniesWithoutRole()
+    public void Evaluate_NullMethod_DeniesAsUnresolvedEndpoint()
     {
         // Entry point could not be resolved (typo, renamed handler, etc.).
-        // Deny by default: an unprivileged principal must still be rejected.
+        // Fail closed: an unresolved endpoint is denied outright rather than
+        // downgraded to a role-only check by an empty scope set.
         var user = new ClaimsPrincipal(new ClaimsIdentity());
 
         var result = AuthorizationPolicy.Evaluate(method: null, OperatorRole, user);
 
-        Assert.NotEqual(AzureFunctions.Auth.AuthorizationResult.Allow, result);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.UnresolvedEndpoint, result);
     }
 
     [Fact]
-    public void Evaluate_NullMethod_StillRequiresRoleEvenForOtherwiseValidPrincipal()
+    public void Evaluate_NullMethod_DeniesEvenForFullyPrivilegedPrincipal()
     {
-        // A principal with a scope but missing the workspace role must not
-        // sneak through just because the method's [RequiredScope] could
-        // not be located.
-        var user = NewPrincipal(scopeClaim: ReadScope, roles: []);
+        // The crux of the fix: a principal carrying both the scope and the
+        // role is still denied when the method cannot be resolved, because the
+        // endpoint's true scope requirement is unknown. Previously the missing
+        // [RequiredScope] read as "no scope required" and the request fell
+        // through to a role-only check.
+        var user = NewPrincipal(scopeClaim: ReadScope, roles: [OperatorRole]);
 
         var result = AuthorizationPolicy.Evaluate(method: null, OperatorRole, user);
 
-        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.MissingRole, result);
+        Assert.Equal(AzureFunctions.Auth.AuthorizationResult.UnresolvedEndpoint, result);
     }
 
     [Fact]
