@@ -19,7 +19,7 @@ export class AppLayout {
   private readonly auth = inject(AuthFacade);
 
   protected readonly navItems: readonly ToolbarNavItem[] = [
-    { label: 'Calendar Events', link: '/calendar-events' },
+    { label: 'Calendar', link: '/calendar-events' },
     { label: 'Templates', link: '/templates' },
     { label: 'Settings', link: '/settings' },
   ];

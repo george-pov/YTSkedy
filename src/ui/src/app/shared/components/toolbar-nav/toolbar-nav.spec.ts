@@ -1,6 +1,6 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ToolbarNav, ToolbarNavItem } from './toolbar-nav';
@@ -26,7 +26,13 @@ describe('ToolbarNav', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideRouter([])],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideRouter([
+          { path: 'calendar-events', children: [] },
+          { path: 'settings', children: [] },
+        ]),
+      ],
     });
     fixture = TestBed.createComponent(ToolbarNavHost);
     host = fixture.componentInstance;
@@ -72,5 +78,20 @@ describe('ToolbarNav', () => {
     fixture.detectChanges();
 
     expect(navEl(fixture).classList).toContain('app-actions-end');
+  });
+
+  it('marks the link for the active route as selected', async () => {
+    host.items.set([
+      { label: 'Calendar Events', link: '/calendar-events' },
+      { label: 'Settings', link: '/settings' },
+    ]);
+    fixture.detectChanges();
+
+    await TestBed.inject(Router).navigate(['/calendar-events']);
+    fixture.detectChanges();
+
+    const active = navEl(fixture).querySelector('a.is-active');
+    expect(active?.textContent?.trim()).toBe('Calendar Events');
+    expect(active?.getAttribute('aria-current')).toBe('page');
   });
 });

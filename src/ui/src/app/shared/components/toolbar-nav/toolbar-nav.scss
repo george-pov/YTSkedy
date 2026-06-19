@@ -9,3 +9,10 @@
   // surrounding `app-container` centers the row with the rest of the page.
   --app-actions-gap: #{$app-space-2};
 }
+
+// The item for the active route reads as selected. `routerLinkActive` adds the
+// `is-active` class and `aria-current="page"` to the matching link.
+.toolbar-nav .is-active {
+  background-color: $app-color-action-soft;
+  font-weight: 600;
+}
