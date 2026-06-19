@@ -32,8 +32,6 @@ public sealed class PublishYouTubeHandler(
     TimeProvider timeProvider,
     ILogger<PublishYouTubeHandler> logger)
 {
-    private const string EnglishLanguage = "en";
-
     // The broadcast already exists by the time the finalize write runs, so a
     // transient storage fault should not be allowed to strand it. Each attempt
     // re-reads a fresh ETag inside the repository, so retrying immediately
@@ -66,8 +64,8 @@ public sealed class PublishYouTubeHandler(
             return PublishYouTubeResult.StartInPast();
         }
 
-        var englishDescription = calendarEvent.Descriptions.FirstOrDefault(description =>
-            string.Equals(description.Language, EnglishLanguage, StringComparison.OrdinalIgnoreCase));
+        var englishDescription = calendarEvent.Descriptions.FirstOrDefault(
+            description => description.IsEnglish);
 
         if (englishDescription is null)
         {

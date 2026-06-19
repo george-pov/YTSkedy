@@ -11,8 +11,6 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents;
 /// </summary>
 public static class CalendarEventActionPolicy
 {
-    private const string EnglishLanguage = "en";
-
     /// <summary>
     /// A calendar event is publishable when it is still a Draft, its scheduled
     /// start is in the future, and it has an English description to publish.
@@ -25,10 +23,7 @@ public static class CalendarEventActionPolicy
         DateTimeOffset nowUtc) =>
         status == CalendarEventStatus.Draft &&
         scheduledStartUtc > nowUtc &&
-        descriptions.Any(description => string.Equals(
-            description.Language,
-            EnglishLanguage,
-            StringComparison.OrdinalIgnoreCase));
+        descriptions.Any(description => description.IsEnglish);
 
     /// <summary>
     /// Only Draft events can be updated. Once an event is Publishing or

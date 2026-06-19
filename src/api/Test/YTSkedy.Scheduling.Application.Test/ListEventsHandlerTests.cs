@@ -146,6 +146,30 @@ public class ListEventsHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_TitleAscending_TreatsUppercaseEnglishTagAsTitle()
+    {
+        // A description tagged "EN" is still the English entry (matching is
+        // case-insensitive), so it must sort by its title rather than as an
+        // empty string. Before the shared case-insensitive match this sorted by
+        // id because the ordinal "EN" != "en" comparison found no English title.
+        var reader = new FakeCalendarEventReader(
+        [
+            CreateListItem("20260101T000000Z", englishTitle: "Charlie stream", language: "EN"),
+            CreateListItem("20260102T000000Z", englishTitle: "Alpha stream", language: "EN"),
+            CreateListItem("20260103T000000Z", englishTitle: "Bravo stream", language: "EN")
+        ]);
+        var handler = new ListEventsHandler(reader);
+
+        var result = await handler.HandleAsync(
+            Query(sort: CalendarEventSortField.Title, direction: SortDirection.Ascending),
+            CancellationToken.None);
+
+        Assert.Equal(
+            ["20260102T000000Z", "20260103T000000Z", "20260101T000000Z"],
+            Ids(result));
+    }
+
+    [Fact]
     public async Task HandleAsync_FirstPage_ReturnsFirstSlice()
     {
         var handler = new ListEventsHandler(new FakeCalendarEventReader(FiveAscendingItems()));
@@ -302,12 +326,13 @@ public class ListEventsHandlerTests
         string calendarEventId,
         CalendarEventStatus status = CalendarEventStatus.Draft,
         string timeZoneId = "America/Vancouver",
-        string? englishTitle = null) =>
+        string? englishTitle = null,
+        string language = "en") =>
         new(
             calendarEventId,
             new ScheduledStart(new DateTime(2026, 1, 1, 0, 0, 0), timeZoneId),
             new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            [new LocalizedDescription("en", englishTitle ?? $"Title {calendarEventId}", null)],
+            [new LocalizedDescription(language, englishTitle ?? $"Title {calendarEventId}", null)],
             status);
 
     private static string[] Ids(CalendarEventListPage page) =>
