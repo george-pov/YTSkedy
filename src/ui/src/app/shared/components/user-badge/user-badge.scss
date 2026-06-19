@@ -1,0 +1,55 @@
+@use 'src/styles/variables' as *;
+
+:host {
+  display: inline-block;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: $app-space-2;
+  padding: $app-space-1;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.badge:hover {
+  background: $app-color-action-soft;
+}
+
+.badge:focus-visible {
+  outline: 2px solid $app-color-action-primary;
+  outline-offset: 2px;
+}
+
+.monogram {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: $app-color-action-primary;
+  color: $app-color-white;
+  font-size: 0.81rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.name {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+// Declared inside `mat-menu` and rendered in the overlay; the element keeps its
+// view-encapsulation attribute, so this scoped rule still matches.
+.menu-header {
+  padding: $app-space-2 $app-space-4;
+  color: $app-color-muted;
+  font-weight: 600;
+}

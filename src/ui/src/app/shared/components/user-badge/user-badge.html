@@ -1,0 +1,21 @@
+<button
+  type="button"
+  class="badge"
+  [matMenuTriggerFor]="menu"
+  [attr.aria-label]="'Account menu for ' + fullName()"
+  [matTooltip]="fullName()"
+  [matTooltipDisabled]="!isCompact()"
+>
+  <span class="monogram" aria-hidden="true">{{ initials() }}</span>
+  @if (!isCompact()) {
+    <span class="name">{{ fullName() }}</span>
+  }
+</button>
+
+<mat-menu #menu="matMenu">
+  <div class="menu-header">{{ fullName() }}</div>
+  <button mat-menu-item (click)="signOut.emit()">
+    <mat-icon>logout</mat-icon>
+    <span>Sign Out</span>
+  </button>
+</mat-menu>

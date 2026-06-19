@@ -7,6 +7,7 @@ import { FormControlsLab } from './form-controls-lab/form-controls-lab';
 import { ProgressBarLab } from './progress-bar-lab/progress-bar-lab';
 import { ToolbarLab } from './toolbar-lab/toolbar-lab';
 import { ToolbarNavLab } from './toolbar-nav-lab/toolbar-nav-lab';
+import { UserBadgeLab } from './user-badge-lab/user-badge-lab';
 
 export interface ComponentLabItem {
   readonly label: string;
@@ -41,5 +42,9 @@ export const componentLabItems: readonly ComponentLabItem[] = [
   {
     label: 'Progress Bar',
     component: ProgressBarLab,
+  },
+  {
+    label: 'User Badge',
+    component: UserBadgeLab,
   },
 ];

@@ -1,0 +1,27 @@
+<app-lab-page titleId="user-badge-lab-title" title="User Badge">
+  <p>Narrow the window below 600px to collapse each badge to its monogram with a tooltip.</p>
+
+  <app-lab-example titleId="user-badge-default-example-title" title="Default">
+    <app-user-badge
+      initials="JD"
+      fullName="Jane Doe"
+      (signOut)="lastSignOut.set('Jane Doe')"
+    />
+  </app-lab-example>
+
+  <app-lab-example titleId="user-badge-long-example-title" title="Long name">
+    <app-user-badge
+      initials="AB"
+      fullName="Alexandra Bartholomew"
+      (signOut)="lastSignOut.set('Alexandra Bartholomew')"
+    />
+  </app-lab-example>
+
+  <app-lab-example titleId="user-badge-unknown-example-title" title="Unknown user">
+    <app-user-badge initials="NA" fullName="Unknown User" />
+  </app-lab-example>
+
+  @if (lastSignOut(); as name) {
+    <p>Sign out requested by: {{ name }}</p>
+  }
+</app-lab-page>
