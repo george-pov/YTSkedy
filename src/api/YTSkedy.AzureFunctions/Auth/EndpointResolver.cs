@@ -12,8 +12,9 @@ internal static class EndpointResolver
     /// <summary>
     /// Resolves the handler <see cref="MethodInfo"/> for a function from its
     /// entry point, caching the result. Returns null when the type or method
-    /// cannot be found; callers must treat null as "unresolved" and fail closed
-    /// rather than assuming the endpoint declares no requirements.
+    /// cannot be found, or when an overloaded method name makes the entry point
+    /// ambiguous; callers must treat null as "unresolved" and fail closed rather
+    /// than assuming the endpoint declares no requirements.
     /// </summary>
     public static MethodInfo? ResolveMethod(FunctionDefinition definition) =>
         MethodCache.GetOrAdd(definition.EntryPoint, static entryPoint =>
@@ -32,7 +33,18 @@ internal static class EndpointResolver
                 var type = assembly.GetType(typeName, throwOnError: false);
                 if (type is not null)
                 {
-                    return type.GetMethod(methodName);
+                    try
+                    {
+                        return type.GetMethod(methodName);
+                    }
+                    catch (AmbiguousMatchException)
+                    {
+                        // Overloaded method name: the entry point cannot be
+                        // resolved unambiguously. Fail closed (null) so the
+                        // caller denies rather than guessing which overload's
+                        // authorization attributes apply.
+                        return null;
+                    }
                 }
             }
 
