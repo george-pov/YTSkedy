@@ -266,37 +266,6 @@ public class CalendarEventReadMapperTests
         Assert.Equal("broadcast-123", calendarEvent.YouTubeBroadcastId);
     }
 
-    [Fact]
-    public void GetPartitionKeysForLocalMonth_June2026_ReturnsAdjacentMonthKeys()
-    {
-        var criteria = new CalendarEventMonthCriteria(2026, 6);
-
-        var result = CalendarEventReadMapper.GetPartitionKeysForLocalMonth(criteria);
-
-        Assert.Equal(
-            [
-                "calendar-events-202605",
-                "calendar-events-202606",
-                "calendar-events-202607"
-            ],
-            result);
-    }
-
-    [Fact]
-    public void GetPartitionKeysForLocalMonth_December9999_ReturnsRepresentableMonthKeys()
-    {
-        var criteria = new CalendarEventMonthCriteria(9999, 12);
-
-        var result = CalendarEventReadMapper.GetPartitionKeysForLocalMonth(criteria);
-
-        Assert.Equal(
-            [
-                "calendar-events-999911",
-                "calendar-events-999912"
-            ],
-            result);
-    }
-
     private static CalendarEventEntity CreateEntity(
         string calendarEventId,
         DateTimeOffset scheduledStartUtc,
@@ -320,7 +289,7 @@ public class CalendarEventReadMapperTests
         string timeZoneId = "America/Vancouver") =>
         new()
         {
-            PartitionKey = AzureCalendarEventRepository.GetPartitionKey(scheduledStartUtc),
+            PartitionKey = CalendarEventPartitionKey.ForInstant(scheduledStartUtc),
             RowKey = calendarEventId,
             CalendarEventId = calendarEventId,
             ScheduledStartUtc = scheduledStartUtc,

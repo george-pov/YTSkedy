@@ -27,7 +27,7 @@ public sealed class AzureCalendarEventRepository(
         var calendarEventId = FormatCalendarEventId(scheduledStartUtc);
         var entity = new CalendarEventEntity
         {
-            PartitionKey = GetPartitionKey(scheduledStartUtc),
+            PartitionKey = CalendarEventPartitionKey.ForInstant(scheduledStartUtc),
             RowKey = calendarEventId,
             CalendarEventId = calendarEventId,
             ScheduledStartUtc = scheduledStartUtc,
@@ -69,7 +69,7 @@ public sealed class AzureCalendarEventRepository(
 
         var entities = new List<CalendarEventEntity>();
 
-        foreach (var partitionKey in CalendarEventReadMapper.GetPartitionKeysForLocalMonth(criteria))
+        foreach (var partitionKey in CalendarEventPartitionKey.ForLocalMonth(criteria))
         {
             var filter = $"PartitionKey eq '{partitionKey}'";
 
@@ -307,7 +307,7 @@ public sealed class AzureCalendarEventRepository(
             // Unconditional delete (wildcard ETag): a row changed after the delete
             // use case read it is still removed once YouTube cleanup succeeded.
             await tableClient.DeleteEntityAsync(
-                GetPartitionKey(scheduledStartUtc),
+                CalendarEventPartitionKey.ForInstant(scheduledStartUtc),
                 calendarEventId,
                 ETag.All,
                 cancellationToken);
@@ -330,7 +330,7 @@ public sealed class AzureCalendarEventRepository(
         try
         {
             var response = await tableClient.GetEntityAsync<CalendarEventEntity>(
-                GetPartitionKey(scheduledStartUtc),
+                CalendarEventPartitionKey.ForInstant(scheduledStartUtc),
                 calendarEventId,
                 cancellationToken: cancellationToken);
 
@@ -412,11 +412,6 @@ public sealed class AzureCalendarEventRepository(
         scheduledStartUtc = default;
         return false;
     }
-
-    internal static string GetPartitionKey(DateTimeOffset scheduledStartUtc) =>
-        scheduledStartUtc.UtcDateTime.ToString(
-            "'calendar-events-'yyyyMM",
-            CultureInfo.InvariantCulture);
 
     private static string FormatLocalDateTime(DateTime localDateTime) =>
         localDateTime.ToString(

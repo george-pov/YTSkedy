@@ -34,39 +34,6 @@ internal static class CalendarEventReadMapper
             .ToArray();
     }
 
-    public static IReadOnlyList<string> GetPartitionKeysForLocalMonth(
-        CalendarEventMonthCriteria criteria)
-    {
-        ArgumentNullException.ThrowIfNull(criteria);
-
-        var requestedMonth = new DateTime(
-            criteria.Year,
-            criteria.Month,
-            1,
-            0,
-            0,
-            0,
-            DateTimeKind.Utc);
-
-        var partitionMonths = new List<DateTime>(3);
-
-        if (requestedMonth.Year > DateTime.MinValue.Year || requestedMonth.Month > 1)
-        {
-            partitionMonths.Add(requestedMonth.AddMonths(-1));
-        }
-
-        partitionMonths.Add(requestedMonth);
-
-        if (requestedMonth.Year < DateTime.MaxValue.Year || requestedMonth.Month < 12)
-        {
-            partitionMonths.Add(requestedMonth.AddMonths(1));
-        }
-
-        return partitionMonths
-            .Select(ToPartitionKey)
-            .ToArray();
-    }
-
     private static bool IsInLocalMonth(
         CalendarEventEntity entity,
         CalendarEventMonthCriteria criteria)
@@ -127,8 +94,4 @@ internal static class CalendarEventReadMapper
         Enum.TryParse<CalendarEventStatus>(status, ignoreCase: true, out var parsed)
             ? parsed
             : CalendarEventStatus.Draft;
-
-    private static string ToPartitionKey(DateTime utcMonth) =>
-        AzureCalendarEventRepository.GetPartitionKey(
-            new DateTimeOffset(utcMonth, TimeSpan.Zero));
 }
