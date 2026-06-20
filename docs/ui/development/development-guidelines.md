@@ -148,16 +148,17 @@ objects, or signal values in place.
 
 ## Forms
 
-Prefer reactive forms over template-driven forms for complex validated forms.
-Signals are acceptable for small explicit controls when state ownership is
-clear.
+Prefer Angular Signal Forms (`@angular/forms/signals`) for complex validated
+forms: a typed model signal plus a `schema()` of path-bound validators. Reactive
+forms remain acceptable where Signal Forms does not yet fit; avoid
+template-driven forms.
 
 For complex forms, keep implementation explicit:
 
-- avoid `any` form references
+- avoid `any` form or field references
 - use named model types
-- keep form creation in dedicated form or state files
-- keep cross-field validation in named validator functions
+- keep the model, schema, and request mapping in dedicated form files
+- keep cross-field validation in named `validate` / `validateTree` functions
 - keep branching or conditional display rules in a dedicated state or service
   layer, not inline template conditionals
 

@@ -5,8 +5,8 @@
   <input
     matInput
     type="time"
-    [formControl]="control()">
-  @if (currentErrorMessage(); as message) {
+    [formField]="field()">
+  @if (errorMessage(); as message) {
     <mat-error>{{ message }}</mat-error>
   }
 </mat-form-field>

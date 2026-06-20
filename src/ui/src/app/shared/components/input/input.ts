@@ -1,38 +1,33 @@
-import { Component, input } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { Component, computed, input } from '@angular/core';
+import { FormField, type Field } from '@angular/forms/signals';
 import { MatInputModule } from '@angular/material/input';
 
 type InputType = 'text' | 'date' | 'time';
 
-// Intentionally uses default (CheckAlways) change detection, not OnPush.
-// The page reveals validation errors on submit via form.markAllAsTouched();
-// under OnPush this view would not re-check on a parent-form submit, so the
-// error would not appear without extra markForCheck wiring. Default CD keeps
-// the passed-in FormControl's error state visible for free. See repo memory:
+// Default (CheckAlways) change detection. The bound Signal Forms field exposes
+// its touched/errors as signals, so the error message updates reactively when
+// the page marks the form touched on submit. See repo memory:
 // "Frontend form-control wrappers (leaf controls)".
 @Component({
   selector: 'app-input',
-  imports: [MatInputModule, ReactiveFormsModule],
+  imports: [MatInputModule, FormField],
   templateUrl: './input.html',
   styleUrl: './input.scss'
 })
 export class Input {
-  readonly control = input.required<FormControl<string>>();
+  /** Signal Forms field to bind. */
+  readonly field = input.required<Field<string>>();
   readonly label = input('');
   readonly type = input<InputType>('text');
   readonly placeholder = input('');
 
-  /** Maps validator error keys to user-facing messages, e.g. `{ required: '...' }`. */
-  readonly errorMessages = input<Record<string, string>>({});
-
-  protected currentErrorMessage(): string | null {
-    const errors = this.control().errors;
-    if (!errors) {
+  /** First error message for the bound field, shown once the field is touched. */
+  protected readonly errorMessage = computed(() => {
+    const state = this.field()();
+    if (!state.touched()) {
       return null;
     }
 
-    const messages = this.errorMessages();
-    const firstKey = Object.keys(errors)[0];
-    return messages[firstKey] ?? null;
-  }
+    return state.errors()[0]?.message ?? null;
+  });
 }

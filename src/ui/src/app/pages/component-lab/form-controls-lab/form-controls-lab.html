@@ -1,30 +1,24 @@
 <app-lab-page titleId="form-controls-lab-title" title="Form Controls">
   <app-lab-example titleId="form-controls-date-example-title" title="Date">
-    <app-date [control]="dateControl" label="Start date" [errorMessages]="dateErrors" />
+    <app-date [field]="form.date" label="Start date" />
     <app-date
-      [control]="requiredDateControl"
-      label="Start date (required, invalid)"
-      [errorMessages]="dateErrors" />
+      [field]="form.requiredDate"
+      label="Start date (required, invalid)" />
   </app-lab-example>
   <app-lab-example titleId="form-controls-time-example-title" title="Time">
-    <app-time [control]="timeControl" label="Start time" [errorMessages]="timeErrors" />
+    <app-time [field]="form.time" label="Start time" />
     <app-time
-      [control]="requiredTimeControl"
-      label="Start time (required, invalid)"
-      [errorMessages]="timeErrors" />
+      [field]="form.requiredTime"
+      label="Start time (required, invalid)" />
   </app-lab-example>
   <app-lab-example titleId="form-controls-select-example-title" title="Select">
     <app-select
-      [control]="timeZoneControl"
+      [field]="form.timeZone"
       label="Time zone"
-      [options]="timeZoneOptions"
-      [required]="true"
-      [errorMessages]="timeZoneErrors" />
+      [options]="timeZoneOptions" />
     <app-select
-      [control]="requiredTimeZoneControl"
+      [field]="form.requiredTimeZone"
       label="Time zone (required, invalid)"
-      [options]="timeZoneOptions"
-      [required]="true"
-      [errorMessages]="timeZoneErrors" />
+      [options]="timeZoneOptions" />
   </app-lab-example>
 </app-lab-page>

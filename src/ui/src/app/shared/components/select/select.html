@@ -2,12 +2,12 @@
   @if (label()) {
     <mat-label>{{ label() }}</mat-label>
   }
-  <mat-select [formControl]="control()" [required]="required()">
+  <mat-select [formField]="field()">
     @for (option of options(); track option.value) {
       <mat-option [value]="option.value">{{ option.label }}</mat-option>
     }
   </mat-select>
-  @if (currentErrorMessage(); as message) {
+  @if (errorMessage(); as message) {
     <mat-error>{{ message }}</mat-error>
   }
 </mat-form-field>

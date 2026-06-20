@@ -5,9 +5,9 @@
   <input
     matInput
     [type]="type()"
-    [formControl]="control()"
+    [formField]="field()"
     [placeholder]="placeholder()">
-  @if (currentErrorMessage(); as message) {
+  @if (errorMessage(); as message) {
     <mat-error>{{ message }}</mat-error>
   }
 </mat-form-field>
