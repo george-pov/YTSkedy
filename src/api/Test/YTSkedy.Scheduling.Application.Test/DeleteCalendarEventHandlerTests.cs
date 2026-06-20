@@ -177,14 +177,8 @@ public class DeleteCalendarEventHandlerTests
     public async Task Delete_FuturePublished_DeletesYouTubeBeforeRowAndReturnsDeleted()
     {
         var operations = new List<string>();
-        var repository = new FakeCalendarEventRepository(operations)
-        {
-            DeleteRowResult = DeleteCalendarEventRowResult.Deleted
-        };
-        var deleter = new FakeYouTubeDeleter(operations)
-        {
-            Result = YouTubeDeleteResult.Deleted
-        };
+        var repository = new FakeCalendarEventRepository(operations);
+        var deleter = new FakeYouTubeDeleter(operations);
         var detail = CreateDetail(CalendarEventStatus.Published, FutureStartUtc, BroadcastId);
         var handler = CreateHandler(detail, repository, deleter);
 
@@ -197,27 +191,6 @@ public class DeleteCalendarEventHandlerTests
         Assert.Equal(CalendarEventId, repository.DeletedCalendarEventId);
         Assert.Equal(0, repository.DeleteDraftCallCount);
         Assert.Equal(new[] { "youtube-delete", "row-delete" }, operations);
-    }
-
-    [Fact]
-    public async Task Delete_FuturePublishedYouTubeNotFound_StillDeletesRowAndReturnsDeleted()
-    {
-        var repository = new FakeCalendarEventRepository
-        {
-            DeleteRowResult = DeleteCalendarEventRowResult.Deleted
-        };
-        var deleter = new FakeYouTubeDeleter
-        {
-            Result = YouTubeDeleteResult.NotFound
-        };
-        var detail = CreateDetail(CalendarEventStatus.Published, FutureStartUtc, BroadcastId);
-        var handler = CreateHandler(detail, repository, deleter);
-
-        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
-
-        Assert.Equal(DeleteCalendarEventResult.Deleted, result);
-        Assert.Equal(1, deleter.CallCount);
-        Assert.Equal(1, repository.DeleteCallCount);
     }
 
     [Fact]
@@ -240,40 +213,12 @@ public class DeleteCalendarEventHandlerTests
     }
 
     [Fact]
-    public async Task Delete_FuturePublishedLocalRowGoneAfterYouTube_ReturnsDeleted()
-    {
-        // The local row disappeared after successful YouTube cleanup. Both the
-        // external and local resources are gone, so the result is success.
-        var repository = new FakeCalendarEventRepository
-        {
-            DeleteRowResult = DeleteCalendarEventRowResult.NotFound
-        };
-        var deleter = new FakeYouTubeDeleter
-        {
-            Result = YouTubeDeleteResult.Deleted
-        };
-        var detail = CreateDetail(CalendarEventStatus.Published, FutureStartUtc, BroadcastId);
-        var handler = CreateHandler(detail, repository, deleter);
-
-        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
-
-        Assert.Equal(DeleteCalendarEventResult.Deleted, result);
-        Assert.Equal(1, repository.DeleteCallCount);
-    }
-
-    [Fact]
     public async Task Delete_FuturePublished_DeletesRowByIdWithoutRecheckingStatusOrReReading()
     {
         // Published cleanup uses the id-only delete (not the Draft-guarded path)
         // and takes a single application read: no fresh snapshot before YouTube.
-        var repository = new FakeCalendarEventRepository
-        {
-            DeleteRowResult = DeleteCalendarEventRowResult.Deleted
-        };
-        var deleter = new FakeYouTubeDeleter
-        {
-            Result = YouTubeDeleteResult.Deleted
-        };
+        var repository = new FakeCalendarEventRepository();
+        var deleter = new FakeYouTubeDeleter();
         var detail = CreateDetail(CalendarEventStatus.Published, FutureStartUtc, BroadcastId);
         var reader = new FakeCalendarEventReader(detail);
         var handler = new DeleteCalendarEventHandler(
@@ -421,16 +366,13 @@ public class DeleteCalendarEventHandlerTests
     private sealed class FakeYouTubeDeleter(List<string>? operations = null)
         : IYouTubeDeleter
     {
-        public YouTubeDeleteResult Result { get; init; } =
-            YouTubeDeleteResult.Deleted;
-
         public Exception? Failure { get; init; }
 
         public int CallCount { get; private set; }
 
         public string? DeletedBroadcastId { get; private set; }
 
-        public Task<YouTubeDeleteResult> DeleteAsync(
+        public Task DeleteAsync(
             string youTubeBroadcastId,
             CancellationToken cancellationToken)
         {
@@ -439,8 +381,8 @@ public class DeleteCalendarEventHandlerTests
             operations?.Add("youtube-delete");
 
             return Failure is null
-                ? Task.FromResult(Result)
-                : Task.FromException<YouTubeDeleteResult>(Failure);
+                ? Task.CompletedTask
+                : Task.FromException(Failure);
         }
     }
 
@@ -449,9 +391,6 @@ public class DeleteCalendarEventHandlerTests
     {
         public DeleteDraftCalendarEventResult DeleteDraftResult { get; init; } =
             DeleteDraftCalendarEventResult.Deleted;
-
-        public DeleteCalendarEventRowResult DeleteRowResult { get; init; } =
-            DeleteCalendarEventRowResult.Deleted;
 
         public int DeleteDraftCallCount { get; private set; }
 
@@ -499,7 +438,7 @@ public class DeleteCalendarEventHandlerTests
             return Task.FromResult(DeleteDraftResult);
         }
 
-        public Task<DeleteCalendarEventRowResult> DeleteAsync(
+        public Task DeleteAsync(
             string calendarEventId,
             CancellationToken cancellationToken)
         {
@@ -507,7 +446,7 @@ public class DeleteCalendarEventHandlerTests
             DeletedCalendarEventId = calendarEventId;
             operations?.Add("row-delete");
 
-            return Task.FromResult(DeleteRowResult);
+            return Task.CompletedTask;
         }
     }
 }

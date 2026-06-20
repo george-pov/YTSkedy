@@ -403,7 +403,7 @@ public class PublishYouTubeHandlerTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<DeleteCalendarEventRowResult> DeleteAsync(
+        public Task DeleteAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -435,7 +435,7 @@ public class PublishYouTubeHandlerTests
 
         public string? DeletedBroadcastId { get; private set; }
 
-        public Task<YouTubeDeleteResult> DeleteAsync(
+        public Task DeleteAsync(
             string youTubeBroadcastId,
             CancellationToken cancellationToken)
         {
@@ -443,8 +443,8 @@ public class PublishYouTubeHandlerTests
             DeletedBroadcastId = youTubeBroadcastId;
 
             return failure is null
-                ? Task.FromResult(YouTubeDeleteResult.Deleted)
-                : Task.FromException<YouTubeDeleteResult>(failure);
+                ? Task.CompletedTask
+                : Task.FromException(failure);
         }
     }
 }

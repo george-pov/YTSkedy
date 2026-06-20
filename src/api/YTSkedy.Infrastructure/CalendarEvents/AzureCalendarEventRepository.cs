@@ -289,7 +289,7 @@ public sealed class AzureCalendarEventRepository(
         }
     }
 
-    public async Task<DeleteCalendarEventRowResult> DeleteAsync(
+    public async Task DeleteAsync(
         string calendarEventId,
         CancellationToken cancellationToken)
     {
@@ -299,7 +299,7 @@ public sealed class AzureCalendarEventRepository(
         // An unparseable id can address no row, so it is already gone.
         if (!TryParseScheduledStartUtc(calendarEventId, out var scheduledStartUtc))
         {
-            return DeleteCalendarEventRowResult.NotFound;
+            return;
         }
 
         try
@@ -311,12 +311,10 @@ public sealed class AzureCalendarEventRepository(
                 calendarEventId,
                 ETag.All,
                 cancellationToken);
-
-            return DeleteCalendarEventRowResult.Deleted;
         }
         catch (RequestFailedException exception) when (exception.Status == 404)
         {
-            return DeleteCalendarEventRowResult.NotFound;
+            // The row is already gone, which is the intended end state.
         }
     }
 

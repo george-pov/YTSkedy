@@ -70,7 +70,7 @@ public class CreateCalendarEventHandlerTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<DeleteCalendarEventRowResult> DeleteAsync(
+        public Task DeleteAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();

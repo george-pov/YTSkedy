@@ -8,35 +8,21 @@ public class YouTubeDeleterTests
 {
     private const string BroadcastId = "broadcast-123";
 
-    [Fact]
-    public async Task DeleteAsync_ProviderDeleted_ReturnsDeleted()
+    [Theory]
+    [InlineData(YouTubeDeleteResult.Deleted)]
+    [InlineData(YouTubeDeleteResult.NotFound)]
+    public async Task DeleteAsync_ProviderDeletedOrAlreadyGone_CompletesAndCallsProviderOnce(
+        YouTubeDeleteResult providerResult)
     {
-        var client = new FakeYouTubeClient
-        {
-            Result = YouTubeDeleteResult.Deleted
-        };
+        // A fresh delete and an already-gone broadcast are both success-equivalent:
+        // the adapter completes without throwing and calls the provider once.
+        var client = new FakeYouTubeClient { Result = providerResult };
         var deleter = CreateDeleter(client);
 
-        var result = await deleter.DeleteAsync(BroadcastId, CancellationToken.None);
+        await deleter.DeleteAsync(BroadcastId, CancellationToken.None);
 
-        Assert.Equal(YouTubeDeleteResult.Deleted, result);
         Assert.Equal(1, client.CallCount);
         Assert.Equal(BroadcastId, client.RequestedBroadcastId);
-    }
-
-    [Fact]
-    public async Task DeleteAsync_ProviderNotFound_ReturnsNotFound()
-    {
-        var client = new FakeYouTubeClient
-        {
-            Result = YouTubeDeleteResult.NotFound
-        };
-        var deleter = CreateDeleter(client);
-
-        var result = await deleter.DeleteAsync(BroadcastId, CancellationToken.None);
-
-        Assert.Equal(YouTubeDeleteResult.NotFound, result);
-        Assert.Equal(1, client.CallCount);
     }
 
     [Fact]

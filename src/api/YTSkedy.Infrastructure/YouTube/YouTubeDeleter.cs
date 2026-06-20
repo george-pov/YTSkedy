@@ -5,9 +5,9 @@ namespace YTSkedy.Infrastructure.YouTube;
 
 /// <summary>
 /// Deletes scheduled YouTube live broadcasts through the shared
-/// <see cref="IYouTubeClient"/>. Provider not-found is mapped to
-/// <see cref="YouTubeDeleteResult.NotFound"/> so the delete use case
-/// can treat an already-gone broadcast as success-equivalent. Any other provider
+/// <see cref="IYouTubeClient"/>. Provider not-found is logged and treated as
+/// success-equivalent: the adapter completes without throwing so the delete use
+/// case sees an already-gone broadcast as a successful delete. Any other provider
 /// failure is wrapped as a <see cref="YouTubeDeleteException"/> so the
 /// HTTP host can return 502 and keep the local row; provider exception details
 /// are logged but never surfaced through the application result. Cancellation
@@ -29,7 +29,7 @@ public sealed class YouTubeDeleter : IYouTubeDeleter
         _logger = logger;
     }
 
-    public async Task<YouTubeDeleteResult> DeleteAsync(
+    public async Task DeleteAsync(
         string youTubeBroadcastId,
         CancellationToken cancellationToken)
     {
@@ -48,14 +48,12 @@ public sealed class YouTubeDeleter : IYouTubeDeleter
                     "treating delete as success-equivalent.",
                     youTubeBroadcastId);
 
-                return YouTubeDeleteResult.NotFound;
+                return;
             }
 
             _logger.LogInformation(
                 "Deleted YouTube live broadcast {BroadcastId}.",
                 youTubeBroadcastId);
-
-            return YouTubeDeleteResult.Deleted;
         }
         catch (OperationCanceledException)
         {

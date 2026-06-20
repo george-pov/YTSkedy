@@ -8,14 +8,14 @@ namespace YTSkedy.Scheduling.Application.YouTube;
 public interface IYouTubeDeleter
 {
     /// <summary>
-    /// Deletes the YouTube live broadcast with the given id. Returns
-    /// <see cref="YouTubeDeleteResult.Deleted"/> when the broadcast was
-    /// removed and <see cref="YouTubeDeleteResult.NotFound"/> when the
-    /// provider reports it is already gone. Throws
-    /// <see cref="YouTubeDeleteException"/> for any other provider
-    /// failure so the caller can keep local state and report an upstream error.
+    /// Deletes the YouTube live broadcast with the given id. Completing without
+    /// throwing means the intended end state holds: the broadcast was removed,
+    /// or the provider reported it was already gone, which is treated as
+    /// success-equivalent. Throws <see cref="YouTubeDeleteException"/> for any
+    /// other provider failure so the caller can keep local state and report an
+    /// upstream error.
     /// </summary>
-    Task<YouTubeDeleteResult> DeleteAsync(
+    Task DeleteAsync(
         string youTubeBroadcastId,
         CancellationToken cancellationToken);
 }

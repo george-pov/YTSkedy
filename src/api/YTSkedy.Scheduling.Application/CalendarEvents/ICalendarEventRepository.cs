@@ -61,13 +61,12 @@ public interface ICalendarEventRepository
 
     /// <summary>
     /// Deletes a calendar event row by id without checking its status, for
-    /// post-YouTube Published cleanup. The delete is unconditional, so a row that
-    /// changed after the delete use case read it is still removed. Returns
-    /// <see cref="DeleteCalendarEventRowResult.NotFound"/> when no row has the id
-    /// and <see cref="DeleteCalendarEventRowResult.Deleted"/> otherwise. Storage
-    /// identity and ETags stay inside infrastructure.
+    /// post-YouTube Published cleanup. The delete is unconditional and
+    /// idempotent: a row that changed after the delete use case read it is still
+    /// removed, and a row that is already gone is a no-op. Storage identity and
+    /// ETags stay inside infrastructure.
     /// </summary>
-    Task<DeleteCalendarEventRowResult> DeleteAsync(
+    Task DeleteAsync(
         string calendarEventId,
         CancellationToken cancellationToken);
 }
