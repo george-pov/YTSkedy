@@ -6,7 +6,7 @@ namespace YTSkedy.Infrastructure.Test.YouTube;
 /// <summary>
 /// Guards the dependency direction for YouTube broadcast deletion: the
 /// application layer must depend only on the <see cref="IYouTubeDeleter"/>
-/// port, never on the infrastructure executor seam or the Google SDK.
+/// port, never on the infrastructure adapter or the Google SDK.
 /// </summary>
 public class YouTubeDeleteArchitectureTests
 {
@@ -35,13 +35,16 @@ public class YouTubeDeleteArchitectureTests
     }
 
     [Fact]
-    public void ApplicationAssembly_DoesNotExposeInfrastructureExecutorSeam()
+    public void ApplicationAssembly_DoesNotReferenceInfrastructure()
     {
         var applicationAssembly = typeof(IYouTubeDeleter).Assembly;
 
-        var seam = applicationAssembly.GetType(
-            "YTSkedy.Infrastructure.YouTube.IYouTubeClient");
+        var infrastructureReferences = applicationAssembly.GetReferencedAssemblies()
+            .Select(name => name.Name)
+            .Where(name => name is not null &&
+                name.StartsWith("YTSkedy.Infrastructure", StringComparison.Ordinal))
+            .ToArray();
 
-        Assert.Null(seam);
+        Assert.Empty(infrastructureReferences);
     }
 }
