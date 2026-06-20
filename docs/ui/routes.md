@@ -12,6 +12,16 @@ Route pages render through the application layout component in:
 src/ui/src/app/layout/app-layout/
 ```
 
+For authenticated visitors the layout header shows a user badge (monogram plus
+name) whose menu offers Sign Out. The badge identity is derived in the browser
+from the Microsoft Entra External ID ID token `name` (Display Name) claim that
+MSAL holds on the active account; no backend call is made. The current
+`SignUpSignIn` user flow returns Display Name, so a true first and last name
+(`given_name` / `family_name`) would require adding those attributes to the
+flow's returned claims before the badge can use them. When no usable name claim
+is present the badge falls back to the email local-part, then to a neutral
+placeholder.
+
 ## Current Routes
 
 | Path | Auth | Behavior |

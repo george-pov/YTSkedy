@@ -2,16 +2,20 @@ import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
 import { AuthFacade } from 'src/app/shared/auth/auth-facade';
-import { Button } from 'src/app/shared/components/button/button';
+import {
+  toUserBadgeView,
+  UserBadgeView,
+} from 'src/app/shared/auth/user-badge-view';
 import { Toolbar } from 'src/app/shared/components/toolbar/toolbar';
 import {
   ToolbarNav,
   ToolbarNavItem,
 } from 'src/app/shared/components/toolbar-nav/toolbar-nav';
+import { UserBadge } from 'src/app/shared/components/user-badge/user-badge';
 
 @Component({
   selector: 'app-layout',
-  imports: [Button, RouterOutlet, Toolbar, ToolbarNav],
+  imports: [RouterOutlet, Toolbar, ToolbarNav, UserBadge],
   templateUrl: './app-layout.html',
   styleUrl: './app-layout.scss',
 })
@@ -23,6 +27,10 @@ export class AppLayout {
     { label: 'Templates', link: '/templates' },
     { label: 'Settings', link: '/settings' },
   ];
+
+  protected readonly userBadge: UserBadgeView = toUserBadgeView(
+    this.auth.getUserIdentity(),
+  );
 
   protected isAuthenticated(): boolean {
     return this.auth.isAuthenticated();

@@ -6,7 +6,11 @@
         <span class="name">YTSkedy</span>
       </div>
       @if (isAuthenticated()) {
-        <app-button appearance="text" (click)="signOut()">Sign out</app-button>
+        <app-user-badge
+          [initials]="userBadge.initials"
+          [fullName]="userBadge.fullName"
+          (signOut)="signOut()"
+        />
       }
     </div>
   </app-toolbar>
