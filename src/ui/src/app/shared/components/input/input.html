@@ -2,11 +2,20 @@
   @if (label()) {
     <mat-label>{{ label() }}</mat-label>
   }
-  <input
-    matInput
-    [type]="type()"
-    [formField]="field()"
-    [placeholder]="placeholder()">
+  @if (multiline()) {
+    <textarea
+      matInput
+      [rows]="rows()"
+      [formField]="field()"
+      [placeholder]="placeholder()"
+    ></textarea>
+  } @else {
+    <input
+      matInput
+      [type]="type()"
+      [formField]="field()"
+      [placeholder]="placeholder()">
+  }
   @if (errorMessage(); as message) {
     <mat-error>{{ message }}</mat-error>
   }

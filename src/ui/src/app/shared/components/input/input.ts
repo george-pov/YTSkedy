@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { booleanAttribute, Component, computed, input } from '@angular/core';
 import { FormField, type Field } from '@angular/forms/signals';
 import { MatInputModule } from '@angular/material/input';
 
@@ -20,6 +20,12 @@ export class Input {
   readonly label = input('');
   readonly type = input<InputType>('text');
   readonly placeholder = input('');
+
+  /** Render a multi-line textarea instead of a single-line input. */
+  readonly multiline = input(false, { transform: booleanAttribute });
+
+  /** Visible rows for the multi-line textarea. */
+  readonly rows = input(4);
 
   /** First error message for the bound field, shown once the field is touched. */
   protected readonly errorMessage = computed(() => {

@@ -44,7 +44,18 @@
     }
 
     <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
+    <tr
+      mat-row
+      *matRowDef="let row; columns: displayedColumns()"
+      [class.selectable]="selectable()"
+      [class.selected]="isSelected(row)"
+      [attr.role]="selectable() ? 'button' : null"
+      [attr.tabindex]="selectable() ? 0 : null"
+      [attr.aria-pressed]="selectable() ? isSelected(row) : null"
+      (click)="onRowClick(row)"
+      (keydown.enter)="onRowClick(row)"
+      (keydown.space)="onRowClick(row); $event.preventDefault()"
+    ></tr>
 
     @if (emptyText()) {
       <tr class="empty-row" *matNoDataRow>
@@ -54,10 +65,12 @@
   </table>
 </div>
 
-<mat-paginator
-  [pageSize]="pageSize()"
-  [pageSizeOptions]="pageSizeOptions()"
-  [length]="paginatorLength()"
-  [pageIndex]="pageIndex()"
-  (page)="onPageChange()"
-></mat-paginator>
+@if (showPaginator()) {
+  <mat-paginator
+    [pageSize]="pageSize()"
+    [pageSizeOptions]="pageSizeOptions()"
+    [length]="paginatorLength()"
+    [pageIndex]="pageIndex()"
+    (page)="onPageChange()"
+  ></mat-paginator>
+}

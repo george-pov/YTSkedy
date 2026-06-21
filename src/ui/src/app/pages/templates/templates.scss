@@ -1,0 +1,23 @@
+@use 'src/styles/variables' as *;
+
+:host {
+  display: block;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $app-space-4;
+  margin-bottom: $app-space-6;
+
+  h1 {
+    margin: 0;
+  }
+}
+
+.editor {
+  display: grid;
+  gap: $app-space-4;
+}

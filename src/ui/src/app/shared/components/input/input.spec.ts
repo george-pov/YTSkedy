@@ -12,9 +12,14 @@ interface TitleModel {
 @Component({
   selector: 'app-input-host',
   imports: [Input],
-  template: `<app-input [field]="form.title" label="Title" />`,
+  template: `<app-input
+    [field]="form.title"
+    label="Title"
+    [multiline]="multiline()"
+  />`,
 })
 class InputHost {
+  readonly multiline = signal(false);
   readonly model = signal<TitleModel>({ title: '' });
   readonly form = form(this.model, (path) =>
     required(path.title, { message: 'Title is required.' }),
@@ -67,5 +72,16 @@ describe('Input (signal forms field)', () => {
     await fixture.whenStable();
 
     expect(host.model().title).toBe('Hello');
+  });
+
+  it('renders a single-line input by default and a textarea when multiline', () => {
+    expect(fixture.nativeElement.querySelector('input')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('textarea')).toBeNull();
+
+    host.multiline.set(true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('input')).toBeNull();
+    expect(fixture.nativeElement.querySelector('textarea')).not.toBeNull();
   });
 });
