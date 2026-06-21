@@ -1,10 +1,12 @@
+import { WritableSignal } from '@angular/core';
 import {
-  AbstractControl,
-  FormControl,
-  FormGroup,
-  ValidationErrors,
-  Validators,
-} from '@angular/forms';
+  disabled,
+  maxLength,
+  required,
+  validate,
+  validateTree,
+  type SchemaPathTree,
+} from '@angular/forms/signals';
 
 import {
   CalendarEvent,
@@ -16,22 +18,22 @@ import { SelectOption } from 'src/app/shared/components/select/select';
 export const titleMaxLength = 100;
 export const descriptionMaxLength = 5000;
 
-export type LanguageDescriptionGroup = FormGroup<{
-  title: FormControl<string>;
-  description: FormControl<string>;
-}>;
+export interface LanguageDescription {
+  title: string;
+  description: string;
+}
 
-export type CalendarEventDetailsForm = FormGroup<{
-  start: FormGroup<{
-    date: FormControl<string>;
-    time: FormControl<string>;
-    timeZoneId: FormControl<string>;
-  }>;
-  descriptions: FormGroup<{
-    en: LanguageDescriptionGroup;
-    ru: LanguageDescriptionGroup;
-  }>;
-}>;
+export interface CalendarEventDetailsModel {
+  start: {
+    date: string;
+    time: string;
+    timeZoneId: string;
+  };
+  descriptions: {
+    en: LanguageDescription;
+    ru: LanguageDescription;
+  };
+}
 
 // Curated short list of supported time zones. Not the full IANA set. The
 // select stores and sends the chosen IANA id verbatim.
@@ -54,34 +56,82 @@ export function detectPreselectedTimeZone(
   return options.some((option) => option.value === detectedTimeZone) ? detectedTimeZone : '';
 }
 
-// Fails as `required` when the value is empty after trimming, so whitespace
-// alone does not satisfy a required text field. Reuses the `required` key so
-// pages map a single message.
-export function requiredTrimmed(control: AbstractControl): ValidationErrors | null {
-  const value = (control.value ?? '') as string;
-  return value.trim().length === 0 ? { required: true } : null;
+export function createCalendarEventDetailsModel(
+  preselectedTimeZone: string = detectPreselectedTimeZone(),
+): CalendarEventDetailsModel {
+  return {
+    start: { date: '', time: '', timeZoneId: preselectedTimeZone },
+    descriptions: {
+      en: { title: '', description: '' },
+      ru: { title: '', description: '' },
+    },
+  };
 }
 
-// Cross-field validator on the `start` group. Skips while any part is missing
-// (the per-control required validators cover that). When all parts are
-// present, resolves the wall-clock time in the selected zone to an instant and
-// flags `startInPast` when it is not in the future. Client-side only, for
-// responsiveness; the backend remains the durable validator.
-export function futureStartValidator(group: AbstractControl): ValidationErrors | null {
-  const date = group.get('date')?.value as string | undefined;
-  const time = group.get('time')?.value as string | undefined;
-  const timeZoneId = group.get('timeZoneId')?.value as string | undefined;
+// Signal Forms validation rules. Defined as a function so the page can close
+// over its edit-mode signal: in edit mode the `start` group is disabled, which
+// excludes it from validation (descriptions-only edit).
+export function applyCalendarEventDetailsRules(
+  path: SchemaPathTree<CalendarEventDetailsModel>,
+  isEditMode: () => boolean,
+): void {
+  disabled(path.start, { when: () => isEditMode() });
+  required(path.start.date, { message: 'Start date is required.' });
+  required(path.start.time, { message: 'Start time is required.' });
+  required(path.start.timeZoneId, { message: 'Time zone is required.' });
 
-  if (!date || !time || !timeZoneId) {
-    return null;
-  }
+  // Cross-field on the `start` group: resolve the wall-clock start in the
+  // chosen zone to an instant and flag a non-future start. Skips while any part
+  // is missing (the per-control required rules cover that). Client-side only,
+  // for responsiveness; the backend remains the durable validator.
+  validateTree(path.start, ({ value }) => {
+    const { date, time, timeZoneId } = value();
+    if (!date || !time || !timeZoneId) {
+      return undefined;
+    }
 
-  const startInstant = zonedWallTimeToInstant(`${date}T${time}:00`, timeZoneId);
-  if (startInstant === null) {
-    return null;
-  }
+    const startInstant = zonedWallTimeToInstant(`${date}T${time}:00`, timeZoneId);
+    if (startInstant === null || startInstant > Date.now()) {
+      return undefined;
+    }
 
-  return startInstant > Date.now() ? null : { startInPast: true };
+    return { kind: 'startInPast', message: 'Start must be in the future.' };
+  });
+
+  // Required-trimmed (reject whitespace-only) reuses the `required` error kind.
+  validate(path.descriptions.en.title, ({ value }) =>
+    value().trim().length === 0
+      ? { kind: 'required', message: 'English title is required.' }
+      : undefined,
+  );
+  maxLength(path.descriptions.en.title, titleMaxLength, {
+    message: 'English title is too long.',
+  });
+  validate(path.descriptions.en.description, ({ value }) =>
+    value().trim().length === 0
+      ? { kind: 'required', message: 'English description is required.' }
+      : undefined,
+  );
+  maxLength(path.descriptions.en.description, descriptionMaxLength, {
+    message: 'English description is too long.',
+  });
+
+  validate(path.descriptions.ru.title, ({ value }) =>
+    value().trim().length === 0
+      ? { kind: 'required', message: 'Russian title is required.' }
+      : undefined,
+  );
+  maxLength(path.descriptions.ru.title, titleMaxLength, {
+    message: 'Russian title is too long.',
+  });
+  validate(path.descriptions.ru.description, ({ value }) =>
+    value().trim().length === 0
+      ? { kind: 'required', message: 'Russian description is required.' }
+      : undefined,
+  );
+  maxLength(path.descriptions.ru.description, descriptionMaxLength, {
+    message: 'Russian description is too long.',
+  });
 }
 
 // Resolves a wall-clock local date-time in a named time zone to an epoch
@@ -136,70 +186,27 @@ function timeZoneOffsetMs(timeZoneId: string, instant: number): number | null {
   }
 }
 
-function createDescriptionGroup(): LanguageDescriptionGroup {
-  return new FormGroup({
-    title: new FormControl('', {
-      nonNullable: true,
-      validators: [requiredTrimmed, Validators.maxLength(titleMaxLength)],
-    }),
-    description: new FormControl('', {
-      nonNullable: true,
-      validators: [requiredTrimmed, Validators.maxLength(descriptionMaxLength)],
-    }),
-  });
-}
-
-export function createCalendarEventDetailsForm(
-  preselectedTimeZone: string = detectPreselectedTimeZone(),
-): CalendarEventDetailsForm {
-  return new FormGroup({
-    start: new FormGroup(
-      {
-        date: new FormControl('', {
-          nonNullable: true,
-          validators: [Validators.required],
-        }),
-        time: new FormControl('', {
-          nonNullable: true,
-          validators: [Validators.required],
-        }),
-        timeZoneId: new FormControl(preselectedTimeZone, {
-          nonNullable: true,
-          validators: [Validators.required],
-        }),
-      },
-      { validators: [futureStartValidator] },
-    ),
-    descriptions: new FormGroup({
-      en: createDescriptionGroup(),
-      ru: createDescriptionGroup(),
-    }),
-  });
-}
-
-// Pure mapping from the form value to the create request. Combines the native
-// date and time into `YYYY-MM-DDTHH:mm:ss` (explicit `:00` seconds), trims text
+// Pure mapping from the model to the create request. Combines the native date
+// and time into `YYYY-MM-DDTHH:mm:ss` (explicit `:00` seconds), trims text
 // values, and orders descriptions `en` then `ru`.
 export function toCreateCalendarEventRequest(
-  form: CalendarEventDetailsForm,
+  model: CalendarEventDetailsModel,
 ): CreateCalendarEventRequest {
-  const value = form.getRawValue();
-
   return {
     start: {
-      localDateTime: `${value.start.date}T${value.start.time}:00`,
-      timeZoneId: value.start.timeZoneId,
+      localDateTime: `${model.start.date}T${model.start.time}:00`,
+      timeZoneId: model.start.timeZoneId,
     },
     descriptions: [
       {
         language: 'en',
-        title: value.descriptions.en.title.trim(),
-        description: value.descriptions.en.description.trim(),
+        title: model.descriptions.en.title.trim(),
+        description: model.descriptions.en.description.trim(),
       },
       {
         language: 'ru',
-        title: value.descriptions.ru.title.trim(),
-        description: value.descriptions.ru.description.trim(),
+        title: model.descriptions.ru.title.trim(),
+        description: model.descriptions.ru.description.trim(),
       },
     ],
   };
@@ -207,11 +214,10 @@ export function toCreateCalendarEventRequest(
 
 // Reverse mapping used by edit mode. Splits the stored wall-clock
 // `YYYY-MM-DDTHH:mm:ss` into the native date (`YYYY-MM-DD`) and time (`HH:mm`)
-// the controls hold, selects the stored time zone, and fills each language from
-// its description (a missing language or null description becomes empty). Saving
-// an edit is not wired yet; this only repopulates the form for display.
-export function patchCalendarEventDetailsForm(
-  form: CalendarEventDetailsForm,
+// the model holds, selects the stored time zone, and fills each language from
+// its description (a missing language or null description becomes empty).
+export function patchCalendarEventDetailsModel(
+  model: WritableSignal<CalendarEventDetailsModel>,
   event: CalendarEvent,
 ): void {
   const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(event.start.localDateTime);
@@ -223,7 +229,7 @@ export function patchCalendarEventDetailsForm(
   const en = descriptionFor('en');
   const ru = descriptionFor('ru');
 
-  form.setValue({
+  model.set({
     start: {
       date,
       time,
@@ -242,25 +248,23 @@ export function patchCalendarEventDetailsForm(
   });
 }
 
-// Pure mapping from the form value to the update request. Edit changes only the
+// Pure mapping from the model to the update request. Edit changes only the
 // descriptions (the start is immutable), so it carries no start. Trims text and
 // orders descriptions `en` then `ru`, mirroring the create request.
 export function toUpdateCalendarEventRequest(
-  form: CalendarEventDetailsForm,
+  model: CalendarEventDetailsModel,
 ): UpdateCalendarEventRequest {
-  const value = form.getRawValue();
-
   return {
     descriptions: [
       {
         language: 'en',
-        title: value.descriptions.en.title.trim(),
-        description: value.descriptions.en.description.trim(),
+        title: model.descriptions.en.title.trim(),
+        description: model.descriptions.en.description.trim(),
       },
       {
         language: 'ru',
-        title: value.descriptions.ru.title.trim(),
-        description: value.descriptions.ru.description.trim(),
+        title: model.descriptions.ru.title.trim(),
+        description: model.descriptions.ru.description.trim(),
       },
     ],
   };

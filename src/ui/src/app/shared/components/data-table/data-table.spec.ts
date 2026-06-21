@@ -38,6 +38,10 @@ function makeRows(): SampleRow[] {
       [columns]="columns"
       [caption]="caption"
       [pageSize]="pageSize"
+      [selectable]="selectable()"
+      [selectedRow]="selectedRow()"
+      [showPaginator]="showPaginator()"
+      (rowClick)="onRowClick($event)"
     >
       <ng-template appDataTableCell="actions" let-row>
         <button type="button" class="row-action">Act {{ row.name }}</button>
@@ -49,6 +53,15 @@ class DataTableHost {
   readonly rows = signal<SampleRow[]>(makeRows());
   caption = 'Sample table';
   pageSize = 10;
+
+  readonly selectable = signal(false);
+  readonly selectedRow = signal<SampleRow | null>(null);
+  readonly showPaginator = signal(true);
+  readonly clicked: SampleRow[] = [];
+
+  onRowClick(row: SampleRow): void {
+    this.clicked.push(row);
+  }
 
   readonly columns: DataTableColumn<SampleRow>[] = [
     { key: 'id', header: 'ID', value: (row) => row.id, cellClass: 'mono' },
@@ -153,6 +166,43 @@ describe('DataTable', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text.indexOf('Item 01')).toBeLessThan(text.indexOf('Item 02'));
     expect(text.indexOf('Item 02')).toBeLessThan(text.indexOf('Item 03'));
+  });
+
+  it('emits rowClick when a selectable row is activated', () => {
+    fixture.componentInstance.selectable.set(true);
+    fixture.detectChanges();
+
+    dataRows(fixture)[0].dispatchEvent(new Event('click'));
+
+    expect(fixture.componentInstance.clicked).toHaveLength(1);
+    expect(fixture.componentInstance.clicked[0].id).toBe(
+      fixture.componentInstance.rows()[0].id,
+    );
+  });
+
+  it('does not emit rowClick when the table is not selectable', () => {
+    dataRows(fixture)[0].dispatchEvent(new Event('click'));
+
+    expect(fixture.componentInstance.clicked).toHaveLength(0);
+  });
+
+  it('marks the selected row with the selected class', () => {
+    fixture.componentInstance.selectable.set(true);
+    fixture.componentInstance.selectedRow.set(
+      fixture.componentInstance.rows()[0],
+    );
+    fixture.detectChanges();
+
+    expect(dataRows(fixture)[0].classList.contains('selected')).toBe(true);
+    expect(dataRows(fixture)[1].classList.contains('selected')).toBe(false);
+  });
+
+  it('hides the paginator and renders all rows when showPaginator is false', () => {
+    fixture.componentInstance.showPaginator.set(false);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
+    expect(dataRows(fixture)).toHaveLength(12);
   });
 });
 

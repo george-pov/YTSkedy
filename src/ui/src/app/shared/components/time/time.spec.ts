@@ -1,89 +1,64 @@
-import { provideZonelessChangeDetection } from '@angular/core';
+import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FormControl, Validators } from '@angular/forms';
+import { form, required } from '@angular/forms/signals';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { TimeField } from './time';
 
-function createField(
-  control: FormControl<string>,
-  inputs: { label?: string; errorMessages?: Record<string, string> } = {},
-): ComponentFixture<TimeField> {
-  const fixture = TestBed.createComponent(TimeField);
-  fixture.componentRef.setInput('control', control);
-  fixture.componentRef.setInput('label', inputs.label ?? '');
-  fixture.componentRef.setInput('errorMessages', inputs.errorMessages ?? {});
-  fixture.detectChanges();
-  return fixture;
+@Component({
+  selector: 'app-time-host',
+  imports: [TimeField],
+  template: `<app-time [field]="form.time" label="Start time" />`,
+})
+class TimeHost {
+  readonly model = signal({ time: '' });
+  readonly form = form(this.model, (path) =>
+    required(path.time, { message: 'Start time is required.' }),
+  );
 }
 
 describe('TimeField', () => {
+  let fixture: ComponentFixture<TimeHost>;
+  let host: TimeHost;
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [provideZonelessChangeDetection()],
     });
+    fixture = TestBed.createComponent(TimeHost);
+    host = fixture.componentInstance;
+    fixture.detectChanges();
   });
 
   it('renders the label and a native time input', () => {
-    const control = new FormControl('', { nonNullable: true });
-    const fixture = createField(control, { label: 'Start time' });
-
-    const label = fixture.nativeElement.querySelector('mat-label');
-    const input = fixture.nativeElement.querySelector('input');
-
-    expect(label?.textContent?.trim()).toBe('Start time');
-    expect(input?.getAttribute('type')).toBe('time');
+    expect(
+      fixture.nativeElement.querySelector('mat-label')?.textContent?.trim(),
+    ).toBe('Start time');
+    expect(
+      fixture.nativeElement.querySelector('input')?.getAttribute('type'),
+    ).toBe('time');
   });
 
-  it('reflects the control value into the input', () => {
-    const control = new FormControl('', { nonNullable: true });
-    const fixture = createField(control);
-
-    control.setValue('10:00');
-    fixture.detectChanges();
-
-    const input = fixture.nativeElement.querySelector('input');
-    expect(input.value).toBe('10:00');
-  });
-
-  it('propagates input changes back to the control', () => {
-    const control = new FormControl('', { nonNullable: true });
-    const fixture = createField(control);
-
-    const input = fixture.nativeElement.querySelector('input');
+  it('propagates input changes into the field value', async () => {
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
     input.value = '14:30';
     input.dispatchEvent(new Event('input'));
-    fixture.detectChanges();
+    await fixture.whenStable();
 
-    expect(control.value).toBe('14:30');
+    expect(host.model().time).toBe('14:30');
   });
 
-  it('shows the mapped error message when the control is invalid and touched', () => {
-    const control = new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required],
-    });
-    const fixture = createField(control, {
-      errorMessages: { required: 'Time is required' },
-    });
+  it('shows the field error once the field is touched', async () => {
+    expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
 
-    control.markAsTouched();
+    host.form.time().markAsTouched();
     fixture.detectChanges();
+    await fixture.whenStable();
 
-    const error = fixture.nativeElement.querySelector('mat-error');
-    expect(error?.textContent?.trim()).toBe('Time is required');
-  });
-
-  it('shows no error message when the control is valid', () => {
-    const control = new FormControl('10:00', {
-      nonNullable: true,
-      validators: [Validators.required],
-    });
-    const fixture = createField(control, {
-      errorMessages: { required: 'Time is required' },
-    });
-
-    const error = fixture.nativeElement.querySelector('mat-error');
-    expect(error).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('mat-error')?.textContent?.trim(),
+    ).toBe('Start time is required.');
   });
 });

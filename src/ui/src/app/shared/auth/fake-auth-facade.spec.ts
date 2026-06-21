@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { FakeAuthFacade } from './fake-auth-facade';
+import { UserIdentity } from './user-identity';
 
 describe('FakeAuthFacade', () => {
   it('starts unauthenticated by default', () => {
@@ -43,5 +44,24 @@ describe('FakeAuthFacade', () => {
     });
 
     await expect(fake.acquireApiToken(['scope.a'])).rejects.toThrow();
+  });
+
+  it('returns a default identity', () => {
+    const fake = new FakeAuthFacade();
+
+    expect(fake.getUserIdentity()).toEqual({ name: 'Jane Doe' });
+  });
+
+  it('returns the configured identity', () => {
+    const identity: UserIdentity = { givenName: 'Ada', familyName: 'Lovelace' };
+    const fake = new FakeAuthFacade({ identity });
+
+    expect(fake.getUserIdentity()).toEqual(identity);
+  });
+
+  it('returns null when identity is explicitly null', () => {
+    const fake = new FakeAuthFacade({ identity: null });
+
+    expect(fake.getUserIdentity()).toBeNull();
   });
 });

@@ -37,6 +37,23 @@ table {
   color: #475467;
 }
 
+.mat-mdc-row.selectable {
+  cursor: pointer;
+}
+
+.mat-mdc-row.selectable:hover {
+  background: #f5f7fb;
+}
+
+.mat-mdc-row.selected {
+  background: #eaf3f8;
+}
+
+.mat-mdc-row.selectable:focus-visible {
+  outline: 2px solid #245b7a;
+  outline-offset: -2px;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

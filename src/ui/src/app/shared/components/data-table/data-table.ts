@@ -1,5 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import {
+  booleanAttribute,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -80,10 +81,28 @@ export class DataTable<T> {
   readonly emptyText = input('');
 
   /**
+   * When true, rows are clickable and keyboard-activatable and emit
+   * {@link rowClick}; the row matching {@link selectedRow} is highlighted.
+   */
+  readonly selectable = input(false, { transform: booleanAttribute });
+
+  /** The currently selected row. Highlighted when {@link selectable} is true. */
+  readonly selectedRow = input<T | null>(null);
+
+  /**
+   * When false, the paginator is hidden and every supplied row renders without
+   * client paging. Defaults to true.
+   */
+  readonly showPaginator = input(true, { transform: booleanAttribute });
+
+  /**
    * Emitted in server mode on each page index, page size, sort column, or sort
    * direction change. Not emitted in client mode.
    */
   readonly stateChange = output<DataTableState>();
+
+  /** Emitted when a row is activated while {@link selectable} is true. */
+  readonly rowClick = output<T>();
 
   protected readonly dataSource = new MatTableDataSource<T>([]);
 
@@ -181,5 +200,15 @@ export class DataTable<T> {
   protected cellText(column: DataTableColumn<T>, row: T): string {
     const value = column.value?.(row);
     return value === undefined || value === null ? '' : String(value);
+  }
+
+  protected onRowClick(row: T): void {
+    if (this.selectable()) {
+      this.rowClick.emit(row);
+    }
+  }
+
+  protected isSelected(row: T): boolean {
+    return this.selectable() && row === this.selectedRow();
   }
 }

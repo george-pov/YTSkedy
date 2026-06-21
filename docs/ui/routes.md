@@ -12,14 +12,25 @@ Route pages render through the application layout component in:
 src/ui/src/app/layout/app-layout/
 ```
 
+For authenticated visitors the layout header shows a user badge (monogram plus
+name) whose menu offers Sign Out. The badge identity is derived in the browser
+from the Microsoft Entra External ID ID token `name` (Display Name) claim that
+MSAL holds on the active account; no backend call is made. The current
+`SignUpSignIn` user flow returns Display Name, so a true first and last name
+(`given_name` / `family_name`) would require adding those attributes to the
+flow's returned claims before the badge can use them. When no usable name claim
+is present the badge falls back to the email local-part, then to a neutral
+placeholder.
+
 ## Current Routes
 
 | Path | Auth | Behavior |
 | --- | --- | --- |
 | `/` | Public | Renders `Home` with a sign-in button. Auto-redirects signed-in visitors to `/calendar-events`. |
 | `/calendar-events` | Protected | Renders `CalendarEvents` and loads the first page of all events sorted by scheduled start descending. The scheduled start is shown as the UTC instant (`scheduledStartUtc`). Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`. |
-| `/calendar-events/new` | Protected | Renders `CalendarEventDetails`, a reactive form that creates an event via `POST /api/calendar-events` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
+| `/calendar-events/new` | Protected | Renders `CalendarEventDetails`, a Signal Forms form (a typed model plus a `schema()` of validators) that creates an event via `POST /api/calendar-events` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
 | `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, repopulates the form, and keeps the scheduled start read-only. Save sends `PUT /api/calendar-events/{calendarEventId}` with the descriptions and is enabled only while the API's `canUpdate` flag is `true`. A Delete action removes a loaded event the API marks deletable (`canDelete`: a `Draft`, or a future `Published` event) via `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events`. Guarded by `authenticatedGuard`. |
+| `/templates` | Protected | Renders `Templates`, a single-page CRUD for reusable social-post templates. The list shows each template's type (platform) and name; selecting a row reveals a Signal Forms editor for its type, name, and content with Save and Delete, and New Template adds a draft. Template data is in-memory only for now. Guarded by `authenticatedGuard`. |
 | `/signed-out` | Public | Renders post-logout confirmation. Auto-redirects already-authenticated visitors to `/calendar-events`. |
 | `/component-lab` | Public | Renders the minimal component lab page for manually demoing shared UI components. |
 | `**` | Public | Redirects to `/`. |

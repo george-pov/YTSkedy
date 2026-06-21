@@ -9,8 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { ReactiveFormsModule } from '@angular/forms';
+import { form } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize, Observable } from 'rxjs';
 
@@ -24,9 +23,11 @@ import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar
 import { Select } from 'src/app/shared/components/select/select';
 import { TimeField } from 'src/app/shared/components/time/time';
 import {
-  createCalendarEventDetailsForm,
+  applyCalendarEventDetailsRules,
+  CalendarEventDetailsModel,
+  createCalendarEventDetailsModel,
   formatScheduledStartUtcIso,
-  patchCalendarEventDetailsForm,
+  patchCalendarEventDetailsModel,
   scheduledStartUtcPreview,
   timeZoneOptions,
   toCreateCalendarEventRequest,
@@ -35,7 +36,7 @@ import {
 
 @Component({
   selector: 'app-calendar-event-details',
-  imports: [ReactiveFormsModule, Alert, Button, Input, DateField, TimeField, Select, ProgressBar],
+  imports: [Alert, Button, Input, DateField, TimeField, Select, ProgressBar],
   templateUrl: './calendar-event-details.html',
   styleUrl: './calendar-event-details.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -52,7 +53,12 @@ export class CalendarEventDetails {
   private readonly editingId = this.route.snapshot.paramMap.get('calendarEventId');
   protected readonly isEditMode = this.editingId !== null;
 
-  protected readonly form = createCalendarEventDetailsForm();
+  protected readonly model = signal<CalendarEventDetailsModel>(
+    createCalendarEventDetailsModel(),
+  );
+  protected readonly form = form(this.model, (path) =>
+    applyCalendarEventDetailsRules(path, () => this.isEditMode),
+  );
   protected readonly timeZoneOptions = timeZoneOptions;
 
   protected readonly isSubmitting = signal(false);
@@ -77,16 +83,13 @@ export class CalendarEventDetails {
   // create mode it is derived live from the start controls so the operator sees
   // how the chosen local start translates to UTC.
   private readonly loadedScheduledStartUtc = signal<string | null>(null);
-  private readonly startValue = toSignal(this.form.controls.start.valueChanges, {
-    initialValue: this.form.controls.start.getRawValue(),
-  });
   protected readonly scheduledStartUtcDisplay = computed(() => {
     const loaded = this.loadedScheduledStartUtc();
     if (loaded !== null) {
       return formatScheduledStartUtcIso(loaded);
     }
 
-    const start = this.startValue();
+    const start = this.model().start;
     return scheduledStartUtcPreview(start.date, start.time, start.timeZoneId);
   });
 
@@ -94,31 +97,15 @@ export class CalendarEventDetails {
     read: ElementRef<HTMLElement>,
   });
 
-  protected readonly startDateErrors = {
-    required: 'Start date is required.',
-  };
-  protected readonly startTimeErrors = {
-    required: 'Start time is required.',
-  };
-  protected readonly timeZoneErrors = {
-    required: 'Time zone is required.',
-  };
-  protected readonly enTitleErrors = {
-    required: 'English title is required.',
-    maxlength: 'English title is too long.',
-  };
-  protected readonly enDescriptionErrors = {
-    required: 'English description is required.',
-    maxlength: 'English description is too long.',
-  };
-  protected readonly ruTitleErrors = {
-    required: 'Russian title is required.',
-    maxlength: 'Russian title is too long.',
-  };
-  protected readonly ruDescriptionErrors = {
-    required: 'Russian description is required.',
-    maxlength: 'Russian description is too long.',
-  };
+  // True once the start group is touched and the cross-field future-start rule
+  // reports its error. Rendered next to the scheduled-start section.
+  protected readonly startFutureError = computed(() => {
+    const start = this.form.start();
+    return (
+      start.touched() &&
+      start.errors().some((error) => error.kind === 'startInPast')
+    );
+  });
 
   constructor() {
     effect(() => {
@@ -141,15 +128,10 @@ export class CalendarEventDetails {
       .pipe(finalize(() => this.isLoading.set(false)))
       .subscribe({
         next: (event) => {
-          patchCalendarEventDetailsForm(this.form, event);
+          patchCalendarEventDetailsModel(this.model, event);
           this.loadedScheduledStartUtc.set(event.scheduledStartUtc);
           this.loadedCanDelete.set(event.canDelete);
           this.loadedCanUpdate.set(event.canUpdate);
-          // Descriptions-only edit: the scheduled start is the event identity
-          // and cannot change, so disable those controls. Disabling also
-          // excludes them from validation, so a past start does not block
-          // editing the descriptions of an existing event.
-          this.form.controls.start.disable();
         },
         error: () => {
           this.loadFailed.set(true);
@@ -157,9 +139,9 @@ export class CalendarEventDetails {
       });
   }
 
-  protected get startHasFutureError(): boolean {
-    const start = this.form.controls.start;
-    return start.touched && start.hasError('startInPast');
+  protected onSubmit(event: Event): void {
+    event.preventDefault();
+    this.submit();
   }
 
   protected submit(): void {
@@ -175,8 +157,8 @@ export class CalendarEventDetails {
 
     this.saveErrorMessage.set(null);
 
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+    if (this.form().invalid()) {
+      this.form().markAsTouched();
       return;
     }
 
@@ -186,10 +168,10 @@ export class CalendarEventDetails {
     // responses are ignored, so the union is typed as the wider observable.
     const request$: Observable<unknown> =
       this.editingId === null
-        ? this.calendarEventsService.create(toCreateCalendarEventRequest(this.form))
+        ? this.calendarEventsService.create(toCreateCalendarEventRequest(this.model()))
         : this.calendarEventsService.update(
             this.editingId,
-            toUpdateCalendarEventRequest(this.form),
+            toUpdateCalendarEventRequest(this.model()),
           );
 
     request$.pipe(finalize(() => this.isSubmitting.set(false))).subscribe({

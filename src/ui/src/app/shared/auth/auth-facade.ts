@@ -7,12 +7,15 @@ import {
 import { MsalService } from '@azure/msal-angular';
 
 import { clearRecoveryFlag } from './auth-recovery';
+import { trimToUndefined } from './trim-to-undefined';
+import { UserIdentity } from './user-identity';
 
 export abstract class AuthFacade {
   abstract isAuthenticated(): boolean;
   abstract signIn(returnUrl?: string): Promise<void>;
   abstract signOut(): Promise<void>;
   abstract acquireApiToken(scopes: string[]): Promise<string>;
+  abstract getUserIdentity(): UserIdentity | null;
 }
 
 @Injectable()
@@ -21,6 +24,23 @@ export class MsalAuthFacade extends AuthFacade {
 
   isAuthenticated(): boolean {
     return this.msal.instance.getActiveAccount() !== null;
+  }
+
+  getUserIdentity(): UserIdentity | null {
+    const account = this.msal.instance.getActiveAccount();
+    if (account === null) {
+      return null;
+    }
+
+    const claims = (account.idTokenClaims ?? {}) as Record<string, unknown>;
+    return {
+      name: claimString(claims, 'name') ?? trimToUndefined(account.name),
+      givenName: claimString(claims, 'given_name'),
+      familyName: claimString(claims, 'family_name'),
+      email:
+        claimString(claims, 'email') ??
+        claimString(claims, 'preferred_username'),
+    };
   }
 
   async signIn(returnUrl?: string): Promise<void> {
@@ -74,4 +94,12 @@ export class MsalAuthFacade extends AuthFacade {
     }
     return result.accessToken;
   }
+}
+
+function claimString(
+  claims: Record<string, unknown>,
+  key: string,
+): string | undefined {
+  const value = claims[key];
+  return typeof value === 'string' ? trimToUndefined(value) : undefined;
 }

@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { provideZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection, type WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { type FieldTree } from '@angular/forms/signals';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
@@ -15,7 +16,7 @@ import {
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { CalendarEventDetails } from './calendar-event-details';
-import { CalendarEventDetailsForm } from './calendar-event-details.form';
+import { CalendarEventDetailsModel } from './calendar-event-details.form';
 
 describe('CalendarEventDetails', () => {
   let fixture: ComponentFixture<CalendarEventDetails>;
@@ -71,16 +72,18 @@ describe('CalendarEventDetails', () => {
     fixture.detectChanges();
   });
 
-  function form(): CalendarEventDetailsForm {
-    return (
-      fixture.componentInstance as unknown as {
-        form: CalendarEventDetailsForm;
-      }
-    ).form;
+  function api(): {
+    model: WritableSignal<CalendarEventDetailsModel>;
+    form: FieldTree<CalendarEventDetailsModel>;
+  } {
+    return fixture.componentInstance as unknown as {
+      model: WritableSignal<CalendarEventDetailsModel>;
+      form: FieldTree<CalendarEventDetailsModel>;
+    };
   }
 
   function fillValidForm(): void {
-    form().setValue({
+    api().model.set({
       start: { date: '2999-01-01', time: '10:00', timeZoneId: 'UTC' },
       descriptions: {
         en: { title: 'English title', description: 'English description' },
@@ -126,7 +129,7 @@ describe('CalendarEventDetails', () => {
 
   it('blocks submit when a title exceeds the max length', async () => {
     fillValidForm();
-    form().controls.descriptions.controls.en.controls.title.setValue('a'.repeat(101));
+    api().form.descriptions.en.title().value.set('a'.repeat(101));
 
     await submitForm();
 
@@ -136,7 +139,7 @@ describe('CalendarEventDetails', () => {
 
   it('blocks submit when the scheduled start is in the past', async () => {
     fillValidForm();
-    form().controls.start.controls.date.setValue('2000-01-01');
+    api().form.start.date().value.set('2000-01-01');
 
     await submitForm();
 
@@ -147,7 +150,7 @@ describe('CalendarEventDetails', () => {
   it('posts a contract-correct request and navigates to the list on success', async () => {
     service.create.mockReturnValue(of({ calendarEventId: '20990101T100000Z' }));
     fillValidForm();
-    form().controls.descriptions.controls.en.controls.title.setValue('  English title  ');
+    api().form.descriptions.en.title().value.set('  English title  ');
 
     await submitForm();
 
@@ -202,7 +205,7 @@ describe('CalendarEventDetails', () => {
 
   it('previews the UTC instant for the entered local start in create mode', () => {
     // The default component is in create mode (no route id).
-    form().controls.start.setValue({
+    api().form.start().value.set({
       date: '2030-07-04',
       time: '10:00',
       timeZoneId: 'America/Vancouver',
@@ -251,7 +254,7 @@ describe('CalendarEventDetails', () => {
       createEditComponent();
 
       expect(service.getById).toHaveBeenCalledWith(editId);
-      expect(form().getRawValue()).toEqual({
+      expect(api().model()).toEqual({
         start: {
           date: '2030-07-04',
           time: '09:30',
@@ -290,9 +293,7 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
 
-      const start = (fixture.componentInstance as unknown as { form: CalendarEventDetailsForm })
-        .form.controls.start;
-      expect(start.disabled).toBe(true);
+      expect(api().form.start().disabled()).toBe(true);
     });
 
     it('keeps Save enabled and updates descriptions on submit', async () => {
@@ -306,7 +307,7 @@ describe('CalendarEventDetails', () => {
       ) as HTMLButtonElement;
       expect(save.disabled).toBe(false);
 
-      form().controls.descriptions.controls.en.controls.title.setValue('  Updated English title  ');
+      api().form.descriptions.en.title().value.set('  Updated English title  ');
 
       fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
       fixture.detectChanges();

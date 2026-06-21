@@ -17,32 +17,28 @@
       The calendar event could not be loaded. Check your connection and try again.
     </app-alert>
   } @else {
-    <form class="event-form" [formGroup]="form" (ngSubmit)="submit()">
+    <form class="event-form" (submit)="onSubmit($event)">
       <fieldset class="section">
         <legend>Scheduled start</legend>
         <div class="app-grid app-gap-4">
           <app-date
             class="app-col-md-4"
-            [control]="form.controls.start.controls.date"
+            [field]="form.start.date"
             label="Start date"
-            [errorMessages]="startDateErrors"
           />
           <app-time
             class="app-col-md-4"
-            [control]="form.controls.start.controls.time"
+            [field]="form.start.time"
             label="Start time"
-            [errorMessages]="startTimeErrors"
           />
           <app-select
             class="app-col-md-4"
-            [control]="form.controls.start.controls.timeZoneId"
+            [field]="form.start.timeZoneId"
             label="Time zone"
             [options]="timeZoneOptions"
-            [required]="true"
-            [errorMessages]="timeZoneErrors"
           />
         </div>
-        @if (startHasFutureError) {
+        @if (startFutureError()) {
           <p class="field-error">Start must be in the future.</p>
         }
         <p class="utc-preview">
@@ -61,28 +57,24 @@
           <div class="description-item app-col-md-6">
             <h2 class="description-language">English</h2>
             <app-input
-              [control]="form.controls.descriptions.controls.en.controls.title"
+              [field]="form.descriptions.en.title"
               label="Title"
-              [errorMessages]="enTitleErrors"
             />
             <app-input
-              [control]="form.controls.descriptions.controls.en.controls.description"
+              [field]="form.descriptions.en.description"
               label="Description"
-              [errorMessages]="enDescriptionErrors"
             />
           </div>
 
           <div class="description-item app-col-md-6">
             <h2 class="description-language">Russian</h2>
             <app-input
-              [control]="form.controls.descriptions.controls.ru.controls.title"
+              [field]="form.descriptions.ru.title"
               label="Title"
-              [errorMessages]="ruTitleErrors"
             />
             <app-input
-              [control]="form.controls.descriptions.controls.ru.controls.description"
+              [field]="form.descriptions.ru.description"
               label="Description"
-              [errorMessages]="ruDescriptionErrors"
             />
           </div>
         </div>
