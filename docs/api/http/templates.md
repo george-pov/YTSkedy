@@ -3,8 +3,10 @@
 Template endpoints are hosted by `YTSkedy.AzureFunctions` under the Azure
 Functions `/api` prefix. A template is reusable free-text publishing content
 with placeholder tokens (for example `{{ localizedDate }}`) that a later feature
-will render from event data. This slice is backend and API only; no UI consumes
-these endpoints yet.
+will render from event data. The `Templates` page in the Angular UI
+(`/templates`) consumes the list, create, update, and delete endpoints through a
+typed `TemplatesService`; the `template-tokens` endpoint is available to the
+client but is not yet surfaced in the editor.
 
 ## Authorization
 

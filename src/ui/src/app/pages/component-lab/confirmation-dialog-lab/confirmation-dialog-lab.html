@@ -1,0 +1,41 @@
+<app-lab-page
+  titleId="confirmation-dialog-lab-title"
+  title="Confirmation Dialog"
+>
+  <app-lab-example
+    titleId="confirmation-dialog-delete-example-title"
+    title="Delete confirmation"
+    itemsLayout="inline"
+  >
+    <app-button appearance="outlined" (click)="confirmDelete()">
+      Delete calendar event
+    </app-button>
+  </app-lab-example>
+
+  <app-lab-example
+    titleId="confirmation-dialog-publish-example-title"
+    title="Publish confirmation"
+    itemsLayout="inline"
+  >
+    <app-button appearance="outlined" (click)="confirmPublish()">
+      Publish to YouTube
+    </app-button>
+  </app-lab-example>
+
+  <app-lab-example
+    titleId="confirmation-dialog-discard-example-title"
+    title="Discard changes confirmation"
+    itemsLayout="inline"
+  >
+    <app-button appearance="outlined" (click)="confirmDiscard()">
+      Leave without saving
+    </app-button>
+  </app-lab-example>
+
+  <app-lab-example
+    titleId="confirmation-dialog-result-example-title"
+    title="Last result"
+  >
+    <p aria-live="polite">{{ lastResult() }}</p>
+  </app-lab-example>
+</app-lab-page>

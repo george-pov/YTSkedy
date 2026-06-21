@@ -1,0 +1,39 @@
+@use 'src/styles/variables' as *;
+
+.content {
+  display: flex;
+  align-items: flex-start;
+  gap: $app-space-3;
+}
+
+// The kind icon carries the same accessible status color used by inline
+// alerts, so meaning is not conveyed by the icon glyph alone.
+.icon {
+  flex-shrink: 0;
+
+  &.success {
+    color: $app-color-success-text;
+  }
+
+  &.error {
+    color: $app-color-error-text;
+  }
+
+  &.info {
+    color: $app-color-info-text;
+  }
+
+  &.warning {
+    color: $app-color-warning-text;
+  }
+}
+
+.body {
+  flex-grow: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.actions {
+  gap: $app-space-2;
+}

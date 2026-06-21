@@ -2,6 +2,7 @@ import { Type } from '@angular/core';
 
 import { AlertLab } from './alert-lab/alert-lab';
 import { ButtonLab } from './button-lab/button-lab';
+import { ConfirmationDialogLab } from './confirmation-dialog-lab/confirmation-dialog-lab';
 import { DataTableLab } from './data-table-lab/data-table-lab';
 import { FormControlsLab } from './form-controls-lab/form-controls-lab';
 import { ProgressBarLab } from './progress-bar-lab/progress-bar-lab';
@@ -38,6 +39,10 @@ export const componentLabItems: readonly ComponentLabItem[] = [
   {
     label: 'Alert',
     component: AlertLab,
+  },
+  {
+    label: 'Confirmation Dialog',
+    component: ConfirmationDialogLab,
   },
   {
     label: 'Progress Bar',

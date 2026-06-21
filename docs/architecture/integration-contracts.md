@@ -70,10 +70,12 @@ is rejected; a failed broadcast releases the event back to `Draft`. The flags
 are advisory: the backend re-checks eligibility on every publish, update, and
 delete, so a stale flag is still enforced server-side.
 
-Templates are an additive backend and API surface and are not consumed by the
-UI in this slice. The `templates` resource exposes list, create, update, and
-delete, and a separate `template-tokens` resource returns the code-defined
-placeholder token list. A template carries a server-generated GUID `id`, a
+The `templates` resource exposes list, create, update, and delete, and a
+separate `template-tokens` resource returns the code-defined placeholder token
+list. The `Templates` page (`/templates`) consumes the list, create, update, and
+delete endpoints through a typed `TemplatesService`; the `template-tokens`
+resource is available to the client but is not yet surfaced in the editor. A
+template carries a server-generated GUID `id`, a
 `type` (`YouTube` or `WordPress`, immutable after create because it drives
 storage partitioning), a `name` (required, at most 50 characters, unique within
 a type), and free-text `content` (required, at most 2000 characters; tokens are
@@ -82,7 +84,9 @@ new `id`, `400 Bad Request` on invalid input, and `409 Conflict` when the name
 already exists in that type; update and delete locate by `{type}/{id}` and add
 `404 Not Found`. Templates reuse the `CalendarEvents.Read` (GET) and
 `CalendarEvents.Write` (POST, PUT, DELETE) scopes; no new scope was added. The
-canonical request, response, and error details live in
+frontend bearer-token interceptor attaches an access token to the `templates`
+and `template-tokens` URLs using those same scopes. The canonical request,
+response, and error details live in
 [`../api/http/templates.md`](../api/http/templates.md).
 
 The UI must treat API request and response shapes as integration contracts.

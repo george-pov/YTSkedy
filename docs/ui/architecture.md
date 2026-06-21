@@ -138,3 +138,5 @@ defined in
 
 Current calendar events API access lives in
 `src/ui/src/app/shared/api/calendar-events/calendar-events-service.ts`.
+Templates API access lives in
+`src/ui/src/app/shared/api/templates/templates-service.ts`.

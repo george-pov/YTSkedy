@@ -1,0 +1,17 @@
+<h2 mat-dialog-title>{{ data.title }}</h2>
+
+<mat-dialog-content class="content">
+  <mat-icon class="icon {{ kind }}" aria-hidden="true">{{ icon }}</mat-icon>
+  <p [id]="data.bodyId" class="body">{{ data.body }}</p>
+</mat-dialog-content>
+
+<mat-dialog-actions class="actions" align="end">
+  @for (action of data.actions; track action.id) {
+    <app-button
+      [appearance]="appearanceFor(action)"
+      (click)="select(action.id)"
+    >
+      {{ action.label }}
+    </app-button>
+  }
+</mat-dialog-actions>

@@ -7,7 +7,12 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 
-type ButtonAppearance = 'text' | 'filled' | 'elevated' | 'outlined' | 'tonal';
+export type ButtonAppearance =
+  | 'text'
+  | 'filled'
+  | 'elevated'
+  | 'outlined'
+  | 'tonal';
 type ButtonType = 'button' | 'submit' | 'reset';
 
 @Component({
