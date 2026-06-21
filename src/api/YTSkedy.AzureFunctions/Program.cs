@@ -8,8 +8,10 @@ using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Logging;
 using YTSkedy.AzureFunctions.Auth;
 using YTSkedy.Infrastructure.CalendarEvents;
+using YTSkedy.Infrastructure.Templates;
 using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Application.YouTube;
 
 var builder = FunctionsApplication.CreateBuilder(args);
@@ -122,5 +124,42 @@ builder.Services.AddSingleton<IYouTubePublisher>(
     serviceProvider => serviceProvider.GetRequiredService<YouTubeBroadcastAdapter>());
 builder.Services.AddSingleton<IYouTubeDeleter>(
     serviceProvider => serviceProvider.GetRequiredService<YouTubeBroadcastAdapter>());
+
+// Templates persist in their own table bound through a keyed TableClient so the
+// calendar-event TableClient registration above is untouched.
+builder.Services.AddKeyedSingleton<TableClient>("templates", (_, _) =>
+{
+    var connectionString =
+        builder.Configuration["AzureStorage:ConnectionString"] ??
+        builder.Configuration["AzureWebJobsStorage"];
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "Azure Table Storage connection string is not configured.");
+    }
+
+    var tableName = builder.Configuration["AzureStorage:TemplatesTableName"];
+    if (string.IsNullOrWhiteSpace(tableName))
+    {
+        tableName = "Templates";
+    }
+
+    return new TableClient(connectionString, tableName);
+});
+
+builder.Services.AddScoped<CreateTemplateHandler>();
+builder.Services.AddScoped<UpdateTemplateHandler>();
+builder.Services.AddScoped<DeleteTemplateHandler>();
+builder.Services.AddScoped<ListTemplatesHandler>();
+builder.Services.AddScoped<ListTemplateTokensHandler>();
+builder.Services.AddScoped(serviceProvider =>
+    new AzureTemplateRepository(
+        serviceProvider.GetRequiredKeyedService<TableClient>("templates"),
+        serviceProvider.GetRequiredService<TimeProvider>()));
+builder.Services.AddScoped<ITemplateRepository>(
+    serviceProvider => serviceProvider.GetRequiredService<AzureTemplateRepository>());
+builder.Services.AddScoped<ITemplateReader>(
+    serviceProvider => serviceProvider.GetRequiredService<AzureTemplateRepository>());
 
 builder.Build().Run();
