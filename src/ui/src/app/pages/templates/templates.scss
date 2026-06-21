@@ -21,3 +21,14 @@
   display: grid;
   gap: $app-space-4;
 }
+
+.readonly-type {
+  display: flex;
+  gap: $app-space-2;
+  margin: 0;
+  color: $app-color-muted;
+
+  strong {
+    color: $app-color-text;
+  }
+}

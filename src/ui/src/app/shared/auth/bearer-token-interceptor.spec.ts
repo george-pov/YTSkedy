@@ -22,6 +22,8 @@ const appConfig = testAppConfig();
 
 const calendarEventsUrl =
   'https://api.example.test/api/calendar-events?year=2026&month=6';
+const templatesUrl = 'https://api.example.test/api/templates';
+const templateTokensUrl = 'https://api.example.test/api/template-tokens';
 const unprotectedUrl = 'https://other.example.test/api/calendar-events';
 
 class StubRouter {
@@ -90,6 +92,38 @@ describe('bearerTokenInterceptor', () => {
     ]);
 
     request.flush([]);
+  });
+
+  it('attaches a bearer token to protected templates requests', async () => {
+    http.get(templatesUrl).subscribe();
+    await flushMicrotasks();
+
+    const request = controller.expectOne(templatesUrl);
+
+    expect(request.request.headers.get('Authorization')).toBe(
+      'Bearer access-token-123',
+    );
+    expect(facade.acquireApiTokenCalls).toEqual([
+      [
+        appConfig.auth.calendarEventsReadScope,
+        appConfig.auth.calendarEventsWriteScope,
+      ],
+    ]);
+
+    request.flush({ templates: [] });
+  });
+
+  it('attaches a bearer token to protected template-tokens requests', async () => {
+    http.get(templateTokensUrl).subscribe();
+    await flushMicrotasks();
+
+    const request = controller.expectOne(templateTokensUrl);
+
+    expect(request.request.headers.get('Authorization')).toBe(
+      'Bearer access-token-123',
+    );
+
+    request.flush({ tokens: [] });
   });
 
   it('leaves unprotected requests untouched and does not call the auth facade', () => {
