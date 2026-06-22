@@ -1,0 +1,8 @@
+@use 'src/styles/variables' as *;
+
+// Stack the settings controls with the same gap the editor form uses so the
+// extracted group is spaced like the inline fields it replaced.
+:host {
+  display: grid;
+  gap: $app-space-4;
+}

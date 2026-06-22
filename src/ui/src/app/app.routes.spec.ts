@@ -5,6 +5,7 @@ import { AppLayout } from './layout/app-layout/app-layout';
 import { CalendarEvents } from './pages/calendar-events/calendar-events';
 import { ComponentLab } from './pages/component-lab/component-lab';
 import { Home } from './pages/home/home';
+import { Platforms } from './pages/platforms/platforms';
 import { SignedOut } from './pages/signed-out/signed-out';
 import { authenticatedGuard } from './shared/auth/authenticated-guard';
 import { redirectAuthenticatedGuard } from './shared/auth/redirect-authenticated-guard';
@@ -36,6 +37,16 @@ describe('routes', () => {
     expect(layoutRoute?.children).toContainEqual({
       path: 'calendar-events',
       component: CalendarEvents,
+      canActivate: [authenticatedGuard],
+    });
+  });
+
+  it('guards the platforms page behind authentication through the layout outlet', () => {
+    const layoutRoute = routes.find(({ path }) => path === '');
+
+    expect(layoutRoute?.children).toContainEqual({
+      path: 'platforms',
+      component: Platforms,
       canActivate: [authenticatedGuard],
     });
   });
