@@ -44,7 +44,11 @@ already in scope.
 | Method | 22 chars | 28 chars | 36 chars |
 | Property or field | 22 chars | 28 chars | 36 chars |
 | Parameter or local variable | 20 chars | 28 chars | 36 chars |
-| Unit test method | 80 chars | 95 chars | 120 chars |
+| Unit test method | 60 chars | 80 chars | 100 chars |
+
+When a name exceeds the discuss threshold, first remove repeated context before
+accepting the long name. Prefer moving context into a namespace, containing type,
+route, table partition, or method over adding more words to the identifier.
 
 If a type name needs more than four concept words, move context into the
 namespace or split the responsibility.
@@ -99,14 +103,15 @@ public sealed class AzureTableStorageCalendarEventRepositoryImplementation
 - Name classes, records, structs, and enums with nouns or noun phrases.
 - Name methods with verbs or verb phrases.
 - Name properties with nouns, noun phrases, or affirmative booleans such as
-  `IsEnabled`, `CanSchedule`, or `HasThumbnail`.
+  `IsEnglish`, `CanPublish`, `CanUpdate`, or `CanDelete`.
 - Name collection properties with plural nouns such as `Descriptions`, not
   `DescriptionList`.
 - Async methods that return `Task`, `Task<T>`, `ValueTask`, or `ValueTask<T>`
   must end with `Async`.
 - Methods that accept cancellation should name the parameter
   `cancellationToken`.
-- Options classes should end in `Options`, such as `AzureStorageOptions`.
+- Options classes should end in `Options`, such as `AuthOptions`,
+  `YouTubeOptions`, or `YouTubeBroadcastOptions`.
 - Service registration extension methods should use `Add{Service}` when this
   project later exposes reusable registration methods.
 
@@ -115,18 +120,27 @@ public sealed class AzureTableStorageCalendarEventRepositoryImplementation
 Names should reveal intent without a comment. If the reader needs a comment to
 know why the symbol exists, improve the name or the model.
 
+Prefer the shortest name that is unambiguous at the declaration site and common
+call sites. Let namespace, folder, containing type, route, table, or method
+context carry repeated domain words. Use a longer name only when two shorter
+names would collide in the same scope or make call sites unclear.
+
 - Use one word per concept. Do not mix `Fetch`, `Retrieve`, and `Get` for the
   same operation.
 - Keep names pronounceable and searchable.
+- Avoid repeating context from the namespace, containing type, endpoint, table,
+  or route.
 - Avoid names that differ only by small qualifier changes.
 - Avoid generic class words such as `Manager`, `Processor`, `Data`, `Info`,
   `Helper`, and `Util` unless a clearer domain or role name is not available.
 - Prefer a named value object, command, request, or options type when a method
   needs more than three independent values.
-- Use static factory methods such as `FromLocalTime` or `FromYouTubeResource`
-  when overloaded constructors would hide what the arguments mean.
+- Use static factory methods when overloaded constructors would hide what the
+  arguments mean.
 - Keep command methods and query methods separate. A method named `Get` should
   not create, update, delete, bind, or schedule external resources.
+- Review names at call sites, not only at declarations. A shorter name is
+  acceptable when the call site stays clear and the type remains searchable.
 
 ## Operation Verbs
 
@@ -138,10 +152,14 @@ Use these verbs consistently.
 | `Find` | Search for an optional local or persisted value. Nullable or option-like result is expected. |
 | `List` | Return multiple existing items. |
 | `Create` | Create a local or external resource. |
-| `Schedule` | Turn user intent into a future scheduled stream or broadcast. |
-| `Bind` | Link a YouTube broadcast to a YouTube live stream. Use mainly at the YouTube boundary. |
+| `Update` | Replace or change an existing local record. |
+| `Publish` | Create or update an externally visible provider resource from an application-owned record. |
+| `Reserve` | Move a local record into an in-progress state before an external write. |
+| `Mark` | Record a completed state transition, such as `MarkPublishedAsync`. |
+| `Release` | Undo an in-progress local reservation after a failed external write. |
 | `Validate` | Check rules and report failures. No mutation. |
 | `Map` | Convert between API, application, domain, or persistence models. |
+| `Parse` | Convert text into a typed value and fail on invalid input. Use `TryParse` when returning a success flag. |
 | `Load` | Read from persistence, filesystem, or configuration. |
 | `Save` | Persist an application-owned record. |
 | `Delete` | Remove a resource when the external API or persistence API uses delete semantics. |
@@ -152,42 +170,61 @@ Use YouTube API verbs such as `Insert`, `Update`, `Delete`, `Bind`, and
 helps the reader. Application code should prefer product verbs.
 
 Name externally visible writes with the resource being changed. For example,
-prefer `CreateBroadcastAsync`, `BindYouTubeLiveStreamAsync`, or
-`SaveCalendarEventAsync` over vague names such as `ProcessAsync` or
-`SubmitAsync`.
+prefer `CreateCalendarEventAsync`, `UpdateCalendarEventAsync`,
+`DeleteCalendarEventAsync`, or `PublishYouTubeAsync` over vague names such as
+`ProcessAsync` or `SubmitAsync`.
 
 ## Domain Vocabulary
 
-- `scheduled stream`: A future YouTube live event prepared before its start
-  time.
-- `broadcast`: The public YouTube live event metadata, including title,
-  description, visibility, and scheduled start time.
-- `stream setup`: The ingestion-side setup that a broadcast uses for encoder
-  connection details.
-- `stream template`: Reusable local settings for repeated scheduled streams.
-- `scheduling plan`: An in-progress, user-reviewable set of one or more planned
-  stream events derived from calendar input before any YouTube broadcasts or
-  stream setup resources are created.
-- `scheduled start time`: The intended start instant for a broadcast, stored
-  with enough time zone context to avoid ambiguity.
-- `channel operator`: The user who authorizes YTSkedy to create or manage
-  scheduled streams for a YouTube channel.
-- `credential store`: Local or external storage for OAuth tokens and related
-  authentication material.
+- `calendar event`: Application-owned scheduling record created from user input
+  and persisted by the API.
+- `scheduled start`: Submitted local date-time plus explicit time-zone id.
+- `scheduled start UTC`: UTC instant derived from a scheduled start and used for
+  calendar event identity and ordering.
+- `localized description`: Calendar event title and optional description for one
+  language code.
+- `calendar event status`: Current event-level publish state in the implemented
+  YouTube path: `Draft`, `Publishing`, or `Published`.
+- `action policy`: Pure domain rule object that computes write eligibility,
+  such as `CalendarEventActionPolicy`.
+- `template`: Reusable free-text publishing content with placeholder tokens.
+- `template type`: Provider family associated with a template, currently
+  `YouTube` or `WordPress`.
+- `template token`: Code-defined placeholder token available to template
+  content, such as `localizedDate`.
+- `broadcast`: YouTube `liveBroadcast` resource metadata, including title,
+  description, visibility, made-for-kids state, and scheduled start.
+- `publisher`: Application port or adapter that creates an external provider
+  resource.
+- `deleter`: Application port or adapter that removes an external provider
+  resource.
+- `authorization policy`: API boundary rule that maps authenticated principals,
+  scopes, roles, and resolved endpoints to an authorization result.
+- `credentials`: Non-secret name for credential material configured outside
+  tracked source.
+- `platform`: Configured publishing destination such as a YouTube channel or a
+  future WordPress site.
+- `publish settings`: Non-secret settings used when publishing through a
+  platform.
+- `platform publication`: Publish state and provider result for one calendar
+  event on one platform.
+- `provider`: Infrastructure adapter that performs an external publish for a
+  platform type.
+- `external resource id`: Provider-owned identifier returned after a publish.
 
 Verify exact YouTube resource names, required fields, and API behavior against
 official Google or YouTube documentation before implementation.
 
 ## Code Identifier Glossary
 
-Use these terms as defaults in namespaces, public types, cross-layer contracts,
-tests, and documentation. This table is not a ban list. Shorter names are
-acceptable in narrow local scopes when the containing namespace, type, method,
-or test name already makes the concept obvious.
+This glossary defines concepts and default vocabulary. It is not a mandatory
+identifier template. A code identifier may use a shorter term when surrounding
+context supplies the omitted words.
 
-Prefer full domain terms for:
+Prefer stable glossary terms for:
 
-- public application, API, persistence, and integration-boundary types
+- public application, API, persistence, and integration-boundary types where
+  namespace or containing type does not already supply the context
 - externally visible request, response, command, result, and entity names
 - names where both local application state and YouTube-owned state are nearby
 - credential, token, time-zone, and scheduled-time concepts
@@ -195,34 +232,49 @@ Prefer full domain terms for:
 Shorter names are acceptable for:
 
 - local variables and parameters inside a clearly named method
+- public types when the namespace, route, table, or containing type already
+  supplies the omitted domain words
 - private helper methods inside a clearly named type
 - test variables where the test name already supplies the domain context
 - DTO properties when the surrounding DTO name already supplies the context
+- command, handler, repository, and result names when the command shape or route
+  carries the missing object, such as a `PlatformId`
 
 | Preferred term | Default use | Shorter or alternate form |
 | --- | --- | --- |
 | `CalendarEvent` | Application-owned calendar input or persisted scheduling row. | `Event` is acceptable inside calendar-event-specific code when it cannot be confused with a YouTube broadcast or .NET event. |
-| `ScheduledStream` | Future stream planned by YTSkedy. | `StreamEvent` is usually less clear. Use only in a narrow context where the planned-stream meaning is explicit. |
-| `SchedulingPlan` | User-reviewable plan before external resources are created. | `Plan` is acceptable inside scheduling-plan-specific types or tests. Avoid `PlanData` unless the value is only a DTO or serialized shape. |
+| `CalendarEventView` | Read model returned by calendar event query use cases. | `View` is acceptable inside calendar-event-specific mapping code. |
+| `CalendarEventStatus` | Event-level publish status used by the implemented YouTube path. | `Status` is acceptable inside calendar-event-specific code. |
+| `CalendarEventActionPolicy` | Pure rules for calendar event publish, update, and delete eligibility. | `ActionPolicy` is acceptable inside calendar-event-specific code. |
+| `LocalizedDescription` | Calendar event title and optional description for one language. | `Description` is acceptable inside calendar-event-specific code when the language context is clear. |
+| `Template` | Reusable free-text publishing content with placeholder tokens. | Use `Template` directly. |
+| `TemplateType` | Provider family associated with a template. | `Type` is acceptable inside template-specific code. |
+| `TemplateView` | Read model for a stored template. | `View` is acceptable inside template-specific mapping code. |
+| `TemplateToken` | Placeholder token available to template content. | `Token` is acceptable inside template-token-specific code. |
+| `TemplateTokenCatalog` | Code-defined source of available template tokens. | `Catalog` is acceptable inside template-token-specific code. |
+| `Platform` | Configured publishing destination. | `Destination` is acceptable only for user-facing copy when it is clearer. |
+| `PublishSettings` | Non-secret settings used when publishing through a platform. | Avoid `DefaultPublishingSettings`; create a new platform when settings differ. |
+| `YouTubePublishSettings` | YouTube-specific publish settings used by a YouTube platform. | `PublishSettings` is acceptable inside YouTube-platform-specific code. |
+| `PlatformPublication` | Publish state for one calendar event on one platform. | `Publication` is acceptable inside platform-specific namespaces, types, or tests. |
+| `PublishStatus` | Status of a platform publication. | `Status` is acceptable inside platform-publication-specific code. |
+| `ExternalResourceId` | Provider-owned id returned after publishing. | `ResourceId` is acceptable inside provider-specific result mapping. Provider-specific ids such as `YouTubeBroadcastId` belong only at provider boundaries. |
 | `ScheduledStart` | Local date/time plus explicit time zone context. | `StartDate` or `StartTime` is acceptable only when the value is truly date-only or time-only, or when the enclosing type already owns the scheduling context. |
 | `ScheduledStartUtc` | Persisted UTC instant derived from the scheduled start. | `UtcStart` is acceptable in storage or formatting helpers. Avoid bare `Date` unless the local scope is very small and unambiguous. |
-| `Broadcast` | YouTube live event metadata concept. | `LiveEvent` is acceptable only for user-facing wording or external terminology that requires it. |
-| `YouTubeBroadcast` | YouTube `liveBroadcast` resource or adapter DTO. | `Broadcast` is acceptable inside YouTube-specific adapters when the provider context is already clear. |
-| `StreamSetup` | Encoder or ingestion setup used by a broadcast. | `Setup` is acceptable only inside a stream-setup-specific type or private helper. |
-| `YouTubeLiveStream` | YouTube `liveStream` resource or adapter DTO. | `Stream` is acceptable inside YouTube live-stream adapter code. Avoid it where scheduled streams or stream setup are also in scope. |
-| `StreamTemplate` | Reusable title, description, thumbnail, start-time, and metadata defaults. | `Template` is acceptable inside stream-template-specific code. Avoid `TemplateData` unless the value is only a DTO or serialized shape. |
-| `LocalizedStreamText` | Title and description for one language or locale. | `LocalizedText` is acceptable when the surrounding type already states that the text belongs to a stream. |
-| `Thumbnail` | User-owned image associated with a stream or broadcast. | `Image` is acceptable only when the value is not specifically a thumbnail. |
+| `Broadcast` | YouTube live broadcast metadata concept. | Use mainly in YouTube-specific adapters and tests. |
+| `YouTubeBroadcast` | YouTube `liveBroadcast` resource or adapter concept. | `Broadcast` is acceptable inside YouTube-specific adapters when the provider context is already clear. |
+| `YouTubeBroadcastId` | Stored id of a YouTube `liveBroadcast` resource. | `BroadcastId` is acceptable inside YouTube-specific code. |
+| `YouTubeRequest` | Application-layer input for creating a scheduled YouTube broadcast. | `Request` is acceptable inside YouTube-specific publisher code. |
+| `YouTubeOptions` | Secret-bearing Google OAuth configuration bound from `YouTube:*`. | `Options` is acceptable inside YouTube composition code. |
+| `YouTubeBroadcastOptions` | Non-secret broadcast defaults bound from `YouTubeBroadcast:*`. | `BroadcastOptions` is acceptable inside YouTube-specific composition code. |
 | `Visibility` | YouTube visibility or privacy state. | `Privacy` is acceptable when mirroring YouTube field names or user-facing wording. |
-| `ChannelOperator` | User authorizing work for a YouTube channel. | `User` is acceptable only in authentication or UI-adjacent code where the role distinction does not matter. |
-| `CredentialStore` | Storage for OAuth tokens or credential material. | `TokenStore` or `TokenStorage` is acceptable only when the store truly contains tokens and not broader credential material. |
-| `CredentialReference` | Non-secret pointer to stored credential material. | `Credential` is acceptable only when the value actually contains credential material or the local context makes the reference nature obvious. |
-| `DryRun` | Execution mode that makes no external writes. | `TestMode` should be reserved for test infrastructure, not application dry-run behavior. |
-| `Preview` | User-visible planned result before creation. | `Simulation` is acceptable only when the behavior models outcomes, not just displays a plan. |
-| `AuditLog` | Durable record of externally visible or security-sensitive actions. | `Log` is acceptable inside logging infrastructure, but use `AuditLog` for durable audit records. |
+| `AuthOptions` | API bearer-token validation and authorization configuration. | `Options` is acceptable inside auth composition code. |
+| `AuthorizationPolicy` | API authorization rule that evaluates scopes, roles, and endpoints. | `Policy` is acceptable inside auth-specific tests and helpers. |
+| `AuthorizationResult` | Authorization decision returned by `AuthorizationPolicy`. | `Result` is acceptable inside auth-specific code. |
+| `Credentials` | Non-secret name for externally configured credential material. | Do not use this value to store raw secrets, tokens, or authorization headers. |
 
-Use `Id` suffixes for identifiers: `CalendarEventId`, `BroadcastId`,
-`StreamId`, `ChannelId`, and `CredentialId`.
+Use `Id` suffixes for identifiers: `CalendarEventId`, `TemplateId`,
+`YouTubeBroadcastId`, `ClientId`, `TenantId`, and `PlatformId`. A bare `Id` is
+acceptable in DTOs or entities where the surrounding type supplies the resource.
 
 ## Layer Naming
 
@@ -238,15 +290,24 @@ Keep layer roles explicit but short.
 | HTTP response | `{Verb}{Domain}Response` | `CreateCalendarEventResponse` |
 | Persistence entity | `{Domain}Entity` | `CalendarEventEntity` |
 | Repository | `{Provider}{Domain}Repository` | `AzureCalendarEventRepository` |
-| External client | `{Provider}{Resource}Client` | `YouTubeBroadcastClient` |
-| Configuration | `{Scenario}Options` | `AzureStorageOptions` |
+| External adapter or client | `{Provider}{Resource}Adapter` or `{Provider}{Resource}Client` | `YouTubeBroadcastAdapter` |
+| Configuration | `{Scenario}Options` | `AuthOptions`, `YouTubeOptions` |
 | Test double | `Fake{Role}` | `FakeCalendarEventRepository` |
 
 When touching current calendar-event code, prefer the fully qualified domain
-name for public application and API types. For example, prefer
-`CreateCalendarEventCommand` over `CreateEventCommand`. Shorter forms such as
-`event`, `request`, or `result` are fine for local variables when the enclosing
-method or type already provides the missing context.
+name when it prevents ambiguity. Prefer shorter names when the namespace,
+endpoint, command shape, or containing type supplies the missing context.
+For example, in `YTSkedy.Scheduling.Application.Platforms`, prefer
+`PublishCalendarEventHandler` over `PublishCalendarEventToPlatformHandler`
+because the command carries the `PlatformId`. Shorter forms such as `event`,
+`request`, or `result` are fine for local variables when the enclosing method or
+type already provides the missing context.
+
+Avoid stacking every related domain word into a single identifier. Prefer
+`PlatformPublication`, `PlatformActionPolicy`, `IPlatformRepository`, and
+`AzurePlatformRepository` in platform-focused namespaces over names such as
+`CalendarEventPlatformPublication`, `CalendarEventPlatformActionPolicy`,
+`ICalendarEventPlatformRepository`, and `AzureCalendarEventPlatformRepository`.
 
 Use provider prefixes such as `Azure` or `YouTube` at infrastructure,
 adapter, persistence, and external-client boundaries. Do not put provider
@@ -291,12 +352,17 @@ public async Task CreateCalendarEvent_ValidCommand_CreatesCalendarEvent()
 }
 
 [Fact]
-public async Task CreateAsync_DuplicateScheduledStart_ThrowsInvalidOperationException()
+public void Constructor_ValidInput_SetsProperties()
 {
 }
 
 [Fact]
-public async Task CreateCalendarEventAsync_MissingBody_ReturnsBadRequest()
+public void TryParseTemplateType_KnownType_ReturnsTrue()
+{
+}
+
+[Fact]
+public async Task Publish_FutureDraftWithEnglish_PublishesAndMarksPublished()
 {
 }
 ```
@@ -340,5 +406,11 @@ Microsoft references:
 
 Secondary influences:
 
+- [Google C# Style Guide](https://google.github.io/styleguide/csharp-style.html)
+- [Google Java Style Guide](https://google.github.io/styleguide/javaguide.html)
+- [Rust API Guidelines: Naming](https://rust-lang.github.io/api-guidelines/naming.html)
+- [Kubernetes coding conventions](https://github.com/kubernetes/community/blob/master/contributors/guide/coding-conventions.md)
+- [Ubiquitous Language](https://martinfowler.com/bliki/UbiquitousLanguage.html)
+- [Bounded Context](https://martinfowler.com/bliki/BoundedContext.html)
 - [Clean code 101: Meaningful names and functions](https://medium.com/coding-skills/clean-code-101-meaningful-names-and-functions-bf450456d90c)
 - [Naming standards for unit tests](https://osherove.com/blog/2005/4/3/naming-standards-for-unit-tests.html)
