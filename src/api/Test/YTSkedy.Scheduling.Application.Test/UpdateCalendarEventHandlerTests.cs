@@ -16,10 +16,10 @@ public class UpdateCalendarEventHandlerTests
     ];
 
     [Fact]
-    public async Task HandleAsync_DraftEvent_UpdatesDescriptionsAndReturnsUpdated()
+    public async Task HandleAsync_ExistingEvent_UpdatesDescriptionsAndReturnsUpdated()
     {
         var repository = new FakeCalendarEventRepository(updateResult: true);
-        var handler = CreateHandler(CalendarEventStatus.Draft, repository);
+        var handler = CreateHandler(CreateDetail(), repository);
 
         var result = await handler.HandleAsync(
             new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
@@ -35,9 +35,7 @@ public class UpdateCalendarEventHandlerTests
     public async Task HandleAsync_MissingEvent_ReturnsNotFoundWithoutUpdating()
     {
         var repository = new FakeCalendarEventRepository(updateResult: true);
-        var handler = new UpdateCalendarEventHandler(
-            new FakeCalendarEventReader(detail: null),
-            repository);
+        var handler = CreateHandler(detail: null, repository);
 
         var result = await handler.HandleAsync(
             new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
@@ -48,40 +46,10 @@ public class UpdateCalendarEventHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_PublishingEvent_ReturnsNotUpdatableWithoutUpdating()
+    public async Task HandleAsync_RowVanishedBeforeWrite_ReturnsNotFound()
     {
-        var repository = new FakeCalendarEventRepository(updateResult: true);
-        var handler = CreateHandler(CalendarEventStatus.Publishing, repository);
-
-        var result = await handler.HandleAsync(
-            new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
-            CancellationToken.None);
-
-        Assert.Equal(UpdateCalendarEventResult.NotUpdatable, result);
-        Assert.Equal(0, repository.UpdateCallCount);
-    }
-
-    [Fact]
-    public async Task HandleAsync_PublishedEvent_ReturnsNotUpdatableWithoutUpdating()
-    {
-        var repository = new FakeCalendarEventRepository(updateResult: true);
-        var handler = CreateHandler(CalendarEventStatus.Published, repository);
-
-        var result = await handler.HandleAsync(
-            new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
-            CancellationToken.None);
-
-        Assert.Equal(UpdateCalendarEventResult.NotUpdatable, result);
-        Assert.Equal(0, repository.UpdateCallCount);
-    }
-
-    [Fact]
-    public async Task HandleAsync_DraftVanishedBeforeWrite_ReturnsNotFound()
-    {
-        // The event read as Draft but the conditional write found no row, so the
-        // stale client is reported as a missing event.
         var repository = new FakeCalendarEventRepository(updateResult: false);
-        var handler = CreateHandler(CalendarEventStatus.Draft, repository);
+        var handler = CreateHandler(CreateDetail(), repository);
 
         var result = await handler.HandleAsync(
             new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
@@ -95,7 +63,7 @@ public class UpdateCalendarEventHandlerTests
     public async Task HandleAsync_NullCommand_Throws()
     {
         var handler = CreateHandler(
-            CalendarEventStatus.Draft,
+            CreateDetail(),
             new FakeCalendarEventRepository(updateResult: true));
 
         await Assert.ThrowsAsync<ArgumentNullException>(
@@ -103,19 +71,16 @@ public class UpdateCalendarEventHandlerTests
     }
 
     private static UpdateCalendarEventHandler CreateHandler(
-        CalendarEventStatus status,
+        CalendarEventView? detail,
         FakeCalendarEventRepository repository) =>
-        new(
-            new FakeCalendarEventReader(CreateDetail(status)),
-            repository);
+        new(new FakeCalendarEventReader(detail), repository);
 
-    private static CalendarEventView CreateDetail(CalendarEventStatus status) =>
+    private static CalendarEventView CreateDetail() =>
         new(
             CalendarEventId,
             new ScheduledStart(StartUtc.UtcDateTime, "UTC"),
             StartUtc,
-            [new LocalizedDescription("en", "English title", "English description")],
-            status);
+            [new LocalizedDescription("en", "English title", "English description")]);
 
     private sealed class FakeCalendarEventReader(CalendarEventView? detail) : ICalendarEventReader
     {
@@ -154,27 +119,6 @@ public class UpdateCalendarEventHandlerTests
 
             return Task.FromResult(updateResult);
         }
-
-        public Task<bool> TryReserveForPublishingAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task MarkPublishedAsync(
-            string calendarEventId,
-            string youTubeBroadcastId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task ReleaseReservationAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<DeleteDraftCalendarEventResult> DeleteDraftAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
 
         public Task DeleteAsync(
             string calendarEventId,

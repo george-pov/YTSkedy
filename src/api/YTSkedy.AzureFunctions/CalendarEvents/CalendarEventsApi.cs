@@ -14,9 +14,7 @@ public class CalendarEventsApi(
     ListEventsHandler listHandler,
     GetCalendarEventHandler getHandler,
     UpdateCalendarEventHandler updateHandler,
-    PublishYouTubeHandler publishHandler,
-    DeleteCalendarEventHandler deleteHandler,
-    TimeProvider timeProvider)
+    DeleteCalendarEventHandler deleteHandler)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -158,42 +156,6 @@ public class CalendarEventsApi(
             UpdateCalendarEventResult.Updated => new OkObjectResult(
                 new UpdateCalendarEventResponse(calendarEventId)),
             UpdateCalendarEventResult.NotFound => new NotFoundResult(),
-            UpdateCalendarEventResult.NotUpdatable => new ConflictObjectResult(
-                $"Calendar event '{calendarEventId}' cannot be updated in its current state."),
-            _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
-        };
-    }
-
-    [Function("PublishYouTube")]
-    [RequiredScope("CalendarEvents.Write")]
-    public async Task<IActionResult> PublishYouTubeAsync(
-        [HttpTrigger(
-            AuthorizationLevel.Anonymous,
-            "post",
-            Route = "calendar-events/{calendarEventId}/publish")]
-        HttpRequest request,
-        string calendarEventId,
-        CancellationToken cancellationToken)
-    {
-        var result = await publishHandler.HandleAsync(
-            calendarEventId,
-            cancellationToken);
-
-        return result.Status switch
-        {
-            PublishYouTubeStatus.Published => new OkObjectResult(
-                new PublishYouTubeResponse(
-                    calendarEventId,
-                    nameof(CalendarEventStatus.Published),
-                    result.YouTubeBroadcastId!)),
-            PublishYouTubeStatus.NotFound => new NotFoundObjectResult(
-                $"Calendar event '{calendarEventId}' was not found."),
-            PublishYouTubeStatus.AlreadyPublished => new ConflictObjectResult(
-                $"Calendar event '{calendarEventId}' is already published."),
-            PublishYouTubeStatus.StartInPast => new BadRequestObjectResult(
-                "Calendar event start time must be in the future."),
-            PublishYouTubeStatus.MissingEnglishDescription => new BadRequestObjectResult(
-                "Calendar event has no English description to publish."),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
     }
@@ -216,13 +178,6 @@ public class CalendarEventsApi(
         return ToDeleteResult(result, calendarEventId);
     }
 
-    /// <summary>
-    /// Maps a delete use-case outcome to its HTTP result. Success is 204; an
-    /// unknown id is 404; a Publishing, past Published, or concurrently advanced
-    /// row is 409 with non-Draft-only wording; a future Published row with no
-    /// recorded broadcast id is a distinct 409; and a YouTube delete failure is
-    /// 502 with the local row kept.
-    /// </summary>
     public static IActionResult ToDeleteResult(
         DeleteCalendarEventResult result,
         string calendarEventId) =>
@@ -231,16 +186,6 @@ public class CalendarEventsApi(
             DeleteCalendarEventResult.Deleted => new NoContentResult(),
             DeleteCalendarEventResult.NotFound => new NotFoundObjectResult(
                 $"Calendar event '{calendarEventId}' was not found."),
-            DeleteCalendarEventResult.NotDeletable => new ConflictObjectResult(
-                $"Calendar event '{calendarEventId}' cannot be deleted in its current state."),
-            DeleteCalendarEventResult.MissingYouTubeBroadcastId => new ConflictObjectResult(
-                $"Calendar event '{calendarEventId}' cannot be deleted because no " +
-                "YouTube broadcast id is recorded."),
-            DeleteCalendarEventResult.YouTubeDeleteFailed => new ObjectResult(
-                "The YouTube broadcast could not be deleted.")
-            {
-                StatusCode = StatusCodes.Status502BadGateway
-            },
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
 
@@ -310,9 +255,6 @@ public class CalendarEventsApi(
                 case "scheduledstart":
                     sort = CalendarEventSortField.ScheduledStart;
                     break;
-                case "status":
-                    sort = CalendarEventSortField.Status;
-                    break;
                 case "timezone":
                     sort = CalendarEventSortField.TimeZone;
                     break;
@@ -321,7 +263,7 @@ public class CalendarEventsApi(
                     break;
                 default:
                     error = new BadRequestObjectResult(
-                        "Query parameter 'sort' must be 'scheduledStart', 'status', 'timeZone', or 'title'.");
+                        "Query parameter 'sort' must be 'scheduledStart', 'timeZone', or 'title'.");
                     return false;
             }
         }
@@ -437,8 +379,6 @@ public class CalendarEventsApi(
     private CalendarEventViewResponse ToViewResponse(
         CalendarEventView calendarEvent)
     {
-        var nowUtc = timeProvider.GetUtcNow();
-
         return new(
             calendarEvent.CalendarEventId,
             new CalendarEventStart(
@@ -450,17 +390,12 @@ public class CalendarEventsApi(
                     description.Language,
                     description.Title,
                     description.Description))
-                .ToArray(),
-            calendarEvent.Status.ToString(),
-            calendarEvent.CanPublish(nowUtc),
-            calendarEvent.CanUpdate(),
-            calendarEvent.CanDelete(nowUtc));
+                .ToArray());
     }
 
     private static string ToSortString(CalendarEventSortField sort) =>
         sort switch
         {
-            CalendarEventSortField.Status => "status",
             CalendarEventSortField.TimeZone => "timeZone",
             CalendarEventSortField.Title => "title",
             _ => "scheduledStart"

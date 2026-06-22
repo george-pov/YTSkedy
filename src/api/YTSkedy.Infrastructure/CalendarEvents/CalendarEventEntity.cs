@@ -23,13 +23,5 @@ internal sealed class CalendarEventEntity : ITableEntity
 
     public string DescriptionsJson { get; set; } = string.Empty;
 
-    public string Status { get; set; } = string.Empty;
-
     public DateTimeOffset CreatedUtc { get; set; }
-
-    public string? YouTubeTitle { get; set; }
-
-    public string? YouTubeDescription { get; set; }
-
-    public string? YouTubeBroadcastId { get; set; }
 }

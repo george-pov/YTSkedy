@@ -46,63 +46,6 @@ public class ListEventsHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_StatusAscending_SortsByStatusThenCalendarEventIdAscending()
-    {
-        var reader = new FakeCalendarEventReader(
-        [
-            CreateView("20260101T000000Z", CalendarEventStatus.Published),
-            CreateView("20260102T000000Z", CalendarEventStatus.Draft),
-            CreateView("20260103T000000Z", CalendarEventStatus.Published),
-            CreateView("20260104T000000Z", CalendarEventStatus.Draft)
-        ]);
-        var handler = new ListEventsHandler(reader);
-
-        var result = await handler.HandleAsync(
-            Query(sort: CalendarEventSortField.Status, direction: SortDirection.Ascending),
-            CancellationToken.None);
-
-        // Ordinal status order ascending: Draft before Published. Within each
-        // status the calendar event id ascending is the deterministic tiebreak.
-        Assert.Equal(
-            [
-                "20260102T000000Z",
-                "20260104T000000Z",
-                "20260101T000000Z",
-                "20260103T000000Z"
-            ],
-            Ids(result));
-    }
-
-    [Fact]
-    public async Task HandleAsync_StatusDescending_KeepsCalendarEventIdAscendingTiebreak()
-    {
-        var reader = new FakeCalendarEventReader(
-        [
-            CreateView("20260101T000000Z", CalendarEventStatus.Published),
-            CreateView("20260102T000000Z", CalendarEventStatus.Draft),
-            CreateView("20260103T000000Z", CalendarEventStatus.Published),
-            CreateView("20260104T000000Z", CalendarEventStatus.Draft)
-        ]);
-        var handler = new ListEventsHandler(reader);
-
-        var result = await handler.HandleAsync(
-            Query(sort: CalendarEventSortField.Status, direction: SortDirection.Descending),
-            CancellationToken.None);
-
-        // Status descending: Published before Draft. The secondary key stays
-        // calendar event id ascending even when the primary direction is
-        // descending, so paging is stable.
-        Assert.Equal(
-            [
-                "20260101T000000Z",
-                "20260103T000000Z",
-                "20260102T000000Z",
-                "20260104T000000Z"
-            ],
-            Ids(result));
-    }
-
-    [Fact]
     public async Task HandleAsync_TimeZoneAscending_SortsByTimeZoneOrdinal()
     {
         var reader = new FakeCalendarEventReader(
@@ -137,9 +80,6 @@ public class ListEventsHandlerTests
             Query(sort: CalendarEventSortField.Title, direction: SortDirection.Ascending),
             CancellationToken.None);
 
-        // English title order ascending: Alpha, Bravo, Charlie. This differs
-        // from the calendar event id order, so it proves the English title is
-        // the sort key rather than the id.
         Assert.Equal(
             ["20260102T000000Z", "20260103T000000Z", "20260101T000000Z"],
             Ids(result));
@@ -148,10 +88,6 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_TitleAscending_TreatsUppercaseEnglishTagAsTitle()
     {
-        // A description tagged "EN" is still the English entry (matching is
-        // case-insensitive), so it must sort by its title rather than as an
-        // empty string. Before the shared case-insensitive match this sorted by
-        // id because the ordinal "EN" != "en" comparison found no English title.
         var reader = new FakeCalendarEventReader(
         [
             CreateView("20260101T000000Z", englishTitle: "Charlie stream", language: "EN"),
@@ -215,9 +151,7 @@ public class ListEventsHandlerTests
     {
         var handler = new ListEventsHandler(new FakeCalendarEventReader(FiveAscendingItems()));
 
-        var result = await handler.HandleAsync(
-            Query(page: 3, pageSize: 2),
-            CancellationToken.None);
+        var result = await handler.HandleAsync(Query(page: 3, pageSize: 2), CancellationToken.None);
 
         Assert.Empty(result.Items);
         Assert.Equal(5, result.TotalCount);
@@ -324,7 +258,6 @@ public class ListEventsHandlerTests
 
     private static CalendarEventView CreateView(
         string calendarEventId,
-        CalendarEventStatus status = CalendarEventStatus.Draft,
         string timeZoneId = "America/Vancouver",
         string? englishTitle = null,
         string language = "en") =>
@@ -332,8 +265,7 @@ public class ListEventsHandlerTests
             calendarEventId,
             new ScheduledStart(new DateTime(2026, 1, 1, 0, 0, 0), timeZoneId),
             new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            [new LocalizedDescription(language, englishTitle ?? $"Title {calendarEventId}", null)],
-            status);
+            [new LocalizedDescription(language, englishTitle ?? $"Title {calendarEventId}", null)]);
 
     private static string[] Ids(CalendarEventListPage page) =>
         page.Items.Select(item => item.CalendarEventId).ToArray();

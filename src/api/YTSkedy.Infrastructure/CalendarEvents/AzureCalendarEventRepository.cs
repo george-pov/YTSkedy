@@ -34,7 +34,6 @@ public sealed class AzureCalendarEventRepository(
             LocalDateTime = FormatLocalDateTime(calendarEvent.Start.LocalDateTime),
             TimeZoneId = calendarEvent.Start.TimeZoneId,
             DescriptionsJson = JsonSerializer.Serialize(calendarEvent.Descriptions, JsonOptions),
-            Status = calendarEvent.Status.ToString(),
             CreatedUtc = timeProvider.GetUtcNow()
         };
 
@@ -144,8 +143,8 @@ public sealed class AzureCalendarEventRepository(
         entity.DescriptionsJson = JsonSerializer.Serialize(descriptions, JsonOptions);
 
         // Conditional on the read ETag so a concurrent change to the same row is
-        // not silently overwritten. The start, identity, and status are left
-        // untouched; only the descriptions blob is replaced.
+        // not silently overwritten. The start and identity are left untouched;
+        // only the descriptions blob is replaced.
         await tableClient.UpdateEntityAsync(
             entity,
             entity.ETag,
@@ -155,147 +154,12 @@ public sealed class AzureCalendarEventRepository(
         return true;
     }
 
-    public async Task<bool> TryReserveForPublishingAsync(
-        string calendarEventId,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
-
-        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
-
-        if (entity is null ||
-            CalendarEventReadMapper.ParseStatus(entity.Status) != CalendarEventStatus.Draft)
-        {
-            return false;
-        }
-
-        entity.Status = CalendarEventStatus.Publishing.ToString();
-
-        try
-        {
-            await tableClient.UpdateEntityAsync(
-                entity,
-                entity.ETag,
-                TableUpdateMode.Replace,
-                cancellationToken);
-
-            return true;
-        }
-        catch (RequestFailedException exception) when (exception.Status == 412)
-        {
-            // A concurrent publish changed the row between the read and this
-            // write. That request owns the reservation, so this one must not
-            // proceed to YouTube.
-            return false;
-        }
-    }
-
-    public async Task MarkPublishedAsync(
-        string calendarEventId,
-        string youTubeBroadcastId,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(youTubeBroadcastId);
-
-        var entity = await GetEntityOrThrowAsync(calendarEventId, cancellationToken);
-        entity.Status = CalendarEventStatus.Published.ToString();
-        entity.YouTubeBroadcastId = youTubeBroadcastId;
-
-        await tableClient.UpdateEntityAsync(
-            entity,
-            entity.ETag,
-            TableUpdateMode.Replace,
-            cancellationToken);
-    }
-
-    public async Task ReleaseReservationAsync(
-        string calendarEventId,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
-
-        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
-
-        // Releasing is best-effort compensation. If the row is gone or no longer
-        // reserved by this publish (a concurrent request already advanced or
-        // reset it), there is nothing for this caller to undo, so do not throw
-        // and mask the original failure that triggered the release.
-        if (entity is null ||
-            CalendarEventReadMapper.ParseStatus(entity.Status) != CalendarEventStatus.Publishing)
-        {
-            return;
-        }
-
-        entity.Status = CalendarEventStatus.Draft.ToString();
-
-        try
-        {
-            await tableClient.UpdateEntityAsync(
-                entity,
-                entity.ETag,
-                TableUpdateMode.Replace,
-                cancellationToken);
-        }
-        catch (RequestFailedException exception) when (exception.Status is 404 or 412)
-        {
-            // A concurrent write changed or removed the row after the read. The
-            // reservation is no longer this caller's to release, so leave the
-            // other writer's state intact.
-        }
-    }
-
-    public async Task<DeleteDraftCalendarEventResult> DeleteDraftAsync(
-        string calendarEventId,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
-
-        // Reload here so the delete is conditioned on the latest ETag and storage
-        // identity (partition key, row key) stays inside infrastructure rather
-        // than crossing the application boundary.
-        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
-
-        if (entity is null)
-        {
-            return DeleteDraftCalendarEventResult.NotFound;
-        }
-
-        if (CalendarEventReadMapper.ParseStatus(entity.Status) != CalendarEventStatus.Draft)
-        {
-            return DeleteDraftCalendarEventResult.NotDeletable;
-        }
-
-        try
-        {
-            await tableClient.DeleteEntityAsync(
-                entity.PartitionKey,
-                entity.RowKey,
-                entity.ETag,
-                cancellationToken);
-
-            return DeleteDraftCalendarEventResult.Deleted;
-        }
-        catch (RequestFailedException exception) when (exception.Status == 404)
-        {
-            // The row was removed between the Draft read and this delete.
-            return DeleteDraftCalendarEventResult.NotFound;
-        }
-        catch (RequestFailedException exception) when (exception.Status == 412)
-        {
-            // A concurrent write changed the row (for example a publish
-            // reservation) after the Draft read, so this delete must not proceed.
-            return DeleteDraftCalendarEventResult.NotDeletable;
-        }
-    }
-
     public async Task DeleteAsync(
         string calendarEventId,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
 
-        // Post-YouTube Published cleanup: delete by id without checking status.
         // An unparseable id can address no row, so it is already gone.
         if (!TryParseScheduledStartUtc(calendarEventId, out var scheduledStartUtc))
         {
@@ -340,16 +204,6 @@ public sealed class AzureCalendarEventRepository(
         {
             return null;
         }
-    }
-
-    private async Task<CalendarEventEntity> GetEntityOrThrowAsync(
-        string calendarEventId,
-        CancellationToken cancellationToken)
-    {
-        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
-
-        return entity ?? throw new InvalidOperationException(
-            $"Calendar event '{calendarEventId}' was not found while completing a publish.");
     }
 
     private static DateTimeOffset ToUtc(ScheduledStart start)

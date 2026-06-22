@@ -110,7 +110,6 @@ builder.Services.AddScoped<CreateCalendarEventHandler>();
 builder.Services.AddScoped<ListEventsHandler>();
 builder.Services.AddScoped<GetCalendarEventHandler>();
 builder.Services.AddScoped<UpdateCalendarEventHandler>();
-builder.Services.AddScoped<PublishYouTubeHandler>();
 builder.Services.AddScoped<DeleteCalendarEventHandler>();
 builder.Services.AddScoped<AzureCalendarEventRepository>();
 builder.Services.AddScoped<ICalendarEventRepository>(

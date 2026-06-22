@@ -27,7 +27,6 @@ public class CreateCalendarEventHandlerTests
         Assert.NotNull(createdCalendarEvent);
         Assert.Equal(start, createdCalendarEvent!.Start);
         Assert.Equal(descriptions, createdCalendarEvent.Descriptions);
-        Assert.Equal(CalendarEventStatus.Draft, createdCalendarEvent.Status);
     }
 
     private sealed class FakeCalendarEventRepository(string calendarEventId) : ICalendarEventRepository
@@ -46,27 +45,6 @@ public class CreateCalendarEventHandlerTests
         public Task<bool> UpdateDescriptionsAsync(
             string calendarEventId,
             IReadOnlyList<LocalizedDescription> descriptions,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> TryReserveForPublishingAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task MarkPublishedAsync(
-            string calendarEventId,
-            string youTubeBroadcastId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task ReleaseReservationAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<DeleteDraftCalendarEventResult> DeleteDraftAsync(
-            string calendarEventId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

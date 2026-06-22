@@ -55,7 +55,6 @@ public sealed class ListEventsHandler(ICalendarEventReader calendarEvents)
         CalendarEventSortField sort) =>
         sort switch
         {
-            CalendarEventSortField.Status => item => item.Status.ToString(),
             CalendarEventSortField.TimeZone => item => item.Start.TimeZoneId,
             CalendarEventSortField.Title => EnglishTitle,
             _ => item => item.CalendarEventId

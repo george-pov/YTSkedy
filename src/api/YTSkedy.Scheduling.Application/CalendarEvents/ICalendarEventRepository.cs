@@ -10,8 +10,8 @@ public interface ICalendarEventRepository
 
     /// <summary>
     /// Replaces the localized descriptions of an existing event in place,
-    /// leaving its scheduled start, identity, and status unchanged. Returns
-    /// false when no event has the id.
+    /// leaving its scheduled start and identity unchanged. Returns false when
+    /// no event has the id.
     /// </summary>
     Task<bool> UpdateDescriptionsAsync(
         string calendarEventId,
@@ -19,52 +19,9 @@ public interface ICalendarEventRepository
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Atomically moves a Draft event to Publishing so only one publish can
-    /// proceed to YouTube. Returns false when the event is not currently Draft
-    /// (missing, already publishing, already published, or a concurrent
-    /// reservation won the race).
-    /// </summary>
-    Task<bool> TryReserveForPublishingAsync(
-        string calendarEventId,
-        CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Marks a reserved event Published and records its YouTube broadcast id.
-    /// </summary>
-    Task MarkPublishedAsync(
-        string calendarEventId,
-        string youTubeBroadcastId,
-        CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Returns a reserved event to Draft after a failed publish so it stays
-    /// retryable. Best-effort compensation: it is a no-op when the row is
-    /// missing or no longer reserved by this publish (a concurrent request
-    /// advanced or reset it), and it never throws for those races, so it cannot
-    /// mask the original failure that triggered the release.
-    /// </summary>
-    Task ReleaseReservationAsync(
-        string calendarEventId,
-        CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Deletes a calendar event row only while it is still Draft. Returns
-    /// <see cref="DeleteDraftCalendarEventResult.NotFound"/> when no row has the
-    /// id, and <see cref="DeleteDraftCalendarEventResult.NotDeletable"/> when the
-    /// row exists but is not Draft or changed under a concurrent write between the
-    /// read and the conditional delete. The delete is id-based; storage identity
-    /// and ETags stay inside infrastructure.
-    /// </summary>
-    Task<DeleteDraftCalendarEventResult> DeleteDraftAsync(
-        string calendarEventId,
-        CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Deletes a calendar event row by id without checking its status, for
-    /// post-YouTube Published cleanup. The delete is unconditional and
-    /// idempotent: a row that changed after the delete use case read it is still
-    /// removed, and a row that is already gone is a no-op. Storage identity and
-    /// ETags stay inside infrastructure.
+    /// Deletes a calendar event row by id. The delete is unconditional and
+    /// idempotent: a missing row is a no-op. Storage identity and ETags stay
+    /// inside infrastructure.
     /// </summary>
     Task DeleteAsync(
         string calendarEventId,

@@ -16,14 +16,10 @@ public class CalendarEventReadMapperTests
             "20260605T170000Z",
             new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
             "2026-06-05T10:00:00",
-            [
-                new LocalizedDescription("en", "English stream 1", null)
-            ]);
+            [new LocalizedDescription("en", "English stream 1", null)]);
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventReadMapper.ToViewsForMonth(
-            [entity],
-            criteria);
+        var result = CalendarEventReadMapper.ToViewsForMonth([entity], criteria);
 
         var calendarEvent = Assert.Single(result);
         Assert.Equal("20260605T170000Z", calendarEvent.CalendarEventId);
@@ -33,78 +29,6 @@ public class CalendarEventReadMapperTests
         Assert.Equal("en", description.Language);
         Assert.Equal("English stream 1", description.Title);
         Assert.Null(description.Description);
-    }
-
-    [Fact]
-    public void ToViewsForMonth_EmptyStatus_DefaultsToDraft()
-    {
-        var entity = CreateEntity(
-            "20260605T170000Z",
-            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
-            "2026-06-05T10:00:00");
-        entity.Status = string.Empty;
-        var criteria = new CalendarEventMonthCriteria(2026, 6);
-
-        var result = CalendarEventReadMapper.ToViewsForMonth(
-            [entity],
-            criteria);
-
-        var calendarEvent = Assert.Single(result);
-        Assert.Equal(CalendarEventStatus.Draft, calendarEvent.Status);
-    }
-
-    [Fact]
-    public void ToViewsForMonth_PublishedStatus_MapsToPublished()
-    {
-        var entity = CreateEntity(
-            "20260605T170000Z",
-            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
-            "2026-06-05T10:00:00");
-        entity.Status = "Published";
-        var criteria = new CalendarEventMonthCriteria(2026, 6);
-
-        var result = CalendarEventReadMapper.ToViewsForMonth(
-            [entity],
-            criteria);
-
-        var calendarEvent = Assert.Single(result);
-        Assert.Equal(CalendarEventStatus.Published, calendarEvent.Status);
-    }
-
-    [Fact]
-    public void ToViewsForMonth_PublishingStatus_MapsToPublishing()
-    {
-        var entity = CreateEntity(
-            "20260605T170000Z",
-            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
-            "2026-06-05T10:00:00");
-        entity.Status = "Publishing";
-        var criteria = new CalendarEventMonthCriteria(2026, 6);
-
-        var result = CalendarEventReadMapper.ToViewsForMonth(
-            [entity],
-            criteria);
-
-        var calendarEvent = Assert.Single(result);
-        Assert.Equal(CalendarEventStatus.Publishing, calendarEvent.Status);
-    }
-
-    [Fact]
-    public void ToViewsForMonth_UnknownStatus_DefaultsToDraft()
-    {
-        var entity = CreateEntity(
-            "20260605T170000Z",
-            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
-            "2026-06-05T10:00:00");
-        entity.Status = "not-a-real-status";
-        var criteria = new CalendarEventMonthCriteria(2026, 6);
-
-        var result = CalendarEventReadMapper.ToViewsForMonth(
-            [entity],
-            criteria);
-
-        var calendarEvent = Assert.Single(result);
-        Assert.Equal(CalendarEventStatus.Draft, calendarEvent.Status);
     }
 
     [Fact]
@@ -136,16 +60,10 @@ public class CalendarEventReadMapperTests
         };
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventReadMapper.ToViewsForMonth(
-            entities,
-            criteria);
+        var result = CalendarEventReadMapper.ToViewsForMonth(entities, criteria);
 
         Assert.Equal(
-            [
-                "20260531T153000Z",
-                "20260615T170000Z",
-                "20260701T063000Z"
-            ],
+            ["20260531T153000Z", "20260615T170000Z", "20260701T063000Z"],
             result.Select(calendarEvent => calendarEvent.CalendarEventId));
     }
 
@@ -169,16 +87,10 @@ public class CalendarEventReadMapperTests
         };
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventReadMapper.ToViewsForMonth(
-            entities,
-            criteria);
+        var result = CalendarEventReadMapper.ToViewsForMonth(entities, criteria);
 
         Assert.Equal(
-            [
-                "20260605T170000Z-A",
-                "20260605T170000Z-B",
-                "20260606T170000Z"
-            ],
+            ["20260605T170000Z-A", "20260605T170000Z-B", "20260606T170000Z"],
             result.Select(calendarEvent => calendarEvent.CalendarEventId));
     }
 
@@ -193,9 +105,7 @@ public class CalendarEventReadMapperTests
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            CalendarEventReadMapper.ToViewsForMonth(
-                [entity],
-                criteria));
+            CalendarEventReadMapper.ToViewsForMonth([entity], criteria));
 
         Assert.Contains("malformed descriptions JSON", exception.Message);
     }
@@ -222,11 +132,7 @@ public class CalendarEventReadMapperTests
         var result = CalendarEventReadMapper.ToViews(entities);
 
         Assert.Equal(
-            [
-                "20260615T170000Z",
-                "20260715T170000Z",
-                "20251115T170000Z"
-            ],
+            ["20260615T170000Z", "20260715T170000Z", "20251115T170000Z"],
             result.Select(calendarEvent => calendarEvent.CalendarEventId));
     }
 
@@ -237,9 +143,7 @@ public class CalendarEventReadMapperTests
             "20260605T170000Z",
             new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
             "2026-06-05T10:00:00",
-            [
-                new LocalizedDescription("en", "English stream 1", null)
-            ]);
+            [new LocalizedDescription("en", "English stream 1", null)]);
 
         var result = CalendarEventReadMapper.ToViews([entity]);
 
@@ -249,21 +153,6 @@ public class CalendarEventReadMapperTests
         Assert.Equal("America/Vancouver", calendarEvent.Start.TimeZoneId);
         var description = Assert.Single(calendarEvent.Descriptions);
         Assert.Equal("English stream 1", description.Title);
-    }
-
-    [Fact]
-    public void ToViews_PublishedEntity_MapsYouTubeBroadcastId()
-    {
-        var entity = CreateEntity(
-            "20260605T170000Z",
-            new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
-            "2026-06-05T10:00:00");
-        entity.YouTubeBroadcastId = "broadcast-123";
-
-        var result = CalendarEventReadMapper.ToViews([entity]);
-
-        var calendarEvent = Assert.Single(result);
-        Assert.Equal("broadcast-123", calendarEvent.YouTubeBroadcastId);
     }
 
     private static CalendarEventEntity CreateEntity(

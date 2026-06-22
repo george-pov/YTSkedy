@@ -8,7 +8,6 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents;
 public enum CalendarEventSortField
 {
     ScheduledStart = 0,
-    Status = 1,
-    TimeZone = 2,
-    Title = 3
+    TimeZone = 1,
+    Title = 2
 }

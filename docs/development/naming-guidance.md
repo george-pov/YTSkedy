@@ -171,8 +171,8 @@ helps the reader. Application code should prefer product verbs.
 
 Name externally visible writes with the resource being changed. For example,
 prefer `CreateCalendarEventAsync`, `UpdateCalendarEventAsync`,
-`DeleteCalendarEventAsync`, or `PublishYouTubeAsync` over vague names such as
-`ProcessAsync` or `SubmitAsync`.
+`DeleteCalendarEventAsync`, or `PublishCalendarEventAsync` over vague names
+such as `ProcessAsync` or `SubmitAsync`.
 
 ## Domain Vocabulary
 
@@ -183,10 +183,9 @@ prefer `CreateCalendarEventAsync`, `UpdateCalendarEventAsync`,
   calendar event identity and ordering.
 - `localized description`: Calendar event title and optional description for one
   language code.
-- `calendar event status`: Current event-level publish state in the implemented
-  YouTube path: `Draft`, `Publishing`, or `Published`.
-- `action policy`: Pure domain rule object that computes write eligibility,
-  such as `CalendarEventActionPolicy`.
+- `publish status`: Platform-publication state such as `NotPublished`,
+  `Publishing`, or `Published`.
+- `action policy`: Pure domain rule object that computes write eligibility.
 - `template`: Reusable free-text publishing content with placeholder tokens.
 - `template type`: Provider family associated with a template, currently
   `YouTube` or `WordPress`.
@@ -244,8 +243,6 @@ Shorter names are acceptable for:
 | --- | --- | --- |
 | `CalendarEvent` | Application-owned calendar input or persisted scheduling row. | `Event` is acceptable inside calendar-event-specific code when it cannot be confused with a YouTube broadcast or .NET event. |
 | `CalendarEventView` | Read model returned by calendar event query use cases. | `View` is acceptable inside calendar-event-specific mapping code. |
-| `CalendarEventStatus` | Event-level publish status used by the implemented YouTube path. | `Status` is acceptable inside calendar-event-specific code. |
-| `CalendarEventActionPolicy` | Pure rules for calendar event publish, update, and delete eligibility. | `ActionPolicy` is acceptable inside calendar-event-specific code. |
 | `LocalizedDescription` | Calendar event title and optional description for one language. | `Description` is acceptable inside calendar-event-specific code when the language context is clear. |
 | `Template` | Reusable free-text publishing content with placeholder tokens. | Use `Template` directly. |
 | `TemplateType` | Provider family associated with a template. | `Type` is acceptable inside template-specific code. |

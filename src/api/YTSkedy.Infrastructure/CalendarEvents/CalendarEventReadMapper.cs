@@ -68,9 +68,7 @@ internal static class CalendarEventReadMapper
                 localDateTime,
                 entity.TimeZoneId),
             entity.ScheduledStartUtc,
-            DeserializeDescriptions(entity),
-            ParseStatus(entity.Status),
-            entity.YouTubeBroadcastId);
+            DeserializeDescriptions(entity));
     }
 
     private static LocalizedDescription[] DeserializeDescriptions(CalendarEventEntity entity)
@@ -90,8 +88,4 @@ internal static class CalendarEventReadMapper
         }
     }
 
-    internal static CalendarEventStatus ParseStatus(string? status) =>
-        Enum.TryParse<CalendarEventStatus>(status, ignoreCase: true, out var parsed)
-            ? parsed
-            : CalendarEventStatus.Draft;
 }
