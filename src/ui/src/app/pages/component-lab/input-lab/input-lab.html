@@ -1,0 +1,59 @@
+<app-lab-page titleId="input-lab-title" title="Input">
+  <app-lab-example titleId="input-text-example-title" title="Text">
+    <app-input [field]="form.text" label="Stream title" />
+  </app-lab-example>
+
+  <app-lab-example
+    titleId="input-placeholder-example-title"
+    title="Placeholder"
+  >
+    <app-input
+      [field]="form.withPlaceholder"
+      label="Stream title"
+      placeholder="e.g. Weekly live coding session"
+    />
+  </app-lab-example>
+
+  <app-lab-example
+    titleId="input-required-example-title"
+    title="Required (invalid)"
+  >
+    <app-input [field]="form.requiredText" label="Stream title" />
+  </app-lab-example>
+
+  <app-lab-example
+    titleId="input-max-length-example-title"
+    title="Maximum length (no counter)"
+  >
+    <app-input [field]="form.limited" label="Stream title" />
+  </app-lab-example>
+
+  <app-lab-example
+    titleId="input-counter-example-title"
+    title="Character counter"
+  >
+    <app-input [field]="form.counted" label="Stream title" showCharacterCount />
+  </app-lab-example>
+
+  <app-lab-example titleId="input-multiline-example-title" title="Multiline">
+    <app-input
+      multiline
+      [field]="form.multiline"
+      label="Description"
+      [rows]="4"
+    />
+  </app-lab-example>
+
+  <app-lab-example
+    titleId="input-multiline-counter-example-title"
+    title="Multiline with counter"
+  >
+    <app-input
+      multiline
+      [field]="form.multilineCounted"
+      label="Description"
+      [rows]="4"
+      showCharacterCount
+    />
+  </app-lab-example>
+</app-lab-page>

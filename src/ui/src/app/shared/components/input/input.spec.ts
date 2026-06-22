@@ -1,6 +1,6 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { form, required } from '@angular/forms/signals';
+import { form, maxLength, required } from '@angular/forms/signals';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { Input } from './input';
@@ -16,14 +16,19 @@ interface TitleModel {
     [field]="form.title"
     label="Title"
     [multiline]="multiline()"
+    [showCharacterCount]="showCharacterCount()"
   />`,
 })
 class InputHost {
   readonly multiline = signal(false);
+  readonly showCharacterCount = signal(false);
   readonly model = signal<TitleModel>({ title: '' });
-  readonly form = form(this.model, (path) =>
-    required(path.title, { message: 'Title is required.' }),
-  );
+  readonly form = form(this.model, (path) => {
+    required(path.title, { message: 'Title is required.' });
+    maxLength(path.title, 100, {
+      message: 'Title must be 100 characters or fewer.',
+    });
+  });
 }
 
 describe('Input (signal forms field)', () => {
@@ -42,6 +47,11 @@ describe('Input (signal forms field)', () => {
   function errorText(): string | null {
     const error = fixture.nativeElement.querySelector('mat-error');
     return error ? (error.textContent?.trim() ?? null) : null;
+  }
+
+  function counterText(): string | null {
+    const hint = fixture.nativeElement.querySelector('mat-hint');
+    return hint ? (hint.textContent?.trim() ?? null) : null;
   }
 
   it('renders the label and a native input', () => {
@@ -83,5 +93,43 @@ describe('Input (signal forms field)', () => {
 
     expect(fixture.nativeElement.querySelector('input')).toBeNull();
     expect(fixture.nativeElement.querySelector('textarea')).not.toBeNull();
+  });
+
+  it('caps the input length from the schema max length', async () => {
+    await fixture.whenStable();
+
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
+    expect(input.maxLength).toBe(100);
+  });
+
+  it('hides the character counter by default even when the field has a max length', () => {
+    expect(counterText()).toBeNull();
+  });
+
+  it('shows a used/max counter from the schema max when the counter is enabled', async () => {
+    host.model.set({ title: 'Hello' });
+    host.showCharacterCount.set(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(counterText()).toBe('5 / 100');
+  });
+
+  it('recalculates the character counter as the user types', async () => {
+    host.showCharacterCount.set(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(counterText()).toBe('0 / 100');
+
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
+    input.value = 'Hi there';
+    input.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    expect(counterText()).toBe('8 / 100');
   });
 });

@@ -19,4 +19,7 @@
   @if (errorMessage(); as message) {
     <mat-error>{{ message }}</mat-error>
   }
+  @if (showCharacterCount() && maxLength() !== null) {
+    <mat-hint align="end">{{ characterCount() }} / {{ maxLength() }}</mat-hint>
+  }
 </mat-form-field>
