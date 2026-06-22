@@ -1,9 +1,21 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { form, required } from '@angular/forms/signals';
+import { MatDateFormats } from '@angular/material/core';
+import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { DateField } from './date';
+
+const testDateFormats: MatDateFormats = {
+  parse: { dateInput: 'yyyy-MM-dd' },
+  display: {
+    dateInput: 'yyyy-MM-dd',
+    monthYearLabel: 'LLL yyyy',
+    dateA11yLabel: 'DDD',
+    monthYearA11yLabel: 'LLLL yyyy',
+  },
+};
 
 @Component({
   selector: 'app-date-host',
@@ -23,23 +35,33 @@ describe('DateField', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection()],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideLuxonDateAdapter(testDateFormats),
+      ],
     });
     fixture = TestBed.createComponent(DateHost);
     host = fixture.componentInstance;
     fixture.detectChanges();
   });
 
-  it('renders the label and a native date input', () => {
+  it('renders the label and Material datepicker controls', () => {
     expect(
       fixture.nativeElement.querySelector('mat-label')?.textContent?.trim(),
     ).toBe('Start date');
     expect(
-      fixture.nativeElement.querySelector('input')?.getAttribute('type'),
-    ).toBe('date');
+      fixture.nativeElement.querySelector('input[matInput]'),
+    ).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('mat-datepicker-toggle'),
+    ).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-datepicker')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-hint')?.textContent).toContain(
+      'YYYY-MM-DD',
+    );
   });
 
-  it('propagates input changes into the field value', async () => {
+  it('converts typed date changes into the string field value', async () => {
     const input = fixture.nativeElement.querySelector(
       'input',
     ) as HTMLInputElement;

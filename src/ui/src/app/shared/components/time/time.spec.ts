@@ -1,9 +1,23 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { form, required } from '@angular/forms/signals';
+import { MatDateFormats } from '@angular/material/core';
+import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { TimeField } from './time';
+
+const testDateFormats: MatDateFormats = {
+  parse: { dateInput: 'yyyy-MM-dd', timeInput: 'HH:mm' },
+  display: {
+    dateInput: 'yyyy-MM-dd',
+    monthYearLabel: 'LLL yyyy',
+    dateA11yLabel: 'DDD',
+    monthYearA11yLabel: 'LLLL yyyy',
+    timeInput: 'HH:mm',
+    timeOptionLabel: 'HH:mm',
+  },
+};
 
 @Component({
   selector: 'app-time-host',
@@ -23,23 +37,33 @@ describe('TimeField', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection()],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideLuxonDateAdapter(testDateFormats),
+      ],
     });
     fixture = TestBed.createComponent(TimeHost);
     host = fixture.componentInstance;
     fixture.detectChanges();
   });
 
-  it('renders the label and a native time input', () => {
+  it('renders the label and Material timepicker controls', () => {
     expect(
       fixture.nativeElement.querySelector('mat-label')?.textContent?.trim(),
     ).toBe('Start time');
     expect(
-      fixture.nativeElement.querySelector('input')?.getAttribute('type'),
-    ).toBe('time');
+      fixture.nativeElement.querySelector('input[matInput]'),
+    ).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('mat-timepicker-toggle'),
+    ).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-timepicker')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-hint')?.textContent).toContain(
+      'HH:mm',
+    );
   });
 
-  it('propagates input changes into the field value', async () => {
+  it('converts typed time changes into the string field value', async () => {
     const input = fixture.nativeElement.querySelector(
       'input',
     ) as HTMLInputElement;

@@ -19,12 +19,29 @@ import {
   MsalBroadcastService,
   MsalService,
 } from '@azure/msal-angular';
+import { MatDateFormats } from '@angular/material/core';
+import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 
 import { routes } from './app.routes';
 import { AuthFacade, MsalAuthFacade } from './shared/auth/auth-facade';
 import { bearerTokenInterceptor } from './shared/auth/bearer-token-interceptor';
 import { APP_CONFIG, AppConfig } from './shared/config/app-config';
 import { AppConfigLoader } from './shared/config/app-config-loader';
+
+const ytskedyDateFormats: MatDateFormats = {
+  parse: {
+    dateInput: 'yyyy-MM-dd',
+    timeInput: 'HH:mm',
+  },
+  display: {
+    dateInput: 'yyyy-MM-dd',
+    monthYearLabel: 'LLL yyyy',
+    dateA11yLabel: 'DDD',
+    monthYearA11yLabel: 'LLLL yyyy',
+    timeInput: 'HH:mm',
+    timeOptionLabel: 'HH:mm',
+  },
+};
 
 export function msalInstanceFactory(
   config: AppConfig,
@@ -61,6 +78,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideHttpClient(withInterceptors([bearerTokenInterceptor])),
+    provideLuxonDateAdapter(ytskedyDateFormats),
     {
       provide: APP_CONFIG,
       useFactory: () => inject(AppConfigLoader).getConfig(),

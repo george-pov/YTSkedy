@@ -4,8 +4,14 @@
   }
   <input
     matInput
-    type="date"
-    [formField]="field()">
+    [matDatepicker]="picker"
+    [value]="selectedDate()"
+    [errorStateMatcher]="errorStateMatcher"
+    (dateInput)="onDateInput($event)"
+    (blur)="markAsTouched()">
+  <mat-hint>YYYY-MM-DD</mat-hint>
+  <mat-datepicker-toggle matIconSuffix [for]="picker" />
+  <mat-datepicker #picker />
   @if (errorMessage(); as message) {
     <mat-error>{{ message }}</mat-error>
   }

@@ -4,8 +4,14 @@
   }
   <input
     matInput
-    type="time"
-    [formField]="field()">
+    [matTimepicker]="picker"
+    [value]="selectedTime()"
+    [errorStateMatcher]="errorStateMatcher"
+    (valueChange)="onTimeChange($event)"
+    (blur)="markAsTouched()">
+  <mat-hint>HH:mm</mat-hint>
+  <mat-timepicker-toggle matIconSuffix [for]="picker" />
+  <mat-timepicker #picker interval="15m" />
   @if (errorMessage(); as message) {
     <mat-error>{{ message }}</mat-error>
   }
