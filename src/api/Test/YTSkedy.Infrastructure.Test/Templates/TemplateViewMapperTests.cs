@@ -3,7 +3,7 @@ using YTSkedy.Scheduling.Domain.Templates;
 
 namespace YTSkedy.Infrastructure.Test.Templates;
 
-public class TemplateReadMapperTests
+public class TemplateViewMapperTests
 {
     [Fact]
     public void ToView_Entity_MapsTemplateFields()
@@ -14,7 +14,7 @@ public class TemplateReadMapperTests
             "YouTube",
             "Live at {{ localizedTime }}");
 
-        var view = TemplateReadMapper.ToView(entity);
+        var view = TemplateViewMapper.ToView(entity);
 
         Assert.Equal("9f8b1c2d3e4f", view.Id);
         Assert.Equal("Weeknight stream", view.Name);
@@ -27,7 +27,7 @@ public class TemplateReadMapperTests
     {
         var entity = CreateEntity("id1", "Blog post", "WordPress", "content");
 
-        var view = TemplateReadMapper.ToView(entity);
+        var view = TemplateViewMapper.ToView(entity);
 
         Assert.Equal(TemplateType.WordPress, view.Type);
     }
@@ -41,7 +41,7 @@ public class TemplateReadMapperTests
             CreateEntity("id2", "Second", "WordPress", "content two")
         };
 
-        var views = TemplateReadMapper.ToViews(entities);
+        var views = TemplateViewMapper.ToViews(entities);
 
         Assert.Equal(["id1", "id2"], views.Select(view => view.Id));
         Assert.Equal(
@@ -56,7 +56,7 @@ public class TemplateReadMapperTests
     [InlineData("wordpress", TemplateType.WordPress)]
     public void ParseType_KnownType_ReturnsMatchingType(string stored, TemplateType expected)
     {
-        Assert.Equal(expected, TemplateReadMapper.ParseType(stored));
+        Assert.Equal(expected, TemplateViewMapper.ParseType(stored));
     }
 
     [Theory]
@@ -65,7 +65,7 @@ public class TemplateReadMapperTests
     [InlineData("not-a-real-type")]
     public void ParseType_UnknownType_DefaultsToYouTube(string? stored)
     {
-        Assert.Equal(TemplateType.YouTube, TemplateReadMapper.ParseType(stored));
+        Assert.Equal(TemplateType.YouTube, TemplateViewMapper.ParseType(stored));
     }
 
     private static TemplateEntity CreateEntity(

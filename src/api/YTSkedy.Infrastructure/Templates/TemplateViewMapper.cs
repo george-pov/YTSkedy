@@ -2,7 +2,7 @@ using YTSkedy.Scheduling.Domain.Templates;
 
 namespace YTSkedy.Infrastructure.Templates;
 
-internal static class TemplateReadMapper
+internal static class TemplateViewMapper
 {
     public static TemplateView ToView(TemplateEntity entity)
     {

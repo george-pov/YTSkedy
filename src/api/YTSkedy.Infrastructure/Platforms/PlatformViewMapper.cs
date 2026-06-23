@@ -2,14 +2,14 @@ using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Infrastructure.Platforms;
 
-internal static class PlatformReadMapper
+internal static class PlatformViewMapper
 {
     public static PlatformView ToView(PlatformEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
 
         var type = ParseType(entity.Type);
-        var publishSettings = PlatformPublishSettingsSerializer.Deserialize(
+        var publishSettings = PublishSettingsSerializer.Deserialize(
             type,
             entity.PublishSettingsJson);
 

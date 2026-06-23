@@ -10,12 +10,12 @@ namespace YTSkedy.Scheduling.Domain.Platforms;
 /// externally configured credential material; the actual secrets are never
 /// stored here.
 /// </summary>
-public sealed record YouTubePublishSettings : PublishSettings
+public sealed record YouTubeSettings : PublishSettings
 {
     public static readonly IReadOnlyList<string> AllowedPrivacyStatuses =
         ["private", "public", "unlisted"];
 
-    public YouTubePublishSettings(
+    public YouTubeSettings(
         string credentials,
         string privacyStatus,
         bool selfDeclaredMadeForKids)

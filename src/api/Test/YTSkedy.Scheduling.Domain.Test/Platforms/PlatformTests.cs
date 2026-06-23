@@ -4,7 +4,7 @@ namespace YTSkedy.Scheduling.Domain.Test.Platforms;
 
 public class PlatformTests
 {
-    private static readonly YouTubePublishSettings Settings =
+    private static readonly YouTubeSettings Settings =
         new("main-youtube-channel", "private", false);
 
     [Fact]

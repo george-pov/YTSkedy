@@ -251,7 +251,7 @@ Shorter names are acceptable for:
 | `TemplateTokenCatalog` | Code-defined source of available template tokens. | `Catalog` is acceptable inside template-token-specific code. |
 | `Platform` | Configured publishing destination. | `Destination` is acceptable only for user-facing copy when it is clearer. |
 | `PublishSettings` | Non-secret settings used when publishing through a platform. | Avoid `DefaultPublishingSettings`; create a new platform when settings differ. |
-| `YouTubePublishSettings` | YouTube-specific publish settings used by a YouTube platform. | `PublishSettings` is acceptable inside YouTube-platform-specific code. |
+| `YouTubeSettings` | YouTube-specific publish settings used by a YouTube platform. | `PublishSettings` is acceptable inside YouTube-platform-specific code. |
 | `PlatformPublication` | Publish state for one calendar event on one platform. | `Publication` is acceptable inside platform-specific namespaces, types, or tests. |
 | `PublishStatus` | Status of a platform publication. | `Status` is acceptable inside platform-publication-specific code. |
 | `ExternalResourceId` | Provider-owned id returned after publishing. | `ResourceId` is acceptable inside provider-specific result mapping. Provider-specific ids such as `YouTubeBroadcastId` belong only at provider boundaries. |

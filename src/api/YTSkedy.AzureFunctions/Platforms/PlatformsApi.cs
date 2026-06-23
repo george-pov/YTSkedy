@@ -339,7 +339,7 @@ public class PlatformsApi(
     private static PublishSettingsResponse ToPublishSettingsResponse(PublishSettings publishSettings) =>
         publishSettings switch
         {
-            YouTubePublishSettings youTube => new PublishSettingsResponse(
+            YouTubeSettings youTube => new PublishSettingsResponse(
                 youTube.Credentials,
                 youTube.PrivacyStatus,
                 youTube.SelfDeclaredMadeForKids),
@@ -352,7 +352,7 @@ public class PlatformsApi(
     private static PlatformType TypeOf(PublishSettings publishSettings) =>
         publishSettings switch
         {
-            YouTubePublishSettings => PlatformType.YouTube,
+            YouTubeSettings => PlatformType.YouTube,
             _ => throw new ArgumentOutOfRangeException(
                 nameof(publishSettings),
                 publishSettings.GetType().Name,
@@ -373,19 +373,19 @@ public class PlatformsApi(
             return false;
         }
 
-        if (!YouTubePublishSettings.IsValidCredentials(payload.Credentials))
+        if (!YouTubeSettings.IsValidCredentials(payload.Credentials))
         {
             error = InvalidCredentialsResult();
             return false;
         }
 
-        if (!YouTubePublishSettings.IsValidPrivacyStatus(payload.PrivacyStatus))
+        if (!YouTubeSettings.IsValidPrivacyStatus(payload.PrivacyStatus))
         {
             error = InvalidPrivacyStatusResult();
             return false;
         }
 
-        publishSettings = new YouTubePublishSettings(
+        publishSettings = new YouTubeSettings(
             payload.Credentials!,
             payload.PrivacyStatus!,
             payload.SelfDeclaredMadeForKids ?? false);

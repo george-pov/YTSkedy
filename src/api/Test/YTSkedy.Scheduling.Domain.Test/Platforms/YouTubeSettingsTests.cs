@@ -2,12 +2,12 @@ using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Scheduling.Domain.Test.Platforms;
 
-public class YouTubePublishSettingsTests
+public class YouTubeSettingsTests
 {
     [Fact]
     public void Constructor_ValidInput_SetsProperties()
     {
-        var settings = new YouTubePublishSettings("main-youtube-channel", "unlisted", true);
+        var settings = new YouTubeSettings("main-youtube-channel", "unlisted", true);
 
         Assert.Equal("main-youtube-channel", settings.Credentials);
         Assert.Equal("unlisted", settings.PrivacyStatus);
@@ -21,7 +21,7 @@ public class YouTubePublishSettingsTests
     public void Constructor_EmptyCredentials_Throws(string? credentials)
     {
         Assert.Throws<ArgumentException>(
-            () => new YouTubePublishSettings(credentials!, "private", false));
+            () => new YouTubeSettings(credentials!, "private", false));
     }
 
     [Theory]
@@ -32,7 +32,7 @@ public class YouTubePublishSettingsTests
     public void Constructor_InvalidPrivacyStatus_Throws(string privacyStatus)
     {
         Assert.Throws<ArgumentException>(
-            () => new YouTubePublishSettings("creds", privacyStatus, false));
+            () => new YouTubeSettings("creds", privacyStatus, false));
     }
 
     [Theory]
@@ -41,7 +41,7 @@ public class YouTubePublishSettingsTests
     [InlineData("unlisted")]
     public void IsValidPrivacyStatus_AllowedLowercaseValues_ReturnsTrue(string privacyStatus)
     {
-        Assert.True(YouTubePublishSettings.IsValidPrivacyStatus(privacyStatus));
+        Assert.True(YouTubeSettings.IsValidPrivacyStatus(privacyStatus));
     }
 
     [Theory]
@@ -52,13 +52,13 @@ public class YouTubePublishSettingsTests
     [InlineData("hidden")]
     public void IsValidPrivacyStatus_OtherValues_ReturnsFalse(string? privacyStatus)
     {
-        Assert.False(YouTubePublishSettings.IsValidPrivacyStatus(privacyStatus));
+        Assert.False(YouTubeSettings.IsValidPrivacyStatus(privacyStatus));
     }
 
     [Fact]
     public void IsValidCredentials_NonEmpty_ReturnsTrue()
     {
-        Assert.True(YouTubePublishSettings.IsValidCredentials("main-youtube-channel"));
+        Assert.True(YouTubeSettings.IsValidCredentials("main-youtube-channel"));
     }
 
     [Theory]
@@ -67,6 +67,6 @@ public class YouTubePublishSettingsTests
     [InlineData("   ")]
     public void IsValidCredentials_NullOrWhiteSpace_ReturnsFalse(string? credentials)
     {
-        Assert.False(YouTubePublishSettings.IsValidCredentials(credentials));
+        Assert.False(YouTubeSettings.IsValidCredentials(credentials));
     }
 }

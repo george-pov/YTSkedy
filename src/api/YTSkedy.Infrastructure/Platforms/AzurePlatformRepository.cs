@@ -52,7 +52,7 @@ public sealed class AzurePlatformRepository(
             PlatformId = id,
             Name = platform.Name,
             Type = platform.Type.ToString(),
-            PublishSettingsJson = PlatformPublishSettingsSerializer.Serialize(
+            PublishSettingsJson = PublishSettingsSerializer.Serialize(
                 platform.Type,
                 platform.PublishSettings),
             CreatedUtc = now,
@@ -99,9 +99,9 @@ public sealed class AzurePlatformRepository(
 
         // Type is immutable, so it is read from the stored row and reused to
         // serialize the new settings.
-        var type = PlatformReadMapper.ParseType(entity.Type);
+        var type = PlatformViewMapper.ParseType(entity.Type);
         entity.Name = trimmedName;
-        entity.PublishSettingsJson = PlatformPublishSettingsSerializer.Serialize(
+        entity.PublishSettingsJson = PublishSettingsSerializer.Serialize(
             type,
             publishSettings);
         entity.UpdatedUtc = timeProvider.GetUtcNow();
@@ -154,10 +154,10 @@ public sealed class AzurePlatformRepository(
         var candidates = type is null
             ? entities
             : entities
-                .Where(entity => PlatformReadMapper.ParseType(entity.Type) == type.Value)
+                .Where(entity => PlatformViewMapper.ParseType(entity.Type) == type.Value)
                 .ToList();
 
-        return PlatformReadMapper.ToViews(candidates);
+            return PlatformViewMapper.ToViews(candidates);
     }
 
     public async Task<PlatformView?> GetAsync(
@@ -174,7 +174,7 @@ public sealed class AzurePlatformRepository(
                 cancellationToken: cancellationToken);
 
             return response.HasValue
-                ? PlatformReadMapper.ToView(response.Value!)
+                ? PlatformViewMapper.ToView(response.Value!)
                 : null;
         }
         catch (RequestFailedException exception) when (exception.Status == 404)

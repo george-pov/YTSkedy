@@ -14,7 +14,7 @@ public class ListPlatformsHandlerTests
                 "p1",
                 "Main channel",
                 PlatformType.YouTube,
-                new YouTubePublishSettings("creds", "private", false))
+                new YouTubeSettings("creds", "private", false))
         };
         var reader = new FakePlatformReader { Views = views };
         var handler = new ListPlatformsHandler(reader);

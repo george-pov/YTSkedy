@@ -5,7 +5,7 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class UpdatePlatformHandlerTests
 {
-    private static readonly YouTubePublishSettings Settings =
+    private static readonly YouTubeSettings Settings =
         new("main-youtube-channel", "unlisted", false);
 
     [Fact]

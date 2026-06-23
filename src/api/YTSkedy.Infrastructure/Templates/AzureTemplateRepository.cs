@@ -154,7 +154,7 @@ public sealed class AzureTemplateRepository(
 
         var entities = await QueryEntitiesAsync(filter, cancellationToken);
 
-        return TemplateReadMapper.ToViews(entities);
+        return TemplateViewMapper.ToViews(entities);
     }
 
     private async Task<List<TemplateEntity>> QueryEntitiesAsync(

@@ -5,7 +5,7 @@ using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Infrastructure.CalendarEvents;
 
-internal static class CalendarEventReadMapper
+internal static class CalendarEventViewMapper
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 

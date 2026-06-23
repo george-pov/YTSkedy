@@ -87,7 +87,7 @@ public sealed class AzureCalendarEventRepository(
             }
         }
 
-        return CalendarEventReadMapper.ToViewsForMonth(
+        return CalendarEventViewMapper.ToViewsForMonth(
             entities,
             criteria);
     }
@@ -111,7 +111,7 @@ public sealed class AzureCalendarEventRepository(
             return [];
         }
 
-        return CalendarEventReadMapper.ToViews(entities);
+        return CalendarEventViewMapper.ToViews(entities);
     }
 
     public async Task<CalendarEventView?> GetByIdAsync(
@@ -122,7 +122,7 @@ public sealed class AzureCalendarEventRepository(
 
         var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
 
-        return entity is null ? null : CalendarEventReadMapper.ToView(entity);
+        return entity is null ? null : CalendarEventViewMapper.ToView(entity);
     }
 
     public async Task<bool> UpdateDescriptionsAsync(

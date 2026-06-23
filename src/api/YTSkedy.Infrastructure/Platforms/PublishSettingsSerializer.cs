@@ -10,7 +10,7 @@ namespace YTSkedy.Infrastructure.Platforms;
 /// stored; credential material is a reference name resolved outside storage, so
 /// no token, secret, or raw authorization header is ever written here.
 /// </summary>
-internal static class PlatformPublishSettingsSerializer
+internal static class PublishSettingsSerializer
 {
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
 
@@ -42,11 +42,11 @@ internal static class PlatformPublishSettingsSerializer
         };
     }
 
-    private static YouTubePublishSettings DeserializeYouTube(string json)
+    private static YouTubeSettings DeserializeYouTube(string json)
     {
         try
         {
-            return JsonSerializer.Deserialize<YouTubePublishSettings>(json, Options)
+            return JsonSerializer.Deserialize<YouTubeSettings>(json, Options)
                 ?? throw new InvalidOperationException(
                     "Platform row has null publish settings JSON.");
         }
@@ -64,8 +64,8 @@ internal static class PlatformPublishSettingsSerializer
         }
     }
 
-    private static YouTubePublishSettings AsYouTube(PublishSettings settings) =>
-        settings as YouTubePublishSettings
+    private static YouTubeSettings AsYouTube(PublishSettings settings) =>
+        settings as YouTubeSettings
             ?? throw new ArgumentException(
                 "A YouTube platform requires YouTube publish settings.",
                 nameof(settings));

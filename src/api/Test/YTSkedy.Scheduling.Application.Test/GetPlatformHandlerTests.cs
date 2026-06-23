@@ -12,7 +12,7 @@ public class GetPlatformHandlerTests
             "p1",
             "Main channel",
             PlatformType.YouTube,
-            new YouTubePublishSettings("creds", "private", false));
+            new YouTubeSettings("creds", "private", false));
         var reader = new FakePlatformReader { View = view };
         var handler = new GetPlatformHandler(reader);
 
