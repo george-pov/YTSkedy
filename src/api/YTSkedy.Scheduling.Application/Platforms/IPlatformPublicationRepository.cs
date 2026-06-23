@@ -32,9 +32,10 @@ public interface IPlatformPublicationRepository
     /// Marks a reserved publication row
     /// <see cref="Domain.Platforms.PublishStatus.Published"/> after the provider
     /// call succeeds, recording the provider <paramref name="externalResourceId"/>
-    /// and the publish instant. Returns false when no row exists for the pair.
+    /// and the publish instant. Returns the recorded publish instant, or null when
+    /// no row exists for the pair.
     /// </summary>
-    Task<bool> MarkPublishedAsync(
+    Task<DateTimeOffset?> MarkPublishedAsync(
         string calendarEventId,
         string platformId,
         string externalResourceId,

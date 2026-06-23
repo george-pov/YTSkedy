@@ -225,7 +225,7 @@ public class DeletePlatformHandlerTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<bool> MarkPublishedAsync(
+        public Task<DateTimeOffset?> MarkPublishedAsync(
             string calendarEventId,
             string platformId,
             string externalResourceId,

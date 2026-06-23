@@ -234,4 +234,16 @@ builder.Services.AddScoped<IPlatformPublicationRepository>(
 builder.Services.AddScoped<IPlatformPublicationReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
 
+// Platform publishing: providers are selected by platform type. The YouTube
+// provider resolves a platform's non-secret credentials reference to channel
+// secrets bound from the YouTubeChannels configuration section.
+builder.Services
+    .AddOptions<YouTubeChannelsOptions>()
+    .Bind(builder.Configuration.GetSection(YouTubeChannelsOptions.SectionName));
+
+builder.Services.AddSingleton<IYouTubeChannelCredentialStore, ConfiguredYouTubeChannelCredentialStore>();
+builder.Services.AddSingleton<IPlatformPublisher, YouTubePublisher>();
+builder.Services.AddSingleton<IPlatformPublisherSelector, PlatformPublisherSelector>();
+builder.Services.AddScoped<PublishHandler>();
+
 builder.Build().Run();

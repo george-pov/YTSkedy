@@ -73,7 +73,7 @@ public sealed class AzurePlatformPublicationRepository(
         }
     }
 
-    public async Task<bool> MarkPublishedAsync(
+    public async Task<DateTimeOffset?> MarkPublishedAsync(
         string calendarEventId,
         string platformId,
         string externalResourceId,
@@ -87,7 +87,7 @@ public sealed class AzurePlatformPublicationRepository(
 
         if (entity is null)
         {
-            return false;
+            return null;
         }
 
         var now = timeProvider.GetUtcNow();
@@ -106,12 +106,12 @@ public sealed class AzurePlatformPublicationRepository(
                 TableUpdateMode.Replace,
                 cancellationToken);
 
-            return true;
+            return now;
         }
         catch (RequestFailedException exception) when (exception.Status == 404)
         {
             // The row was removed between the read and this write.
-            return false;
+            return null;
         }
     }
 
