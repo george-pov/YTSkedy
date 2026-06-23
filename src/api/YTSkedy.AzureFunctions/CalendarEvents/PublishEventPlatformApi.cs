@@ -49,34 +49,34 @@ public class PublishEventPlatformApi(PublishHandler publishHandler)
     {
         ArgumentNullException.ThrowIfNull(result);
 
-        return result.Outcome switch
+        return result.Status switch
         {
-            PublishOutcome.Published =>
+            PublishResultStatus.Published =>
                 new OkObjectResult(ToResponse(result, calendarEventId, platformId)),
-            PublishOutcome.EventNotFound =>
+            PublishResultStatus.EventNotFound =>
                 new NotFoundObjectResult($"Calendar event '{calendarEventId}' was not found."),
-            PublishOutcome.PlatformNotFound =>
+            PublishResultStatus.PlatformNotFound =>
                 new NotFoundObjectResult($"Platform '{platformId}' was not found."),
-            PublishOutcome.PastStart =>
+            PublishResultStatus.PastStart =>
                 new BadRequestObjectResult("The calendar event start must be in the future."),
-            PublishOutcome.MissingEnglishTitle =>
+            PublishResultStatus.MissingEnglishTitle =>
                 new BadRequestObjectResult("The calendar event requires an English title to publish."),
-            PublishOutcome.AlreadyPublished =>
+            PublishResultStatus.AlreadyPublished =>
                 new ConflictObjectResult(
                     $"Calendar event '{calendarEventId}' is already published to platform '{platformId}'."),
-            PublishOutcome.PublishInProgress =>
+            PublishResultStatus.PublishInProgress =>
                 new ConflictObjectResult(
                     $"A publish of calendar event '{calendarEventId}' to platform '{platformId}' " +
                     "is already in progress."),
-            PublishOutcome.PlatformDeleted =>
+            PublishResultStatus.PlatformDeleted =>
                 new ConflictObjectResult(
                     $"Platform '{platformId}' was deleted; its publication is read-only history."),
-            PublishOutcome.ProviderNotSupported =>
+            PublishResultStatus.ProviderNotSupported =>
                 new ObjectResult($"Publishing to platform '{platformId}' is not supported.")
                 {
                     StatusCode = StatusCodes.Status501NotImplemented
                 },
-            PublishOutcome.ProviderFailed =>
+            PublishResultStatus.ProviderFailed =>
                 new ObjectResult(
                     $"Publishing calendar event '{calendarEventId}' to platform '{platformId}' " +
                     "failed at the provider.")

@@ -36,22 +36,22 @@ public sealed class PublishEventPlatformApiTests
     }
 
     [Theory]
-    [InlineData(PublishOutcome.EventNotFound, StatusCodes.Status404NotFound)]
-    [InlineData(PublishOutcome.PlatformNotFound, StatusCodes.Status404NotFound)]
-    [InlineData(PublishOutcome.PastStart, StatusCodes.Status400BadRequest)]
-    [InlineData(PublishOutcome.MissingEnglishTitle, StatusCodes.Status400BadRequest)]
-    [InlineData(PublishOutcome.AlreadyPublished, StatusCodes.Status409Conflict)]
-    [InlineData(PublishOutcome.PublishInProgress, StatusCodes.Status409Conflict)]
-    [InlineData(PublishOutcome.PlatformDeleted, StatusCodes.Status409Conflict)]
-    [InlineData(PublishOutcome.ProviderNotSupported, StatusCodes.Status501NotImplemented)]
-    [InlineData(PublishOutcome.ProviderFailed, StatusCodes.Status502BadGateway)]
-    [InlineData(PublishOutcome.FinalizeFailed, StatusCodes.Status500InternalServerError)]
-    public void ToResult_FailureOutcome_MapsToStatusCode(
-        PublishOutcome outcome,
+    [InlineData(PublishResultStatus.EventNotFound, StatusCodes.Status404NotFound)]
+    [InlineData(PublishResultStatus.PlatformNotFound, StatusCodes.Status404NotFound)]
+    [InlineData(PublishResultStatus.PastStart, StatusCodes.Status400BadRequest)]
+    [InlineData(PublishResultStatus.MissingEnglishTitle, StatusCodes.Status400BadRequest)]
+    [InlineData(PublishResultStatus.AlreadyPublished, StatusCodes.Status409Conflict)]
+    [InlineData(PublishResultStatus.PublishInProgress, StatusCodes.Status409Conflict)]
+    [InlineData(PublishResultStatus.PlatformDeleted, StatusCodes.Status409Conflict)]
+    [InlineData(PublishResultStatus.ProviderNotSupported, StatusCodes.Status501NotImplemented)]
+    [InlineData(PublishResultStatus.ProviderFailed, StatusCodes.Status502BadGateway)]
+    [InlineData(PublishResultStatus.FinalizeFailed, StatusCodes.Status500InternalServerError)]
+    public void ToResult_FailureStatus_MapsToStatusCode(
+        PublishResultStatus status,
         int expectedStatusCode)
     {
         var actionResult = PublishEventPlatformApi.ToResult(
-            PublishResult.ForOutcome(outcome),
+            PublishResult.ForStatus(status),
             CalendarEventId,
             PlatformId);
 

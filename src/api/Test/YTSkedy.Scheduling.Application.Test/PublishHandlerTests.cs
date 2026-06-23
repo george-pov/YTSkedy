@@ -24,7 +24,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.EventNotFound, result.Outcome);
+        Assert.Equal(PublishResultStatus.EventNotFound, result.Status);
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.PlatformNotFound, result.Outcome);
+        Assert.Equal(PublishResultStatus.PlatformNotFound, result.Status);
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.ProviderNotSupported, result.Outcome);
+        Assert.Equal(PublishResultStatus.ProviderNotSupported, result.Status);
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.PlatformDeleted, result.Outcome);
+        Assert.Equal(PublishResultStatus.PlatformDeleted, result.Status);
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.AlreadyPublished, result.Outcome);
+        Assert.Equal(PublishResultStatus.AlreadyPublished, result.Status);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.PublishInProgress, result.Outcome);
+        Assert.Equal(PublishResultStatus.PublishInProgress, result.Status);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.PastStart, result.Outcome);
+        Assert.Equal(PublishResultStatus.PastStart, result.Status);
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.MissingEnglishTitle, result.Outcome);
+        Assert.Equal(PublishResultStatus.MissingEnglishTitle, result.Status);
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.MissingEnglishTitle, result.Outcome);
+        Assert.Equal(PublishResultStatus.MissingEnglishTitle, result.Status);
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.PublishInProgress, result.Outcome);
+        Assert.Equal(PublishResultStatus.PublishInProgress, result.Status);
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.ProviderFailed, result.Outcome);
+        Assert.Equal(PublishResultStatus.ProviderFailed, result.Status);
         Assert.True(repository.ReleaseCalled);
         Assert.False(repository.MarkPublishedCalled);
     }
@@ -163,7 +163,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.FinalizeFailed, result.Outcome);
+        Assert.Equal(PublishResultStatus.FinalizeFailed, result.Status);
         Assert.False(repository.ReleaseCalled);
     }
 
@@ -177,7 +177,7 @@ public class PublishHandlerTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishOutcome.Published, result.Outcome);
+        Assert.Equal(PublishResultStatus.Published, result.Status);
         Assert.Equal("Main YouTube channel", result.PlatformName);
         Assert.Equal(PlatformType.YouTube, result.PlatformType);
         Assert.Equal("yt-broadcast-id", result.ExternalResourceId);

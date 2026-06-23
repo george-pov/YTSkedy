@@ -36,13 +36,13 @@ public sealed class PublishHandler(
             cancellationToken);
         if (calendarEvent is null)
         {
-            return PublishResult.ForOutcome(PublishOutcome.EventNotFound);
+            return PublishResult.ForStatus(PublishResultStatus.EventNotFound);
         }
 
         var platform = await platforms.GetAsync(command.PlatformId, cancellationToken);
         if (platform is null)
         {
-            return PublishResult.ForOutcome(PublishOutcome.PlatformNotFound);
+            return PublishResult.ForStatus(PublishResultStatus.PlatformNotFound);
         }
 
         // Selecting the provider before reserving avoids leaving a Publishing row
@@ -50,7 +50,7 @@ public sealed class PublishHandler(
         var publisher = publishers.Find(platform.Type);
         if (publisher is null)
         {
-            return PublishResult.ForOutcome(PublishOutcome.ProviderNotSupported);
+            return PublishResult.ForStatus(PublishResultStatus.ProviderNotSupported);
         }
 
         var existing = await publications.GetAsync(
@@ -63,30 +63,30 @@ public sealed class PublishHandler(
             // NotPublished pair has no row. Orphaned history cannot be republished.
             if (existing.IsOrphaned)
             {
-                return PublishResult.ForOutcome(PublishOutcome.PlatformDeleted);
+                return PublishResult.ForStatus(PublishResultStatus.PlatformDeleted);
             }
 
             if (existing.Status == PublishStatus.Published)
             {
-                return PublishResult.ForOutcome(PublishOutcome.AlreadyPublished);
+                return PublishResult.ForStatus(PublishResultStatus.AlreadyPublished);
             }
 
             if (existing.Status == PublishStatus.Publishing)
             {
-                return PublishResult.ForOutcome(PublishOutcome.PublishInProgress);
+                return PublishResult.ForStatus(PublishResultStatus.PublishInProgress);
             }
         }
 
         if (calendarEvent.ScheduledStartUtc <= timeProvider.GetUtcNow())
         {
-            return PublishResult.ForOutcome(PublishOutcome.PastStart);
+            return PublishResult.ForStatus(PublishResultStatus.PastStart);
         }
 
         var englishContent = calendarEvent.Descriptions.FirstOrDefault(
             description => description.IsEnglish && !string.IsNullOrWhiteSpace(description.Title));
         if (englishContent is null)
         {
-            return PublishResult.ForOutcome(PublishOutcome.MissingEnglishTitle);
+            return PublishResult.ForStatus(PublishResultStatus.MissingEnglishTitle);
         }
 
         var reservation = new PlatformPublicationReservation(
@@ -102,7 +102,7 @@ public sealed class PublishHandler(
         if (reservationResult == ReservePublicationResult.Conflict)
         {
             // A concurrent publish won the conditional reservation write.
-            return PublishResult.ForOutcome(PublishOutcome.PublishInProgress);
+            return PublishResult.ForStatus(PublishResultStatus.PublishInProgress);
         }
 
         PlatformPublishResult publishResult;
@@ -133,7 +133,7 @@ public sealed class PublishHandler(
                 command.PlatformId,
                 cancellationToken);
 
-            return PublishResult.ForOutcome(PublishOutcome.ProviderFailed);
+            return PublishResult.ForStatus(PublishResultStatus.ProviderFailed);
         }
 
         var publishedUtc = await publicationRepository.MarkPublishedAsync(
@@ -153,7 +153,7 @@ public sealed class PublishHandler(
                 command.PlatformId,
                 publishResult.ExternalResourceId);
 
-            return PublishResult.ForOutcome(PublishOutcome.FinalizeFailed);
+            return PublishResult.ForStatus(PublishResultStatus.FinalizeFailed);
         }
 
         return PublishResult.Published(
