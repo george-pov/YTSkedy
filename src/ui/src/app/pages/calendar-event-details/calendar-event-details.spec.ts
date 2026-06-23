@@ -13,6 +13,7 @@ import {
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
+  PublishPlatformResponse,
   UpdateCalendarEventRequest,
   UpdateCalendarEventResponse,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
@@ -47,6 +48,9 @@ describe('CalendarEventDetails', () => {
       ) => Observable<UpdateCalendarEventResponse>
     >;
     delete: Mock<(calendarEventId: string) => Observable<void>>;
+    publishPlatform: Mock<
+      (calendarEventId: string, platformId: string) => Observable<PublishPlatformResponse>
+    >;
   };
   let notifications: { showSuccess: Mock<(message: string) => void> };
   let navigations: string[];
@@ -64,6 +68,10 @@ describe('CalendarEventDetails', () => {
           ) => Observable<UpdateCalendarEventResponse>
         >(),
       delete: vi.fn<(calendarEventId: string) => Observable<void>>(),
+      publishPlatform:
+        vi.fn<
+          (calendarEventId: string, platformId: string) => Observable<PublishPlatformResponse>
+        >(),
     };
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
     navigations = [];
@@ -134,6 +142,16 @@ describe('CalendarEventDetails', () => {
   function cancelButton(): HTMLButtonElement | null {
     const host = appButtonHosts().find((b) => (b.textContent ?? '').includes('Cancel'));
     return host?.querySelector('button') ?? null;
+  }
+
+  function platformPublishHosts(): HTMLElement[] {
+    return Array.from(
+      fixture.nativeElement.querySelectorAll('.platform-publish-button'),
+    ) as HTMLElement[];
+  }
+
+  function platformPublishButton(): HTMLButtonElement | null {
+    return platformPublishHosts()[0]?.querySelector('button') ?? null;
   }
 
   it('blocks submit and reveals required errors when the form is empty', async () => {
@@ -350,6 +368,7 @@ describe('CalendarEventDetails', () => {
       expect(text).toContain('WordPress');
       expect(text).toContain('Archive site');
       expect(text).toContain('Published');
+      expect(platformPublishHosts()).toHaveLength(1);
     });
 
     it('shows an empty platform state when no platforms are returned', () => {
@@ -358,6 +377,94 @@ describe('CalendarEventDetails', () => {
       createEditComponent();
 
       expect(fixture.nativeElement.textContent).toContain('No platforms found.');
+    });
+
+    it('does not show a platform publish action when canPublish is false', () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            platforms: [
+              {
+                platformId: 'platform-1',
+                platformName: 'Main YouTube channel',
+                platformType: 'YouTube',
+                status: 'Published',
+                externalResourceId: 'broadcast-123',
+                publishedUtc: '2030-07-04T08:45:00+00:00',
+                platformDeletedUtc: null,
+                canPublish: false,
+              },
+            ],
+          }),
+        ),
+      );
+
+      createEditComponent();
+
+      expect(platformPublishHosts()).toHaveLength(0);
+    });
+
+    it('publishes a platform row and updates that row from the response', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.publishPlatform.mockReturnValue(
+        of({
+          calendarEventId: editId,
+          platformId: 'platform-1',
+          platformName: 'Main YouTube channel',
+          platformType: 'YouTube',
+          status: 'Published',
+          externalResourceId: 'broadcast-123',
+          publishedUtc: '2030-07-04T08:45:00+00:00',
+        }),
+      );
+
+      createEditComponent();
+
+      platformPublishHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(service.publishPlatform).toHaveBeenCalledWith(editId, 'platform-1');
+      expect(fixture.nativeElement.textContent).toContain('Published');
+      expect(platformPublishHosts()).toHaveLength(0);
+      expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event published.');
+    });
+
+    it('shows a platform publish error and stays on the page when publish fails', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.publishPlatform.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 502 })),
+      );
+
+      createEditComponent();
+
+      platformPublishHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'The platform could not publish this event. Try again later.',
+      );
+      expect(navigations).toEqual([]);
+    });
+
+    it('disables save, delete, and the clicked platform action while publishing', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.publishPlatform.mockReturnValue(new Subject<PublishPlatformResponse>());
+
+      createEditComponent();
+
+      platformPublishHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+
+      const save = fixture.nativeElement.querySelector(
+        'button[type="submit"]',
+      ) as HTMLButtonElement;
+      expect(save.disabled).toBe(true);
+      expect(deleteButton()!.disabled).toBe(true);
+      expect(platformPublishButton()!.disabled).toBe(true);
     });
 
     it('disables the scheduled start controls in edit mode', () => {

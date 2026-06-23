@@ -6,6 +6,7 @@ import { APP_CONFIG } from 'src/app/shared/config/app-config';
 import {
   calendarEventByIdUrl,
   calendarEventsUrl,
+  publishPlatformUrl,
   publishYouTubeUrl,
 } from './calendar-events-endpoint';
 
@@ -112,6 +113,16 @@ export interface PublishYouTubeResponse {
   youTubeBroadcastId: string;
 }
 
+export interface PublishPlatformResponse {
+  calendarEventId: string;
+  platformId: string;
+  platformName: string;
+  platformType: string;
+  status: CalendarEventPlatformStatus;
+  externalResourceId: string;
+  publishedUtc: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -159,6 +170,16 @@ export class CalendarEventsService {
   publish(calendarEventId: string): Observable<PublishYouTubeResponse> {
     return this.http.post<PublishYouTubeResponse>(
       publishYouTubeUrl(this.appConfig.api, calendarEventId),
+      {},
+    );
+  }
+
+  publishPlatform(
+    calendarEventId: string,
+    platformId: string,
+  ): Observable<PublishPlatformResponse> {
+    return this.http.post<PublishPlatformResponse>(
+      publishPlatformUrl(this.appConfig.api, calendarEventId, platformId),
       {},
     );
   }

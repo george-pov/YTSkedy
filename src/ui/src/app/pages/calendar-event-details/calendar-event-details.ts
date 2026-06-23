@@ -21,6 +21,7 @@ import { NotificationService } from 'src/app/shared/notifications/notification-s
 import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from 'src/app/shared/components/button/button';
 import { DataTable } from 'src/app/shared/components/data-table/data-table';
+import { DataTableCell } from 'src/app/shared/components/data-table/data-table-cell';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { DateField } from 'src/app/shared/components/date/date';
 import { Input } from 'src/app/shared/components/input/input';
@@ -46,6 +47,7 @@ import {
     Alert,
     Button,
     DataTable,
+    DataTableCell,
     Input,
     DateField,
     TimeField,
@@ -83,10 +85,13 @@ export class CalendarEventDetails {
   protected readonly isDeleting = signal(false);
   protected readonly deleteErrorMessage = signal<string | null>(null);
   protected readonly platforms = signal<CalendarEventPlatform[]>([]);
+  protected readonly publishingPlatformId = signal<string | null>(null);
+  protected readonly publishErrorMessage = signal<string | null>(null);
   protected readonly platformColumns: readonly DataTableColumn<CalendarEventPlatform>[] = [
     { key: 'type', header: 'Type', value: (platform) => platform.platformType },
     { key: 'name', header: 'Name', value: (platform) => platform.platformName, truncate: true },
     { key: 'status', header: 'Status', value: (platform) => platform.status },
+    { key: 'actions', header: 'Actions' },
   ];
 
   // Action eligibility comes from the loaded event's API-computed flags; the
@@ -153,6 +158,7 @@ export class CalendarEventDetails {
         },
         error: () => {
           this.platforms.set([]);
+          this.publishErrorMessage.set(null);
           this.loadFailed.set(true);
         },
       });
@@ -164,7 +170,7 @@ export class CalendarEventDetails {
   }
 
   protected submit(): void {
-    if (this.isSubmitting() || this.isDeleting()) {
+    if (this.isSubmitting() || this.isDeleting() || this.publishingPlatformId() !== null) {
       return;
     }
 
@@ -214,7 +220,12 @@ export class CalendarEventDetails {
     // Page mutations are mutually exclusive: a save in flight blocks delete and
     // an in-flight delete blocks re-entry. Only a loaded Draft in edit mode is
     // deletable, which canDelete enforces.
-    if (this.isDeleting() || this.isSubmitting() || !this.canDelete()) {
+    if (
+      this.isDeleting() ||
+      this.isSubmitting() ||
+      this.publishingPlatformId() !== null ||
+      !this.canDelete()
+    ) {
       return;
     }
 
@@ -262,6 +273,48 @@ export class CalendarEventDetails {
         },
       });
   }
+
+  protected publishPlatform(platform: CalendarEventPlatform): void {
+    if (
+      this.editingId === null ||
+      !platform.canPublish ||
+      this.publishingPlatformId() !== null ||
+      this.isSubmitting() ||
+      this.isDeleting()
+    ) {
+      return;
+    }
+
+    this.publishErrorMessage.set(null);
+    this.publishingPlatformId.set(platform.platformId);
+
+    this.calendarEventsService
+      .publishPlatform(this.editingId, platform.platformId)
+      .pipe(finalize(() => this.publishingPlatformId.set(null)))
+      .subscribe({
+        next: (response) => {
+          this.platforms.update((platforms) =>
+            platforms.map((entry) =>
+              entry.platformId === response.platformId
+                ? {
+                    ...entry,
+                    platformName: response.platformName,
+                    platformType: response.platformType,
+                    status: response.status,
+                    externalResourceId: response.externalResourceId,
+                    publishedUtc: response.publishedUtc,
+                    canPublish: false,
+                  }
+                : entry,
+            ),
+          );
+          this.notifications.showSuccess('Calendar event published.');
+        },
+        error: (error: unknown) => {
+          this.publishErrorMessage.set(describePublishError(error));
+        },
+      });
+  }
 }
 
 // A 409 means the event is no longer updatable (it left Draft); reloading is the
@@ -272,4 +325,20 @@ function describeSaveError(error: unknown): string {
   }
 
   return 'The event could not be saved. Check your connection and try again.';
+}
+
+function describePublishError(error: unknown): string {
+  if (error instanceof HttpErrorResponse && error.status === 403) {
+    return 'You do not have permission to publish calendar events.';
+  }
+
+  if (error instanceof HttpErrorResponse && error.status === 409) {
+    return 'The platform can no longer publish this event. Reload the page and try again.';
+  }
+
+  if (error instanceof HttpErrorResponse && error.status === 502) {
+    return 'The platform could not publish this event. Try again later.';
+  }
+
+  return 'The platform could not publish this event. Check your connection and try again.';
 }

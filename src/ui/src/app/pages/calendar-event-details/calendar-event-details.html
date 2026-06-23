@@ -69,7 +69,30 @@
               [showPaginator]="false"
               caption="Calendar event platforms"
               emptyText="No platforms found."
-            />
+            >
+              <ng-template appDataTableCell="actions" let-platform>
+                @if (platform.canPublish) {
+                  <app-button
+                    class="platform-publish-button"
+                    iconButton
+                    icon="publish"
+                    [ariaLabel]="'Publish ' + platform.platformName"
+                    [disabled]="
+                      publishingPlatformId() === platform.platformId ||
+                      isSubmitting() ||
+                      isDeleting()
+                    "
+                    (click)="publishPlatform(platform)"
+                  />
+                }
+              </ng-template>
+            </app-data-table>
+
+            @if (publishErrorMessage(); as message) {
+              <app-alert variant="error">
+                {{ message }}
+              </app-alert>
+            }
           </section>
         }
 
@@ -92,7 +115,9 @@
                 type="button"
                 appearance="outlined"
                 icon="delete"
-                [disabled]="!canDelete() || isDeleting() || isSubmitting()"
+                [disabled]="
+                  !canDelete() || isDeleting() || isSubmitting() || publishingPlatformId() !== null
+                "
                 (click)="deleteEvent()"
               >
                 {{ isDeleting() ? 'Deleting...' : 'Delete' }}
@@ -101,12 +126,17 @@
             <app-button
               type="button"
               appearance="outlined"
-              [disabled]="isDeleting()"
+              [disabled]="isDeleting() || publishingPlatformId() !== null"
               (click)="cancel()"
             >
               Cancel
             </app-button>
-            <app-button type="submit" [disabled]="isSubmitting() || isDeleting() || !canSave()">
+            <app-button
+              type="submit"
+              [disabled]="
+                isSubmitting() || isDeleting() || publishingPlatformId() !== null || !canSave()
+              "
+            >
               {{ isEditMode ? 'Save changes' : 'Save event' }}
             </app-button>
           </div>

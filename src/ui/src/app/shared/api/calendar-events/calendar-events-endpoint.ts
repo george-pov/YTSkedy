@@ -19,6 +19,18 @@ export function publishYouTubeUrl(api: ApiConfig, calendarEventId: string): stri
   return new URL(path, normalizeApiBaseUrl(api.baseUrl)).toString();
 }
 
+export function publishPlatformUrl(
+  api: ApiConfig,
+  calendarEventId: string,
+  platformId: string,
+): string {
+  const path =
+    `${calendarEventsPath}/${encodeURIComponent(calendarEventId)}` +
+    `/platforms/${encodeURIComponent(platformId)}/publish`;
+
+  return new URL(path, normalizeApiBaseUrl(api.baseUrl)).toString();
+}
+
 export function isCalendarEventsUrl(candidate: string, api: ApiConfig): boolean {
   const prefix = calendarEventsUrl(api);
 

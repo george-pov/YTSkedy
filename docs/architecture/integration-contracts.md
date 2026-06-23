@@ -106,8 +106,9 @@ the platform list, create, update, and delete endpoints through a typed
 `PlatformsService`, mapping the API `items` envelope and `platformId` field to
 the page model. The canonical request, response, status-code, and
 publishing-model details live in
-[`../api/http/platforms.md`](../api/http/platforms.md). Calendar-event
-platform publishing UI remains follow-up work.
+[`../api/http/platforms.md`](../api/http/platforms.md). The
+`CalendarEventDetails` edit route renders the detail response `platforms` array
+and exposes a Publish action for each row with `canPublish: true`.
 
 The UI must treat API request and response shapes as integration contracts.
 When a contract changes, update:

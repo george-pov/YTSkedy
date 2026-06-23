@@ -12,6 +12,7 @@ import {
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
+  PublishPlatformResponse,
   PublishYouTubeResponse,
   UpdateCalendarEventRequest,
   UpdateCalendarEventResponse,
@@ -259,6 +260,34 @@ describe('CalendarEventsService', () => {
 
     const request = http.expectOne(
       'https://api.example.test/api/calendar-events/20260615T170000Z/publish',
+    );
+
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
+
+    request.flush(apiResponse);
+
+    expect(actualResponse).toEqual(apiResponse);
+  });
+
+  it('posts a platform publish request to the event-platform publish endpoint', () => {
+    const apiResponse: PublishPlatformResponse = {
+      calendarEventId: '20260615T170000Z',
+      platformId: 'platform-1',
+      platformName: 'Main YouTube channel',
+      platformType: 'YouTube',
+      status: 'Published',
+      externalResourceId: 'broadcast-123',
+      publishedUtc: '2026-06-15T17:30:00+00:00',
+    };
+
+    let actualResponse: PublishPlatformResponse | undefined;
+    service.publishPlatform('20260615T170000Z', 'platform-1').subscribe((response) => {
+      actualResponse = response;
+    });
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/20260615T170000Z/platforms/platform-1/publish',
     );
 
     expect(request.request.method).toBe('POST');
