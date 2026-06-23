@@ -27,8 +27,14 @@ The Angular frontend lives under `src/ui/`.
   column projects the conditional Publish button alongside Edit. The scheduled
   start is rendered as the UTC instant; local time and zone are shown on the
   create/edit form.
+- The `platforms` page route lists, creates, updates, and deletes configured
+  publishing destinations through the platforms API service. It currently
+  exposes YouTube platform configuration, because the API recognizes WordPress
+  as a type value but rejects WordPress configuration in this slice.
 - Calendar events API service code lives under
   `src/ui/src/app/shared/api/calendar-events/`.
+- Platforms API service code lives under
+  `src/ui/src/app/shared/api/platforms/`.
 
 ## Source Layout
 
@@ -44,7 +50,9 @@ Current route and page files:
 src/ui/src/app/app.routes.ts
 src/ui/src/app/layout/app-layout/
 src/ui/src/app/pages/calendar-events/
+src/ui/src/app/pages/platforms/
 src/ui/src/app/shared/api/calendar-events/
+src/ui/src/app/shared/api/platforms/
 src/ui/src/app/shared/config/
 src/ui/src/app/shared/components/button/
 src/ui/src/app/shared/components/data-table/
@@ -140,3 +148,5 @@ Current calendar events API access lives in
 `src/ui/src/app/shared/api/calendar-events/calendar-events-service.ts`.
 Templates API access lives in
 `src/ui/src/app/shared/api/templates/templates-service.ts`.
+Platforms API access lives in
+`src/ui/src/app/shared/api/platforms/platforms-service.ts`.

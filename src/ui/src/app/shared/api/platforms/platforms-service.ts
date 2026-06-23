@@ -1,5 +1,9 @@
-import { Injectable } from '@angular/core';
-import { Observable, of, throwError } from 'rxjs';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { catchError, map, Observable, throwError } from 'rxjs';
+
+import { APP_CONFIG } from 'src/app/shared/config/app-config';
+import { platformByIdUrl, platformsUrl } from './platforms-endpoint';
 
 /**
  * The external system a platform publishes to. The set is expected to grow
@@ -43,6 +47,7 @@ export interface CreatePlatformResponse {
   id: string;
   name: string;
   type: PlatformType;
+  publishSettings?: YouTubePublishSettings;
 }
 
 /** The type is immutable, so only the name and settings travel in an update. */
@@ -55,6 +60,7 @@ export interface UpdatePlatformResponse {
   id: string;
   name: string;
   type: PlatformType;
+  publishSettings?: YouTubePublishSettings;
 }
 
 /** Raised when a create or update would duplicate an existing platform name. */
@@ -65,118 +71,80 @@ export class PlatformNameConflictError extends Error {
   }
 }
 
-/**
- * In-memory stand-in for a future platforms API. It keeps the same
- * Observable-based contract the page will use against HTTP so swapping to a
- * real backend later is a drop-in. Data is non-durable and resets on reload;
- * this is a placeholder, not shipped persistence.
- */
 @Injectable({
   providedIn: 'root',
 })
 export class PlatformsService {
-  private sequence = 0;
-  private platforms: Platform[] = this.seed();
+  private readonly http = inject(HttpClient);
+  private readonly appConfig = inject(APP_CONFIG);
 
-  list(): Observable<PlatformListResponse> {
-    return of({ platforms: this.platforms.map(clonePlatform) });
+  list(type?: PlatformType): Observable<PlatformListResponse> {
+    const options = type === undefined ? {} : { params: new HttpParams().set('type', type) };
+
+    return this.http
+      .get<ApiPlatformListResponse>(platformsUrl(this.appConfig.api), options)
+      .pipe(map((response) => ({ platforms: response.items.map(toPlatform) })));
   }
 
   create(request: CreatePlatformRequest): Observable<CreatePlatformResponse> {
-    const name = request.name.trim();
-    if (this.isNameTaken(name, null)) {
-      return throwError(() => new PlatformNameConflictError());
-    }
-
-    const created: Platform = {
-      id: this.nextId(),
-      name,
-      type: request.type,
-      publishSettings: request.publishSettings,
-    };
-    this.platforms = [...this.platforms, created];
-
-    return of({ id: created.id, name: created.name, type: created.type });
+    return this.http
+      .post<ApiPlatform>(platformsUrl(this.appConfig.api), request)
+      .pipe(map(toPlatform), catchError(mapCreateError));
   }
 
   update(
-    type: PlatformType,
+    _type: PlatformType,
     id: string,
     request: UpdatePlatformRequest,
   ): Observable<UpdatePlatformResponse> {
-    const existing = this.platforms.find(
-      (platform) => platform.id === id && platform.type === type,
-    );
-    if (existing === undefined) {
-      return throwError(() => new Error('Platform not found.'));
-    }
-
-    const name = request.name.trim();
-    if (this.isNameTaken(name, id)) {
-      return throwError(() => new PlatformNameConflictError());
-    }
-
-    const updated: Platform = {
-      ...existing,
-      name,
-      publishSettings: request.publishSettings,
-    };
-    this.platforms = this.platforms.map((platform) =>
-      platform.id === id ? updated : platform,
-    );
-
-    return of({ id: updated.id, name: updated.name, type: updated.type });
+    return this.http
+      .put<ApiPlatform>(platformByIdUrl(this.appConfig.api, id), request)
+      .pipe(map(toPlatform), catchError(mapUpdateError));
   }
 
-  delete(type: PlatformType, id: string): Observable<void> {
-    // Idempotent: removing a platform that is already gone is treated as done.
-    this.platforms = this.platforms.filter(
-      (platform) => !(platform.id === id && platform.type === type),
-    );
-
-    return of<void>(undefined);
-  }
-
-  private isNameTaken(name: string, exceptId: string | null): boolean {
-    const normalized = name.toLowerCase();
-    return this.platforms.some(
-      (platform) =>
-        platform.id !== exceptId && platform.name.toLowerCase() === normalized,
-    );
-  }
-
-  private nextId(): string {
-    this.sequence += 1;
-    return `platform-${this.sequence}`;
-  }
-
-  private seed(): Platform[] {
-    return [
-      {
-        id: this.nextId(),
-        name: 'Main YouTube channel',
-        type: 'YouTube',
-        publishSettings: {
-          credentials: 'main-youtube-channel',
-          privacyStatus: 'private',
-          selfDeclaredMadeForKids: false,
-        },
-      },
-      {
-        id: this.nextId(),
-        name: 'Company blog',
-        type: 'WordPress',
-      },
-    ];
+  delete(_type: PlatformType, id: string): Observable<void> {
+    return this.http.delete<void>(platformByIdUrl(this.appConfig.api, id));
   }
 }
 
-function clonePlatform(platform: Platform): Platform {
+interface ApiPlatformListResponse {
+  items: ApiPlatform[];
+}
+
+interface ApiPlatform {
+  platformId: string;
+  name: string;
+  type: PlatformType;
+  publishSettings?: YouTubePublishSettings;
+}
+
+function toPlatform(platform: ApiPlatform): Platform {
   return {
-    ...platform,
+    id: platform.platformId,
+    name: platform.name,
+    type: platform.type,
     publishSettings:
-      platform.publishSettings === undefined
-        ? undefined
-        : { ...platform.publishSettings },
+      platform.publishSettings === undefined ? undefined : { ...platform.publishSettings },
   };
+}
+
+function mapCreateError(error: unknown): Observable<never> {
+  if (error instanceof HttpErrorResponse && error.status === 409) {
+    return throwError(() => new PlatformNameConflictError());
+  }
+
+  return throwError(() => error);
+}
+
+function mapUpdateError(error: unknown): Observable<never> {
+  if (
+    error instanceof HttpErrorResponse &&
+    error.status === 409 &&
+    typeof error.error === 'string' &&
+    error.error.includes('already exists')
+  ) {
+    return throwError(() => new PlatformNameConflictError());
+  }
+
+  return throwError(() => error);
 }

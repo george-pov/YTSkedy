@@ -14,7 +14,7 @@ import {
   YouTubePublishSettings,
 } from 'src/app/shared/api/platforms/platforms-service';
 
-export const nameMaxLength = 80;
+export const nameMaxLength = 50;
 export const credentialsMaxLength = 100;
 
 /**

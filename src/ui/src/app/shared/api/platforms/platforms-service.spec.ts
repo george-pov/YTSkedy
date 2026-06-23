@@ -1,98 +1,241 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { APP_CONFIG } from 'src/app/shared/config/app-config';
+import { testAppConfig } from 'src/app/shared/config/testing/app-config.fixture';
 import {
+  CreatePlatformRequest,
+  PlatformListResponse,
   PlatformNameConflictError,
   PlatformsService,
+  UpdatePlatformRequest,
 } from './platforms-service';
 
-describe('PlatformsService (in-memory)', () => {
+describe('PlatformsService', () => {
+  let http: HttpTestingController;
   let service: PlatformsService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [PlatformsService] });
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: APP_CONFIG,
+          useValue: testAppConfig({
+            api: { baseUrl: 'https://api.example.test' },
+          }),
+        },
+      ],
+    });
+
+    http = TestBed.inject(HttpTestingController);
     service = TestBed.inject(PlatformsService);
   });
 
-  it('lists the seeded YouTube and WordPress platforms', async () => {
-    const response = await firstValueFrom(service.list());
-
-    expect(response.platforms.map((platform) => platform.type).sort()).toEqual([
-      'WordPress',
-      'YouTube',
-    ]);
+  afterEach(() => {
+    http.verify();
   });
 
-  it('returns cloned platforms so callers cannot mutate the store', async () => {
-    const first = await firstValueFrom(service.list());
-    const youTube = first.platforms.find((p) => p.type === 'YouTube');
-    youTube!.name = 'Mutated';
+  it('requests all platforms and maps the API envelope to the page model', async () => {
+    const responsePromise = firstValueFrom(service.list());
 
-    const second = await firstValueFrom(service.list());
-    expect(second.platforms.some((p) => p.name === 'Mutated')).toBe(false);
+    const request = http.expectOne('https://api.example.test/api/platforms');
+
+    expect(request.request.method).toBe('GET');
+
+    request.flush({
+      items: [
+        {
+          platformId: '4fb4a32f3f344de1a7c3a9f4a2f94918',
+          name: 'Main YouTube channel',
+          type: 'YouTube',
+          publishSettings: {
+            credentials: 'main-youtube-channel',
+            privacyStatus: 'private',
+            selfDeclaredMadeForKids: false,
+          },
+        },
+      ],
+    });
+
+    const response = await responsePromise;
+    const expected: PlatformListResponse = {
+      platforms: [
+        {
+          id: '4fb4a32f3f344de1a7c3a9f4a2f94918',
+          name: 'Main YouTube channel',
+          type: 'YouTube',
+          publishSettings: {
+            credentials: 'main-youtube-channel',
+            privacyStatus: 'private',
+            selfDeclaredMadeForKids: false,
+          },
+        },
+      ],
+    };
+
+    expect(response).toEqual(expected);
   });
 
-  it('creates a platform with a generated id and includes it in the list', async () => {
-    const created = await firstValueFrom(
+  it('includes the optional type query parameter when filtering by type', () => {
+    service.list('YouTube').subscribe();
+
+    const request = http.expectOne('https://api.example.test/api/platforms?type=YouTube');
+
+    expect(request.request.method).toBe('GET');
+
+    request.flush({ items: [] });
+  });
+
+  it('posts a create request to the platforms endpoint and maps the created platform', async () => {
+    const createRequest: CreatePlatformRequest = {
+      name: 'Second channel',
+      type: 'YouTube',
+      publishSettings: {
+        credentials: 'second-channel',
+        privacyStatus: 'public',
+        selfDeclaredMadeForKids: true,
+      },
+    };
+
+    const responsePromise = firstValueFrom(service.create(createRequest));
+
+    const request = http.expectOne('https://api.example.test/api/platforms');
+
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(createRequest);
+
+    request.flush({
+      platformId: '9f8b1c2d3e4f4a5b6c7d8e9f0a1b2c3d',
+      name: 'Second channel',
+      type: 'YouTube',
+      publishSettings: {
+        credentials: 'second-channel',
+        privacyStatus: 'public',
+        selfDeclaredMadeForKids: true,
+      },
+    });
+
+    await expect(responsePromise).resolves.toEqual({
+      id: '9f8b1c2d3e4f4a5b6c7d8e9f0a1b2c3d',
+      name: 'Second channel',
+      type: 'YouTube',
+      publishSettings: {
+        credentials: 'second-channel',
+        privacyStatus: 'public',
+        selfDeclaredMadeForKids: true,
+      },
+    });
+  });
+
+  it('maps duplicate-name create responses to a typed conflict error', async () => {
+    const responsePromise = firstValueFrom(
       service.create({
-        name: 'Second channel',
+        name: 'Main YouTube channel',
         type: 'YouTube',
         publishSettings: {
-          credentials: 'second-channel',
-          privacyStatus: 'public',
-          selfDeclaredMadeForKids: true,
+          credentials: 'main-youtube-channel',
+          privacyStatus: 'private',
+          selfDeclaredMadeForKids: false,
         },
       }),
     );
 
-    expect(created.id).toBeTruthy();
+    const request = http.expectOne('https://api.example.test/api/platforms');
 
-    const response = await firstValueFrom(service.list());
-    expect(response.platforms.some((p) => p.id === created.id)).toBe(true);
+    request.flush('A platform named already exists.', {
+      status: 409,
+      statusText: 'Conflict',
+    });
+
+    await expect(responsePromise).rejects.toBeInstanceOf(PlatformNameConflictError);
   });
 
-  it('rejects a create whose name duplicates an existing platform', async () => {
-    await expect(
-      firstValueFrom(
-        service.create({
-          name: 'main youtube channel',
-          type: 'YouTube',
-          publishSettings: {
-            credentials: 'dupe',
-            privacyStatus: 'private',
-            selfDeclaredMadeForKids: false,
-          },
-        }),
-      ),
-    ).rejects.toBeInstanceOf(PlatformNameConflictError);
+  it('puts an update request to the by-id route and maps the updated platform', async () => {
+    const updateRequest: UpdatePlatformRequest = {
+      name: 'Renamed channel',
+      publishSettings: {
+        credentials: 'renamed-channel',
+        privacyStatus: 'unlisted',
+        selfDeclaredMadeForKids: false,
+      },
+    };
+
+    const responsePromise = firstValueFrom(
+      service.update('YouTube', '4fb4a32f3f344de1a7c3a9f4a2f94918', updateRequest),
+    );
+
+    const request = http.expectOne(
+      'https://api.example.test/api/platforms/4fb4a32f3f344de1a7c3a9f4a2f94918',
+    );
+
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual(updateRequest);
+
+    request.flush({
+      platformId: '4fb4a32f3f344de1a7c3a9f4a2f94918',
+      name: 'Renamed channel',
+      type: 'YouTube',
+      publishSettings: {
+        credentials: 'renamed-channel',
+        privacyStatus: 'unlisted',
+        selfDeclaredMadeForKids: false,
+      },
+    });
+
+    await expect(responsePromise).resolves.toEqual({
+      id: '4fb4a32f3f344de1a7c3a9f4a2f94918',
+      name: 'Renamed channel',
+      type: 'YouTube',
+      publishSettings: {
+        credentials: 'renamed-channel',
+        privacyStatus: 'unlisted',
+        selfDeclaredMadeForKids: false,
+      },
+    });
   });
 
-  it('updates the name of an existing platform', async () => {
-    const { platforms } = await firstValueFrom(service.list());
-    const target = platforms.find((p) => p.type === 'YouTube')!;
-
-    await firstValueFrom(
-      service.update('YouTube', target.id, {
-        name: 'Renamed channel',
-        publishSettings: target.publishSettings,
+  it('maps duplicate-name update responses to a typed conflict error', async () => {
+    const responsePromise = firstValueFrom(
+      service.update('YouTube', '4fb4a32f3f344de1a7c3a9f4a2f94918', {
+        name: 'Main YouTube channel',
+        publishSettings: {
+          credentials: 'main-youtube-channel',
+          privacyStatus: 'private',
+          selfDeclaredMadeForKids: false,
+        },
       }),
     );
 
-    const after = await firstValueFrom(service.list());
-    expect(after.platforms.find((p) => p.id === target.id)?.name).toBe(
-      'Renamed channel',
+    const request = http.expectOne(
+      'https://api.example.test/api/platforms/4fb4a32f3f344de1a7c3a9f4a2f94918',
     );
+
+    request.flush("A platform named 'Main YouTube channel' already exists.", {
+      status: 409,
+      statusText: 'Conflict',
+    });
+
+    await expect(responsePromise).rejects.toBeInstanceOf(PlatformNameConflictError);
   });
 
-  it('deletes a platform and is idempotent for an unknown id', async () => {
-    const { platforms } = await firstValueFrom(service.list());
-    const target = platforms[0];
+  it('issues a DELETE to the by-id route and completes with no body', async () => {
+    const responsePromise = firstValueFrom(
+      service.delete('YouTube', '4fb4a32f3f344de1a7c3a9f4a2f94918'),
+    );
 
-    await firstValueFrom(service.delete(target.type, target.id));
-    await firstValueFrom(service.delete(target.type, target.id));
+    const request = http.expectOne(
+      'https://api.example.test/api/platforms/4fb4a32f3f344de1a7c3a9f4a2f94918',
+    );
 
-    const after = await firstValueFrom(service.list());
-    expect(after.platforms.some((p) => p.id === target.id)).toBe(false);
+    expect(request.request.method).toBe('DELETE');
+
+    request.flush(null, { status: 204, statusText: 'No Content' });
+
+    await expect(responsePromise).resolves.toBeNull();
   });
 });

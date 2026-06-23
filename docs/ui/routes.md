@@ -31,6 +31,7 @@ placeholder.
 | `/calendar-events/new` | Protected | Renders `CalendarEventDetails`, a Signal Forms form (a typed model plus a `schema()` of validators) that creates an event via `POST /api/calendar-events` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
 | `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, repopulates the form, and keeps the scheduled start read-only. Save sends `PUT /api/calendar-events/{calendarEventId}` with the descriptions and is enabled only while the API's `canUpdate` flag is `true`. A Delete action removes a loaded event the API marks deletable (`canDelete`: a `Draft`, or a future `Published` event) via `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events`. Guarded by `authenticatedGuard`. |
 | `/templates` | Protected | Renders `Templates`, a single-page CRUD for reusable social-post templates backed by the `templates` API through a typed `TemplatesService`. On load it lists templates with `GET /api/templates` and shows each template's type (platform) and name. New Template opens an unsaved editor whose type is selectable and creates via `POST /api/templates`. Selecting a row opens the editor with the type read-only (immutable after create) and saves name and content via `PUT /api/templates/{type}/{id}`; Delete calls `DELETE /api/templates/{type}/{id}`. A failed load, save, or delete shows an inline error, and a duplicate name surfaces the `409` conflict. Guarded by `authenticatedGuard`. |
+| `/platforms` | Protected | Renders `Platforms`, a single-page CRUD for configured publishing destinations backed by the `platforms` API through a typed `PlatformsService`. On load it lists platforms with `GET /api/platforms`; New Platform creates a YouTube platform via `POST /api/platforms`; selecting a row opens an editor that saves via `PUT /api/platforms/{platformId}` or deletes via `DELETE /api/platforms/{platformId}`. A failed load, save, or delete shows an inline error, and duplicate names surface the `409` conflict. Guarded by `authenticatedGuard`. |
 | `/signed-out` | Public | Renders post-logout confirmation. Auto-redirects already-authenticated visitors to `/calendar-events`. |
 | `/component-lab` | Public | Renders the minimal component lab page for manually demoing shared UI components. |
 | `**` | Public | Redirects to `/`. |
@@ -84,6 +85,18 @@ deleted. Try again later.`; other failures show generic delete copy. Save is
 enabled only while `canUpdate` is `true`, and an update `409` keeps the page
 open with `The event can no longer be updated. Reload the page and try again.`
 Save and Delete are mutually exclusive while either is in flight.
+
+The `Platforms` page calls `GET /api/platforms` through the shared platforms
+API service and maps the backend `{ items: [...] }` envelope plus `platformId`
+field into the page-facing platform model. Create sends the selected type,
+name, and YouTube publish settings to `POST /api/platforms`; the create type
+select currently offers YouTube only because WordPress settings are not
+supported by the API yet. Edit sends name and publish settings to
+`PUT /api/platforms/{platformId}`. Delete calls
+`DELETE /api/platforms/{platformId}` and removes the row after a successful
+`204 No Content`. The HTTP client attaches an Entra External ID access token
+through the same bearer interceptor and calendar-event scopes used by the other
+protected API resources.
 
 ## Route Protection
 

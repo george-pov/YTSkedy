@@ -41,6 +41,29 @@ describe('resolveProtectedScopes', () => {
     expect(scopes).not.toBeNull();
   });
 
+  it('returns the scopes for platforms API calls', () => {
+    const scopes = getRequiredScopes(
+      'https://api.example.test/api/platforms?type=YouTube',
+      api,
+      auth,
+    );
+
+    expect(scopes).toEqual([
+      auth.calendarEventsReadScope,
+      auth.calendarEventsWriteScope,
+    ]);
+  });
+
+  it('returns the scopes for sub-paths under platforms', () => {
+    const scopes = getRequiredScopes(
+      'https://api.example.test/api/platforms/platform-1',
+      api,
+      auth,
+    );
+
+    expect(scopes).not.toBeNull();
+  });
+
   it('returns null for URLs outside the API base', () => {
     const scopes = getRequiredScopes(
       'https://other.example.test/api/calendar-events',
@@ -64,6 +87,16 @@ describe('resolveProtectedScopes', () => {
   it('does not match a path that merely starts with the calendar-events prefix string', () => {
     const scopes = getRequiredScopes(
       'https://api.example.test/api/calendar-events-other',
+      api,
+      auth,
+    );
+
+    expect(scopes).toBeNull();
+  });
+
+  it('does not match a path that merely starts with the platforms prefix string', () => {
+    const scopes = getRequiredScopes(
+      'https://api.example.test/api/platforms-other',
       api,
       auth,
     );

@@ -89,10 +89,11 @@ destination (the first provider is YouTube) with a server-generated
 `platformId`, a unique `name`, an immutable `type`, and non-secret
 `publishSettings`. A calendar event is provider-neutral and has no publish
 status; publish state is a `platform publication` keyed by calendar event and
-platform. `GET /api/platforms` and the platform CRUD routes manage destinations; the
-calendar event detail response (`GET /api/calendar-events/{calendarEventId}`)
-returns one item per active platform (computed `NotPublished` when no row exists)
-plus orphan history for deleted platforms in its `platforms` array; and
+platform. `GET /api/platforms` and the platform CRUD routes manage
+destinations; the calendar event detail response
+(`GET /api/calendar-events/{calendarEventId}`) returns one item per active
+platform (computed `NotPublished` when no row exists) plus orphan history for
+deleted platforms in its `platforms` array; and
 `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
 publishes to one selected platform and returns the provider-neutral
 `externalResourceId`. Deleting a platform preserves `Published` rows as
@@ -100,11 +101,13 @@ read-only orphan history and is blocked while any row is `Publishing`. These
 routes reuse the `CalendarEvents.Read` (GET) and `CalendarEvents.Write` (POST,
 PUT, DELETE, publish) scopes; no new scope was added. `publishSettings` and
 publication rows never carry secret credential material; only a non-secret
-credentials reference is stored. The canonical request, response, status-code,
-and publishing-model details live in
-[`../api/http/platforms.md`](../api/http/platforms.md). No UI consumes these
-routes yet; the frontend calendar-event pages were built against the previous
-provider-neutral calendar contract and platform publishing UI is follow-up work.
+credentials reference is stored. The `Platforms` page (`/platforms`) consumes
+the platform list, create, update, and delete endpoints through a typed
+`PlatformsService`, mapping the API `items` envelope and `platformId` field to
+the page model. The canonical request, response, status-code, and
+publishing-model details live in
+[`../api/http/platforms.md`](../api/http/platforms.md). Calendar-event
+platform publishing UI remains follow-up work.
 
 The UI must treat API request and response shapes as integration contracts.
 When a contract changes, update:

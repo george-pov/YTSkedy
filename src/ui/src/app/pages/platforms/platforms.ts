@@ -66,7 +66,6 @@ export class Platforms implements OnInit {
 
   protected readonly typeOptions: readonly SelectOption[] = [
     { value: 'YouTube', label: 'YouTube' },
-    { value: 'WordPress', label: 'WordPress' },
   ];
 
   protected readonly model = signal<PlatformFormModel>(createPlatformFormModel());
@@ -164,7 +163,6 @@ export class Platforms implements OnInit {
 
   private createPlatform(): void {
     const request = toCreatePlatformRequest(this.model());
-    const settings = request.publishSettings;
 
     this.errorMessage.set(null);
     this.isSaving.set(true);
@@ -178,7 +176,7 @@ export class Platforms implements OnInit {
             id: response.id,
             name: response.name,
             type: response.type,
-            publishSettings: settings,
+            publishSettings: response.publishSettings,
           };
           this.platforms.update((list) => sortPlatforms([created, ...list]));
           this.selected.set(created);
@@ -209,10 +207,10 @@ export class Platforms implements OnInit {
       .subscribe({
         next: (response) => {
           const updated: Platform = {
-            id: current.id,
-            type: current.type,
+            id: response.id,
+            type: response.type,
             name: response.name,
-            publishSettings: request.publishSettings,
+            publishSettings: response.publishSettings,
           };
           this.platforms.update((list) =>
             sortPlatforms(list.map((entry) => (entry.id === current.id ? updated : entry))),
