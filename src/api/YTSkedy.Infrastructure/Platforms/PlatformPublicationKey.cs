@@ -10,10 +10,10 @@ namespace YTSkedy.Infrastructure.Platforms;
 /// </summary>
 internal static class PlatformPublicationKey
 {
-    public static string PartitionKeyFor(string calendarEventId) =>
+    internal static string PartitionKeyFor(string calendarEventId) =>
         $"event-{calendarEventId}";
 
-    public static string RowKeyFor(string platformId) =>
+    internal static string RowKeyFor(string platformId) =>
         $"platform-{platformId}";
 
     /// <summary>
@@ -22,6 +22,6 @@ internal static class PlatformPublicationKey
     /// is defense in depth even though the listing path validates the event
     /// first.
     /// </summary>
-    public static string EscapeLiteral(string value) =>
+    internal static string EscapeLiteral(string value) =>
         value.Replace("'", "''", StringComparison.Ordinal);
 }

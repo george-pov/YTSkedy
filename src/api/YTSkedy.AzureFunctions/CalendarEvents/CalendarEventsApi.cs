@@ -10,7 +10,7 @@ using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.AzureFunctions.CalendarEvents;
 
-public class CalendarEventsApi(
+public sealed class CalendarEventsApi(
     CreateCalendarEventHandler createHandler,
     ListEventsHandler listHandler,
     GetCalendarEventDetailHandler getDetailHandler,
@@ -179,7 +179,7 @@ public class CalendarEventsApi(
         return ToDeleteResult(result, calendarEventId);
     }
 
-    public static IActionResult ToDeleteResult(
+    internal static IActionResult ToDeleteResult(
         DeleteCalendarEventResult result,
         string calendarEventId) =>
         result switch
@@ -377,7 +377,7 @@ public class CalendarEventsApi(
         return true;
     }
 
-    private CalendarEventViewResponse ToViewResponse(
+    private static CalendarEventViewResponse ToViewResponse(
         CalendarEventView calendarEvent)
     {
         return new(
@@ -400,7 +400,7 @@ public class CalendarEventsApi(
     /// <see cref="ToEventPlatformResponse"/>. This detail response is the only
     /// place the per-platform publication state is exposed over HTTP.
     /// </summary>
-    public static CalendarEventDetailResponse ToDetailResponse(CalendarEventDetailView detail)
+    internal static CalendarEventDetailResponse ToDetailResponse(CalendarEventDetailView detail)
     {
         ArgumentNullException.ThrowIfNull(detail);
 
@@ -430,7 +430,7 @@ public class CalendarEventsApi(
     /// Orphaned history rows set <c>platformDeletedUtc</c> and report
     /// <c>canPublish: false</c>.
     /// </summary>
-    public static EventPlatformResponse ToEventPlatformResponse(EventPlatformView view)
+    internal static EventPlatformResponse ToEventPlatformResponse(EventPlatformView view)
     {
         ArgumentNullException.ThrowIfNull(view);
 

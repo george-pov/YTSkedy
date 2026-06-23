@@ -11,7 +11,7 @@ namespace YTSkedy.Infrastructure.YouTube;
 /// </summary>
 internal static class YouTubeBroadcastFactory
 {
-    public static LiveBroadcast Create(
+    internal static LiveBroadcast Create(
         string title,
         string? description,
         DateTimeOffset scheduledStartUtc,

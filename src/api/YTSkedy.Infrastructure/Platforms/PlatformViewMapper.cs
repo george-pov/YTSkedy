@@ -4,7 +4,7 @@ namespace YTSkedy.Infrastructure.Platforms;
 
 internal static class PlatformViewMapper
 {
-    public static PlatformView ToView(PlatformEntity entity)
+    internal static PlatformView ToView(PlatformEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
 
@@ -20,7 +20,7 @@ internal static class PlatformViewMapper
             publishSettings);
     }
 
-    public static IReadOnlyList<PlatformView> ToViews(IEnumerable<PlatformEntity> entities)
+    internal static IReadOnlyList<PlatformView> ToViews(IEnumerable<PlatformEntity> entities)
     {
         ArgumentNullException.ThrowIfNull(entities);
 

@@ -4,7 +4,7 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 /// Paged envelope returned by <c>GET /api/calendar-events</c>. Carries the page
 /// items plus the paging metadata and the echoed sort the UI paginator needs.
 /// </summary>
-public sealed record CalendarEventListResponse(
+internal sealed record CalendarEventListResponse(
     IReadOnlyList<CalendarEventViewResponse> Items,
     int Page,
     int PageSize,

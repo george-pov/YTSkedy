@@ -17,7 +17,7 @@ namespace YTSkedy.AzureFunctions.Platforms;
 /// slice supports YouTube platforms; WordPress is recognized as a type value but
 /// cannot be configured yet because no WordPress publish settings are defined.
 /// </summary>
-public class PlatformsApi(
+public sealed class PlatformsApi(
     ListPlatformsHandler listHandler,
     GetPlatformHandler getHandler,
     CreatePlatformHandler createHandler,

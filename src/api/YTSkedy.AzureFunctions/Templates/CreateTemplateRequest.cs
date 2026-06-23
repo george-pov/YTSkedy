@@ -1,6 +1,6 @@
 namespace YTSkedy.AzureFunctions.Templates;
 
-public sealed record CreateTemplateRequest(
+internal sealed record CreateTemplateRequest(
     string Name,
     string Type,
     string Content);

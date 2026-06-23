@@ -8,7 +8,7 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 /// exposes per-event publication state; the calendar event list endpoint stays
 /// provider-neutral and does not carry this field.
 /// </summary>
-public sealed record CalendarEventDetailResponse(
+internal sealed record CalendarEventDetailResponse(
     string CalendarEventId,
     CalendarEventStart Start,
     DateTimeOffset ScheduledStartUtc,

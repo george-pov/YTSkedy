@@ -7,7 +7,7 @@ namespace YTSkedy.AzureFunctions.Platforms;
 /// supports YouTube publish settings; <see cref="SelfDeclaredMadeForKids"/>
 /// defaults to <c>false</c> when omitted.
 /// </summary>
-public sealed record PublishSettingsPayload(
+internal sealed record PublishSettingsPayload(
     string? Credentials,
     string? PrivacyStatus,
     bool? SelfDeclaredMadeForKids);

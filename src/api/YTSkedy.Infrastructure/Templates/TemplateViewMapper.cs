@@ -4,7 +4,7 @@ namespace YTSkedy.Infrastructure.Templates;
 
 internal static class TemplateViewMapper
 {
-    public static TemplateView ToView(TemplateEntity entity)
+    internal static TemplateView ToView(TemplateEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
 
@@ -15,7 +15,7 @@ internal static class TemplateViewMapper
             entity.Content);
     }
 
-    public static IReadOnlyList<TemplateView> ToViews(IEnumerable<TemplateEntity> entities)
+    internal static IReadOnlyList<TemplateView> ToViews(IEnumerable<TemplateEntity> entities)
     {
         ArgumentNullException.ThrowIfNull(entities);
 

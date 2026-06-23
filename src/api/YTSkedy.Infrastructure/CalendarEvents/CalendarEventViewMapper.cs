@@ -9,7 +9,7 @@ internal static class CalendarEventViewMapper
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public static IReadOnlyList<CalendarEventView> ToViewsForMonth(
+    internal static IReadOnlyList<CalendarEventView> ToViewsForMonth(
         IEnumerable<CalendarEventEntity> entities,
         CalendarEventMonthCriteria criteria)
     {
@@ -24,7 +24,7 @@ internal static class CalendarEventViewMapper
             .ToArray();
     }
 
-    public static IReadOnlyList<CalendarEventView> ToViews(
+    internal static IReadOnlyList<CalendarEventView> ToViews(
         IEnumerable<CalendarEventEntity> entities)
     {
         ArgumentNullException.ThrowIfNull(entities);
@@ -47,7 +47,7 @@ internal static class CalendarEventViewMapper
             StringComparison.Ordinal);
     }
 
-    public static CalendarEventView ToView(CalendarEventEntity entity)
+    internal static CalendarEventView ToView(CalendarEventEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
 

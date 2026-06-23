@@ -4,7 +4,7 @@ namespace YTSkedy.AzureFunctions.Platforms;
 /// Publish-settings object returned in platform responses. The current slice
 /// returns YouTube publish settings. No secret material is included.
 /// </summary>
-public sealed record PublishSettingsResponse(
+internal sealed record PublishSettingsResponse(
     string Credentials,
     string PrivacyStatus,
     bool SelfDeclaredMadeForKids);

@@ -5,6 +5,6 @@ namespace YTSkedy.AzureFunctions.Templates;
 /// change; the type is immutable because it drives the storage partition, so it
 /// travels in the route rather than the body.
 /// </summary>
-public sealed record UpdateTemplateRequest(
+internal sealed record UpdateTemplateRequest(
     string Name,
     string Content);

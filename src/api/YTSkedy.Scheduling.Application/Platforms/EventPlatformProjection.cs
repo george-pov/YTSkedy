@@ -15,7 +15,7 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// </summary>
 internal static class EventPlatformProjection
 {
-    public static IReadOnlyList<EventPlatformView> Project(
+    internal static IReadOnlyList<EventPlatformView> Project(
         IReadOnlyList<PlatformView> activePlatforms,
         IReadOnlyList<PlatformPublication> publicationRows)
     {

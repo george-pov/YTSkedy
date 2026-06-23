@@ -6,7 +6,7 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 /// the precomputed <c>canPublish</c> action flag. Orphaned history rows set
 /// <c>platformDeletedUtc</c> and report <c>canPublish: false</c>.
 /// </summary>
-public sealed record EventPlatformResponse(
+internal sealed record EventPlatformResponse(
     string PlatformId,
     string PlatformName,
     string PlatformType,

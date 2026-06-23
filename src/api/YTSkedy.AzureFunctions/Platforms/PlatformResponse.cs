@@ -5,7 +5,7 @@ namespace YTSkedy.AzureFunctions.Platforms;
 /// Carries the persisted id and type, so a client always has what the update and
 /// delete routes need.
 /// </summary>
-public sealed record PlatformResponse(
+internal sealed record PlatformResponse(
     string PlatformId,
     string Name,
     string Type,

@@ -4,5 +4,5 @@ namespace YTSkedy.AzureFunctions.Templates;
 /// Envelope returned by <c>GET /api/template-tokens</c>. Lists the code-defined
 /// placeholder tokens a client can offer for template content.
 /// </summary>
-public sealed record TemplateTokenListResponse(
+internal sealed record TemplateTokenListResponse(
     IReadOnlyList<TemplateTokenResponse> Tokens);

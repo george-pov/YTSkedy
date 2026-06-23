@@ -1,6 +1,6 @@
 namespace YTSkedy.AzureFunctions.Templates;
 
-public sealed record TemplateResponse(
+internal sealed record TemplateResponse(
     string Id,
     string Name,
     string Type,

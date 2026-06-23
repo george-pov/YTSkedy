@@ -14,7 +14,7 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 /// scope. The request body is empty in this iteration; both ids come from the
 /// route. The boundary owns mapping the publish outcome to a status code.
 /// </summary>
-public class PublishEventPlatformApi(PublishHandler publishHandler)
+public sealed class PublishEventPlatformApi(PublishHandler publishHandler)
 {
     [Function("PublishEventPlatform")]
     [RequiredScope("CalendarEvents.Write")]

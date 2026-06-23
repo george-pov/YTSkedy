@@ -16,7 +16,7 @@ internal static class EndpointResolver
     /// ambiguous; callers must treat null as "unresolved" and fail closed rather
     /// than assuming the endpoint declares no requirements.
     /// </summary>
-    public static MethodInfo? ResolveMethod(FunctionDefinition definition) =>
+    internal static MethodInfo? ResolveMethod(FunctionDefinition definition) =>
         MethodCache.GetOrAdd(definition.EntryPoint, static entryPoint =>
         {
             var lastDot = entryPoint.LastIndexOf('.');
@@ -51,6 +51,6 @@ internal static class EndpointResolver
             return null;
         });
 
-    public static bool AllowsAnonymous(FunctionDefinition definition) =>
+    internal static bool AllowsAnonymous(FunctionDefinition definition) =>
         ResolveMethod(definition)?.GetCustomAttribute<AllowAnonymousAttribute>() is not null;
 }

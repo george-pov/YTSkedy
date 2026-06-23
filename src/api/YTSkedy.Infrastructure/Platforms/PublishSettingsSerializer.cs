@@ -14,7 +14,7 @@ internal static class PublishSettingsSerializer
 {
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
 
-    public static string Serialize(PlatformType type, PublishSettings settings)
+    internal static string Serialize(PlatformType type, PublishSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
@@ -28,7 +28,7 @@ internal static class PublishSettingsSerializer
         };
     }
 
-    public static PublishSettings Deserialize(PlatformType type, string json)
+    internal static PublishSettings Deserialize(PlatformType type, string json)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
 

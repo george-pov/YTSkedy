@@ -1,6 +1,6 @@
 namespace YTSkedy.AzureFunctions.CalendarEvents;
 
-public sealed record CalendarEventViewResponse(
+internal sealed record CalendarEventViewResponse(
     string CalendarEventId,
     CalendarEventStart Start,
     DateTimeOffset ScheduledStartUtc,

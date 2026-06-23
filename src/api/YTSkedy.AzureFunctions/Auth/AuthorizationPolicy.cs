@@ -12,7 +12,7 @@ namespace YTSkedy.AzureFunctions.Auth;
 /// without booting the Functions worker, mirroring the
 /// <c>CorsPolicy</c>/<c>CorsMiddleware</c> split.
 /// </summary>
-public static class AuthorizationPolicy
+internal static class AuthorizationPolicy
 {
     // Entra emits delegated scopes in the short JWT claim `scp`. Some
     // legacy paths (and Microsoft.Identity.Web's claim mapping) surface
@@ -30,7 +30,7 @@ public static class AuthorizationPolicy
     /// <see cref="RequiredScopeAttribute"/> is legitimately scope-less and is
     /// still subject to the role check.
     /// </summary>
-    public static AuthorizationResult Evaluate(
+    internal static AuthorizationResult Evaluate(
         MethodInfo? method,
         string requiredRole,
         ClaimsPrincipal user)
@@ -60,7 +60,7 @@ public static class AuthorizationPolicy
     /// <paramref name="acceptedScopes"/> and whose workspace-wide
     /// app-role requirement is <paramref name="requiredRole"/>.
     /// </summary>
-    public static AuthorizationResult Evaluate(
+    internal static AuthorizationResult Evaluate(
         IReadOnlyCollection<string> acceptedScopes,
         string requiredRole,
         ClaimsPrincipal user)
@@ -125,7 +125,7 @@ public static class AuthorizationPolicy
     }
 }
 
-public enum AuthorizationResult
+internal enum AuthorizationResult
 {
     Allow,
     InsufficientScope,

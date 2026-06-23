@@ -1,4 +1,4 @@
 namespace YTSkedy.AzureFunctions.CalendarEvents;
 
-public sealed record UpdateCalendarEventResponse(
+internal sealed record UpdateCalendarEventResponse(
     string CalendarEventId);

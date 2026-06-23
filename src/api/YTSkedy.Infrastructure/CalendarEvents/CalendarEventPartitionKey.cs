@@ -16,12 +16,12 @@ internal static class CalendarEventPartitionKey
 {
     private const string PartitionKeyFormat = "'calendar-events-'yyyyMM";
 
-    public static string ForInstant(DateTimeOffset scheduledStartUtc) =>
+    internal static string ForInstant(DateTimeOffset scheduledStartUtc) =>
         scheduledStartUtc.UtcDateTime.ToString(
             PartitionKeyFormat,
             CultureInfo.InvariantCulture);
 
-    public static IReadOnlyList<string> ForLocalMonth(CalendarEventMonthCriteria criteria)
+    internal static IReadOnlyList<string> ForLocalMonth(CalendarEventMonthCriteria criteria)
     {
         ArgumentNullException.ThrowIfNull(criteria);
 

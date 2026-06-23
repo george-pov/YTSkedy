@@ -6,7 +6,7 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 /// Echoes the event and platform identity, the resulting publication status, and
 /// the recorded external resource id and publish instant.
 /// </summary>
-public sealed record PublishEventPlatformResponse(
+internal sealed record PublishEventPlatformResponse(
     string CalendarEventId,
     string PlatformId,
     string PlatformName,

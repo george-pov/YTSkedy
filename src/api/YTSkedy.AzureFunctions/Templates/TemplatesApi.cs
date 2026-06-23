@@ -8,7 +8,7 @@ using YTSkedy.Scheduling.Domain.Templates;
 
 namespace YTSkedy.AzureFunctions.Templates;
 
-public class TemplatesApi(
+public sealed class TemplatesApi(
     ListTemplatesHandler listHandler,
     CreateTemplateHandler createHandler,
     UpdateTemplateHandler updateHandler,
@@ -156,7 +156,7 @@ public class TemplatesApi(
     /// <see cref="TemplateType"/>. Numeric and unknown values are rejected so an
     /// out-of-range enum can never reach the partition-key scheme.
     /// </summary>
-    public static bool TryParseTemplateType(string? value, out TemplateType type)
+    internal static bool TryParseTemplateType(string? value, out TemplateType type)
     {
         switch (value?.ToLowerInvariant())
         {
@@ -177,7 +177,7 @@ public class TemplatesApi(
     /// Name and content length use the domain limits, and the type is parsed; any
     /// failure yields a <c>400 Bad Request</c> through <paramref name="error"/>.
     /// </summary>
-    public static bool TryBuildCreateCommand(
+    internal static bool TryBuildCreateCommand(
         CreateTemplateRequest request,
         out CreateTemplateCommand command,
         out IActionResult error)
@@ -214,7 +214,7 @@ public class TemplatesApi(
     /// comes from the route; name and content come from the body. Any failure
     /// yields a <c>400 Bad Request</c> through <paramref name="error"/>.
     /// </summary>
-    public static bool TryBuildUpdateCommand(
+    internal static bool TryBuildUpdateCommand(
         string type,
         string id,
         UpdateTemplateRequest request,
@@ -252,7 +252,7 @@ public class TemplatesApi(
     /// Maps a create outcome to its HTTP result. Created is 200 with the new id;
     /// a duplicate name within the type is 409.
     /// </summary>
-    public static IActionResult ToCreateResult(
+    internal static IActionResult ToCreateResult(
         CreateTemplateResult result,
         string name,
         string type) =>
@@ -269,7 +269,7 @@ public class TemplatesApi(
     /// Maps an update outcome to its HTTP result. Updated is 200; an unknown id
     /// is 404; a duplicate name within the type is 409.
     /// </summary>
-    public static IActionResult ToUpdateResult(
+    internal static IActionResult ToUpdateResult(
         UpdateTemplateResult result,
         string id,
         string name,
@@ -289,7 +289,7 @@ public class TemplatesApi(
     /// Maps a delete outcome to its HTTP result. Deleted is 204; an unknown id is
     /// 404.
     /// </summary>
-    public static IActionResult ToDeleteResult(
+    internal static IActionResult ToDeleteResult(
         DeleteTemplateResult result,
         string id) =>
         result switch
@@ -300,7 +300,7 @@ public class TemplatesApi(
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
 
-    public static TemplateListResponse ToListResponse(IReadOnlyList<TemplateView> views) =>
+    internal static TemplateListResponse ToListResponse(IReadOnlyList<TemplateView> views) =>
         new(views
             .Select(view => new TemplateResponse(
                 view.Id,
@@ -309,7 +309,7 @@ public class TemplatesApi(
                 view.Content))
             .ToArray());
 
-    public static TemplateTokenListResponse ToTokenListResponse(
+    internal static TemplateTokenListResponse ToTokenListResponse(
         IReadOnlyList<TemplateToken> tokens) =>
         new(tokens
             .Select(token => new TemplateTokenResponse(token.Name))

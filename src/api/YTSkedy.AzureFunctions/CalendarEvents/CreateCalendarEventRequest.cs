@@ -1,14 +1,14 @@
 namespace YTSkedy.AzureFunctions.CalendarEvents;
 
-public sealed record CreateCalendarEventRequest(
+internal sealed record CreateCalendarEventRequest(
     CalendarEventStart Start,
     IReadOnlyList<LocalizedCalendarEventText> Descriptions);
 
-public sealed record CalendarEventStart(
+internal sealed record CalendarEventStart(
     DateTime LocalDateTime,
     string TimeZoneId);
 
-public sealed record LocalizedCalendarEventText(
+internal sealed record LocalizedCalendarEventText(
     string Language,
     string Title,
     string? Description);

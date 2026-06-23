@@ -11,7 +11,7 @@ namespace YTSkedy.Infrastructure.Templates;
 /// </summary>
 internal static class TemplatePartitionKey
 {
-    public static string ForType(TemplateType type) =>
+    internal static string ForType(TemplateType type) =>
         type switch
         {
             TemplateType.YouTube => "templates-youtube",

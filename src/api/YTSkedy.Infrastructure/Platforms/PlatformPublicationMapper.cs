@@ -13,7 +13,7 @@ namespace YTSkedy.Infrastructure.Platforms;
 /// </summary>
 internal static class PlatformPublicationMapper
 {
-    public static PlatformPublication ToPublication(PlatformPublicationEntity entity)
+    internal static PlatformPublication ToPublication(PlatformPublicationEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
 
@@ -29,7 +29,7 @@ internal static class PlatformPublicationMapper
             entity.UpdatedUtc);
     }
 
-    public static IReadOnlyList<PlatformPublication> ToPublications(
+    internal static IReadOnlyList<PlatformPublication> ToPublications(
         IEnumerable<PlatformPublicationEntity> entities)
     {
         ArgumentNullException.ThrowIfNull(entities);
@@ -45,7 +45,7 @@ internal static class PlatformPublicationMapper
     /// publish settings are copied from the reservation so the attempt is
     /// described by the settings in effect when it started.
     /// </summary>
-    public static PlatformPublicationEntity ToReservedEntity(
+    internal static PlatformPublicationEntity ToReservedEntity(
         PlatformPublicationReservation reservation,
         DateTimeOffset now)
     {
@@ -71,7 +71,7 @@ internal static class PlatformPublicationMapper
         };
     }
 
-    public static PublishStatus ParseStatus(string? status) =>
+    internal static PublishStatus ParseStatus(string? status) =>
         Enum.TryParse<PublishStatus>(status, ignoreCase: true, out var parsed)
             ? parsed
             : PublishStatus.NotPublished;
