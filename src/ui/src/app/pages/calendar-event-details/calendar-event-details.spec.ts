@@ -2,6 +2,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { provideZonelessChangeDetection, type WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { type FieldTree } from '@angular/forms/signals';
+import { MatDateFormats } from '@angular/material/core';
+import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
@@ -17,6 +19,21 @@ import {
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { CalendarEventDetails } from './calendar-event-details';
 import { CalendarEventDetailsModel } from './calendar-event-details.form';
+
+const testDateFormats: MatDateFormats = {
+  parse: {
+    dateInput: 'yyyy-MM-dd',
+    timeInput: 'HH:mm',
+  },
+  display: {
+    dateInput: 'yyyy-MM-dd',
+    monthYearLabel: 'LLL yyyy',
+    dateA11yLabel: 'DDD',
+    monthYearA11yLabel: 'LLLL yyyy',
+    timeInput: 'HH:mm',
+    timeOptionLabel: 'HH:mm',
+  },
+};
 
 describe('CalendarEventDetails', () => {
   let fixture: ComponentFixture<CalendarEventDetails>;
@@ -55,6 +72,7 @@ describe('CalendarEventDetails', () => {
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
+        provideLuxonDateAdapter(testDateFormats),
         { provide: CalendarEventsService, useValue: service },
         { provide: NotificationService, useValue: notifications },
         { provide: ActivatedRoute, useValue: routeWithId(null) },
@@ -231,6 +249,7 @@ describe('CalendarEventDetails', () => {
         providers: [
           provideZonelessChangeDetection(),
           provideRouter([]),
+          provideLuxonDateAdapter(testDateFormats),
           { provide: CalendarEventsService, useValue: service },
           { provide: NotificationService, useValue: notifications },
           { provide: ActivatedRoute, useValue: routeWithId(editId) },
@@ -389,12 +408,22 @@ describe('CalendarEventDetails', () => {
     });
 
     it('shows a progress bar while the event is loading', () => {
-      service.getById.mockReturnValue(new Subject<CalendarEvent>());
+      vi.useFakeTimers();
+      try {
+        service.getById.mockReturnValue(new Subject<CalendarEvent>());
 
-      createEditComponent();
+        createEditComponent();
 
-      expect(fixture.nativeElement.querySelector('app-progress-bar')).not.toBeNull();
-      expect(fixture.nativeElement.querySelector('form')).toBeNull();
+        // The progress bar has a short appear delay so quick loads do not flash
+        // it; advance past the delay before asserting it is shown.
+        vi.advanceTimersByTime(200);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('app-progress-bar')).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('form')).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('enables delete when the loaded event is deletable', () => {

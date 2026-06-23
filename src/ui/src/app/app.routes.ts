@@ -9,6 +9,7 @@ import { authenticatedGuard } from './shared/auth/authenticated-guard';
 import { redirectAuthenticatedGuard } from './shared/auth/redirect-authenticated-guard';
 import { CalendarEventDetails } from './pages/calendar-event-details/calendar-event-details';
 import { Templates } from './pages/templates/templates';
+import { Platforms } from './pages/platforms/platforms';
 import { Settings } from './pages/settings/settings';
 
 export const routes: Routes = [
@@ -40,6 +41,11 @@ export const routes: Routes = [
       {
         path: 'templates',
         component: Templates,
+        canActivate: [authenticatedGuard],
+      },
+      {
+        path: 'platforms',
+        component: Platforms,
         canActivate: [authenticatedGuard],
       },
       {

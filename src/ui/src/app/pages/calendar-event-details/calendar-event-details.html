@@ -10,114 +10,95 @@
     </p>
   </header>
 
-  @if (isLoading()) {
-    <app-progress-bar label="Loading calendar event" />
-  } @else if (loadFailed()) {
-    <app-alert variant="error">
-      The calendar event could not be loaded. Check your connection and try again.
-    </app-alert>
-  } @else {
-    <form class="event-form" (submit)="onSubmit($event)">
-      <fieldset class="section">
-        <legend>Scheduled start</legend>
-        <div class="app-grid app-gap-4">
-          <app-date
-            class="app-col-md-4"
-            [field]="form.start.date"
-            label="Start date"
-          />
-          <app-time
-            class="app-col-md-4"
-            [field]="form.start.time"
-            label="Start time"
-          />
-          <app-select
-            class="app-col-md-4"
-            [field]="form.start.timeZoneId"
-            label="Time zone"
-            [options]="timeZoneOptions"
-          />
-        </div>
-        @if (startFutureError()) {
-          <p class="field-error">Start must be in the future.</p>
+  <app-progress-bar *appDelayedLoading="isLoading(); else loaded" label="Loading calendar event" />
+  <ng-template #loaded>
+    @if (loadFailed()) {
+      <app-alert variant="error">
+        The calendar event could not be loaded. Check your connection and try again.
+      </app-alert>
+    } @else {
+      <form class="event-form" (submit)="onSubmit($event)">
+        <fieldset class="section">
+          <legend>Scheduled start</legend>
+          <div class="app-grid app-gap-4">
+            <app-date class="app-col-md-4" [field]="form.start.date" label="Start date" />
+            <app-time class="app-col-md-4" [field]="form.start.time" label="Start time" />
+            <app-select
+              class="app-col-md-4"
+              [field]="form.start.timeZoneId"
+              label="Time zone"
+              [options]="timeZoneOptions"
+            />
+          </div>
+          @if (startFutureError()) {
+            <p class="field-error">Start must be in the future.</p>
+          }
+          <p class="utc-preview">
+            <span>Scheduled start (UTC)</span>
+            <strong>{{ scheduledStartUtcDisplay() || 'Not set' }}</strong>
+          </p>
+        </fieldset>
+
+        <fieldset class="section">
+          <legend>Descriptions</legend>
+          <p class="section-hint">
+            English and Russian are both required, each with a title and a description.
+          </p>
+
+          <div class="app-grid app-gap-6">
+            <div class="description-item app-col-md-6">
+              <h2 class="description-language">English</h2>
+              <app-input [field]="form.descriptions.en.title" label="Title" />
+              <app-input [field]="form.descriptions.en.description" label="Description" />
+            </div>
+
+            <div class="description-item app-col-md-6">
+              <h2 class="description-language">Russian</h2>
+              <app-input [field]="form.descriptions.ru.title" label="Title" />
+              <app-input [field]="form.descriptions.ru.description" label="Description" />
+            </div>
+          </div>
+        </fieldset>
+
+        @if (saveErrorMessage(); as message) {
+          <app-alert #errorRegion variant="error" tabindex="-1">
+            {{ message }}
+          </app-alert>
         }
-        <p class="utc-preview">
-          <span>Scheduled start (UTC)</span>
-          <strong>{{ scheduledStartUtcDisplay() || 'Not set' }}</strong>
-        </p>
-      </fieldset>
 
-      <fieldset class="section">
-        <legend>Descriptions</legend>
-        <p class="section-hint">
-          English and Russian are both required, each with a title and a description.
-        </p>
+        @if (deleteErrorMessage(); as message) {
+          <app-alert variant="error">
+            {{ message }}
+          </app-alert>
+        }
 
-        <div class="app-grid app-gap-6">
-          <div class="description-item app-col-md-6">
-            <h2 class="description-language">English</h2>
-            <app-input
-              [field]="form.descriptions.en.title"
-              label="Title"
-            />
-            <app-input
-              [field]="form.descriptions.en.description"
-              label="Description"
-            />
-          </div>
-
-          <div class="description-item app-col-md-6">
-            <h2 class="description-language">Russian</h2>
-            <app-input
-              [field]="form.descriptions.ru.title"
-              label="Title"
-            />
-            <app-input
-              [field]="form.descriptions.ru.description"
-              label="Description"
-            />
-          </div>
-        </div>
-      </fieldset>
-
-      @if (saveErrorMessage(); as message) {
-        <app-alert #errorRegion variant="error" tabindex="-1">
-          {{ message }}
-        </app-alert>
-      }
-
-      @if (deleteErrorMessage(); as message) {
-        <app-alert variant="error">
-          {{ message }}
-        </app-alert>
-      }
-
-      <div class="app-grid">
-        <div class="app-actions app-actions-end">
-          @if (isEditMode) {
+        <div class="app-grid">
+          <div class="app-actions app-actions-end">
+            @if (isEditMode) {
+              <app-button
+                type="button"
+                appearance="outlined"
+                icon="delete"
+                [disabled]="!canDelete() || isDeleting() || isSubmitting()"
+                (click)="deleteEvent()"
+              >
+                {{ isDeleting() ? 'Deleting...' : 'Delete' }}
+              </app-button>
+            }
             <app-button
               type="button"
               appearance="outlined"
-              icon="delete"
-              [disabled]="!canDelete() || isDeleting() || isSubmitting()"
-              (click)="deleteEvent()"
+              [disabled]="isDeleting()"
+              (click)="cancel()"
             >
-              {{ isDeleting() ? 'Deleting...' : 'Delete' }}
+              Cancel
             </app-button>
-          }
-          <app-button
-            type="button"
-            appearance="outlined"
-            [disabled]="isDeleting()"
-            (click)="cancel()"
-          >
-            Cancel
-          </app-button>
-          <app-button type="submit" [disabled]="isSubmitting() || isDeleting() || !canSave()">
-            {{ isEditMode ? 'Save changes' : 'Save event' }}
-          </app-button>
+            <app-button type="submit" [disabled]="isSubmitting() || isDeleting() || !canSave()">
+              {{ isEditMode ? 'Save changes' : 'Save event' }}
+            </app-button>
+          </div>
         </div>
-      </div>
-    </form>
-  }
+      </form>
+    }
+  </ng-template>
 </section>

@@ -154,6 +154,9 @@ describe('Templates', () => {
     await createComponent();
 
     expect(editor()).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain(
+      'Select a template on the left',
+    );
   });
 
   it('renders a load error when templates cannot be loaded', async () => {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 import { LabExample } from 'src/app/pages/component-lab/shared/lab-example/lab-example';
 import { LabPage } from 'src/app/pages/component-lab/shared/lab-page/lab-page';
@@ -18,16 +18,5 @@ export class ToolbarNavLab {
     { label: 'Calendar Events', link: '/calendar-events' },
     { label: 'Settings', link: '/settings' },
     { label: 'Templates', link: '/templates' },
-  ];
-
-  protected readonly lastAction = signal<string | null>(null);
-
-  protected readonly actionItems: readonly ToolbarNavItem[] = [
-    {
-      label: 'Calendar Events',
-      action: () => this.lastAction.set('Calendar Events'),
-    },
-    { label: 'Settings', action: () => this.lastAction.set('Settings') },
-    { label: 'Templates', action: () => this.lastAction.set('Templates') },
   ];
 }

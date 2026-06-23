@@ -1,24 +1,16 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  type OnInit,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, type OnInit, signal } from '@angular/core';
 import { form } from '@angular/forms/signals';
 import { finalize } from 'rxjs';
 
-import {
-  Template,
-  TemplatesService,
-} from 'src/app/shared/api/templates/templates-service';
+import { Template, TemplatesService } from 'src/app/shared/api/templates/templates-service';
 import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from 'src/app/shared/components/button/button';
 import { DataTable } from 'src/app/shared/components/data-table/data-table';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { Input } from 'src/app/shared/components/input/input';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
+import { DelayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { Select, SelectOption } from 'src/app/shared/components/select/select';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import {
@@ -36,7 +28,7 @@ type EditorMode = 'none' | 'create' | 'edit';
 
 @Component({
   selector: 'app-templates',
-  imports: [Alert, Button, DataTable, Input, ProgressBar, Select],
+  imports: [Alert, Button, DataTable, Input, ProgressBar, Select, DelayedLoading],
   templateUrl: './templates.html',
   styleUrl: './templates.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -223,9 +215,7 @@ export class Templates implements OnInit {
             content: request.content,
           };
           this.templates.update((list) =>
-            sortTemplates(
-              list.map((entry) => (entry.id === current.id ? updated : entry)),
-            ),
+            sortTemplates(list.map((entry) => (entry.id === current.id ? updated : entry))),
           );
           this.selected.set(updated);
           this.notifications.showSuccess('Template saved.');
@@ -275,4 +265,3 @@ function describeDeleteError(error: unknown): string {
 
   return 'The template could not be deleted. Check your connection and try again.';
 }
-

@@ -20,6 +20,7 @@ import { Button } from 'src/app/shared/components/button/button';
 import { DateField } from 'src/app/shared/components/date/date';
 import { Input } from 'src/app/shared/components/input/input';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
+import { DelayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { Select } from 'src/app/shared/components/select/select';
 import { TimeField } from 'src/app/shared/components/time/time';
 import {
@@ -36,7 +37,7 @@ import {
 
 @Component({
   selector: 'app-calendar-event-details',
-  imports: [Alert, Button, Input, DateField, TimeField, Select, ProgressBar],
+  imports: [Alert, Button, Input, DateField, TimeField, Select, ProgressBar, DelayedLoading],
   templateUrl: './calendar-event-details.html',
   styleUrl: './calendar-event-details.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -53,9 +54,7 @@ export class CalendarEventDetails {
   private readonly editingId = this.route.snapshot.paramMap.get('calendarEventId');
   protected readonly isEditMode = this.editingId !== null;
 
-  protected readonly model = signal<CalendarEventDetailsModel>(
-    createCalendarEventDetailsModel(),
-  );
+  protected readonly model = signal<CalendarEventDetailsModel>(createCalendarEventDetailsModel());
   protected readonly form = form(this.model, (path) =>
     applyCalendarEventDetailsRules(path, () => this.isEditMode),
   );
@@ -101,10 +100,7 @@ export class CalendarEventDetails {
   // reports its error. Rendered next to the scheduled-start section.
   protected readonly startFutureError = computed(() => {
     const start = this.form.start();
-    return (
-      start.touched() &&
-      start.errors().some((error) => error.kind === 'startInPast')
-    );
+    return start.touched() && start.errors().some((error) => error.kind === 'startInPast');
   });
 
   constructor() {

@@ -56,18 +56,6 @@ describe('ToolbarNav', () => {
     expect(anchor?.getAttribute('href')).toBe('/calendar-events');
   });
 
-  it('renders an action item as a button and runs its callback on click', () => {
-    let activated = 0;
-    host.items.set([{ label: 'Refresh', action: () => (activated += 1) }]);
-    fixture.detectChanges();
-
-    const button = navEl(fixture).querySelector('button') as HTMLButtonElement;
-    expect(button.textContent?.trim()).toBe('Refresh');
-
-    button.click();
-    expect(activated).toBe(1);
-  });
-
   it('packs items together aligned to the start by default', () => {
     expect(navEl(fixture).classList).toContain('app-actions');
     expect(navEl(fixture).classList).not.toContain('app-actions-end');

@@ -33,6 +33,11 @@
   }
 }
 
+.settings-heading {
+  margin: $app-space-2 0 0;
+  font-size: 1.1rem;
+}
+
 .editor-empty {
   color: $app-color-muted;
 }

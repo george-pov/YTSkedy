@@ -4,30 +4,24 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 
 import { Toolbar } from 'src/app/shared/components/toolbar/toolbar';
 
-/**
- * A single horizontal menu item. Provide `link` for a router navigation item or
- * `action` for a button that runs a callback. `link` takes precedence when both
- * are set.
- */
+/** A single horizontal menu item that navigates via its router `link`. */
 export interface ToolbarNavItem {
   /** Visible menu label. */
   readonly label: string;
-  /** Router link target for navigation items. */
-  readonly link?: string | readonly unknown[];
+  /** Router link target for the navigation item. */
+  readonly link: string | readonly unknown[];
   /** Match `link` exactly when deciding the active item. Defaults to false. */
   readonly exact?: boolean;
-  /** Callback invoked when an action item (one without `link`) is activated. */
-  readonly action?: () => void;
 }
 
 /** Horizontal alignment of the packed menu items within the toolbar row. */
 export type ToolbarNavAlign = 'start' | 'end';
 
 /**
- * Reusable horizontal menu rendered as a toolbar row. Items are router links or
- * action buttons packed together with a small gap, aligned to the start (left)
- * or end (right) of the row via the `align` input. No component-level media
- * queries: items wrap when the row runs out of space.
+ * Reusable horizontal menu rendered as a toolbar row. Items are router links
+ * packed together with a small gap, aligned to the start (left) or end (right)
+ * of the row via the `align` input. No component-level media queries: items
+ * wrap when the row runs out of space.
  */
 @Component({
   selector: 'app-toolbar-nav',

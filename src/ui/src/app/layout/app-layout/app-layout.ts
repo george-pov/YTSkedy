@@ -25,6 +25,7 @@ export class AppLayout {
   protected readonly navItems: readonly ToolbarNavItem[] = [
     { label: 'Calendar', link: '/calendar-events' },
     { label: 'Templates', link: '/templates' },
+    { label: 'Platforms', link: '/platforms' },
     { label: 'Settings', link: '/settings' },
   ];
 

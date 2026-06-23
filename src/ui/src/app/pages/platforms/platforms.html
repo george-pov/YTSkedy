@@ -1,41 +1,54 @@
-<section class="templates">
+<section class="platforms">
   <header class="header">
-    <h1>Templates</h1>
-    <app-button (click)="newTemplate()">New Template</app-button>
+    <h1>Platforms</h1>
+    <app-button (click)="newPlatform()">New Platform</app-button>
   </header>
 
-  <app-progress-bar *appDelayedLoading="isLoading(); else loaded" label="Loading templates" />
+  <app-progress-bar *appDelayedLoading="isLoading(); else loaded" label="Loading platforms" />
   <ng-template #loaded>
     @if (loadFailed()) {
       <app-alert variant="error">
-        Templates could not be loaded. Check your connection and try again.
+        Platforms could not be loaded. Check your connection and try again.
       </app-alert>
     } @else {
       <div class="app-grid app-gap-6">
         <app-data-table
           class="app-col-md-5"
-          [data]="templates()"
+          [data]="platforms()"
           [columns]="columns"
           [selectable]="true"
           [selectedRow]="selected()"
           [showPaginator]="false"
-          caption="Templates"
-          emptyText="No templates yet."
+          caption="Platforms"
+          emptyText="No platforms yet."
           (rowClick)="select($event.id)"
         />
 
         @if (editorMode() !== 'none') {
           <form class="app-col-md-7 editor" (submit)="onSubmit($event)">
             @if (editorMode() === 'create') {
-              <app-select [field]="form.type" label="Type" [options]="typeOptions" />
+              <app-select [field]="form.type" label="Platform type" [options]="typeOptions" />
             } @else {
               <p class="readonly-type">
-                <span>Type</span>
+                <span>Platform type</span>
                 <strong>{{ selected()?.type }}</strong>
               </p>
             }
             <app-input [field]="form.name" label="Name" />
-            <app-input multiline [field]="form.content" label="Content" [rows]="8" />
+
+            <h2 class="settings-heading">Settings</h2>
+
+            @if (selectedType() === 'YouTube') {
+              <app-youtube-settings
+                [credentials]="form.youTubeCredentials"
+                [privacyStatus]="form.youTubePrivacyStatus"
+                [madeForKids]="form.youTubeMadeForKids"
+              />
+            } @else {
+              <app-alert variant="info">
+                Settings for {{ selectedType() }} platforms are not available yet.
+              </app-alert>
+            }
 
             @if (errorMessage(); as message) {
               <app-alert variant="error">{{ message }}</app-alert>
@@ -59,7 +72,8 @@
           </form>
         } @else {
           <p class="app-col-md-7 app-pt-6 editor-empty">
-            Select a template on the left to view and edit it, or choose New Template to add one.
+            Select a platform on the left to view and update its settings, or choose New Platform to
+            add one.
           </p>
         }
       </div>
