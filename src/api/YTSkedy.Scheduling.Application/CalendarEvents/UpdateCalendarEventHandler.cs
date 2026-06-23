@@ -4,7 +4,7 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
 public sealed class UpdateCalendarEventHandler(
     ICalendarEventReader calendarEventReader,
-    ICalendarEventRepository calendarEvents)
+    ICalendarEventModifier calendarEvents)
 {
     public async Task<UpdateCalendarEventResult> HandleAsync(
         UpdateDescriptionsCommand command,

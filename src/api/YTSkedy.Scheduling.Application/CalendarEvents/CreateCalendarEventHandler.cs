@@ -2,7 +2,7 @@ using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
-public sealed class CreateCalendarEventHandler(ICalendarEventRepository calendarEvents)
+public sealed class CreateCalendarEventHandler(ICalendarEventModifier calendarEvents)
 {
     public async Task<CreateCalendarEventResult> HandleAsync(
         CreateCalendarEventCommand command,

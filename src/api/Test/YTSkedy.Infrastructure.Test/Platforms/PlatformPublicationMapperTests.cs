@@ -1,0 +1,159 @@
+using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.Infrastructure.Platforms;
+
+namespace YTSkedy.Infrastructure.Test.Platforms;
+
+public class PlatformPublicationMapperTests
+{
+    private const string CalendarEventId = "20260615T170000Z";
+    private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
+
+    [Fact]
+    public void ToPublication_PublishedEntity_MapsEveryField()
+    {
+        var publishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
+        var updatedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 5, TimeSpan.Zero);
+        var entity = CreateEntity(PublishStatus.Published);
+        entity.ExternalResourceId = "abc123youtubeid";
+        entity.PublishedUtc = publishedUtc;
+        entity.UpdatedUtc = updatedUtc;
+
+        var publication = PlatformPublicationMapper.ToPublication(entity);
+
+        Assert.Equal(CalendarEventId, publication.CalendarEventId);
+        Assert.Equal(PlatformId, publication.PlatformId);
+        Assert.Equal("Main YouTube channel", publication.PlatformName);
+        Assert.Equal(PlatformType.YouTube, publication.PlatformType);
+        Assert.Equal(PublishStatus.Published, publication.Status);
+        Assert.Equal("abc123youtubeid", publication.ExternalResourceId);
+        Assert.Equal(publishedUtc, publication.PublishedUtc);
+        Assert.Null(publication.PlatformDeletedUtc);
+        Assert.Equal(updatedUtc, publication.UpdatedUtc);
+        Assert.False(publication.IsOrphaned);
+    }
+
+    [Fact]
+    public void ToPublication_OrphanedEntity_IsOrphaned()
+    {
+        var deletedUtc = new DateTimeOffset(2026, 6, 23, 9, 0, 0, TimeSpan.Zero);
+        var entity = CreateEntity(PublishStatus.Published);
+        entity.PlatformDeletedUtc = deletedUtc;
+
+        var publication = PlatformPublicationMapper.ToPublication(entity);
+
+        Assert.Equal(deletedUtc, publication.PlatformDeletedUtc);
+        Assert.True(publication.IsOrphaned);
+    }
+
+    [Fact]
+    public void ToPublication_UnknownStoredStatus_ReadsAsNotPublished()
+    {
+        var entity = CreateEntity(PublishStatus.Publishing);
+        entity.Status = "Garbled";
+
+        var publication = PlatformPublicationMapper.ToPublication(entity);
+
+        Assert.Equal(PublishStatus.NotPublished, publication.Status);
+    }
+
+    [Fact]
+    public void ToPublications_DifferentStatuses_MapsEachIndependently()
+    {
+        var publishing = CreateEntity(PublishStatus.Publishing);
+        publishing.PlatformId = PlatformId;
+        var published = CreateEntity(PublishStatus.Published);
+        published.PlatformId = "8c1d77e0c0a04b2bb0d6f7a9e2c31845";
+
+        var publications = PlatformPublicationMapper.ToPublications([publishing, published]);
+
+        Assert.Collection(
+            publications,
+            first => Assert.Equal(PublishStatus.Publishing, first.Status),
+            second => Assert.Equal(PublishStatus.Published, second.Status));
+    }
+
+    [Fact]
+    public void ToReservedEntity_BuildsPublishingRowWithCopiedPlatformDetails()
+    {
+        var now = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
+        var reservation = new PlatformPublicationReservation(
+            CalendarEventId,
+            PlatformId,
+            "Main YouTube channel",
+            PlatformType.YouTube,
+            new YouTubeSettings("main-youtube-channel", "private", false));
+
+        var entity = PlatformPublicationMapper.ToReservedEntity(reservation, now);
+
+        Assert.Equal("event-20260615T170000Z", entity.PartitionKey);
+        Assert.Equal("platform-4fb4a32f3f344de1a7c3a9f4a2f94918", entity.RowKey);
+        Assert.Equal(CalendarEventId, entity.CalendarEventId);
+        Assert.Equal(PlatformId, entity.PlatformId);
+        Assert.Equal("Main YouTube channel", entity.PlatformName);
+        Assert.Equal("YouTube", entity.PlatformType);
+        Assert.Equal("Publishing", entity.Status);
+        Assert.Null(entity.ExternalResourceId);
+        Assert.Null(entity.PublishedUtc);
+        Assert.Null(entity.PlatformDeletedUtc);
+        Assert.Equal(now, entity.CreatedUtc);
+        Assert.Equal(now, entity.UpdatedUtc);
+    }
+
+    [Fact]
+    public void ToReservedEntity_SerializesPublishSettingsThatRoundTrip()
+    {
+        var reservation = new PlatformPublicationReservation(
+            CalendarEventId,
+            PlatformId,
+            "Main YouTube channel",
+            PlatformType.YouTube,
+            new YouTubeSettings("main-youtube-channel", "unlisted", true));
+
+        var entity = PlatformPublicationMapper.ToReservedEntity(
+            reservation,
+            new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero));
+
+        var settings = Assert.IsType<YouTubeSettings>(
+            PublishSettingsSerializer.Deserialize(PlatformType.YouTube, entity.PublishSettingsJson));
+        Assert.Equal("main-youtube-channel", settings.Credentials);
+        Assert.Equal("unlisted", settings.PrivacyStatus);
+        Assert.True(settings.SelfDeclaredMadeForKids);
+    }
+
+    [Theory]
+    [InlineData("NotPublished", PublishStatus.NotPublished)]
+    [InlineData("Publishing", PublishStatus.Publishing)]
+    [InlineData("Published", PublishStatus.Published)]
+    [InlineData("published", PublishStatus.Published)]
+    public void ParseStatus_KnownValue_ParsesCaseInsensitively(string stored, PublishStatus expected)
+    {
+        Assert.Equal(expected, PlatformPublicationMapper.ParseStatus(stored));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("nonsense")]
+    public void ParseStatus_UnknownValue_DefaultsToNotPublished(string? stored)
+    {
+        Assert.Equal(PublishStatus.NotPublished, PlatformPublicationMapper.ParseStatus(stored));
+    }
+
+    private static PlatformPublicationEntity CreateEntity(PublishStatus status) =>
+        new()
+        {
+            PartitionKey = PlatformPublicationKey.PartitionKeyFor(CalendarEventId),
+            RowKey = PlatformPublicationKey.RowKeyFor(PlatformId),
+            CalendarEventId = CalendarEventId,
+            PlatformId = PlatformId,
+            PlatformName = "Main YouTube channel",
+            PlatformType = "YouTube",
+            Status = status.ToString(),
+            PublishSettingsJson = PublishSettingsSerializer.Serialize(
+                PlatformType.YouTube,
+                new YouTubeSettings("main-youtube-channel", "private", false)),
+            CreatedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
+            UpdatedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
+        };
+}

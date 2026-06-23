@@ -7,7 +7,7 @@ namespace YTSkedy.Infrastructure.Platforms;
 
 /// <summary>
 /// Azure Table-backed platform store implementing the write port
-/// (<see cref="IPlatformRepository"/>) and the read port
+/// (<see cref="IPlatformModifier"/>) and the read port
 /// (<see cref="IPlatformReader"/>). All platforms share one partition
 /// (<c>platforms</c>) and the row key is <c>platform-{platformId}</c>, where the
 /// platform id is a server-generated GUID. Name uniqueness is global and
@@ -19,7 +19,7 @@ namespace YTSkedy.Infrastructure.Platforms;
 public sealed class AzurePlatformRepository(
     TableClient tableClient,
     TimeProvider timeProvider) :
-    IPlatformRepository,
+    IPlatformModifier,
     IPlatformReader
 {
     private const string PartitionKey = "platforms";

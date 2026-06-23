@@ -6,48 +6,48 @@ namespace YTSkedy.Scheduling.Application.Test;
 public class DeleteTemplateHandlerTests
 {
     [Fact]
-    public async Task HandleAsync_ValidCommand_ForwardsToRepositoryAndReturnsResult()
+    public async Task HandleAsync_ValidCommand_ForwardsToModifierAndReturnsResult()
     {
-        var repository = new FakeTemplateRepository
+        var modifier = new FakeTemplateModifier
         {
             DeleteResult = DeleteTemplateResult.Deleted
         };
-        var handler = new DeleteTemplateHandler(repository);
+        var handler = new DeleteTemplateHandler(modifier);
         var command = new DeleteTemplateCommand(TemplateType.YouTube, "9f8b1c2d3e4f");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(DeleteTemplateResult.Deleted, result);
-        Assert.Equal(1, repository.DeleteCallCount);
-        Assert.Equal(TemplateType.YouTube, repository.DeletedType);
-        Assert.Equal("9f8b1c2d3e4f", repository.DeletedId);
+        Assert.Equal(1, modifier.DeleteCallCount);
+        Assert.Equal(TemplateType.YouTube, modifier.DeletedType);
+        Assert.Equal("9f8b1c2d3e4f", modifier.DeletedId);
     }
 
     [Theory]
     [InlineData(DeleteTemplateResult.Deleted)]
     [InlineData(DeleteTemplateResult.NotFound)]
-    public async Task HandleAsync_RepositoryResult_IsReturnedUnchanged(
-        DeleteTemplateResult repositoryResult)
+    public async Task HandleAsync_ModifierResult_IsReturnedUnchanged(
+        DeleteTemplateResult modifierResult)
     {
-        var repository = new FakeTemplateRepository { DeleteResult = repositoryResult };
-        var handler = new DeleteTemplateHandler(repository);
+        var modifier = new FakeTemplateModifier { DeleteResult = modifierResult };
+        var handler = new DeleteTemplateHandler(modifier);
         var command = new DeleteTemplateCommand(TemplateType.WordPress, "9f8b1c2d3e4f");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(repositoryResult, result);
+        Assert.Equal(modifierResult, result);
     }
 
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var handler = new DeleteTemplateHandler(new FakeTemplateRepository());
+        var handler = new DeleteTemplateHandler(new FakeTemplateModifier());
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
     }
 
-    private sealed class FakeTemplateRepository : ITemplateRepository
+    private sealed class FakeTemplateModifier : ITemplateModifier
     {
         public DeleteTemplateResult DeleteResult { get; init; } = DeleteTemplateResult.Deleted;
 

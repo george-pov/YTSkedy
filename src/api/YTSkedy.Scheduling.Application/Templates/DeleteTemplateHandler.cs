@@ -5,7 +5,7 @@ namespace YTSkedy.Scheduling.Application.Templates;
 /// the not-found outcome, so the handler forwards the command and returns the
 /// repository result unchanged.
 /// </summary>
-public sealed class DeleteTemplateHandler(ITemplateRepository templates)
+public sealed class DeleteTemplateHandler(ITemplateModifier templates)
 {
     public async Task<DeleteTemplateResult> HandleAsync(
         DeleteTemplateCommand command,

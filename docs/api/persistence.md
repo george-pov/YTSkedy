@@ -2,10 +2,10 @@
 
 YTSkedy currently persists calendar event data in Azure Table Storage from the
 backend API under `src/api/`. The scheduling application defines the
-`ICalendarEventRepository` and `ICalendarEventReader` ports, and
+`ICalendarEventModifier` and `ICalendarEventReader` ports, and
 `YTSkedy.Infrastructure` implements them with `AzureCalendarEventRepository`. It
 also persists reusable templates in a separate `Templates` table through the
-`ITemplateRepository` and `ITemplateReader` ports, implemented by
+`ITemplateModifier` and `ITemplateReader` ports, implemented by
 `AzureTemplateRepository`.
 
 ## Configuration
@@ -59,7 +59,7 @@ application handler, so the returned candidate order is not significant.
 
 ## Template Rows
 
-`AzureTemplateRepository` implements the `ITemplateRepository` write port and the
+`AzureTemplateRepository` implements the `ITemplateModifier` write port and the
 `ITemplateReader` read port. `CreateAsync` creates the `Templates` table if it
 does not exist, then inserts one template row.
 

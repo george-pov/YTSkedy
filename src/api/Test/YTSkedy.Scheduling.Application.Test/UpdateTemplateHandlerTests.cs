@@ -6,13 +6,13 @@ namespace YTSkedy.Scheduling.Application.Test;
 public class UpdateTemplateHandlerTests
 {
     [Fact]
-    public async Task HandleAsync_ValidCommand_ForwardsToRepositoryAndReturnsResult()
+    public async Task HandleAsync_ValidCommand_ForwardsToModifierAndReturnsResult()
     {
-        var repository = new FakeTemplateRepository
+        var modifier = new FakeTemplateModifier
         {
             UpdateResult = UpdateTemplateResult.Updated
         };
-        var handler = new UpdateTemplateHandler(repository);
+        var handler = new UpdateTemplateHandler(modifier);
         var command = new UpdateTemplateCommand(
             TemplateType.YouTube,
             "9f8b1c2d3e4f",
@@ -22,22 +22,22 @@ public class UpdateTemplateHandlerTests
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(UpdateTemplateResult.Updated, result);
-        Assert.Equal(1, repository.UpdateCallCount);
-        Assert.Equal(TemplateType.YouTube, repository.UpdatedType);
-        Assert.Equal("9f8b1c2d3e4f", repository.UpdatedId);
-        Assert.Equal("Renamed", repository.UpdatedName);
-        Assert.Equal("Updated content", repository.UpdatedContent);
+        Assert.Equal(1, modifier.UpdateCallCount);
+        Assert.Equal(TemplateType.YouTube, modifier.UpdatedType);
+        Assert.Equal("9f8b1c2d3e4f", modifier.UpdatedId);
+        Assert.Equal("Renamed", modifier.UpdatedName);
+        Assert.Equal("Updated content", modifier.UpdatedContent);
     }
 
     [Theory]
     [InlineData(UpdateTemplateResult.Updated)]
     [InlineData(UpdateTemplateResult.NotFound)]
     [InlineData(UpdateTemplateResult.NameAlreadyExists)]
-    public async Task HandleAsync_RepositoryResult_IsReturnedUnchanged(
-        UpdateTemplateResult repositoryResult)
+    public async Task HandleAsync_ModifierResult_IsReturnedUnchanged(
+        UpdateTemplateResult modifierResult)
     {
-        var repository = new FakeTemplateRepository { UpdateResult = repositoryResult };
-        var handler = new UpdateTemplateHandler(repository);
+        var modifier = new FakeTemplateModifier { UpdateResult = modifierResult };
+        var handler = new UpdateTemplateHandler(modifier);
         var command = new UpdateTemplateCommand(
             TemplateType.WordPress,
             "9f8b1c2d3e4f",
@@ -46,19 +46,19 @@ public class UpdateTemplateHandlerTests
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
-        Assert.Equal(repositoryResult, result);
+        Assert.Equal(modifierResult, result);
     }
 
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var handler = new UpdateTemplateHandler(new FakeTemplateRepository());
+        var handler = new UpdateTemplateHandler(new FakeTemplateModifier());
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
     }
 
-    private sealed class FakeTemplateRepository : ITemplateRepository
+    private sealed class FakeTemplateModifier : ITemplateModifier
     {
         public UpdateTemplateResult UpdateResult { get; init; } = UpdateTemplateResult.Updated;
 

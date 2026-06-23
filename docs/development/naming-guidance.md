@@ -289,7 +289,7 @@ Keep layer roles explicit but short.
 | Repository | `{Provider}{Domain}Repository` | `AzureCalendarEventRepository` |
 | External adapter or client | `{Provider}{Resource}Adapter` or `{Provider}{Resource}Client` | `YouTubeBroadcastAdapter` |
 | Configuration | `{Scenario}Options` | `AuthOptions`, `YouTubeOptions` |
-| Test double | `Fake{Role}` | `FakeCalendarEventRepository` |
+| Test double | `Fake{Role}` | `FakeCalendarEventModifier` |
 
 When touching current calendar-event code, prefer the fully qualified domain
 name when it prevents ambiguity. Prefer shorter names when the namespace,
@@ -301,10 +301,10 @@ because the command carries the `PlatformId`. Shorter forms such as `event`,
 type already provides the missing context.
 
 Avoid stacking every related domain word into a single identifier. Prefer
-`PlatformPublication`, `PlatformActionPolicy`, `IPlatformRepository`, and
+`PlatformPublication`, `PlatformActionPolicy`, `IPlatformModifier`, and
 `AzurePlatformRepository` in platform-focused namespaces over names such as
 `CalendarEventPlatformPublication`, `CalendarEventPlatformActionPolicy`,
-`ICalendarEventPlatformRepository`, and `AzureCalendarEventPlatformRepository`.
+`ICalendarEventPlatformModifier`, and `AzureCalendarEventPlatformRepository`.
 
 Use provider prefixes such as `Azure` or `YouTube` at infrastructure,
 adapter, persistence, and external-client boundaries. Do not put provider

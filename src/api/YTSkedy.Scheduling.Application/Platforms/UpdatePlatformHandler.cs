@@ -6,7 +6,7 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// not-found outcome, so the handler forwards the command and returns the
 /// repository result unchanged.
 /// </summary>
-public sealed class UpdatePlatformHandler(IPlatformRepository platforms)
+public sealed class UpdatePlatformHandler(IPlatformModifier platforms)
 {
     public async Task<UpdatePlatformResult> HandleAsync(
         UpdatePlatformCommand command,

@@ -6,7 +6,7 @@ namespace YTSkedy.Scheduling.Application.Templates;
 /// not-found outcome, so the handler forwards the command and returns the
 /// repository result unchanged.
 /// </summary>
-public sealed class UpdateTemplateHandler(ITemplateRepository templates)
+public sealed class UpdateTemplateHandler(ITemplateModifier templates)
 {
     public async Task<UpdateTemplateResult> HandleAsync(
         UpdateTemplateCommand command,

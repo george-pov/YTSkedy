@@ -18,45 +18,45 @@ public class UpdateCalendarEventHandlerTests
     [Fact]
     public async Task HandleAsync_ExistingEvent_UpdatesDescriptionsAndReturnsUpdated()
     {
-        var repository = new FakeCalendarEventRepository(updateResult: true);
-        var handler = CreateHandler(CreateDetail(), repository);
+        var modifier = new FakeCalendarEventModifier(updateResult: true);
+        var handler = CreateHandler(CreateDetail(), modifier);
 
         var result = await handler.HandleAsync(
             new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventResult.Updated, result);
-        Assert.Equal(1, repository.UpdateCallCount);
-        Assert.Equal(CalendarEventId, repository.UpdatedCalendarEventId);
-        Assert.Same(Descriptions, repository.UpdatedDescriptions);
+        Assert.Equal(1, modifier.UpdateCallCount);
+        Assert.Equal(CalendarEventId, modifier.UpdatedCalendarEventId);
+        Assert.Same(Descriptions, modifier.UpdatedDescriptions);
     }
 
     [Fact]
     public async Task HandleAsync_MissingEvent_ReturnsNotFoundWithoutUpdating()
     {
-        var repository = new FakeCalendarEventRepository(updateResult: true);
-        var handler = CreateHandler(detail: null, repository);
+        var modifier = new FakeCalendarEventModifier(updateResult: true);
+        var handler = CreateHandler(detail: null, modifier);
 
         var result = await handler.HandleAsync(
             new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventResult.NotFound, result);
-        Assert.Equal(0, repository.UpdateCallCount);
+        Assert.Equal(0, modifier.UpdateCallCount);
     }
 
     [Fact]
     public async Task HandleAsync_RowVanishedBeforeWrite_ReturnsNotFound()
     {
-        var repository = new FakeCalendarEventRepository(updateResult: false);
-        var handler = CreateHandler(CreateDetail(), repository);
+        var modifier = new FakeCalendarEventModifier(updateResult: false);
+        var handler = CreateHandler(CreateDetail(), modifier);
 
         var result = await handler.HandleAsync(
             new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventResult.NotFound, result);
-        Assert.Equal(1, repository.UpdateCallCount);
+        Assert.Equal(1, modifier.UpdateCallCount);
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class UpdateCalendarEventHandlerTests
     {
         var handler = CreateHandler(
             CreateDetail(),
-            new FakeCalendarEventRepository(updateResult: true));
+            new FakeCalendarEventModifier(updateResult: true));
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
@@ -72,8 +72,8 @@ public class UpdateCalendarEventHandlerTests
 
     private static UpdateCalendarEventHandler CreateHandler(
         CalendarEventView? detail,
-        FakeCalendarEventRepository repository) =>
-        new(new FakeCalendarEventReader(detail), repository);
+        FakeCalendarEventModifier modifier) =>
+        new(new FakeCalendarEventReader(detail), modifier);
 
     private static CalendarEventView CreateDetail() =>
         new(
@@ -95,7 +95,7 @@ public class UpdateCalendarEventHandlerTests
             Task.FromResult(detail);
     }
 
-    private sealed class FakeCalendarEventRepository(bool updateResult) : ICalendarEventRepository
+    private sealed class FakeCalendarEventModifier(bool updateResult) : ICalendarEventModifier
     {
         public int UpdateCallCount { get; private set; }
 

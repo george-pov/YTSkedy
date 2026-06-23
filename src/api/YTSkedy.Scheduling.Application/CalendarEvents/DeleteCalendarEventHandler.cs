@@ -2,7 +2,7 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
 public sealed class DeleteCalendarEventHandler(
     ICalendarEventReader calendarEventReader,
-    ICalendarEventRepository calendarEventRepository)
+    ICalendarEventModifier calendarEventModifier)
 {
     public async Task<DeleteCalendarEventResult> HandleAsync(
         string calendarEventId,
@@ -22,7 +22,7 @@ public sealed class DeleteCalendarEventHandler(
             return DeleteCalendarEventResult.NotFound;
         }
 
-        await calendarEventRepository.DeleteAsync(calendarEventId, cancellationToken);
+        await calendarEventModifier.DeleteAsync(calendarEventId, cancellationToken);
 
         return DeleteCalendarEventResult.Deleted;
     }

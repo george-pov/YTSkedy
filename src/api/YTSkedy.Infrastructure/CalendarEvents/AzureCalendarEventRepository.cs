@@ -10,7 +10,7 @@ namespace YTSkedy.Infrastructure.CalendarEvents;
 public sealed class AzureCalendarEventRepository(
     TableClient tableClient,
     TimeProvider timeProvider) :
-    ICalendarEventRepository,
+    ICalendarEventModifier,
     ICalendarEventReader
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);

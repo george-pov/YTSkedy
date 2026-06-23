@@ -2,7 +2,7 @@ using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Scheduling.Application.Platforms;
 
-public interface IPlatformRepository
+public interface IPlatformModifier
 {
     /// <summary>
     /// Creates a platform after enforcing that its name is globally unique. On

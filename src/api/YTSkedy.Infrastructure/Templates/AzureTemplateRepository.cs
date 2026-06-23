@@ -7,7 +7,7 @@ namespace YTSkedy.Infrastructure.Templates;
 
 /// <summary>
 /// Azure Table-backed template store implementing the write port
-/// (<see cref="ITemplateRepository"/>) and the read port
+/// (<see cref="ITemplateModifier"/>) and the read port
 /// (<see cref="ITemplateReader"/>). Templates are partitioned by
 /// <see cref="TemplateType"/> through <see cref="TemplatePartitionKey"/>, so all
 /// templates of one type share a partition and the row key is the
@@ -19,7 +19,7 @@ namespace YTSkedy.Infrastructure.Templates;
 public sealed class AzureTemplateRepository(
     TableClient tableClient,
     TimeProvider timeProvider) :
-    ITemplateRepository,
+    ITemplateModifier,
     ITemplateReader
 {
     public async Task<CreateTemplateResult> CreateAsync(

@@ -11,29 +11,29 @@ public class UpdatePlatformHandlerTests
     [Fact]
     public async Task HandleAsync_Updated_ForwardsCommandAndReturnsUpdated()
     {
-        var repository = new FakePlatformRepository
+        var modifier = new FakePlatformModifier
         {
             UpdateResult = UpdatePlatformResult.Updated
         };
-        var handler = new UpdatePlatformHandler(repository);
+        var handler = new UpdatePlatformHandler(modifier);
         var command = new UpdatePlatformCommand("p1", "Renamed channel", Settings);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(UpdatePlatformResult.Updated, result);
-        Assert.Equal("p1", repository.PlatformId);
-        Assert.Equal("Renamed channel", repository.Name);
-        Assert.Same(Settings, repository.PublishSettings);
+        Assert.Equal("p1", modifier.PlatformId);
+        Assert.Equal("Renamed channel", modifier.Name);
+        Assert.Same(Settings, modifier.PublishSettings);
     }
 
     [Fact]
     public async Task HandleAsync_NotFound_ReturnsNotFound()
     {
-        var repository = new FakePlatformRepository
+        var modifier = new FakePlatformModifier
         {
             UpdateResult = UpdatePlatformResult.NotFound
         };
-        var handler = new UpdatePlatformHandler(repository);
+        var handler = new UpdatePlatformHandler(modifier);
         var command = new UpdatePlatformCommand("missing", "Renamed channel", Settings);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -44,11 +44,11 @@ public class UpdatePlatformHandlerTests
     [Fact]
     public async Task HandleAsync_DuplicateName_ReturnsNameAlreadyExists()
     {
-        var repository = new FakePlatformRepository
+        var modifier = new FakePlatformModifier
         {
             UpdateResult = UpdatePlatformResult.NameAlreadyExists
         };
-        var handler = new UpdatePlatformHandler(repository);
+        var handler = new UpdatePlatformHandler(modifier);
         var command = new UpdatePlatformCommand("p1", "Taken name", Settings);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -59,13 +59,13 @@ public class UpdatePlatformHandlerTests
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var handler = new UpdatePlatformHandler(new FakePlatformRepository());
+        var handler = new UpdatePlatformHandler(new FakePlatformModifier());
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
     }
 
-    private sealed class FakePlatformRepository : IPlatformRepository
+    private sealed class FakePlatformModifier : IPlatformModifier
     {
         public UpdatePlatformResult UpdateResult { get; init; } = UpdatePlatformResult.Updated;
 

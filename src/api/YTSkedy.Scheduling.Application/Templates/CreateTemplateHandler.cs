@@ -9,7 +9,7 @@ namespace YTSkedy.Scheduling.Application.Templates;
 /// name-uniqueness enforcement and id generation. The repository outcome,
 /// including the new id on success, is returned unchanged.
 /// </summary>
-public sealed class CreateTemplateHandler(ITemplateRepository templates)
+public sealed class CreateTemplateHandler(ITemplateModifier templates)
 {
     public async Task<CreateTemplateResult> HandleAsync(
         CreateTemplateCommand command,

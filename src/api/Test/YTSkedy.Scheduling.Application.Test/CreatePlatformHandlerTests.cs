@@ -11,11 +11,11 @@ public class CreatePlatformHandlerTests
     [Fact]
     public async Task HandleAsync_ValidCommand_CreatesPlatformAndReturnsCreatedWithId()
     {
-        var repository = new FakePlatformRepository
+        var modifier = new FakePlatformModifier
         {
             CreateResult = CreatePlatformResult.Created("p1")
         };
-        var handler = new CreatePlatformHandler(repository);
+        var handler = new CreatePlatformHandler(modifier);
         var command = new CreatePlatformCommand("Main channel", PlatformType.YouTube, Settings);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -23,20 +23,20 @@ public class CreatePlatformHandlerTests
         Assert.Equal(CreatePlatformStatus.Created, result.Status);
         Assert.Equal("p1", result.PlatformId);
 
-        Assert.NotNull(repository.CreatedPlatform);
-        Assert.Equal("Main channel", repository.CreatedPlatform!.Name);
-        Assert.Equal(PlatformType.YouTube, repository.CreatedPlatform.Type);
-        Assert.Same(Settings, repository.CreatedPlatform.PublishSettings);
+        Assert.NotNull(modifier.CreatedPlatform);
+        Assert.Equal("Main channel", modifier.CreatedPlatform!.Name);
+        Assert.Equal(PlatformType.YouTube, modifier.CreatedPlatform.Type);
+        Assert.Same(Settings, modifier.CreatedPlatform.PublishSettings);
     }
 
     [Fact]
     public async Task HandleAsync_DuplicateName_ReturnsNameAlreadyExists()
     {
-        var repository = new FakePlatformRepository
+        var modifier = new FakePlatformModifier
         {
             CreateResult = CreatePlatformResult.NameAlreadyExists()
         };
-        var handler = new CreatePlatformHandler(repository);
+        var handler = new CreatePlatformHandler(modifier);
         var command = new CreatePlatformCommand("Main channel", PlatformType.YouTube, Settings);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -48,13 +48,13 @@ public class CreatePlatformHandlerTests
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var handler = new CreatePlatformHandler(new FakePlatformRepository());
+        var handler = new CreatePlatformHandler(new FakePlatformModifier());
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
     }
 
-    private sealed class FakePlatformRepository : IPlatformRepository
+    private sealed class FakePlatformModifier : IPlatformModifier
     {
         public CreatePlatformResult CreateResult { get; init; } =
             CreatePlatformResult.Created("platform-id");

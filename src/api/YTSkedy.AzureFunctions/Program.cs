@@ -114,7 +114,7 @@ builder.Services.AddScoped<GetCalendarEventHandler>();
 builder.Services.AddScoped<UpdateCalendarEventHandler>();
 builder.Services.AddScoped<DeleteCalendarEventHandler>();
 builder.Services.AddScoped<AzureCalendarEventRepository>();
-builder.Services.AddScoped<ICalendarEventRepository>(
+builder.Services.AddScoped<ICalendarEventModifier>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
 builder.Services.AddScoped<ICalendarEventReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
@@ -158,7 +158,7 @@ builder.Services.AddScoped(serviceProvider =>
     new AzureTemplateRepository(
         serviceProvider.GetRequiredKeyedService<TableClient>("templates"),
         serviceProvider.GetRequiredService<TimeProvider>()));
-builder.Services.AddScoped<ITemplateRepository>(
+builder.Services.AddScoped<ITemplateModifier>(
     serviceProvider => serviceProvider.GetRequiredService<AzureTemplateRepository>());
 builder.Services.AddScoped<ITemplateReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzureTemplateRepository>());
@@ -195,9 +195,43 @@ builder.Services.AddScoped(serviceProvider =>
     new AzurePlatformRepository(
         serviceProvider.GetRequiredKeyedService<TableClient>("platforms"),
         serviceProvider.GetRequiredService<TimeProvider>()));
-builder.Services.AddScoped<IPlatformRepository>(
+builder.Services.AddScoped<IPlatformModifier>(
     serviceProvider => serviceProvider.GetRequiredService<AzurePlatformRepository>());
 builder.Services.AddScoped<IPlatformReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzurePlatformRepository>());
+
+// Platform publications persist in their own table bound through a keyed
+// TableClient so the calendar-event, templates, and platforms TableClient
+// registrations above are untouched.
+builder.Services.AddKeyedSingleton<TableClient>("platformPublications", (_, _) =>
+{
+    var connectionString =
+        builder.Configuration["AzureStorage:ConnectionString"] ??
+        builder.Configuration["AzureWebJobsStorage"];
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "Azure Table Storage connection string is not configured.");
+    }
+
+    var tableName = builder.Configuration["AzureStorage:PlatformPublicationsTableName"];
+    if (string.IsNullOrWhiteSpace(tableName))
+    {
+        tableName = "PlatformPublications";
+    }
+
+    return new TableClient(connectionString, tableName);
+});
+
+builder.Services.AddScoped<ListPlatformsForEventHandler>();
+builder.Services.AddScoped(serviceProvider =>
+    new AzurePlatformPublicationRepository(
+        serviceProvider.GetRequiredKeyedService<TableClient>("platformPublications"),
+        serviceProvider.GetRequiredService<TimeProvider>()));
+builder.Services.AddScoped<IPlatformPublicationRepository>(
+    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
+builder.Services.AddScoped<IPlatformPublicationReader>(
+    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
 
 builder.Build().Run();

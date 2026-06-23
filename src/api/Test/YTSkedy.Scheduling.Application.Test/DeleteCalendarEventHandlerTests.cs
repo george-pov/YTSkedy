@@ -12,32 +12,32 @@ public class DeleteCalendarEventHandlerTests
     [Fact]
     public async Task Delete_MissingEvent_ReturnsNotFoundWithoutDeleting()
     {
-        var repository = new FakeCalendarEventRepository();
-        var handler = CreateHandler(detail: null, repository);
+        var modifier = new FakeCalendarEventModifier();
+        var handler = CreateHandler(detail: null, modifier);
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
         Assert.Equal(DeleteCalendarEventResult.NotFound, result);
-        Assert.Equal(0, repository.DeleteCallCount);
+        Assert.Equal(0, modifier.DeleteCallCount);
     }
 
     [Fact]
     public async Task Delete_ExistingEvent_DeletesRowAndReturnsDeleted()
     {
-        var repository = new FakeCalendarEventRepository();
-        var handler = CreateHandler(CreateDetail(), repository);
+        var modifier = new FakeCalendarEventModifier();
+        var handler = CreateHandler(CreateDetail(), modifier);
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
         Assert.Equal(DeleteCalendarEventResult.Deleted, result);
-        Assert.Equal(1, repository.DeleteCallCount);
-        Assert.Equal(CalendarEventId, repository.DeletedCalendarEventId);
+        Assert.Equal(1, modifier.DeleteCallCount);
+        Assert.Equal(CalendarEventId, modifier.DeletedCalendarEventId);
     }
 
     [Fact]
     public async Task Delete_BlankId_Throws()
     {
-        var handler = CreateHandler(CreateDetail(), new FakeCalendarEventRepository());
+        var handler = CreateHandler(CreateDetail(), new FakeCalendarEventModifier());
 
         await Assert.ThrowsAsync<ArgumentException>(
             () => handler.HandleAsync("   ", CancellationToken.None));
@@ -45,8 +45,8 @@ public class DeleteCalendarEventHandlerTests
 
     private static DeleteCalendarEventHandler CreateHandler(
         CalendarEventView? detail,
-        FakeCalendarEventRepository repository) =>
-        new(new FakeCalendarEventReader(detail), repository);
+        FakeCalendarEventModifier modifier) =>
+        new(new FakeCalendarEventReader(detail), modifier);
 
     private static CalendarEventView CreateDetail() =>
         new(
@@ -68,7 +68,7 @@ public class DeleteCalendarEventHandlerTests
             Task.FromResult(detail);
     }
 
-    private sealed class FakeCalendarEventRepository : ICalendarEventRepository
+    private sealed class FakeCalendarEventModifier : ICalendarEventModifier
     {
         public int DeleteCallCount { get; private set; }
 

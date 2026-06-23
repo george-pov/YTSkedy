@@ -7,7 +7,7 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// repository, which owns name-uniqueness enforcement and id generation. The
 /// repository outcome, including the new id on success, is returned unchanged.
 /// </summary>
-public sealed class CreatePlatformHandler(IPlatformRepository platforms)
+public sealed class CreatePlatformHandler(IPlatformModifier platforms)
 {
     public async Task<CreatePlatformResult> HandleAsync(
         CreatePlatformCommand command,

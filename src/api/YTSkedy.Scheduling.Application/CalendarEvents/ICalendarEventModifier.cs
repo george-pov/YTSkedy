@@ -2,7 +2,7 @@ using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
-public interface ICalendarEventRepository
+public interface ICalendarEventModifier
 {
     Task<string> CreateAsync(
         CalendarEvent calendarEvent,

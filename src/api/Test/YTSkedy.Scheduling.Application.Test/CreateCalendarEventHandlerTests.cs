@@ -8,8 +8,8 @@ public class CreateCalendarEventHandlerTests
     [Fact]
     public async Task CreateCalendarEvent_ValidCommand_CreatesCalendarEventAndReturnsCalendarEventId()
     {
-        var repository = new FakeCalendarEventRepository("1001");
-        var handler = new CreateCalendarEventHandler(repository);
+        var modifier = new FakeCalendarEventModifier("1001");
+        var handler = new CreateCalendarEventHandler(modifier);
         var start = new ScheduledStart(
             new DateTime(2026, 06, 05, 10, 00, 00),
             "America/Vancouver");
@@ -23,13 +23,13 @@ public class CreateCalendarEventHandlerTests
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal("1001", result.CalendarEventId);
-        var createdCalendarEvent = repository.CreatedCalendarEvent;
+        var createdCalendarEvent = modifier.CreatedCalendarEvent;
         Assert.NotNull(createdCalendarEvent);
         Assert.Equal(start, createdCalendarEvent!.Start);
         Assert.Equal(descriptions, createdCalendarEvent.Descriptions);
     }
 
-    private sealed class FakeCalendarEventRepository(string calendarEventId) : ICalendarEventRepository
+    private sealed class FakeCalendarEventModifier(string calendarEventId) : ICalendarEventModifier
     {
         public CalendarEvent? CreatedCalendarEvent { get; private set; }
 

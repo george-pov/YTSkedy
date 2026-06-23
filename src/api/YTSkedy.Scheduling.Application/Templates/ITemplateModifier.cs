@@ -2,7 +2,7 @@ using YTSkedy.Scheduling.Domain.Templates;
 
 namespace YTSkedy.Scheduling.Application.Templates;
 
-public interface ITemplateRepository
+public interface ITemplateModifier
 {
     /// <summary>
     /// Creates a template after enforcing that its name is unique within the
