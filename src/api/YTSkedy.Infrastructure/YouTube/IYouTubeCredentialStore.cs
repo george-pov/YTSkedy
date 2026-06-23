@@ -6,7 +6,7 @@ namespace YTSkedy.Infrastructure.YouTube;
 /// configured, so the publisher can fail the publish without leaking which
 /// secrets exist.
 /// </summary>
-public interface IYouTubeChannelCredentialStore
+public interface IYouTubeCredentialStore
 {
-    YouTubeChannelCredentials? Find(string credentialsReference);
+    YouTubeCredentials? Find(string credentialsReference);
 }

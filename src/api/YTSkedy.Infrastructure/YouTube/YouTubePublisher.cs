@@ -20,7 +20,7 @@ namespace YTSkedy.Infrastructure.YouTube;
 /// types never cross this boundary, and secrets and tokens are never logged.
 /// </summary>
 public sealed class YouTubePublisher(
-    IYouTubeChannelCredentialStore credentialStore,
+    IYouTubeCredentialStore credentialStore,
     ILogger<YouTubePublisher> logger) : IPlatformPublisher
 {
     private const string ApplicationName = "YTSkedy";
@@ -100,7 +100,7 @@ public sealed class YouTubePublisher(
         }
     }
 
-    private static YouTubeService CreateService(YouTubeChannelCredentials credentials)
+    private static YouTubeService CreateService(YouTubeCredentials credentials)
     {
         var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
         {

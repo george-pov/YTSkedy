@@ -14,7 +14,6 @@ using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Templates;
-using YTSkedy.Scheduling.Application.YouTube;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -37,18 +36,6 @@ builder.Services
 builder.Services
     .AddOptions<AuthOptions>()
     .Bind(builder.Configuration.GetSection(AuthOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services
-    .AddOptions<YouTubeOptions>()
-    .Bind(builder.Configuration.GetSection(YouTubeOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services
-    .AddOptions<YouTubeBroadcastOptions>()
-    .Bind(builder.Configuration.GetSection(YouTubeBroadcastOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
@@ -120,11 +107,6 @@ builder.Services.AddScoped<ICalendarEventReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
 
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<YouTubeBroadcastAdapter>();
-builder.Services.AddSingleton<IYouTubePublisher>(
-    serviceProvider => serviceProvider.GetRequiredService<YouTubeBroadcastAdapter>());
-builder.Services.AddSingleton<IYouTubeDeleter>(
-    serviceProvider => serviceProvider.GetRequiredService<YouTubeBroadcastAdapter>());
 
 // Templates persist in their own table bound through a keyed TableClient so the
 // calendar-event TableClient registration above is untouched.
@@ -238,10 +220,10 @@ builder.Services.AddScoped<IPlatformPublicationReader>(
 // provider resolves a platform's non-secret credentials reference to channel
 // secrets bound from the YouTubeChannels configuration section.
 builder.Services
-    .AddOptions<YouTubeChannelsOptions>()
-    .Bind(builder.Configuration.GetSection(YouTubeChannelsOptions.SectionName));
+    .AddOptions<YouTubeOptions>()
+    .Bind(builder.Configuration.GetSection(YouTubeOptions.SectionName));
 
-builder.Services.AddSingleton<IYouTubeChannelCredentialStore, ConfiguredYouTubeChannelCredentialStore>();
+builder.Services.AddSingleton<IYouTubeCredentialStore, YouTubeCredentialStore>();
 builder.Services.AddSingleton<IPlatformPublisher, YouTubePublisher>();
 builder.Services.AddSingleton<IPlatformPublisherSelector, PlatformPublisherSelector>();
 builder.Services.AddScoped<PublishHandler>();

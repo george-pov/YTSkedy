@@ -3,17 +3,17 @@ using Microsoft.Extensions.Options;
 namespace YTSkedy.Infrastructure.YouTube;
 
 /// <summary>
-/// Configuration-backed <see cref="IYouTubeChannelCredentialStore"/>. Looks up
+/// Configuration-backed <see cref="IYouTubeCredentialStore"/>. Looks up
 /// the credentials reference name (case-insensitively) in the bound
-/// <see cref="YouTubeChannelsOptions"/> and returns the channel secrets only when
+/// <see cref="YouTubeOptions"/> and returns the channel secrets only when
 /// the entry exists and every required field is present. Missing or incomplete
 /// entries resolve to null so the caller surfaces a clear "not configured"
 /// failure instead of attempting a broken provider call.
 /// </summary>
-public sealed class ConfiguredYouTubeChannelCredentialStore(
-    IOptions<YouTubeChannelsOptions> options) : IYouTubeChannelCredentialStore
+public sealed class YouTubeCredentialStore(
+    IOptions<YouTubeOptions> options) : IYouTubeCredentialStore
 {
-    public YouTubeChannelCredentials? Find(string credentialsReference)
+    public YouTubeCredentials? Find(string credentialsReference)
     {
         if (string.IsNullOrWhiteSpace(credentialsReference))
         {

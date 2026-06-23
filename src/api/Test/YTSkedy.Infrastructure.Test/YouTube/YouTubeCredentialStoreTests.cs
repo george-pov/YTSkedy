@@ -3,7 +3,7 @@ using YTSkedy.Infrastructure.YouTube;
 
 namespace YTSkedy.Infrastructure.Test.YouTube;
 
-public class ConfiguredYouTubeChannelCredentialStoreTests
+public class YouTubeCredentialStoreTests
 {
     [Fact]
     public void Find_ConfiguredReference_ReturnsCredentials()
@@ -43,7 +43,7 @@ public class ConfiguredYouTubeChannelCredentialStoreTests
         string clientSecret,
         string refreshToken)
     {
-        var store = CreateStore(("main-youtube-channel", new YouTubeChannelCredentials
+        var store = CreateStore(("main-youtube-channel", new YouTubeCredentials
         {
             ClientId = clientId,
             ClientSecret = clientSecret,
@@ -63,7 +63,7 @@ public class ConfiguredYouTubeChannelCredentialStoreTests
         Assert.Null(store.Find(reference));
     }
 
-    private static YouTubeChannelCredentials Complete() =>
+    private static YouTubeCredentials Complete() =>
         new()
         {
             ClientId = "client-id",
@@ -71,15 +71,15 @@ public class ConfiguredYouTubeChannelCredentialStoreTests
             RefreshToken = "refresh-token"
         };
 
-    private static ConfiguredYouTubeChannelCredentialStore CreateStore(
-        params (string Key, YouTubeChannelCredentials Credentials)[] entries)
+    private static YouTubeCredentialStore CreateStore(
+        params (string Key, YouTubeCredentials Credentials)[] entries)
     {
-        var options = new YouTubeChannelsOptions();
+        var options = new YouTubeOptions();
         foreach (var (key, credentials) in entries)
         {
             options[key] = credentials;
         }
 
-        return new ConfiguredYouTubeChannelCredentialStore(Options.Create(options));
+        return new YouTubeCredentialStore(Options.Create(options));
     }
 }

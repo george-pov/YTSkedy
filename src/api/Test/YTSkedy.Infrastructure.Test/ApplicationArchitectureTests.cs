@@ -1,17 +1,18 @@
-using YTSkedy.Scheduling.Application.YouTube;
+using YTSkedy.Scheduling.Application.Platforms;
 
-namespace YTSkedy.Infrastructure.Test.YouTube;
+namespace YTSkedy.Infrastructure.Test;
 
 /// <summary>
-/// Guards the dependency direction for YouTube ports: the application layer
-/// must not reference the infrastructure adapter or the Google SDK.
+/// Guards the dependency direction for the scheduling application layer: it must
+/// not reference the infrastructure adapters or the Google SDK, so provider
+/// details stay behind application ports such as <see cref="IPlatformPublisher"/>.
 /// </summary>
-public class YouTubeDeleteArchitectureTests
+public class ApplicationArchitectureTests
 {
     [Fact]
     public void ApplicationAssembly_DoesNotReferenceGoogleSdk()
     {
-        var applicationAssembly = typeof(IYouTubeDeleter).Assembly;
+        var applicationAssembly = typeof(IPlatformPublisher).Assembly;
 
         var googleReferences = applicationAssembly.GetReferencedAssemblies()
             .Select(name => name.Name)
@@ -25,7 +26,7 @@ public class YouTubeDeleteArchitectureTests
     [Fact]
     public void ApplicationAssembly_DoesNotReferenceInfrastructure()
     {
-        var applicationAssembly = typeof(IYouTubeDeleter).Assembly;
+        var applicationAssembly = typeof(IPlatformPublisher).Assembly;
 
         var infrastructureReferences = applicationAssembly.GetReferencedAssemblies()
             .Select(name => name.Name)

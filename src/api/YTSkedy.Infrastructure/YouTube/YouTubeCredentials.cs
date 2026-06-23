@@ -6,7 +6,7 @@ namespace YTSkedy.Infrastructure.YouTube;
 /// from configuration and never logged or written to application storage. The
 /// backend exchanges the refresh token for short-lived access tokens at runtime.
 /// </summary>
-public sealed class YouTubeChannelCredentials
+public sealed class YouTubeCredentials
 {
     public string ClientId { get; init; } = string.Empty;
 

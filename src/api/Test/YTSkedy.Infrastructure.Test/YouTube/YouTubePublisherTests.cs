@@ -59,10 +59,10 @@ public class YouTubePublisherTests
 
     private sealed record OtherSettings : PublishSettings;
 
-    private sealed class FakeCredentialStore(YouTubeChannelCredentials? credentials)
-        : IYouTubeChannelCredentialStore
+    private sealed class FakeCredentialStore(YouTubeCredentials? credentials)
+        : IYouTubeCredentialStore
     {
-        public YouTubeChannelCredentials? Find(string credentialsReference) => credentials;
+        public YouTubeCredentials? Find(string credentialsReference) => credentials;
     }
 
     private sealed class CapturingLogger<T> : ILogger<T>
