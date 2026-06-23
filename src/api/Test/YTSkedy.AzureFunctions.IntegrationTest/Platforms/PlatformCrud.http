@@ -1,0 +1,248 @@
+### Create a YouTube platform
+# Prereqs:
+# - Azurite running and the Azure Functions host started.
+# - The `local` environment is selected in the Visual Studio HTTP editor.
+# - `accessToken` is set in `http-client.env.json.user` (not committed).
+#   See docs/api/development/build-and-test.md, "Acquiring a development
+#   access token".
+# Expected response: 200 OK with the created platform, including a generated
+# 32-character lowercase hex `platformId`. Copy that id into the requests below
+# and into EventPlatforms.http for publish checks.
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Main YouTube channel",
+  "type": "YouTube",
+  "publishSettings": {
+    "credentials": "main-youtube-channel",
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with no bearer token
+# Expected response: 401 Unauthorized with an empty body.
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+
+{
+  "name": "Auth-missing probe",
+  "type": "YouTube",
+  "publishSettings": {
+    "credentials": "main-youtube-channel",
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with a read-only token
+# Optional: paste a `CalendarEvents.Read`-only token into `accessTokenReadOnly`.
+# Expected response: 403 Forbidden (create requires `CalendarEvents.Write`).
+# Skip this request if a read-only token is not available.
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessTokenReadOnly}}
+
+{
+  "name": "Scope-insufficient probe",
+  "type": "YouTube",
+  "publishSettings": {
+    "credentials": "main-youtube-channel",
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with an empty name
+# Expected response: 400 Bad Request (name must be non-empty and at most 50
+# characters).
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "",
+  "type": "YouTube",
+  "publishSettings": {
+    "credentials": "main-youtube-channel",
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with an unrecognized type
+# Expected response: 400 Bad Request (platform type must be 'YouTube' or
+# 'WordPress').
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Unknown type probe",
+  "type": "Twitch",
+  "publishSettings": {
+    "credentials": "main-youtube-channel",
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a WordPress platform (recognized but unsupported in this slice)
+# Expected response: 400 Bad Request. WordPress is a known type value but has no
+# publish-settings schema yet, so it cannot be created.
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "WordPress probe",
+  "type": "WordPress",
+  "publishSettings": {
+    "credentials": "main-wordpress-site",
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with an invalid privacy status
+# Expected response: 400 Bad Request (privacyStatus must be private, public, or
+# unlisted).
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Bad privacy probe",
+  "type": "YouTube",
+  "publishSettings": {
+    "credentials": "main-youtube-channel",
+    "privacyStatus": "secret",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with missing credentials
+# Expected response: 400 Bad Request (credentials is required for YouTube).
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Missing credentials probe",
+  "type": "YouTube",
+  "publishSettings": {
+    "credentials": "",
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with a duplicate name
+# Run after the first create above. Expected response: 409 Conflict (a platform
+# named 'Main YouTube channel' already exists). Names are globally unique.
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Main YouTube channel",
+  "type": "YouTube",
+  "publishSettings": {
+    "credentials": "second-youtube-channel",
+    "privacyStatus": "unlisted",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### List all platforms
+# Expected response: 200 OK with { items: [...] }. Returns [] when none exist.
+
+GET {{HostAddress}}/api/platforms
+Authorization: Bearer {{accessToken}}
+
+### List platforms filtered by type
+# Expected response: 200 OK with only YouTube platforms.
+
+GET {{HostAddress}}/api/platforms?type=YouTube
+Authorization: Bearer {{accessToken}}
+
+### List platforms with an invalid type filter
+# Expected response: 400 Bad Request.
+
+GET {{HostAddress}}/api/platforms?type=Twitch
+Authorization: Bearer {{accessToken}}
+
+### Get a platform by id
+# Replace the id with one returned by a create above. Expected response: 200 OK
+# with the single platform shape, or 404 Not Found for an unknown id.
+
+GET {{HostAddress}}/api/platforms/REPLACE_WITH_PLATFORM_ID
+Authorization: Bearer {{accessToken}}
+
+### Get an unknown platform
+# Expected response: 404 Not Found.
+
+GET {{HostAddress}}/api/platforms/00000000000000000000000000000000
+Authorization: Bearer {{accessToken}}
+
+### Update a platform
+# Replace the id with one returned by a create above. The type is immutable and
+# is not accepted in the body. Expected response: 200 OK with the updated
+# platform (privacy changed to unlisted here).
+
+PUT {{HostAddress}}/api/platforms/REPLACE_WITH_PLATFORM_ID
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Main YouTube channel",
+  "publishSettings": {
+    "credentials": "main-youtube-channel",
+    "privacyStatus": "unlisted",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Update an unknown platform
+# Expected response: 404 Not Found.
+
+PUT {{HostAddress}}/api/platforms/00000000000000000000000000000000
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Ghost platform",
+  "publishSettings": {
+    "credentials": "main-youtube-channel",
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Rename a platform to a name already in use
+# Create a second platform first (with a different name), then try to rename it
+# to "Main YouTube channel". Expected response: 409 Conflict.
+
+PUT {{HostAddress}}/api/platforms/REPLACE_WITH_SECOND_PLATFORM_ID
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Main YouTube channel",
+  "publishSettings": {
+    "credentials": "second-youtube-channel",
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}

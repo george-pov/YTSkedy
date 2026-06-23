@@ -8,6 +8,8 @@ Durable documentation for the backend API under `src/api/`.
 - HTTP contracts: [`http/`](http/)
 - Calendar events HTTP contract:
   [`http/calendar-events.md`](http/calendar-events.md)
+- Platform publishing HTTP contract:
+  [`http/platforms.md`](http/platforms.md)
 - Persistence: [`persistence.md`](persistence.md)
 - Configuration: [`configuration.md`](configuration.md)
 - Build and test commands:

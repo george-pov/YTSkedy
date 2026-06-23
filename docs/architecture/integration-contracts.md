@@ -15,6 +15,13 @@ Current implemented HTTP surface:
 - `GET /api/calendar-events/{calendarEventId}`
 - `PUT /api/calendar-events/{calendarEventId}`
 - `DELETE /api/calendar-events/{calendarEventId}`
+- `GET /api/calendar-events/{calendarEventId}/platforms`
+- `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
+- `GET /api/platforms` and `GET /api/platforms?type={type}`
+- `GET /api/platforms/{platformId}`
+- `POST /api/platforms`
+- `PUT /api/platforms/{platformId}`
+- `DELETE /api/platforms/{platformId}`
 - `GET /api/templates` and `GET /api/templates?type={type}`
 - `POST /api/templates`
 - `PUT /api/templates/{type}/{id}`
@@ -71,6 +78,29 @@ and `template-tokens` URLs using those same scopes. The canonical request,
 response, and error details live in
 [`../api/http/templates.md`](../api/http/templates.md).
 
+The `platforms` resource and the calendar-event publishing routes are the
+multi-platform publishing contract. A `platform` is a configured publishing
+destination (the first provider is YouTube) with a server-generated
+`platformId`, a unique `name`, an immutable `type`, and non-secret
+`publishSettings`. A calendar event is provider-neutral and has no publish
+status; publish state is a `platform publication` keyed by calendar event and
+platform. `GET /api/platforms` and the platform CRUD routes manage destinations;
+`GET /api/calendar-events/{calendarEventId}/platforms` returns one item per
+active platform (computed `NotPublished` when no row exists) plus orphan history
+for deleted platforms; and
+`POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
+publishes to one selected platform and returns the provider-neutral
+`externalResourceId`. Deleting a platform preserves `Published` rows as
+read-only orphan history and is blocked while any row is `Publishing`. These
+routes reuse the `CalendarEvents.Read` (GET) and `CalendarEvents.Write` (POST,
+PUT, DELETE, publish) scopes; no new scope was added. `publishSettings` and
+publication rows never carry secret credential material; only a non-secret
+credentials reference is stored. The canonical request, response, status-code,
+and publishing-model details live in
+[`../api/http/platforms.md`](../api/http/platforms.md). No UI consumes these
+routes yet; the frontend calendar-event pages were built against the previous
+provider-neutral calendar contract and platform publishing UI is follow-up work.
+
 The UI must treat API request and response shapes as integration contracts.
 When a contract changes, update:
 
@@ -92,6 +122,9 @@ Azure Functions worker pipeline (not the Functions host key check).
   - `CalendarEvents.Write` for `POST /api/calendar-events`,
     `PUT /api/calendar-events/{calendarEventId}`,
     `DELETE /api/calendar-events/{calendarEventId}`.
+  - The `platforms`, event-platform listing, and publish routes reuse the same
+    scopes: `CalendarEvents.Read` for `GET`, `CalendarEvents.Write` for `POST`,
+    `PUT`, `DELETE`, and publish.
 - Required app role on every protected endpoint:
   `CalendarEvents.Operator` (in the `roles` claim).
 - Frontend access tokens are obtained through MSAL via the YTSkedy-owned
@@ -136,18 +169,25 @@ Scheduling behavior must use explicit date, time, and time-zone context.
 ## Persistence
 
 Azure Table Storage is the current persistence technology for
-application-owned calendar event rows. API persistence behavior is documented
-in [`../api/persistence.md`](../api/persistence.md).
+application-owned calendar event, template, platform, and platform-publication
+rows. API persistence behavior is documented in
+[`../api/persistence.md`](../api/persistence.md).
 
 Persistence contracts are internal to the API boundary unless a feature
 explicitly exposes them through HTTP.
 
 ## External Integrations
 
-The previous calendar-event-level YouTube publish route has been removed for
-the platform publishing cutover. YouTube remains the first provider target, but
-publishing will be reintroduced through explicit platform endpoints in a later
-implementation phase.
+The calendar-event-level YouTube publish route was removed for the platform
+publishing cutover. Publishing now goes through explicit platform endpoints:
+`POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
+selects a configured platform and publishes through its provider adapter.
+YouTube is the first implemented provider. The provider boundary is the
+application port `IPlatformPublisher`, selected by platform type; YouTube SDK
+types and credential resolution stay inside `YTSkedy.Infrastructure`. A
+platform's non-secret `credentials` reference resolves to channel secrets bound
+from the `YouTubeChannels` configuration section, which is never committed to
+source control.
 
 WordPress, per-user OAuth, credential storage, and production telemetry remain
 roadmap integration surfaces. Implementation must satisfy these requirements:

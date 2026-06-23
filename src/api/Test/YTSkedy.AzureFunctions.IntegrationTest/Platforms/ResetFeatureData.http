@@ -1,0 +1,43 @@
+### Data reset validation note
+#
+# The multi-platform publishing cutover is destructive: before testing the new
+# model, reset the application-owned Azure Table Storage tables for the feature
+# environment instead of converting old rows. The reset is operator-run and is
+# never a host-start side effect.
+#
+# Tables in the reset scope:
+#   - CalendarEvents
+#   - Platforms
+#   - PlatformPublications
+#
+# Do NOT reset credential stores, OAuth tokens, or other secret material. The
+# Templates table is outside this reset scope.
+#
+# Reset with the Azure CLI (delete the three tables; the API recreates them on
+# first write). Replace <connection-string> with your storage connection
+# string. For local Azurite, use the well-known development connection string
+# (AccountName=devstoreaccount1, table endpoint http://127.0.0.1:10002); that
+# emulator account key is the public documented default, not a secret.
+#
+#   az storage table delete --name CalendarEvents --connection-string "<connection-string>"
+#   az storage table delete --name Platforms --connection-string "<connection-string>"
+#   az storage table delete --name PlatformPublications --connection-string "<connection-string>"
+#
+# Azure Table delete is asynchronous: a table name can be briefly unavailable
+# for recreation after a delete. Wait a few seconds before the first write if a
+# create returns a "table being deleted" error.
+#
+# After resetting, confirm each table is empty or missing with the verification
+# requests below before running the platform and publish checks.
+
+### Verify platforms are empty after reset
+# Expected response: 200 OK with { "items": [] }.
+
+GET {{HostAddress}}/api/platforms
+Authorization: Bearer {{accessToken}}
+
+### Verify calendar events are empty after reset
+# Expected response: 200 OK with an empty page: items [] and totalCount 0.
+
+GET {{HostAddress}}/api/calendar-events
+Authorization: Bearer {{accessToken}}

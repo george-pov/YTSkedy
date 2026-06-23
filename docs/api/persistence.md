@@ -8,6 +8,14 @@ also persists reusable templates in a separate `Templates` table through the
 `ITemplateModifier` and `ITemplateReader` ports, implemented by
 `AzureTemplateRepository`.
 
+Multi-platform publishing adds two more tables. Configured platforms persist in
+a `Platforms` table through the `IPlatformModifier` and `IPlatformReader` ports,
+implemented by `AzurePlatformRepository`. Per-event, per-platform publish state
+persists in a `PlatformPublications` table through the
+`IPlatformPublicationRepository` and `IPlatformPublicationReader` ports,
+implemented by `AzurePlatformPublicationRepository`. Calendar event rows are
+provider-neutral and store no publish state of their own.
+
 ## Configuration
 
 The Azure Functions host creates one `TableClient` for calendar events.
@@ -34,7 +42,14 @@ calendar event client is untouched. Its table name lookup:
 1. `AzureStorage:TemplatesTableName`
 2. Default: `Templates`
 
-The templates client reuses the same connection string lookup above.
+The host registers two more keyed `TableClient` instances for platform
+publishing, each with its own table name lookup:
+
+1. `AzureStorage:PlatformsTableName`, default `Platforms`.
+2. `AzureStorage:PlatformPublicationsTableName`, default `PlatformPublications`.
+
+The templates, platforms, and platform-publications clients reuse the same
+connection string lookup above.
 
 For local development, use Azurite with `AzureWebJobsStorage` set to
 `UseDevelopmentStorage=true` in the ignored Azure Functions
@@ -83,6 +98,61 @@ does not exist, then inserts one template row.
 Entity fields, table keys, and formatting details are defined in code rather
 than duplicated in documentation.
 
+## Platform Rows
+
+`AzurePlatformRepository` implements the `IPlatformModifier` write port and the
+`IPlatformReader` read port against the `Platforms` table.
+
+- All platforms share one partition (`platforms`). The row key is
+  `platform-{platformId}`, where the platform id is a GUID rendered as a
+  32-character lowercase hex string (`Guid.NewGuid().ToString("N")`), generated
+  by the repository on create.
+- `name` is globally unique across all platform types using an ordinal
+  comparison. Uniqueness is enforced check-then-write on create and on rename; a
+  duplicate yields a `NameAlreadyExists` outcome the host maps to `409 Conflict`.
+  The rare concurrent race is accepted in this slice; the expected number of
+  platforms is small, so a dedicated uniqueness index row is intentionally out
+  of scope.
+- `type` is immutable after create because it determines the publish-settings
+  schema and provider adapter. `UpdateAsync` reads the stored type and reuses it
+  to serialize the new settings.
+- Publish settings are stored as `PublishSettingsJson` without secret material;
+  only the non-secret `credentials` reference name is stored.
+
+Entity fields, table keys, and formatting details are defined in code rather
+than duplicated in documentation.
+
+## Platform Publication Rows
+
+`AzurePlatformPublicationRepository` implements the
+`IPlatformPublicationRepository` write port and the
+`IPlatformPublicationReader` read port against the `PlatformPublications` table.
+A publication row is the authoritative publish state for one calendar event and
+one platform.
+
+- The partition key groups every publication for one calendar event
+  (`event-{calendarEventId}`) and the row key identifies the platform
+  (`platform-{platformId}`), so an event/platform pair addresses exactly one row
+  and all rows for an event read from a single partition.
+- Rows are created lazily. Calendar event create and platform create write no
+  publication rows; a missing row is read as computed `NotPublished`.
+- `ReserveAsync` creates the row directly as `Publishing` with a conditional
+  insert, so two concurrent publish attempts cannot both reserve the same pair;
+  the loser receives a conflict. The platform name, type, and publish settings
+  are copied onto the row at reservation so the attempt stays describable even
+  if the platform record later changes.
+- `ReleaseAsync` removes a `Publishing` row to return the pair to computed
+  `NotPublished` after a failed provider call. `MarkPublishedAsync` records the
+  `Published` status, the provider `ExternalResourceId`, and the publish instant.
+- Deleting a platform does not delete `Published` rows. The delete handler
+  stamps `PlatformDeletedUtc` to turn them into read-only orphan history, and is
+  blocked while any row for the platform is `Publishing`.
+- Calendar event ids reach the partition filter from the request route, so the
+  partition literal is escaped (single quotes doubled) as defense in depth.
+
+Entity fields, table keys, and formatting details are defined in code rather
+than duplicated in documentation.
+
 ## Time Zone Handling
 
 The repository converts the scheduled start to UTC before writing the row.
@@ -120,5 +190,7 @@ external clients depend on duplicate handling.
 - Explicit retry and conflict policies must be defined around table reads and
   writes.
 - Backup and recovery processes must be documented before production use.
-- Calendar events must be linked to created YouTube broadcasts or stream setup
-  resources before external scheduling workflows are enabled.
+- Calendar events link to created provider resources through platform
+  publication rows, which store the provider `ExternalResourceId`. Reconciliation
+  between stored publications and live provider state remains required release
+  work.

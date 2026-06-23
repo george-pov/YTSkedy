@@ -288,6 +288,21 @@ Scope and proof-of-concept limitations:
   (`/calendar-events/{calendarEventId}/edit`) consumes this endpoint from its
   Delete action.
 
+## Platform Publishing
+
+A calendar event is a provider-neutral scheduling record and carries no publish
+status of its own. There is no calendar-event-level publish route. Publishing
+state lives in platform publications, and publishing always targets an explicit
+platform id.
+
+The publication state of an event and the publish action are documented in
+[`platforms.md`](platforms.md):
+
+- `GET /api/calendar-events/{calendarEventId}/platforms` lists the event's
+  publication state across platforms.
+- `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
+  publishes the event to one selected platform.
+
 ## Manual Checks
 
 Manual `.http` checks live under:

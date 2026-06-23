@@ -38,12 +38,22 @@ src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/
 These checks are `.http` files for Visual Studio and are not run by
 `dotnet test`.
 
-Current calendar event checks:
+Current checks:
 
 ```text
 src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/CalendarEvents/CreateCalendarEvent.http
 src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/CalendarEvents/ListCalendarEventsByMonth.http
+src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/CalendarEvents/EventPlatforms.http
+src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/Platforms/ResetFeatureData.http
+src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/Platforms/PlatformCrud.http
+src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/Platforms/PlatformDelete.http
 ```
+
+`EventPlatforms.http` covers the event platform listing and the platform-aware
+publish endpoint. The `Platforms/` checks cover platform CRUD, platform delete
+(with and without published rows), and the destructive data-reset note. Platform
+publish checks that hit YouTube need a configured channel; see
+[`../operations/youtube-publish-setup.md`](../operations/youtube-publish-setup.md).
 
 Before sending local requests:
 

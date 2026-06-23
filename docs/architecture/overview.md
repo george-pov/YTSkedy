@@ -33,7 +33,8 @@ only. Boundary-specific implementation guidance lives in the API and UI docs.
 - The backend API owns durable scheduling behavior, persistence, server-side
   validation, external integration orchestration, and API contract
   enforcement.
-- Azure Table Storage stores application-owned calendar event rows.
+- Azure Table Storage stores application-owned calendar event, template,
+  platform, and platform-publication rows.
 - YouTube owns channel identity, live broadcast resources, live stream
   resources, visibility behavior, and API enforcement.
 - OAuth providers own authorization flows and token issuance. Credential

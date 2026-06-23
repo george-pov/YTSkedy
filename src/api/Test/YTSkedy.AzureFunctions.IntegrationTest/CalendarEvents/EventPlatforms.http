@@ -1,0 +1,117 @@
+### List a calendar event's platforms
+# Prereqs:
+# - Azurite running and the Azure Functions host started.
+# - The `local` environment is selected and `accessToken` is set in
+#   `http-client.env.json.user`.
+# - At least one platform exists (Platforms/PlatformCrud.http) and at least one
+#   calendar event exists (CreateCalendarEvent.http).
+# Replace the calendar event id with one returned by a create.
+# Expected response: 200 OK with { calendarEventId, items: [...] }. Each active
+# platform appears once. A platform that has never been published to for this
+# event shows a computed item with status "NotPublished", null
+# externalResourceId/publishedUtc/platformDeletedUtc, and canPublish true.
+
+GET {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms
+Authorization: Bearer {{accessToken}}
+
+### List platforms for an unknown calendar event
+# Expected response: 404 Not Found.
+
+GET {{HostAddress}}/api/calendar-events/20000101T000000Z/platforms
+Authorization: Bearer {{accessToken}}
+
+### List event platforms with a missing bearer token
+# Expected response: 401 Unauthorized with an empty body.
+
+GET {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms
+
+### Publish a calendar event to a platform (success)
+# Prereqs for a real publish:
+# - The platform is backed by a configured YouTube channel whose credentials
+#   reference matches the platform's publishSettings.credentials. See
+#   docs/api/operations/youtube-publish-setup.md.
+# - The calendar event has a FUTURE start and an English (en) title.
+# Replace both ids. The request body is empty in this iteration.
+# Expected response: 200 OK with { calendarEventId, platformId, platformName,
+# platformType, status: "Published", externalResourceId, publishedUtc }. A
+# private scheduled broadcast appears in YouTube Studio under Content > Live.
+
+POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_PLATFORM_ID/publish
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{}
+
+### Publish again (already published)
+# Run after a successful publish of the same event/platform pair.
+# Expected response: 409 Conflict (already published). State conflicts are
+# checked before content validation.
+
+POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_PLATFORM_ID/publish
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{}
+
+### Publish an event whose start is in the past
+# Use a calendar event id whose scheduled start has already passed and that has
+# no publication row yet. Expected response: 400 Bad Request (start must be in
+# the future).
+
+POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_PAST_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_PLATFORM_ID/publish
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{}
+
+### Publish an event with no English title
+# Use a future calendar event that has no English (en) description.
+# Expected response: 400 Bad Request (requires an English title to publish).
+
+POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_NON_ENGLISH_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_PLATFORM_ID/publish
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{}
+
+### Publish to an unknown platform
+# Expected response: 404 Not Found (platform).
+
+POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms/00000000000000000000000000000000/publish
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{}
+
+### Publish an unknown calendar event
+# Expected response: 404 Not Found (calendar event).
+
+POST {{HostAddress}}/api/calendar-events/20000101T000000Z/platforms/REPLACE_WITH_PLATFORM_ID/publish
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{}
+
+### Publish with a read-only token
+# Optional: paste a `CalendarEvents.Read`-only token into `accessTokenReadOnly`.
+# Expected response: 403 Forbidden (publish requires `CalendarEvents.Write`).
+# Skip this request if a read-only token is not available.
+
+POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_PLATFORM_ID/publish
+Content-Type: application/json
+Authorization: Bearer {{accessTokenReadOnly}}
+
+{}
+
+### Publish to a platform whose YouTube channel is not configured
+# Use a platform whose publishSettings.credentials points at a reference that is
+# missing from the YouTubeChannels configuration section.
+# Expected response: 502 Bad Gateway (provider failure). The reservation is
+# released, so the pair returns to NotPublished and can be retried. The host log
+# records only the non-secret credentials reference name.
+
+POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_UNCONFIGURED_PLATFORM_ID/publish
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{}

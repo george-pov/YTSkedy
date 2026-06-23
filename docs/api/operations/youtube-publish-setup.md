@@ -1,14 +1,21 @@
 # YouTube Publish Setup
 
 One-time setup to let the API publish calendar events as scheduled YouTube live
-broadcasts. The result is three secret values that go in backend configuration:
-`YouTube:ClientId`, `YouTube:ClientSecret`, and `YouTube:RefreshToken`. See
-[`../configuration.md`](../configuration.md) for how the API consumes them.
+broadcasts. The result is three values for one channel that go in backend
+configuration under a chosen reference name: `YouTubeChannels:{reference}:ClientId`,
+`YouTubeChannels:{reference}:ClientSecret`, and
+`YouTubeChannels:{reference}:RefreshToken`. The `{reference}` name is what a
+YouTube platform stores as its non-secret `publishSettings.credentials` value.
+See [`../configuration.md`](../configuration.md) for how the API consumes them
+and [`../http/platforms.md`](../http/platforms.md) for the platform and publish
+contract.
 
 This is a proof-of-concept integration. The credentials are static and shared:
-every publish acts on the single YouTube channel that minted the refresh token,
-regardless of which user is signed in to YTSkedy. A per-user Google OAuth flow
-is deferred. Do not commit any value produced here.
+every publish through a platform acts on the single YouTube channel that minted
+that channel's refresh token, regardless of which user is signed in to YTSkedy. A
+per-user Google OAuth flow is deferred. You can configure more than one channel
+by repeating this runbook with a different reference name. Do not commit any
+value produced here.
 
 ## Prerequisites
 
@@ -72,7 +79,8 @@ flow.
    channel. If an unverified-app warning appears, choose Advanced, then proceed;
    as the owner you can continue past it.
 5. Click Exchange authorization code for tokens.
-6. Copy the Refresh token value. This is the `YouTube:RefreshToken` secret.
+6. Copy the Refresh token value. This is the
+   `YouTubeChannels:{reference}:RefreshToken` secret.
 
 ## Part C: Configure the backend
 
@@ -84,37 +92,63 @@ flow.
    -> src/api/YTSkedy.AzureFunctions/local.settings.json
    ```
 
-2. Fill the values under `Values`:
+2. Choose a reference name for the channel (for example `main-youtube-channel`)
+   and fill the values under `Values`:
 
    ```json
-   "YouTube:ClientId": "your-google-oauth-client-id",
-   "YouTube:ClientSecret": "your-google-oauth-client-secret",
-   "YouTube:RefreshToken": "your-refresh-token-from-the-playground",
-   "YouTubeBroadcast:PrivacyStatus": "private",
-   "YouTubeBroadcast:SelfDeclaredMadeForKids": "false"
+   "YouTubeChannels:main-youtube-channel:ClientId": "your-google-oauth-client-id",
+   "YouTubeChannels:main-youtube-channel:ClientSecret": "your-google-oauth-client-secret",
+   "YouTubeChannels:main-youtube-channel:RefreshToken": "your-refresh-token-from-the-playground"
    ```
 
-Keep `PrivacyStatus` as `private` for the proof of concept so test broadcasts
-are not public. The host validates the `YouTube:` keys on start and fails fast
-when a required key is missing.
+   The reference name must match the `publishSettings.credentials` value of the
+   YouTube platform you create later. To configure more channels, repeat this
+   runbook and add another `YouTubeChannels:{anotherReference}:*` group.
+
+Privacy and the made-for-kids flag are not configured here. They are part of each
+platform's publish settings, so keep test platforms at `private` to avoid public
+test broadcasts. Channel configuration is not validated on host start: a publish
+that references a missing or incomplete channel fails that request as a provider
+error, but the host still starts and the non-publish endpoints still work.
 
 For a hosted Azure deployment, set these as Function App application settings
-using the double-underscore form (`YouTube__ClientId`, `YouTube__ClientSecret`,
-`YouTube__RefreshToken`) and prefer a secret store such as Key Vault for the two
-secret values. See [`deployment.md`](deployment.md).
+using the double-underscore form
+(`YouTubeChannels__main-youtube-channel__ClientId`,
+`YouTubeChannels__main-youtube-channel__ClientSecret`,
+`YouTubeChannels__main-youtube-channel__RefreshToken`) and prefer a secret store
+such as Key Vault for the two secret values. See [`deployment.md`](deployment.md).
 
 ## Part D: Run and verify
 
 1. Start Azurite, or provide an Azure Storage connection string.
 2. Start the Azure Functions host. The local default port is
    `http://localhost:7087`.
-3. Start the frontend from `src/ui` with `npm start`.
-4. Sign in and open Calendar Events. If there is no future draft event, use Add
-   new event to create one with an English (`en`) title and description and a
-   future start time.
-5. Click Publish on that row. On success the row status changes to Published.
+3. Create a YouTube platform whose `publishSettings.credentials` equals the
+   reference name you chose in Part C, for example with
+   `POST /api/platforms`:
+
+   ```json
+   {
+     "name": "Main YouTube channel",
+     "type": "YouTube",
+     "publishSettings": {
+       "credentials": "main-youtube-channel",
+       "privacyStatus": "private",
+       "selfDeclaredMadeForKids": false
+     }
+   }
+   ```
+
+4. Create a calendar event with a future start time and an English (`en`) title.
+5. Publish the event to the platform with
+   `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
+   and an empty body `{}`. On success the response carries
+   `status: "Published"`, an `externalResourceId`, and `publishedUtc`.
 6. Confirm in YouTube Studio under Content, then Live: a private scheduled
    broadcast appears with the English title at the scheduled time.
+
+The platform CRUD, event platform listing, and publish manual checks under
+`src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/` exercise these steps.
 
 ## Part E: Token lifetime and troubleshooting
 
@@ -129,8 +163,9 @@ Token lifetime:
   account owner revokes access, or if the per-account, per-client token limit is
   exceeded.
 
-A failed publish returns `500` and leaves the event in Draft. Check the
-Functions host console for the underlying Google error:
+A failed provider call returns `502 Bad Gateway` and releases the reservation,
+so the event/platform pair returns to `NotPublished` and can be retried. Check
+the Functions host console for the underlying Google error:
 
 - `liveStreamingNotEnabled`: enable live streaming on the channel (see
   Prerequisites).
@@ -142,17 +177,24 @@ Functions host console for the underlying Google error:
 - Broadcast created on the wrong channel: redo Part B and select the correct
   Brand Account during sign-in.
 
+A reference to a channel that is missing from `YouTubeChannels` or is missing a
+field also returns `502`; the host logs only the non-secret reference name.
+
 Other publish responses are unrelated to Google: `400` means a past start time
-or a missing English description, `409` means the event is already published,
-and `401` or `403` are the Entra sign-in, write-scope, or operator-role checks.
-See [`../http/calendar-events.md`](../http/calendar-events.md).
+or a missing English title, `409` means the publication is already `Published`,
+already in progress, or orphaned because the platform was deleted, `404` means
+the calendar event or platform id is unknown, `501` means no provider serves the
+platform type, and `401` or `403` are the Entra sign-in, write-scope, or
+operator-role checks. See [`../http/platforms.md`](../http/platforms.md).
 
 ## Security
 
-- `local.settings.json` is gitignored. Never commit it. `YouTube:ClientSecret`
-  and `YouTube:RefreshToken` are secrets; do not paste them into shared chats,
-  issues, or logs.
+- `local.settings.json` is gitignored. Never commit it.
+  `YouTubeChannels:{reference}:ClientSecret` and
+  `YouTubeChannels:{reference}:RefreshToken` are secrets; do not paste them into
+  shared chats, issues, or logs.
 - Revoke a leaked or unwanted token at
   <https://myaccount.google.com/permissions>.
-- The adapter does not log credentials, tokens, or authorization headers. Keep
+- The adapter does not log credentials, tokens, or authorization headers, and
+  the credential reference name is the only channel value written to logs. Keep
   it that way when extending this integration.

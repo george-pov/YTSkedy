@@ -110,8 +110,8 @@ public sealed class AzureTableStorageCalendarEventRepositoryImplementation
   must end with `Async`.
 - Methods that accept cancellation should name the parameter
   `cancellationToken`.
-- Options classes should end in `Options`, such as `AuthOptions`,
-  `YouTubeOptions`, or `YouTubeBroadcastOptions`.
+- Options classes should end in `Options`, such as `AuthOptions` or
+  `YouTubeOptions`.
 - Service registration extension methods should use `Add{Service}` when this
   project later exposes reusable registration methods.
 
@@ -193,10 +193,8 @@ such as `ProcessAsync` or `SubmitAsync`.
   content, such as `localizedDate`.
 - `broadcast`: YouTube `liveBroadcast` resource metadata, including title,
   description, visibility, made-for-kids state, and scheduled start.
-- `publisher`: Application port or adapter that creates an external provider
-  resource.
-- `deleter`: Application port or adapter that removes an external provider
-  resource.
+- `publisher`: Application port (`IPlatformPublisher`) or provider adapter that
+  creates an external provider resource for a platform type.
 - `authorization policy`: API boundary rule that maps authenticated principals,
   scopes, roles, and resolved endpoints to an authorization result.
 - `credentials`: Non-secret name for credential material configured outside
@@ -260,9 +258,8 @@ Shorter names are acceptable for:
 | `Broadcast` | YouTube live broadcast metadata concept. | Use mainly in YouTube-specific adapters and tests. |
 | `YouTubeBroadcast` | YouTube `liveBroadcast` resource or adapter concept. | `Broadcast` is acceptable inside YouTube-specific adapters when the provider context is already clear. |
 | `YouTubeBroadcastId` | Stored id of a YouTube `liveBroadcast` resource. | `BroadcastId` is acceptable inside YouTube-specific code. |
-| `YouTubeRequest` | Application-layer input for creating a scheduled YouTube broadcast. | `Request` is acceptable inside YouTube-specific publisher code. |
-| `YouTubeOptions` | Secret-bearing Google OAuth configuration bound from `YouTube:*`. | `Options` is acceptable inside YouTube composition code. |
-| `YouTubeBroadcastOptions` | Non-secret broadcast defaults bound from `YouTubeBroadcast:*`. | `BroadcastOptions` is acceptable inside YouTube-specific composition code. |
+| `YouTubeCredentials` | Secret Google OAuth credentials for one channel, bound from `YouTubeChannels:{reference}`. | Resolved by the non-secret `credentials` reference; never stored in application tables or logs. |
+| `YouTubeOptions` | Map of channel reference name to `YouTubeCredentials`, bound from the `YouTubeChannels` section. | `Options` is acceptable inside YouTube composition code. |
 | `Visibility` | YouTube visibility or privacy state. | `Privacy` is acceptable when mirroring YouTube field names or user-facing wording. |
 | `AuthOptions` | API bearer-token validation and authorization configuration. | `Options` is acceptable inside auth composition code. |
 | `AuthorizationPolicy` | API authorization rule that evaluates scopes, roles, and endpoints. | `Policy` is acceptable inside auth-specific tests and helpers. |
@@ -287,7 +284,7 @@ Keep layer roles explicit but short.
 | HTTP response | `{Verb}{Domain}Response` | `CreateCalendarEventResponse` |
 | Persistence entity | `{Domain}Entity` | `CalendarEventEntity` |
 | Repository | `{Provider}{Domain}Repository` | `AzureCalendarEventRepository` |
-| External adapter or client | `{Provider}{Resource}Adapter` or `{Provider}{Resource}Client` | `YouTubeBroadcastAdapter` |
+| External adapter or client | `{Provider}{Resource}Adapter`, `{Provider}{Resource}Client`, or a `{Provider}{Role}` port implementation | `YouTubePublisher` |
 | Configuration | `{Scenario}Options` | `AuthOptions`, `YouTubeOptions` |
 | Test double | `Fake{Role}` | `FakeCalendarEventModifier` |
 
@@ -360,7 +357,7 @@ public void TryParseTemplateType_KnownType_ReturnsTrue()
 }
 
 [Fact]
-public async Task Publish_FutureDraftWithEnglish_PublishesAndMarksPublished()
+public async Task Publish_FutureEventWithEnglishTitle_PublishesAndMarksPublished()
 {
 }
 ```

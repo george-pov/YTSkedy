@@ -5,6 +5,7 @@ Durable HTTP contract documentation for the backend API.
 ## Contracts
 
 - Calendar events: [`calendar-events.md`](calendar-events.md)
+- Platform publishing: [`platforms.md`](platforms.md)
 - Templates: [`templates.md`](templates.md)
 
 Keep request and response shapes here when they are externally consumed by the
