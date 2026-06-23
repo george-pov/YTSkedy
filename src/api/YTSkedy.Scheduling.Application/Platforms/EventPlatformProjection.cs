@@ -1,37 +1,26 @@
-using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Scheduling.Application.Platforms;
 
 /// <summary>
-/// Lists every active registered platform for one calendar event with its
-/// publication state, plus orphaned history rows for platforms that were deleted
-/// after publishing. The calendar event is loaded first so a missing event maps
-/// to <c>404 Not Found</c> at the boundary; the handler returns null in that
-/// case. An active platform with no publication row is reported as computed
-/// <see cref="PublishStatus.NotPublished"/>, so no row is created just to read
-/// state. Each item's action flag comes from <see cref="PlatformActionPolicy"/>.
+/// Projects active platforms and stored publication rows for one calendar event
+/// into the event-platform view list shared by the event-platform listing and
+/// the calendar event detail read model. An active platform with no publication
+/// row is reported as a computed <see cref="PublishStatus.NotPublished"/> item,
+/// so no row is created just to read state. Orphaned rows for platforms that no
+/// longer exist are appended as read-only history using the name and type copied
+/// onto the row at publish time. Each item's action flag comes from
+/// <see cref="PlatformActionPolicy"/>. The caller is responsible for loading the
+/// calendar event and deciding the missing-event outcome.
 /// </summary>
-public sealed class ListPlatformsForEventHandler(
-    ICalendarEventReader calendarEvents,
-    IPlatformReader platforms,
-    IPlatformPublicationReader publications)
+internal static class EventPlatformProjection
 {
-    public async Task<IReadOnlyList<EventPlatformView>?> HandleAsync(
-        string calendarEventId,
-        CancellationToken cancellationToken)
+    public static IReadOnlyList<EventPlatformView> Project(
+        IReadOnlyList<PlatformView> activePlatforms,
+        IReadOnlyList<PlatformPublication> publicationRows)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
-
-        var calendarEvent = await calendarEvents.GetByIdAsync(calendarEventId, cancellationToken);
-
-        if (calendarEvent is null)
-        {
-            return null;
-        }
-
-        var activePlatforms = await platforms.ListAsync(null, cancellationToken);
-        var publicationRows = await publications.ListByEventAsync(calendarEventId, cancellationToken);
+        ArgumentNullException.ThrowIfNull(activePlatforms);
+        ArgumentNullException.ThrowIfNull(publicationRows);
 
         var publicationsByPlatform = publicationRows.ToDictionary(
             publication => publication.PlatformId,

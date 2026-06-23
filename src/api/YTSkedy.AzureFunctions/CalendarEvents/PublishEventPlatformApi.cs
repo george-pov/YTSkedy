@@ -42,7 +42,7 @@ public class PublishEventPlatformApi(PublishHandler publishHandler)
     /// an unsupported provider is 501; a provider failure is 502; and a finalize
     /// failure is 500.
     /// </summary>
-    public static IActionResult ToResult(
+    internal static IActionResult ToResult(
         PublishResult result,
         string calendarEventId,
         string platformId)

@@ -199,54 +199,16 @@ Status codes:
   `Publishing`.
 
 After delete, the platform no longer appears in `GET /api/platforms`, but its
-`Published` publications remain visible as orphan history in the event platform
-listing with `platformDeletedUtc` set and `canPublish: false`.
+`Published` publications remain visible as orphan history in the calendar event
+detail response with `platformDeletedUtc` set and `canPublish: false`.
 
-## List Event Platforms
+## Event Platform Publication State
 
-```text
-GET /api/calendar-events/{calendarEventId}/platforms
-```
-
-Returns the publication state of one calendar event across platforms: one item
-per active registered platform, plus orphan history rows for platforms that were
-deleted after publishing this event.
-
-Success response (`200 OK`):
-
-```json
-{
-  "calendarEventId": "20260606T170000Z",
-  "items": [
-    {
-      "platformId": "4fb4a32f3f344de1a7c3a9f4a2f94918",
-      "platformName": "Main YouTube channel",
-      "platformType": "YouTube",
-      "status": "NotPublished",
-      "externalResourceId": null,
-      "publishedUtc": null,
-      "platformDeletedUtc": null,
-      "canPublish": true
-    }
-  ]
-}
-```
-
-- `status` is `NotPublished`, `Publishing`, or `Published`. An active platform
-  with no stored publication row is reported as a computed `NotPublished` item;
-  no row is created just to read state.
-- `externalResourceId` and `publishedUtc` are populated for `Published` items
-  and are `null` otherwise.
-- `platformDeletedUtc` is set only on orphan history items whose platform was
-  deleted. Orphan items carry `canPublish: false`.
-- `canPublish` is `true` only for an active platform whose publication is
-  `NotPublished`.
-
-Status codes:
-
-- `200 OK` when the calendar event exists, including when there are no platforms
-  (`items: []`).
-- `404 Not Found` when no calendar event has the id.
+The per-platform publication state of a calendar event is returned by the
+calendar event detail endpoint `GET /api/calendar-events/{calendarEventId}` as
+its `platforms` array (see [`calendar-events.md`](calendar-events.md), which
+documents the item fields and the `status` / `canPublish` / orphan-history
+semantics). There is no separate event-platform listing endpoint.
 
 ## Publish Calendar Event To Platform
 

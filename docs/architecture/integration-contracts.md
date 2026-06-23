@@ -15,7 +15,6 @@ Current implemented HTTP surface:
 - `GET /api/calendar-events/{calendarEventId}`
 - `PUT /api/calendar-events/{calendarEventId}`
 - `DELETE /api/calendar-events/{calendarEventId}`
-- `GET /api/calendar-events/{calendarEventId}/platforms`
 - `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
 - `GET /api/platforms` and `GET /api/platforms?type={type}`
 - `GET /api/platforms/{platformId}`
@@ -35,9 +34,12 @@ list page calls the `GET` endpoint, and the `CalendarEventDetails` create form
 and reads `{ calendarEventId }` from the response. The `CalendarEventDetails`
 edit route (`/calendar-events/{calendarEventId}/edit`) calls
 `GET /api/calendar-events/{calendarEventId}` to load an event into the form;
-that endpoint returns a single item in the calendar event view shape
-`{ calendarEventId, start: { localDateTime, timeZoneId }, scheduledStartUtc, descriptions }`
-or `404` when the id is unknown. Save sends
+that endpoint returns the calendar event detail shape
+`{ calendarEventId, start: { localDateTime, timeZoneId }, scheduledStartUtc, descriptions, platforms }`
+or `404` when the id is unknown. The `platforms` array carries one item per
+active platform plus orphan history, so the detail read exposes publish state in
+one call while the event itself stays provider-neutral. This is the only
+endpoint that exposes per-event publication state. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with a body of
 `{ descriptions: [{ language, title, description? }] }` and reads
 `{ calendarEventId }` from the response. The scheduled start is immutable on
@@ -55,9 +57,12 @@ The `GET` endpoint returns a server-side sorted paged envelope
 start descending. The UI consumes one page at a time and uses `totalCount` to
 drive its paginator; it no longer scopes the list to a month. The canonical
 parameter, envelope, and validation details live in
-[`../api/http/calendar-events.md`](../api/http/calendar-events.md). Calendar
-event list and detail responses are provider-neutral in P01; generic publish
-status and action flags are no longer part of the calendar-event contract.
+[`../api/http/calendar-events.md`](../api/http/calendar-events.md). The calendar
+event list response is provider-neutral; the calendar event itself carries no
+generic publish status or action flags. The single-event detail response
+additionally embeds a `platforms` projection (per-platform publish state) as a
+read-time composition, so publish state stays in platform publications rather
+than on the event.
 
 The `templates` resource exposes list, create, update, and delete, and a
 separate `template-tokens` resource returns the code-defined placeholder token
@@ -84,10 +89,10 @@ destination (the first provider is YouTube) with a server-generated
 `platformId`, a unique `name`, an immutable `type`, and non-secret
 `publishSettings`. A calendar event is provider-neutral and has no publish
 status; publish state is a `platform publication` keyed by calendar event and
-platform. `GET /api/platforms` and the platform CRUD routes manage destinations;
-`GET /api/calendar-events/{calendarEventId}/platforms` returns one item per
-active platform (computed `NotPublished` when no row exists) plus orphan history
-for deleted platforms; and
+platform. `GET /api/platforms` and the platform CRUD routes manage destinations; the
+calendar event detail response (`GET /api/calendar-events/{calendarEventId}`)
+returns one item per active platform (computed `NotPublished` when no row exists)
+plus orphan history for deleted platforms in its `platforms` array; and
 `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
 publishes to one selected platform and returns the provider-neutral
 `externalResourceId`. Deleting a platform preserves `Published` rows as

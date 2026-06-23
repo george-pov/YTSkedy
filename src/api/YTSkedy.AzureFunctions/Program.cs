@@ -97,7 +97,7 @@ builder.Services.AddSingleton(_ =>
 
 builder.Services.AddScoped<CreateCalendarEventHandler>();
 builder.Services.AddScoped<ListEventsHandler>();
-builder.Services.AddScoped<GetCalendarEventHandler>();
+builder.Services.AddScoped<GetCalendarEventDetailHandler>();
 builder.Services.AddScoped<UpdateCalendarEventHandler>();
 builder.Services.AddScoped<DeleteCalendarEventHandler>();
 builder.Services.AddScoped<AzureCalendarEventRepository>();
@@ -206,7 +206,6 @@ builder.Services.AddKeyedSingleton<TableClient>("platformPublications", (_, _) =
     return new TableClient(connectionString, tableName);
 });
 
-builder.Services.AddScoped<ListPlatformsForEventHandler>();
 builder.Services.AddScoped(serviceProvider =>
     new AzurePlatformPublicationRepository(
         serviceProvider.GetRequiredKeyedService<TableClient>("platformPublications"),

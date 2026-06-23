@@ -160,7 +160,7 @@ public class PlatformsApi(
     /// Parses a route or query platform-type segment (case-insensitive) to a
     /// <see cref="PlatformType"/>. Numeric and unknown values are rejected.
     /// </summary>
-    public static bool TryParsePlatformType(string? value, out PlatformType type)
+    private static bool TryParsePlatformType(string? value, out PlatformType type)
     {
         switch (value?.ToLowerInvariant())
         {
@@ -182,7 +182,7 @@ public class PlatformsApi(
     /// settings are validated against the type. Any failure yields a
     /// <c>400 Bad Request</c> through <paramref name="error"/>.
     /// </summary>
-    public static bool TryBuildCreateCommand(
+    private static bool TryBuildCreateCommand(
         CreatePlatformRequest request,
         out CreatePlatformCommand command,
         out IActionResult error)
@@ -225,7 +225,7 @@ public class PlatformsApi(
     /// body. Any failure yields a <c>400 Bad Request</c> through
     /// <paramref name="error"/>.
     /// </summary>
-    public static bool TryBuildUpdateCommand(
+    private static bool TryBuildUpdateCommand(
         string platformId,
         UpdatePlatformRequest request,
         out UpdatePlatformCommand command,
@@ -257,7 +257,7 @@ public class PlatformsApi(
     /// Maps a create outcome to its HTTP result. Created is 200 with the single
     /// platform shape; a duplicate name is 409.
     /// </summary>
-    public static IActionResult ToCreateResult(
+    private static IActionResult ToCreateResult(
         CreatePlatformResult result,
         CreatePlatformCommand command) =>
         result.Status switch
@@ -278,7 +278,7 @@ public class PlatformsApi(
     /// platform shape; an unknown id is 404; a duplicate name is 409; a publish
     /// in progress is 409.
     /// </summary>
-    public static IActionResult ToUpdateResult(
+    private static IActionResult ToUpdateResult(
         UpdatePlatformResult result,
         UpdatePlatformCommand command) =>
         result switch
@@ -302,7 +302,7 @@ public class PlatformsApi(
     /// Maps a delete outcome to its HTTP result. Deleted is 204; an unknown id is
     /// 404; a publish in progress is 409.
     /// </summary>
-    public static IActionResult ToDeleteResult(
+    private static IActionResult ToDeleteResult(
         DeletePlatformResult result,
         string platformId) =>
         result switch
@@ -315,10 +315,10 @@ public class PlatformsApi(
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
 
-    public static PlatformListResponse ToListResponse(IReadOnlyList<PlatformView> views) =>
+    private static PlatformListResponse ToListResponse(IReadOnlyList<PlatformView> views) =>
         new(views.Select(ToPlatformResponse).ToArray());
 
-    public static PlatformResponse ToPlatformResponse(PlatformView view)
+    private static PlatformResponse ToPlatformResponse(PlatformView view)
     {
         ArgumentNullException.ThrowIfNull(view);
 

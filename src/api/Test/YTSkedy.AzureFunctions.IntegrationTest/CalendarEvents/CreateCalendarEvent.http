@@ -84,10 +84,20 @@ Authorization: Bearer {{accessTokenReadOnly}}
   ]
 }
 
-### Get a calendar event by id
+### Get a calendar event by id (with embedded platform state)
 # Replace the id with one returned by a create above. Used by the UI edit form
-# to load an event. Expected response: 200 OK with a single list-item-shaped
-# event, or 404 Not Found for an unknown id.
+# to load an event. Expected response: 200 OK with the event fields plus a
+# `platforms` array (the only place per-event publish state is exposed over
+# HTTP), or 404 Not Found for an unknown id. Verify these states:
+# - No platforms registered: `platforms` is [].
+# - Active platform never published for this event: one item with status
+#   "NotPublished", null externalResourceId/publishedUtc/platformDeletedUtc, and
+#   canPublish true.
+# - After a successful publish (see EventPlatforms.http): that platform's item
+#   shows status "Published", a non-null externalResourceId and publishedUtc, and
+#   canPublish false.
+# - After deleting a platform that had published this event: an orphan history
+#   item with platformDeletedUtc set and canPublish false.
 
 GET {{HostAddress}}/api/calendar-events/20260607T170000Z
 Authorization: Bearer {{accessToken}}

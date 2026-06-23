@@ -164,12 +164,22 @@ Current invalid query behavior:
 GET /api/calendar-events/{calendarEventId}
 ```
 
-Returns a single calendar event by id. Requires the `CalendarEvents.Read` scope.
-The response item has the same shape as one `items[]` entry from the list
-endpoint, carrying the wall-clock local start and time zone (not the UTC
-instant) so the UI edit form can repopulate from stored local time. It also
-carries `scheduledStartUtc`, the same instant as a UTC ISO-8601 string, which the
-edit form shows as a read-only translation of the local start.
+Returns a single calendar event by id with its per-platform publication state.
+Requires the `CalendarEvents.Read` scope. The calendar event fields match one
+`items[]` entry from the list endpoint, carrying the wall-clock local start and
+time zone (not the UTC instant) so the UI edit form can repopulate from stored
+local time. It also carries `scheduledStartUtc`, the same instant as a UTC
+ISO-8601 string, which the edit form shows as a read-only translation of the
+local start.
+
+Unlike a list item, the detail response also carries `platforms`: one entry per
+active registered platform with its publish status, plus orphan history rows for
+platforms deleted after publishing this event, so a client can render the event
+detail and its publish state from one read. This is the only endpoint that
+exposes per-event publication state; there is no separate event-platform listing
+route. The calendar event itself stays provider-neutral; the publish state is
+composed at read time and is not stored on the event. The calendar event list
+endpoint stays provider-neutral and does not carry `platforms`.
 
 Success response (`200 OK`):
 
@@ -192,6 +202,18 @@ Success response (`200 OK`):
       "title": "English stream 1",
       "description": "Description for stream 1 in English"
     }
+  ],
+  "platforms": [
+    {
+      "platformId": "4fb4a32f3f344de1a7c3a9f4a2f94918",
+      "platformName": "Main YouTube channel",
+      "platformType": "YouTube",
+      "status": "NotPublished",
+      "externalResourceId": null,
+      "publishedUtc": null,
+      "platformDeletedUtc": null,
+      "canPublish": true
+    }
   ]
 }
 ```
@@ -199,6 +221,16 @@ Success response (`200 OK`):
 Current behavior:
 
 - Unknown `calendarEventId` returns `404 Not Found`.
+- `platforms` is `[]` when no platforms are registered.
+- `status` is `NotPublished`, `Publishing`, or `Published`. An active platform
+  with no stored publication row is reported as a computed `NotPublished` item;
+  no row is created just to read state.
+- `externalResourceId` and `publishedUtc` are populated for `Published` items
+  and are `null` otherwise.
+- `platformDeletedUtc` is set only on orphan history items whose platform was
+  deleted. Orphan items carry `canPublish: false`.
+- `canPublish` is `true` only for an active platform whose publication is
+  `NotPublished`.
 - The `CalendarEventDetails` edit route (`/calendar-events/{calendarEventId}/edit`)
   consumes this endpoint to load an event into the form.
 
@@ -295,11 +327,11 @@ status of its own. There is no calendar-event-level publish route. Publishing
 state lives in platform publications, and publishing always targets an explicit
 platform id.
 
-The publication state of an event and the publish action are documented in
+The publication state of an event is part of the calendar event detail response
+(`GET /api/calendar-events/{calendarEventId}`; see the `platforms` array in
+[Get Calendar Event](#get-calendar-event)). The publish action is documented in
 [`platforms.md`](platforms.md):
 
-- `GET /api/calendar-events/{calendarEventId}/platforms` lists the event's
-  publication state across platforms.
 - `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
   publishes the event to one selected platform.
 

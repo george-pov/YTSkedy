@@ -1,29 +1,7 @@
-### List a calendar event's platforms
-# Prereqs:
-# - Azurite running and the Azure Functions host started.
-# - The `local` environment is selected and `accessToken` is set in
-#   `http-client.env.json.user`.
-# - At least one platform exists (Platforms/PlatformCrud.http) and at least one
-#   calendar event exists (CreateCalendarEvent.http).
-# Replace the calendar event id with one returned by a create.
-# Expected response: 200 OK with { calendarEventId, items: [...] }. Each active
-# platform appears once. A platform that has never been published to for this
-# event shows a computed item with status "NotPublished", null
-# externalResourceId/publishedUtc/platformDeletedUtc, and canPublish true.
-
-GET {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms
-Authorization: Bearer {{accessToken}}
-
-### List platforms for an unknown calendar event
-# Expected response: 404 Not Found.
-
-GET {{HostAddress}}/api/calendar-events/20000101T000000Z/platforms
-Authorization: Bearer {{accessToken}}
-
-### List event platforms with a missing bearer token
-# Expected response: 401 Unauthorized with an empty body.
-
-GET {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms
+# Per-event platform publication state is read from the calendar event detail
+# endpoint GET /api/calendar-events/{calendarEventId} (its `platforms` array);
+# see CalendarEvents/CreateCalendarEvent.http. There is no separate event-platform
+# listing endpoint. This file covers the publish action.
 
 ### Publish a calendar event to a platform (success)
 # Prereqs for a real publish:

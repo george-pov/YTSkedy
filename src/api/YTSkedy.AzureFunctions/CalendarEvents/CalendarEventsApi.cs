@@ -5,6 +5,7 @@ using Microsoft.Identity.Web.Resource;
 using System.Globalization;
 using System.Text.Json;
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.AzureFunctions.CalendarEvents;
@@ -12,7 +13,7 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 public class CalendarEventsApi(
     CreateCalendarEventHandler createHandler,
     ListEventsHandler listHandler,
-    GetCalendarEventHandler getHandler,
+    GetCalendarEventDetailHandler getDetailHandler,
     UpdateCalendarEventHandler updateHandler,
     DeleteCalendarEventHandler deleteHandler)
 {
@@ -106,11 +107,11 @@ public class CalendarEventsApi(
         string calendarEventId,
         CancellationToken cancellationToken)
     {
-        var calendarEvent = await getHandler.HandleAsync(calendarEventId, cancellationToken);
+        var detail = await getDetailHandler.HandleAsync(calendarEventId, cancellationToken);
 
-        return calendarEvent is null
+        return detail is null
             ? new NotFoundResult()
-            : new OkObjectResult(ToViewResponse(calendarEvent));
+            : new OkObjectResult(ToDetailResponse(detail));
     }
 
     [Function("UpdateCalendarEvent")]
@@ -391,6 +392,57 @@ public class CalendarEventsApi(
                     description.Title,
                     description.Description))
                 .ToArray());
+    }
+
+    /// <summary>
+    /// Maps the calendar event detail read model to the get-by-id response. The
+    /// event fields mirror one list item; <c>platforms</c> is mapped by
+    /// <see cref="ToEventPlatformResponse"/>. This detail response is the only
+    /// place the per-platform publication state is exposed over HTTP.
+    /// </summary>
+    public static CalendarEventDetailResponse ToDetailResponse(CalendarEventDetailView detail)
+    {
+        ArgumentNullException.ThrowIfNull(detail);
+
+        var calendarEvent = detail.Event;
+
+        return new CalendarEventDetailResponse(
+            calendarEvent.CalendarEventId,
+            new CalendarEventStart(
+                calendarEvent.Start.LocalDateTime,
+                calendarEvent.Start.TimeZoneId),
+            calendarEvent.ScheduledStartUtc,
+            calendarEvent.Descriptions
+                .Select(description => new LocalizedCalendarEventText(
+                    description.Language,
+                    description.Title,
+                    description.Description))
+                .ToArray(),
+            detail.Platforms
+                .Select(ToEventPlatformResponse)
+                .ToArray());
+    }
+
+    /// <summary>
+    /// Maps one event-platform projection item to its response shape: the
+    /// platform id and type a client needs to drive the publish route, the
+    /// publication status, and the precomputed <c>canPublish</c> action flag.
+    /// Orphaned history rows set <c>platformDeletedUtc</c> and report
+    /// <c>canPublish: false</c>.
+    /// </summary>
+    public static EventPlatformResponse ToEventPlatformResponse(EventPlatformView view)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+
+        return new EventPlatformResponse(
+            view.PlatformId,
+            view.PlatformName,
+            view.PlatformType.ToString(),
+            view.Status.ToString(),
+            view.ExternalResourceId,
+            view.PublishedUtc,
+            view.PlatformDeletedUtc,
+            view.CanPublish);
     }
 
     private static string ToSortString(CalendarEventSortField sort) =>
