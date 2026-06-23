@@ -13,14 +13,4 @@
       [items]="linkItems"
     />
   </app-lab-example>
-
-  <app-lab-example
-    titleId="toolbar-nav-actions-example-title"
-    title="Action buttons"
-  >
-    <app-toolbar-nav label="Primary actions" [items]="actionItems" />
-    @if (lastAction(); as action) {
-      <p>Activated: {{ action }}</p>
-    }
-  </app-lab-example>
 </app-lab-page>

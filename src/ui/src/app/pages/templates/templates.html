@@ -4,65 +4,65 @@
     <app-button (click)="newTemplate()">New Template</app-button>
   </header>
 
-  @if (isLoading()) {
-    <app-progress-bar label="Loading templates" />
-  } @else if (loadFailed()) {
-    <app-alert variant="error">
-      Templates could not be loaded. Check your connection and try again.
-    </app-alert>
-  } @else {
-    <div class="app-grid app-gap-6">
-      <app-data-table
-        class="app-col-md-5"
-        [data]="templates()"
-        [columns]="columns"
-        [selectable]="true"
-        [selectedRow]="selected()"
-        [showPaginator]="false"
-        caption="Templates"
-        emptyText="No templates yet."
-        (rowClick)="select($event.id)"
-      />
+  <app-progress-bar *appDelayedLoading="isLoading(); else loaded" label="Loading templates" />
+  <ng-template #loaded>
+    @if (loadFailed()) {
+      <app-alert variant="error">
+        Templates could not be loaded. Check your connection and try again.
+      </app-alert>
+    } @else {
+      <div class="app-grid app-gap-6">
+        <app-data-table
+          class="app-col-md-5"
+          [data]="templates()"
+          [columns]="columns"
+          [selectable]="true"
+          [selectedRow]="selected()"
+          [showPaginator]="false"
+          caption="Templates"
+          emptyText="No templates yet."
+          (rowClick)="select($event.id)"
+        />
 
-      @if (editorMode() !== 'none') {
-        <form class="app-col-md-7 editor" (submit)="onSubmit($event)">
-          @if (editorMode() === 'create') {
-            <app-select [field]="form.type" label="Type" [options]="typeOptions" />
-          } @else {
-            <p class="readonly-type">
-              <span>Type</span>
-              <strong>{{ selected()?.type }}</strong>
-            </p>
-          }
-          <app-input [field]="form.name" label="Name" />
-          <app-input multiline [field]="form.content" label="Content" [rows]="8" />
-
-          @if (errorMessage(); as message) {
-            <app-alert variant="error">{{ message }}</app-alert>
-          }
-
-          <div class="app-actions">
-            <app-button type="submit" [disabled]="isSaving() || isDeleting()">
-              {{ isSaving() ? 'Saving...' : 'Save' }}
-            </app-button>
-            @if (editorMode() === 'edit') {
-              <app-button
-                type="button"
-                appearance="outlined"
-                [disabled]="isSaving() || isDeleting()"
-                (click)="deleteSelected()"
-              >
-                {{ isDeleting() ? 'Deleting...' : 'Delete' }}
-              </app-button>
+        @if (editorMode() !== 'none') {
+          <form class="app-col-md-7 editor" (submit)="onSubmit($event)">
+            @if (editorMode() === 'create') {
+              <app-select [field]="form.type" label="Type" [options]="typeOptions" />
+            } @else {
+              <p class="readonly-type">
+                <span>Type</span>
+                <strong>{{ selected()?.type }}</strong>
+              </p>
             }
-          </div>
-        </form>
-      } @else {
-        <p class="app-col-md-7 app-pt-6 editor-empty">
-          Select a template on the left to view and edit it, or choose New
-          Template to add one.
-        </p>
-      }
-    </div>
-  }
+            <app-input [field]="form.name" label="Name" />
+            <app-input multiline [field]="form.content" label="Content" [rows]="8" />
+
+            @if (errorMessage(); as message) {
+              <app-alert variant="error">{{ message }}</app-alert>
+            }
+
+            <div class="app-actions">
+              <app-button type="submit" [disabled]="isSaving() || isDeleting()">
+                {{ isSaving() ? 'Saving...' : 'Save' }}
+              </app-button>
+              @if (editorMode() === 'edit') {
+                <app-button
+                  type="button"
+                  appearance="outlined"
+                  [disabled]="isSaving() || isDeleting()"
+                  (click)="deleteSelected()"
+                >
+                  {{ isDeleting() ? 'Deleting...' : 'Delete' }}
+                </app-button>
+              }
+            </div>
+          </form>
+        } @else {
+          <p class="app-col-md-7 app-pt-6 editor-empty">
+            Select a template on the left to view and edit it, or choose New Template to add one.
+          </p>
+        }
+      </div>
+    }
+  </ng-template>
 </section>

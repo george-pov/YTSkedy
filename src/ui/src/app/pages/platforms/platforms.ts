@@ -20,6 +20,7 @@ import { DataTable } from 'src/app/shared/components/data-table/data-table';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { Input } from 'src/app/shared/components/input/input';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
+import { DelayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { Select, SelectOption } from 'src/app/shared/components/select/select';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import {
@@ -38,7 +39,7 @@ type EditorMode = 'none' | 'create' | 'edit';
 
 @Component({
   selector: 'app-platforms',
-  imports: [Alert, Button, DataTable, Input, ProgressBar, Select, YouTubeSettings],
+  imports: [Alert, Button, DataTable, Input, ProgressBar, Select, YouTubeSettings, DelayedLoading],
   templateUrl: './platforms.html',
   styleUrl: './platforms.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -214,9 +215,7 @@ export class Platforms implements OnInit {
             publishSettings: request.publishSettings,
           };
           this.platforms.update((list) =>
-            sortPlatforms(
-              list.map((entry) => (entry.id === current.id ? updated : entry)),
-            ),
+            sortPlatforms(list.map((entry) => (entry.id === current.id ? updated : entry))),
           );
           this.selected.set(updated);
           this.notifications.showSuccess('Platform saved.');
@@ -242,9 +241,7 @@ function toFormModel(platform: Platform): PlatformFormModel {
     name: platform.name,
     youTubeCredentials: platform.publishSettings?.credentials ?? '',
     youTubePrivacyStatus: platform.publishSettings?.privacyStatus ?? 'private',
-    youTubeMadeForKids: String(
-      platform.publishSettings?.selfDeclaredMadeForKids ?? false,
-    ),
+    youTubeMadeForKids: String(platform.publishSettings?.selfDeclaredMadeForKids ?? false),
   };
 }
 

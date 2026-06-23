@@ -6,20 +6,14 @@
       [attr.aria-label]="label()"
     >
       @for (item of items(); track item.label) {
-        @if (item.link != null) {
-          <a
-            matButton="text"
-            [routerLink]="item.link"
-            routerLinkActive="is-active"
-            [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
-            ariaCurrentWhenActive="page"
-            >{{ item.label }}</a
-          >
-        } @else {
-          <button matButton="text" type="button" (click)="item.action?.()">
-            {{ item.label }}
-          </button>
-        }
+        <a
+          matButton="text"
+          [routerLink]="item.link"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
+          ariaCurrentWhenActive="page"
+          >{{ item.label }}</a
+        >
       }
     </nav>
   </div>
