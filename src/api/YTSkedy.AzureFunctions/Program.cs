@@ -8,9 +8,11 @@ using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Logging;
 using YTSkedy.AzureFunctions.Auth;
 using YTSkedy.Infrastructure.CalendarEvents;
+using YTSkedy.Infrastructure.Platforms;
 using YTSkedy.Infrastructure.Templates;
 using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Application.YouTube;
 
@@ -160,5 +162,42 @@ builder.Services.AddScoped<ITemplateRepository>(
     serviceProvider => serviceProvider.GetRequiredService<AzureTemplateRepository>());
 builder.Services.AddScoped<ITemplateReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzureTemplateRepository>());
+
+// Platforms persist in their own table bound through a keyed TableClient so the
+// calendar-event and templates TableClient registrations above are untouched.
+builder.Services.AddKeyedSingleton<TableClient>("platforms", (_, _) =>
+{
+    var connectionString =
+        builder.Configuration["AzureStorage:ConnectionString"] ??
+        builder.Configuration["AzureWebJobsStorage"];
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "Azure Table Storage connection string is not configured.");
+    }
+
+    var tableName = builder.Configuration["AzureStorage:PlatformsTableName"];
+    if (string.IsNullOrWhiteSpace(tableName))
+    {
+        tableName = "Platforms";
+    }
+
+    return new TableClient(connectionString, tableName);
+});
+
+builder.Services.AddScoped<ListPlatformsHandler>();
+builder.Services.AddScoped<GetPlatformHandler>();
+builder.Services.AddScoped<CreatePlatformHandler>();
+builder.Services.AddScoped<UpdatePlatformHandler>();
+builder.Services.AddScoped<DeletePlatformHandler>();
+builder.Services.AddScoped(serviceProvider =>
+    new AzurePlatformRepository(
+        serviceProvider.GetRequiredKeyedService<TableClient>("platforms"),
+        serviceProvider.GetRequiredService<TimeProvider>()));
+builder.Services.AddScoped<IPlatformRepository>(
+    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformRepository>());
+builder.Services.AddScoped<IPlatformReader>(
+    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformRepository>());
 
 builder.Build().Run();

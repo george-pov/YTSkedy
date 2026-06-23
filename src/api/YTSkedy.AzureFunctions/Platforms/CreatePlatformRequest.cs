@@ -1,0 +1,10 @@
+namespace YTSkedy.AzureFunctions.Platforms;
+
+/// <summary>
+/// Request body for creating a platform. The type is immutable after create, so
+/// it travels in the body here but not in the update request.
+/// </summary>
+public sealed record CreatePlatformRequest(
+    string? Name,
+    string? Type,
+    PublishSettingsPayload? PublishSettings);
