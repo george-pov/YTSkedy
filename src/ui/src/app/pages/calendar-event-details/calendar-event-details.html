@@ -60,6 +60,19 @@
           </div>
         </fieldset>
 
+        @if (isEditMode) {
+          <section class="section" aria-labelledby="platforms-heading">
+            <h2 id="platforms-heading" class="section-title">Platforms</h2>
+            <app-data-table
+              [data]="platforms()"
+              [columns]="platformColumns"
+              [showPaginator]="false"
+              caption="Calendar event platforms"
+              emptyText="No platforms found."
+            />
+          </section>
+        }
+
         @if (saveErrorMessage(); as message) {
           <app-alert #errorRegion variant="error" tabindex="-1">
             {{ message }}

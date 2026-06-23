@@ -13,10 +13,15 @@ import { form } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize, Observable } from 'rxjs';
 
-import { CalendarEventsService } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import {
+  CalendarEventsService,
+  type CalendarEventPlatform,
+} from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from 'src/app/shared/components/button/button';
+import { DataTable } from 'src/app/shared/components/data-table/data-table';
+import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { DateField } from 'src/app/shared/components/date/date';
 import { Input } from 'src/app/shared/components/input/input';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
@@ -37,7 +42,17 @@ import {
 
 @Component({
   selector: 'app-calendar-event-details',
-  imports: [Alert, Button, Input, DateField, TimeField, Select, ProgressBar, DelayedLoading],
+  imports: [
+    Alert,
+    Button,
+    DataTable,
+    Input,
+    DateField,
+    TimeField,
+    Select,
+    ProgressBar,
+    DelayedLoading,
+  ],
   templateUrl: './calendar-event-details.html',
   styleUrl: './calendar-event-details.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -67,6 +82,12 @@ export class CalendarEventDetails {
 
   protected readonly isDeleting = signal(false);
   protected readonly deleteErrorMessage = signal<string | null>(null);
+  protected readonly platforms = signal<CalendarEventPlatform[]>([]);
+  protected readonly platformColumns: readonly DataTableColumn<CalendarEventPlatform>[] = [
+    { key: 'type', header: 'Type', value: (platform) => platform.platformType },
+    { key: 'name', header: 'Name', value: (platform) => platform.platformName, truncate: true },
+    { key: 'status', header: 'Status', value: (platform) => platform.status },
+  ];
 
   // Action eligibility comes from the loaded event's API-computed flags; the
   // page never re-derives it from status, scheduled start, or broadcast id.
@@ -128,8 +149,10 @@ export class CalendarEventDetails {
           this.loadedScheduledStartUtc.set(event.scheduledStartUtc);
           this.loadedCanDelete.set(event.canDelete);
           this.loadedCanUpdate.set(event.canUpdate);
+          this.platforms.set(event.platforms);
         },
         error: () => {
+          this.platforms.set([]);
           this.loadFailed.set(true);
         },
       });

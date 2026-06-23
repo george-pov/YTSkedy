@@ -11,6 +11,8 @@ import {
 
 export type CalendarEventStatus = 'Draft' | 'Publishing' | 'Published';
 
+export type CalendarEventPlatformStatus = 'NotPublished' | 'Publishing' | 'Published';
+
 export interface CalendarEvent {
   calendarEventId: string;
   start: CalendarEventStart;
@@ -20,6 +22,21 @@ export interface CalendarEvent {
   canPublish: boolean;
   canUpdate: boolean;
   canDelete: boolean;
+}
+
+export interface CalendarEventDetail extends CalendarEvent {
+  platforms: CalendarEventPlatform[];
+}
+
+export interface CalendarEventPlatform {
+  platformId: string;
+  platformName: string;
+  platformType: string;
+  status: CalendarEventPlatformStatus;
+  externalResourceId: string | null;
+  publishedUtc: string | null;
+  platformDeletedUtc: string | null;
+  canPublish: boolean;
 }
 
 export interface CalendarEventStart {
@@ -116,8 +133,10 @@ export class CalendarEventsService {
     return this.http.get<CalendarEventListPage>(calendarEventsUrl(this.appConfig.api), { params });
   }
 
-  getById(calendarEventId: string): Observable<CalendarEvent> {
-    return this.http.get<CalendarEvent>(calendarEventByIdUrl(this.appConfig.api, calendarEventId));
+  getById(calendarEventId: string): Observable<CalendarEventDetail> {
+    return this.http.get<CalendarEventDetail>(
+      calendarEventByIdUrl(this.appConfig.api, calendarEventId),
+    );
   }
 
   update(

@@ -7,6 +7,7 @@ import { APP_CONFIG } from 'src/app/shared/config/app-config';
 import { testAppConfig } from 'src/app/shared/config/testing/app-config.fixture';
 import {
   CalendarEvent,
+  CalendarEventDetail,
   CalendarEventListPage,
   CalendarEventsService,
   CreateCalendarEventRequest,
@@ -164,7 +165,7 @@ describe('CalendarEventsService', () => {
   });
 
   it('requests a single calendar event by id and returns it', () => {
-    const apiResponse: CalendarEvent = {
+    const apiResponse: CalendarEventDetail = {
       calendarEventId: '20260606T170000Z',
       start: {
         localDateTime: '2026-06-06T10:00:00',
@@ -182,9 +183,21 @@ describe('CalendarEventsService', () => {
       canPublish: false,
       canUpdate: true,
       canDelete: false,
+      platforms: [
+        {
+          platformId: 'platform-1',
+          platformName: 'Main YouTube channel',
+          platformType: 'YouTube',
+          status: 'NotPublished',
+          externalResourceId: null,
+          publishedUtc: null,
+          platformDeletedUtc: null,
+          canPublish: true,
+        },
+      ],
     };
 
-    let actual: CalendarEvent | undefined;
+    let actual: CalendarEventDetail | undefined;
     service.getById('20260606T170000Z').subscribe((event) => {
       actual = event;
     });

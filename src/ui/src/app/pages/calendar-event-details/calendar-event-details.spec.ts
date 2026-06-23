@@ -9,7 +9,7 @@ import { Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
-  CalendarEvent,
+  CalendarEventDetail,
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
@@ -39,7 +39,7 @@ describe('CalendarEventDetails', () => {
   let fixture: ComponentFixture<CalendarEventDetails>;
   let service: {
     create: Mock<(request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>>;
-    getById: Mock<(calendarEventId: string) => Observable<CalendarEvent>>;
+    getById: Mock<(calendarEventId: string) => Observable<CalendarEventDetail>>;
     update: Mock<
       (
         calendarEventId: string,
@@ -55,7 +55,7 @@ describe('CalendarEventDetails', () => {
     service = {
       create:
         vi.fn<(request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>>(),
-      getById: vi.fn<(calendarEventId: string) => Observable<CalendarEvent>>(),
+      getById: vi.fn<(calendarEventId: string) => Observable<CalendarEventDetail>>(),
       update:
         vi.fn<
           (
@@ -307,6 +307,59 @@ describe('CalendarEventDetails', () => {
       expect(text).toContain('2030-07-04 08:30');
     });
 
+    it('shows the loaded platform publishing status table', () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            platforms: [
+              {
+                platformId: 'platform-1',
+                platformName: 'Main YouTube channel',
+                platformType: 'YouTube',
+                status: 'NotPublished',
+                externalResourceId: null,
+                publishedUtc: null,
+                platformDeletedUtc: null,
+                canPublish: true,
+              },
+              {
+                platformId: 'platform-2',
+                platformName: 'Archive site',
+                platformType: 'WordPress',
+                status: 'Published',
+                externalResourceId: 'post-123',
+                publishedUtc: '2030-07-04T08:45:00+00:00',
+                platformDeletedUtc: null,
+                canPublish: false,
+              },
+            ],
+          }),
+        ),
+      );
+
+      createEditComponent();
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Platforms');
+      expect(text).toContain('Type');
+      expect(text).toContain('Name');
+      expect(text).toContain('Status');
+      expect(text).toContain('YouTube');
+      expect(text).toContain('Main YouTube channel');
+      expect(text).toContain('NotPublished');
+      expect(text).toContain('WordPress');
+      expect(text).toContain('Archive site');
+      expect(text).toContain('Published');
+    });
+
+    it('shows an empty platform state when no platforms are returned', () => {
+      service.getById.mockReturnValue(of(sampleEvent({ platforms: [] })));
+
+      createEditComponent();
+
+      expect(fixture.nativeElement.textContent).toContain('No platforms found.');
+    });
+
     it('disables the scheduled start controls in edit mode', () => {
       service.getById.mockReturnValue(of(sampleEvent()));
 
@@ -410,7 +463,7 @@ describe('CalendarEventDetails', () => {
     it('shows a progress bar while the event is loading', () => {
       vi.useFakeTimers();
       try {
-        service.getById.mockReturnValue(new Subject<CalendarEvent>());
+        service.getById.mockReturnValue(new Subject<CalendarEventDetail>());
 
         createEditComponent();
 
@@ -599,7 +652,7 @@ describe('CalendarEventDetails', () => {
     } as ActivatedRoute;
   }
 
-  function sampleEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
+  function sampleEvent(overrides: Partial<CalendarEventDetail> = {}): CalendarEventDetail {
     return {
       calendarEventId: '20260606T170000Z',
       start: {
@@ -623,6 +676,18 @@ describe('CalendarEventDetails', () => {
       canPublish: true,
       canUpdate: true,
       canDelete: true,
+      platforms: [
+        {
+          platformId: 'platform-1',
+          platformName: 'Main YouTube channel',
+          platformType: 'YouTube',
+          status: 'NotPublished',
+          externalResourceId: null,
+          publishedUtc: null,
+          platformDeletedUtc: null,
+          canPublish: true,
+        },
+      ],
       ...overrides,
     };
   }
