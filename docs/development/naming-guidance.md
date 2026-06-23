@@ -295,8 +295,9 @@ When touching current calendar-event code, prefer the fully qualified domain
 name when it prevents ambiguity. Prefer shorter names when the namespace,
 endpoint, command shape, or containing type supplies the missing context.
 For example, in `YTSkedy.Scheduling.Application.Platforms`, prefer
-`PublishCalendarEventHandler` over `PublishCalendarEventToPlatformHandler`
-because the command carries the `PlatformId`. Shorter forms such as `event`,
+`PublishHandler` over `PublishCalendarEventToPlatformHandler` because the
+namespace and command shape already supply the calendar-event and platform
+context. Shorter forms such as `event`,
 `request`, or `result` are fine for local variables when the enclosing method or
 type already provides the missing context.
 
