@@ -8,7 +8,6 @@ import {
   CalendarEventSortField,
   CalendarEventsService,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
-import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from 'src/app/shared/components/button/button';
 import { DataTable, DataTableState } from 'src/app/shared/components/data-table/data-table';
@@ -28,14 +27,10 @@ import { Router } from '@angular/router';
 export class CalendarEvents implements OnInit {
   private readonly router = inject(Router);
   private readonly calendarEventsService = inject(CalendarEventsService);
-  private readonly notifications = inject(NotificationService);
 
   protected readonly events = signal<CalendarEvent[]>([]);
-  // Single error surface for the page. Both a failed page load and a failed
-  // publish set this; the template renders it in one place above the table.
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly isLoading = signal(true);
-  protected readonly publishingId = signal<string | null>(null);
 
   // Server-side paging and sorting state. `sortActive` is the table column key;
   // it is mapped to the API sort field when a request is built. The defaults
@@ -100,34 +95,8 @@ export class CalendarEvents implements OnInit {
     this.fetchPage();
   }
 
-  protected publish(event: CalendarEvent): void {
-    if (this.publishingId() !== null) {
-      return;
-    }
-
-    this.errorMessage.set(null);
-    this.publishingId.set(event.calendarEventId);
-
-    this.calendarEventsService
-      .publish(event.calendarEventId)
-      .pipe(finalize(() => this.publishingId.set(null)))
-      .subscribe({
-        next: () => {
-          // Re-fetch the current page so the published row keeps its place in
-          // the server ordering instead of being patched in place.
-          this.fetchPage();
-          this.notifications.showSuccess('Calendar event published.');
-        },
-        error: (error: unknown) => {
-          this.errorMessage.set(describePublishError(error));
-        },
-      });
-  }
-
   private fetchPage(): void {
     this.isLoading.set(true);
-    // Clear any prior error (from an earlier load or a failed publish) so a
-    // stale message cannot linger above a freshly fetched page.
     this.errorMessage.set(null);
 
     const query: CalendarEventListQuery = {
@@ -210,11 +179,4 @@ function describeLoadError(error: unknown): string {
     return 'You do not have permission to view calendar events.';
   }
   return 'Calendar events could not be loaded.';
-}
-
-function describePublishError(error: unknown): string {
-  if (error instanceof HttpErrorResponse && error.status === 403) {
-    return 'You do not have permission to publish calendar events.';
-  }
-  return 'Calendar event could not be published.';
 }

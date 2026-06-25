@@ -7,7 +7,6 @@ import {
   calendarEventByIdUrl,
   calendarEventsUrl,
   publishPlatformUrl,
-  publishYouTubeUrl,
 } from './calendar-events-endpoint';
 
 export type CalendarEventStatus = 'Draft' | 'Publishing' | 'Published';
@@ -107,12 +106,6 @@ export interface UpdateCalendarEventResponse {
   calendarEventId: string;
 }
 
-export interface PublishYouTubeResponse {
-  calendarEventId: string;
-  status: CalendarEventStatus;
-  youTubeBroadcastId: string;
-}
-
 export interface PublishPlatformResponse {
   calendarEventId: string;
   platformId: string;
@@ -164,13 +157,6 @@ export class CalendarEventsService {
     return this.http.post<CreateCalendarEventResponse>(
       calendarEventsUrl(this.appConfig.api),
       request,
-    );
-  }
-
-  publish(calendarEventId: string): Observable<PublishYouTubeResponse> {
-    return this.http.post<PublishYouTubeResponse>(
-      publishYouTubeUrl(this.appConfig.api, calendarEventId),
-      {},
     );
   }
 

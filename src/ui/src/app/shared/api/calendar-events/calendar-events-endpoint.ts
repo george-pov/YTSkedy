@@ -13,12 +13,6 @@ export function calendarEventByIdUrl(api: ApiConfig, calendarEventId: string): s
   return new URL(path, normalizeApiBaseUrl(api.baseUrl)).toString();
 }
 
-export function publishYouTubeUrl(api: ApiConfig, calendarEventId: string): string {
-  const path = `${calendarEventsPath}/${encodeURIComponent(calendarEventId)}/publish`;
-
-  return new URL(path, normalizeApiBaseUrl(api.baseUrl)).toString();
-}
-
 export function publishPlatformUrl(
   api: ApiConfig,
   calendarEventId: string,

@@ -1,5 +1,5 @@
 {
-  "_comment": "Tracked sample for src/api/YTSkedy.AzureFunctions/local.settings.json. Copy this file to local.settings.json (gitignored) and replace <placeholders> with environment-specific values. See docs/api/configuration.md for key classifications. All Auth keys below are non-secret for the Entra External ID authentication configuration; no client secret is required. The YouTube:ClientSecret and YouTube:RefreshToken keys ARE secrets; never commit real values.",
+  "_comment": "Tracked sample for src/api/YTSkedy.AzureFunctions/local.settings.json. Copy this file to local.settings.json (gitignored) and replace <placeholders> with environment-specific values. See docs/api/configuration.md for key classifications. All Auth keys below are non-secret for the Entra External ID authentication configuration; no client secret is required. The YouTubeChannels:*:ClientSecret and YouTubeChannels:*:RefreshToken keys ARE secrets; never commit real values.",
   "IsEncrypted": false,
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
@@ -10,10 +10,8 @@
     "Auth:ClientId": "<api-app-client-id-guid>",
     "Auth:Issuer": "https://<tenant-id-guid>.ciamlogin.com/<tenant-id-guid>/v2.0",
     "Auth:RequiredAppRole": "CalendarEvents.Operator",
-    "YouTube:ClientId": "<google-oauth-client-id>",
-    "YouTube:ClientSecret": "<google-oauth-client-secret>",
-    "YouTube:RefreshToken": "<google-oauth-refresh-token>",
-    "YouTubeBroadcast:PrivacyStatus": "private",
-    "YouTubeBroadcast:SelfDeclaredMadeForKids": "false"
+    "YouTubeChannels:main-youtube-channel:ClientId": "<google-oauth-client-id>",
+    "YouTubeChannels:main-youtube-channel:ClientSecret": "<google-oauth-client-secret>",
+    "YouTubeChannels:main-youtube-channel:RefreshToken": "<google-oauth-refresh-token>"
   }
 }

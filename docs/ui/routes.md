@@ -42,11 +42,10 @@ through the shared API service. It requests one server-side sorted page at a
 time (the first page defaults to scheduled start descending) and drives the
 shared `app-data-table` in server mode from the returned
 `{ items, page, pageSize, totalCount, sort, direction }` envelope. Each row
-shows a Publish action only when the API's `canPublish` flag is `true`, and an
-Edit icon that is always enabled and opens the details/edit view where Save and
-Delete enforce `canUpdate` and `canDelete`. The HTTP
-client attaches an Entra External ID access token via the YTSkedy-owned
-`AuthFacade` and bearer interceptor (see
+shows an Edit icon that opens the details/edit view where Save, Delete, and
+platform-scoped Publish enforce the API-computed action flags. The HTTP client
+attaches an Entra External ID access token via the YTSkedy-owned `AuthFacade`
+and bearer interceptor (see
 [`development/end-to-end-testing.md`](development/end-to-end-testing.md) and
 [`../architecture/integration-contracts.md`](../architecture/integration-contracts.md)).
 Richer calendar navigation and scheduling workflow behavior remain required

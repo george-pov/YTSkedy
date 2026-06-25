@@ -36,16 +36,6 @@
             ariaLabel="Edit"
             (click)="editEvent(event)"
           />
-          @if (event.canPublish) {
-            <app-button
-              class="publish-button"
-              iconButton
-              icon="publish"
-              ariaLabel="Publish"
-              [disabled]="publishingId() === event.calendarEventId"
-              (click)="publish(event)"
-            />
-          }
         </div>
       </ng-template>
     </app-data-table>

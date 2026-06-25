@@ -10,9 +10,7 @@ import {
   CalendarEventListPage,
   CalendarEventListQuery,
   CalendarEventsService,
-  PublishYouTubeResponse,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
-import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { DataTable, DataTableState } from 'src/app/shared/components/data-table/data-table';
 import { CalendarEvents } from './calendar-events';
 
@@ -20,18 +18,14 @@ describe('CalendarEvents', () => {
   let fixture: ComponentFixture<CalendarEvents>;
   let service: {
     list: Mock<(query: CalendarEventListQuery) => Observable<CalendarEventListPage>>;
-    publish: Mock<(calendarEventId: string) => Observable<PublishYouTubeResponse>>;
   };
-  let notifications: { showSuccess: Mock<(message: string) => void> };
   let navigations: string[];
 
   beforeEach(() => {
     navigations = [];
     service = {
       list: vi.fn<(query: CalendarEventListQuery) => Observable<CalendarEventListPage>>(),
-      publish: vi.fn<(calendarEventId: string) => Observable<PublishYouTubeResponse>>(),
     };
-    notifications = { showSuccess: vi.fn<(message: string) => void>() };
   });
 
   afterEach(() => {
@@ -230,18 +224,8 @@ describe('CalendarEvents', () => {
     });
   });
 
-  it('shows a Publish action when the row is publishable', async () => {
+  it('does not show a list-level Publish action because publishing is platform-scoped', async () => {
     service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
-
-    await createComponent();
-
-    expect(fixture.nativeElement.querySelector('.publish-button')).not.toBeNull();
-  });
-
-  it('does not show a Publish action when the row is not publishable', async () => {
-    service.list.mockReturnValue(
-      of(pageOf([{ ...draftEvent('20260606T170000Z'), canPublish: false }])),
-    );
 
     await createComponent();
 
@@ -266,71 +250,6 @@ describe('CalendarEvents', () => {
     fixture.nativeElement.querySelector('.edit-button').dispatchEvent(new Event('click'));
 
     expect(navigations).toEqual(['/calendar-events/20260606T170000Z/edit']);
-  });
-
-  it('publishes a draft event and re-fetches the current page', async () => {
-    const draft = draftEvent('20260606T170000Z');
-    service.list
-      .mockReturnValueOnce(of(pageOf([draft])))
-      .mockReturnValueOnce(of(pageOf([{ ...draft, status: 'Published', canPublish: false }])));
-    service.publish.mockReturnValue(
-      of({
-        calendarEventId: '20260606T170000Z',
-        status: 'Published',
-        youTubeBroadcastId: 'broadcast-123',
-      }),
-    );
-
-    await createComponent();
-    service.list.mockClear();
-
-    fixture.nativeElement.querySelector('.publish-button').dispatchEvent(new Event('click'));
-    fixture.detectChanges();
-
-    expect(service.publish).toHaveBeenCalledWith('20260606T170000Z');
-    expect(service.list).toHaveBeenCalledTimes(1);
-    expect(service.list).toHaveBeenCalledWith({
-      page: 0,
-      pageSize: 10,
-      sort: 'scheduledStart',
-      direction: 'desc',
-    });
-    expect(fixture.nativeElement.querySelector('.publish-button')).toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('Published');
-  });
-
-  it('shows a success notification after a successful publish', async () => {
-    const draft = draftEvent('20260606T170000Z');
-    service.list
-      .mockReturnValueOnce(of(pageOf([draft])))
-      .mockReturnValueOnce(of(pageOf([{ ...draft, status: 'Published', canPublish: false }])));
-    service.publish.mockReturnValue(
-      of({
-        calendarEventId: '20260606T170000Z',
-        status: 'Published',
-        youTubeBroadcastId: 'broadcast-123',
-      }),
-    );
-
-    await createComponent();
-
-    fixture.nativeElement.querySelector('.publish-button').dispatchEvent(new Event('click'));
-    fixture.detectChanges();
-
-    expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event published.');
-  });
-
-  it('shows an error when publishing fails', async () => {
-    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
-    service.publish.mockReturnValue(throwError(() => new Error('Request failed')));
-
-    await createComponent();
-
-    fixture.nativeElement.querySelector('.publish-button').dispatchEvent(new Event('click'));
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain('Calendar event could not be published.');
-    expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
   });
 
   function emitTableState(state: DataTableState): void {
@@ -385,10 +304,6 @@ describe('CalendarEvents', () => {
         {
           provide: CalendarEventsService,
           useValue: service,
-        },
-        {
-          provide: NotificationService,
-          useValue: notifications,
         },
       ],
     }).compileComponents();
