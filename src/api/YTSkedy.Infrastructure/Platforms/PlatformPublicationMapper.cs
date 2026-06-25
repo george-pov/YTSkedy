@@ -8,8 +8,9 @@ namespace YTSkedy.Infrastructure.Platforms;
 /// domain <see cref="PlatformPublication"/> read model, and builds the row that
 /// represents a fresh reservation. Status round-trips as its enum name; an
 /// unparsable stored status is read defensively as
-/// <see cref="PublishStatus.NotPublished"/>. Publish settings are serialized
-/// without secret material through <see cref="PublishSettingsSerializer"/>.
+/// <see cref="PublishStatus.NotPublished"/>. Publish settings snapshots are
+/// serialized without secret material through
+/// <see cref="PublishSettingsSerializer.SerializeSnapshot(PlatformType, PublishSettings)"/>.
 /// </summary>
 internal static class PlatformPublicationMapper
 {
@@ -61,7 +62,7 @@ internal static class PlatformPublicationMapper
             PlatformType = reservation.PlatformType.ToString(),
             Status = PublishStatus.Publishing.ToString(),
             ExternalResourceId = null,
-            PublishSettingsJson = PublishSettingsSerializer.Serialize(
+            PublishSettingsJson = PublishSettingsSerializer.SerializeSnapshot(
                 reservation.PlatformType,
                 reservation.PublishSettings),
             PublishedUtc = null,

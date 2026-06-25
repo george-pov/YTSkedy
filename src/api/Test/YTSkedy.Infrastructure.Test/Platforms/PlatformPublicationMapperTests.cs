@@ -121,6 +121,32 @@ public class PlatformPublicationMapperTests
         Assert.True(settings.SelfDeclaredMadeForKids);
     }
 
+    [Fact]
+    public void ToReservedEntity_WordPressSettings_OmitsApplicationPasswordFromSnapshot()
+    {
+        var reservation = new PlatformPublicationReservation(
+            CalendarEventId,
+            PlatformId,
+            "Main WordPress site",
+            PlatformType.WordPress,
+            new WordPressSettings(
+                "https://example.com",
+                "editor",
+                "application-password",
+                "publish"));
+
+        var entity = PlatformPublicationMapper.ToReservedEntity(
+            reservation,
+            new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero));
+
+        Assert.Equal("WordPress", entity.PlatformType);
+        Assert.Contains("\"siteUrl\":\"https://example.com\"", entity.PublishSettingsJson);
+        Assert.Contains("\"username\":\"editor\"", entity.PublishSettingsJson);
+        Assert.Contains("\"postStatus\":\"publish\"", entity.PublishSettingsJson);
+        Assert.DoesNotContain("applicationPassword", entity.PublishSettingsJson);
+        Assert.DoesNotContain("application-password", entity.PublishSettingsJson);
+    }
+
     [Theory]
     [InlineData("NotPublished", PublishStatus.NotPublished)]
     [InlineData("Publishing", PublishStatus.Publishing)]
