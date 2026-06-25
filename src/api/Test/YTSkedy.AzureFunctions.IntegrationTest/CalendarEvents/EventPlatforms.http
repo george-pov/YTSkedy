@@ -84,7 +84,7 @@ Authorization: Bearer {{accessTokenReadOnly}}
 ### Publish to a platform whose YouTube channel is not configured
 # Use a platform whose publishSettings.credentials points at a reference that is
 # missing from the YouTubeChannels configuration section.
-# Expected response: 502 Bad Gateway (provider failure). The reservation is
+# Expected response: 502 Bad Gateway (provider failure). The attempt is
 # released, so the pair returns to NotPublished and can be retried. The host log
 # records only the non-secret credentials reference name.
 

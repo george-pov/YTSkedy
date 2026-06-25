@@ -9,7 +9,7 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// implementation lives in infrastructure and returns a provider-neutral
 /// <see cref="PlatformPublishResult"/>. A failed external call throws
 /// <see cref="PlatformPublishException"/> so the caller can release its
-/// reservation and surface an upstream failure.
+/// attempt and surface an upstream failure.
 /// </summary>
 public interface IPlatformPublisher
 {

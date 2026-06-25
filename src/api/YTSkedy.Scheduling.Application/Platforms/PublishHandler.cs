@@ -9,9 +9,9 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// event, the platform, and the selected provider, then guards state and content:
 /// an existing row that is orphaned, published, or publishing is a conflict; the
 /// start must be in the future; and the first slice requires an English title.
-/// It then reserves the publication row (a conditional write, so a concurrent
+/// It then starts the publication row (a conditional write, so a concurrent
 /// publish yields a conflict), calls the provider, and finalizes the row with the
-/// external resource id. A provider failure releases the reservation and surfaces
+/// external resource id. A provider failure releases the attempt and surfaces
 /// an upstream failure; a finalize failure after the external resource was
 /// created is recorded for follow-up because the first-slice provider abstraction
 /// has no cleanup.
@@ -45,7 +45,7 @@ public sealed class PublishHandler(
             return PublishResult.ForStatus(PublishResultStatus.PlatformNotFound);
         }
 
-        // Selecting the provider before reserving avoids leaving a Publishing row
+        // Selecting the provider before starting avoids leaving a Publishing row
         // stranded when no adapter serves the platform type.
         var publisher = publishers.Find(platform.Type);
         if (publisher is null)
@@ -89,19 +89,19 @@ public sealed class PublishHandler(
             return PublishResult.ForStatus(PublishResultStatus.MissingEnglishTitle);
         }
 
-        var reservation = new PlatformPublicationReservation(
+        var attempt = new PlatformPublicationAttempt(
             command.CalendarEventId,
             command.PlatformId,
             platform.Name,
             platform.Type,
             platform.PublishSettings);
 
-        var reservationResult = await publicationRepository.ReserveAsync(
-            reservation,
+        var startResult = await publicationRepository.StartPublishingAsync(
+            attempt,
             cancellationToken);
-        if (reservationResult == ReservePublicationResult.Conflict)
+        if (startResult == StartPublicationResult.Conflict)
         {
-            // A concurrent publish won the conditional reservation write.
+            // A concurrent publish won the conditional start write.
             return PublishResult.ForStatus(PublishResultStatus.PublishInProgress);
         }
 
@@ -120,7 +120,7 @@ public sealed class PublishHandler(
         }
         catch (PlatformPublishException exception)
         {
-            // Release the reservation so the pair returns to NotPublished and can
+            // Release the attempt so the pair returns to NotPublished and can
             // be retried. The provider already logged secret-safe details.
             logger.LogError(
                 exception,
@@ -128,7 +128,7 @@ public sealed class PublishHandler(
                 command.CalendarEventId,
                 command.PlatformId);
 
-            await publicationRepository.ReleaseAsync(
+            await publicationRepository.ReleasePublishingAsync(
                 command.CalendarEventId,
                 command.PlatformId,
                 cancellationToken);
@@ -143,7 +143,7 @@ public sealed class PublishHandler(
             cancellationToken);
         if (publishedUtc is null)
         {
-            // The external resource exists but the reserved row vanished before it
+            // The external resource exists but the started row vanished before it
             // could be finalized. There is no provider cleanup in this slice, so
             // record the orphaned external resource for operator follow-up.
             logger.LogError(

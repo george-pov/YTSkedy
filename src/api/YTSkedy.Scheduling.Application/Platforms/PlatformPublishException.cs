@@ -4,7 +4,7 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// Raised by an <see cref="IPlatformPublisher"/> when the external publish fails,
 /// including when the provider's credentials are not configured. The publish use
 /// case maps this to a <c>502 Bad Gateway</c> external-dependency failure and
-/// releases the reservation. The message must never contain secrets, tokens, or
+/// releases the attempt. The message must never contain secrets, tokens, or
 /// raw provider credentials.
 /// </summary>
 public sealed class PlatformPublishException : Exception

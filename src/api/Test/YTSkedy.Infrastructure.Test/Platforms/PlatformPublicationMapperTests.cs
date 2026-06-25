@@ -74,17 +74,17 @@ public class PlatformPublicationMapperTests
     }
 
     [Fact]
-    public void ToReservedEntity_BuildsPublishingRowWithCopiedPlatformDetails()
+    public void ToPublishingEntity_BuildsPublishingRowWithCopiedPlatformDetails()
     {
         var now = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
-        var reservation = new PlatformPublicationReservation(
+        var attempt = new PlatformPublicationAttempt(
             CalendarEventId,
             PlatformId,
             "Main YouTube channel",
             PlatformType.YouTube,
             new YouTubeSettings("main-youtube-channel", "private", false));
 
-        var entity = PlatformPublicationMapper.ToReservedEntity(reservation, now);
+        var entity = PlatformPublicationMapper.ToPublishingEntity(attempt, now);
 
         Assert.Equal("event-20260615T170000Z", entity.PartitionKey);
         Assert.Equal("platform-4fb4a32f3f344de1a7c3a9f4a2f94918", entity.RowKey);
@@ -101,17 +101,17 @@ public class PlatformPublicationMapperTests
     }
 
     [Fact]
-    public void ToReservedEntity_SerializesPublishSettingsThatRoundTrip()
+    public void ToPublishingEntity_SerializesPublishSettingsThatRoundTrip()
     {
-        var reservation = new PlatformPublicationReservation(
+        var attempt = new PlatformPublicationAttempt(
             CalendarEventId,
             PlatformId,
             "Main YouTube channel",
             PlatformType.YouTube,
             new YouTubeSettings("main-youtube-channel", "unlisted", true));
 
-        var entity = PlatformPublicationMapper.ToReservedEntity(
-            reservation,
+        var entity = PlatformPublicationMapper.ToPublishingEntity(
+            attempt,
             new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero));
 
         var settings = Assert.IsType<YouTubeSettings>(
@@ -122,9 +122,9 @@ public class PlatformPublicationMapperTests
     }
 
     [Fact]
-    public void ToReservedEntity_WordPressSettings_OmitsApplicationPasswordFromSnapshot()
+    public void ToPublishingEntity_WordPressSettings_OmitsApplicationPasswordFromSnapshot()
     {
-        var reservation = new PlatformPublicationReservation(
+        var attempt = new PlatformPublicationAttempt(
             CalendarEventId,
             PlatformId,
             "Main WordPress site",
@@ -135,8 +135,8 @@ public class PlatformPublicationMapperTests
                 "application-password",
                 "publish"));
 
-        var entity = PlatformPublicationMapper.ToReservedEntity(
-            reservation,
+        var entity = PlatformPublicationMapper.ToPublishingEntity(
+            attempt,
             new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero));
 
         Assert.Equal("WordPress", entity.PlatformType);

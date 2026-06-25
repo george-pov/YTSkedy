@@ -11,10 +11,9 @@ namespace YTSkedy.Infrastructure.Platforms;
 /// (<see cref="IPlatformPublicationReader"/>). Rows are partitioned by calendar
 /// event (<c>event-{calendarEventId}</c>) and keyed by platform
 /// (<c>platform-{platformId}</c>), so every publication for an event reads from
-/// one partition. Reservation uses a conditional insert so two concurrent
-/// publish attempts cannot both reserve the same pair. Only non-secret publish
-/// settings are stored. Storage identity, ETags, and id formatting stay inside
-/// this class.
+/// one partition. Starting an attempt uses a conditional insert so two
+/// concurrent publish attempts cannot both start the same pair. Storage
+/// identity, ETags, and id formatting stay inside this class.
 /// </summary>
 public sealed class AzurePlatformPublicationRepository(
     TableClient tableClient,
@@ -22,16 +21,16 @@ public sealed class AzurePlatformPublicationRepository(
     IPlatformPublicationRepository,
     IPlatformPublicationReader
 {
-    public async Task<ReservePublicationResult> ReserveAsync(
-        PlatformPublicationReservation reservation,
+    public async Task<StartPublicationResult> StartPublishingAsync(
+        PlatformPublicationAttempt attempt,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(reservation);
+        ArgumentNullException.ThrowIfNull(attempt);
 
         await tableClient.CreateIfNotExistsAsync(cancellationToken);
 
-        var entity = PlatformPublicationMapper.ToReservedEntity(
-            reservation,
+        var entity = PlatformPublicationMapper.ToPublishingEntity(
+            attempt,
             timeProvider.GetUtcNow());
 
         try
@@ -41,15 +40,15 @@ public sealed class AzurePlatformPublicationRepository(
             // row (publishing, published, or orphaned) is a conflict here.
             await tableClient.AddEntityAsync(entity, cancellationToken);
 
-            return ReservePublicationResult.Reserved;
+            return StartPublicationResult.Started;
         }
         catch (RequestFailedException exception) when (exception.Status == 409)
         {
-            return ReservePublicationResult.Conflict;
+            return StartPublicationResult.Conflict;
         }
     }
 
-    public async Task ReleaseAsync(
+    public async Task ReleasePublishingAsync(
         string calendarEventId,
         string platformId,
         CancellationToken cancellationToken)
@@ -99,7 +98,7 @@ public sealed class AzurePlatformPublicationRepository(
         try
         {
             // Conditional on the read ETag so the finalize cannot overwrite a
-            // concurrent change to the reserved row.
+            // concurrent change to the started row.
             await tableClient.UpdateEntityAsync(
                 entity,
                 entity.ETag,

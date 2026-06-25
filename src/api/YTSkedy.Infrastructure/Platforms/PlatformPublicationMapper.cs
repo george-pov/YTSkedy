@@ -5,8 +5,8 @@ namespace YTSkedy.Infrastructure.Platforms;
 
 /// <summary>
 /// Translates between <see cref="PlatformPublicationEntity"/> rows and the
-/// domain <see cref="PlatformPublication"/> read model, and builds the row that
-/// represents a fresh reservation. Status round-trips as its enum name; an
+/// domain <see cref="PlatformPublication"/> read model, and builds the row for
+/// a fresh attempt. Status round-trips as its enum name; an
 /// unparsable stored status is read defensively as
 /// <see cref="PublishStatus.NotPublished"/>. Publish settings snapshots are
 /// serialized without secret material through
@@ -41,30 +41,30 @@ internal static class PlatformPublicationMapper
     }
 
     /// <summary>
-    /// Builds the row for a new reservation. The status is fixed to
+    /// Builds the row for a new in-progress attempt. The status is fixed to
     /// <see cref="PublishStatus.Publishing"/> and the platform name, type, and
-    /// publish settings are copied from the reservation so the attempt is
+    /// publish settings are copied from the attempt so the attempt is
     /// described by the settings in effect when it started.
     /// </summary>
-    internal static PlatformPublicationEntity ToReservedEntity(
-        PlatformPublicationReservation reservation,
+    internal static PlatformPublicationEntity ToPublishingEntity(
+        PlatformPublicationAttempt attempt,
         DateTimeOffset now)
     {
-        ArgumentNullException.ThrowIfNull(reservation);
+        ArgumentNullException.ThrowIfNull(attempt);
 
         return new PlatformPublicationEntity
         {
-            PartitionKey = PlatformPublicationKey.PartitionKeyFor(reservation.CalendarEventId),
-            RowKey = PlatformPublicationKey.RowKeyFor(reservation.PlatformId),
-            CalendarEventId = reservation.CalendarEventId,
-            PlatformId = reservation.PlatformId,
-            PlatformName = reservation.PlatformName,
-            PlatformType = reservation.PlatformType.ToString(),
+            PartitionKey = PlatformPublicationKey.PartitionKeyFor(attempt.CalendarEventId),
+            RowKey = PlatformPublicationKey.RowKeyFor(attempt.PlatformId),
+            CalendarEventId = attempt.CalendarEventId,
+            PlatformId = attempt.PlatformId,
+            PlatformName = attempt.PlatformName,
+            PlatformType = attempt.PlatformType.ToString(),
             Status = PublishStatus.Publishing.ToString(),
             ExternalResourceId = null,
             PublishSettingsJson = PublishSettingsSerializer.SerializeSnapshot(
-                reservation.PlatformType,
-                reservation.PublishSettings),
+                attempt.PlatformType,
+                attempt.PublishSettings),
             PublishedUtc = null,
             PlatformDeletedUtc = null,
             CreatedUtc = now,

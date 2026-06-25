@@ -2,7 +2,7 @@ namespace YTSkedy.Scheduling.Domain.Platforms;
 
 /// <summary>
 /// Authoritative publish state for one calendar event and one
-/// <see cref="Platform"/>. A row is created lazily when a publish is reserved, so
+/// <see cref="Platform"/>. A row is created lazily when a publish is started, so
 /// the absence of a row is read as <see cref="PublishStatus.NotPublished"/>. The
 /// platform name and type are copied onto the row so the publication can still be
 /// described after the platform is deleted. When a platform is deleted with

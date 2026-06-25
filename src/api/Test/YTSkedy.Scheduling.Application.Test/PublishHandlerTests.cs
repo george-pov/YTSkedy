@@ -126,9 +126,9 @@ public class PublishHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_ReservationConflict_ReturnsPublishInProgress()
+    public async Task HandleAsync_AttemptConflict_ReturnsPublishInProgress()
     {
-        var repository = new FakePublicationRepository { ReserveResult = ReservePublicationResult.Conflict };
+        var repository = new FakePublicationRepository { StartResult = StartPublicationResult.Conflict };
         var handler = CreateHandler(
             Event(FutureStart),
             Platform(),
@@ -141,7 +141,7 @@ public class PublishHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_ProviderFailure_ReleasesReservationAndReturnsProviderFailed()
+    public async Task HandleAsync_ProviderFailure_ReleasesAttemptAndReturnsProviderFailed()
     {
         var repository = new FakePublicationRepository();
         var publisher = new FakePublisher { Throws = new PlatformPublishException("provider down") };
@@ -168,7 +168,7 @@ public class PublishHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_Success_ReservesPublishesFinalizesAndReturnsPublished()
+    public async Task HandleAsync_Success_StartsPublishesFinalizesAndReturnsPublished()
     {
         var publishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 5, TimeSpan.Zero);
         var repository = new FakePublicationRepository { MarkPublishedResult = publishedUtc };
@@ -183,7 +183,7 @@ public class PublishHandlerTests
         Assert.Equal("yt-broadcast-id", result.ExternalResourceId);
         Assert.Equal(publishedUtc, result.PublishedUtc);
 
-        Assert.True(repository.Reserved);
+        Assert.True(repository.Started);
         Assert.Equal("yt-broadcast-id", repository.MarkedExternalResourceId);
         Assert.False(repository.ReleaseCalled);
 
@@ -299,12 +299,12 @@ public class PublishHandlerTests
 
     private sealed class FakePublicationRepository : IPlatformPublicationRepository
     {
-        public ReservePublicationResult ReserveResult { get; init; } = ReservePublicationResult.Reserved;
+        public StartPublicationResult StartResult { get; init; } = StartPublicationResult.Started;
 
         public DateTimeOffset? MarkPublishedResult { get; init; } =
             new DateTimeOffset(2026, 6, 22, 12, 0, 5, TimeSpan.Zero);
 
-        public bool Reserved { get; private set; }
+        public bool Started { get; private set; }
 
         public bool ReleaseCalled { get; private set; }
 
@@ -312,16 +312,16 @@ public class PublishHandlerTests
 
         public string? MarkedExternalResourceId { get; private set; }
 
-        public Task<ReservePublicationResult> ReserveAsync(
-            PlatformPublicationReservation reservation,
+        public Task<StartPublicationResult> StartPublishingAsync(
+            PlatformPublicationAttempt attempt,
             CancellationToken cancellationToken)
         {
-            Reserved = ReserveResult == ReservePublicationResult.Reserved;
+            Started = StartResult == StartPublicationResult.Started;
 
-            return Task.FromResult(ReserveResult);
+            return Task.FromResult(StartResult);
         }
 
-        public Task ReleaseAsync(
+        public Task ReleasePublishingAsync(
             string calendarEventId,
             string platformId,
             CancellationToken cancellationToken)

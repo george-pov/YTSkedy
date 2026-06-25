@@ -214,12 +214,12 @@ public class DeletePlatformHandlerTests
     {
         public string? OrphanedPlatformId { get; private set; }
 
-        public Task<ReservePublicationResult> ReserveAsync(
-            PlatformPublicationReservation reservation,
+        public Task<StartPublicationResult> StartPublishingAsync(
+            PlatformPublicationAttempt attempt,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task ReleaseAsync(
+        public Task ReleasePublishingAsync(
             string calendarEventId,
             string platformId,
             CancellationToken cancellationToken) =>
