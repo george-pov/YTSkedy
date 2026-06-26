@@ -4,6 +4,16 @@ YTSkedy is an open source full-stack application split into a backend API
 workspace and a frontend UI workspace. This document owns the shared system map
 only. Boundary-specific implementation guidance lives in the API and UI docs.
 
+## Ownership
+
+- Source of truth: shared system map, responsibility boundaries, runtime shape,
+  dependency direction, and durable documentation ownership rules.
+- Update when: repository boundaries, system responsibilities, runtime flow,
+  dependency direction, or documentation ownership changes.
+- Validate with: verify links to boundary docs, confirm endpoint shapes stay in
+  API HTTP docs, confirm domain vocabulary stays in naming guidance, and run
+  `git diff --check`.
+
 ## Repository Layout
 
 - `src/api/`: .NET backend solution. Contains the Azure Functions host,
@@ -20,8 +30,6 @@ only. Boundary-specific implementation guidance lives in the API and UI docs.
   contract docs.
 - `docs/development/naming-guidance.md`: shared domain vocabulary and naming
   conventions.
-- `.work/`: local-only workflow records for agents. Durable docs should not
-  reference `.work/`.
 
 ## System Responsibilities
 

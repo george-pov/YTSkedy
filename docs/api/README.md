@@ -2,6 +2,15 @@
 
 Durable documentation for the backend API under `src/api/`.
 
+## Ownership
+
+- Source of truth: backend API documentation index and API doc scope.
+- Update when: adding, removing, renaming, or moving API docs, or when API doc
+  ownership changes across architecture, HTTP contracts, persistence,
+  configuration, development, testing, or operations.
+- Validate with: compare this index against `rg --files docs/api`, verify
+  edited links resolve, and run `git diff --check`.
+
 ## Contents
 
 - Architecture: [`architecture.md`](architecture.md)

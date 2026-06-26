@@ -2,6 +2,15 @@
 
 Durable documentation for the Angular frontend under `src/ui/`.
 
+## Ownership
+
+- Source of truth: Angular UI documentation index and UI doc scope.
+- Update when: adding, removing, renaming, or moving UI docs, or when UI doc
+  ownership changes across architecture, routes, development, testing, styling,
+  responsive layout, or runtime configuration.
+- Validate with: compare this index against `rg --files docs/ui`, verify edited
+  links resolve, and run `git diff --check`.
+
 ## Contents
 
 - Architecture: [`architecture.md`](architecture.md)

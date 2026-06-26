@@ -3,6 +3,17 @@
 This document defines domain vocabulary and naming rules for YTSkedy code and
 tests.
 
+## Ownership
+
+- Source of truth: durable domain vocabulary, naming rules, and code identifier
+  glossary for YTSkedy.
+- Update when: adding a durable domain concept, changing preferred terminology,
+  adding a provider concept that crosses boundaries, or changing backend naming
+  enforcement guidance.
+- Validate with: compare touched code and docs against the vocabulary, verify
+  references when adding external guidance, run `git diff --check`, and run
+  `dotnet format` only when `.editorconfig` naming rules change.
+
 ## Scope
 
 Domain vocabulary in this document applies across backend API code, frontend UI
