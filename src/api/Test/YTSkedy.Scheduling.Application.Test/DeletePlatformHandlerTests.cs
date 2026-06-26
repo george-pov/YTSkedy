@@ -235,6 +235,13 @@ public class DeletePlatformHandlerTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
+        public Task<DeletePublishedResult> DeletePublishedAsync(
+            string calendarEventId,
+            string platformId,
+            string externalResourceId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<int> OrphanPublishedByPlatformAsync(
             string platformId,
             CancellationToken cancellationToken)

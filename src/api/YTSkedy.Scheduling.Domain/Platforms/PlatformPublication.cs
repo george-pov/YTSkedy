@@ -19,7 +19,8 @@ public sealed record PlatformPublication(
     string? ExternalResourceId,
     DateTimeOffset? PublishedUtc,
     DateTimeOffset? PlatformDeletedUtc,
-    DateTimeOffset UpdatedUtc)
+    DateTimeOffset UpdatedUtc,
+    PublicationTargetSnapshot? TargetSnapshot = null)
 {
     /// <summary>
     /// True when the platform this publication targeted has been deleted, so the

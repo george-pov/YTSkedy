@@ -49,7 +49,8 @@ public sealed class GetCalendarEventDetailResponseTests
                 null,
                 null,
                 null,
-                CanPublish: true),
+                CanPublish: true,
+                CanDeletePublication: false),
             new EventPlatformView(
                 OrphanPlatformId,
                 "Old channel",
@@ -58,7 +59,8 @@ public sealed class GetCalendarEventDetailResponseTests
                 "oldyoutubeid",
                 publishedUtc,
                 deletedUtc,
-                CanPublish: false)
+                CanPublish: false,
+                CanDeletePublication: false)
         };
         var detail = new CalendarEventDetailView(CreateEvent(), views);
 
@@ -75,6 +77,7 @@ public sealed class GetCalendarEventDetailResponseTests
         Assert.Null(active.PublishedUtc);
         Assert.Null(active.PlatformDeletedUtc);
         Assert.True(active.CanPublish);
+        Assert.False(active.CanDeletePublication);
 
         var orphan = response.Platforms[1];
         Assert.Equal(OrphanPlatformId, orphan.PlatformId);
@@ -83,6 +86,7 @@ public sealed class GetCalendarEventDetailResponseTests
         Assert.Equal(publishedUtc, orphan.PublishedUtc);
         Assert.Equal(deletedUtc, orphan.PlatformDeletedUtc);
         Assert.False(orphan.CanPublish);
+        Assert.False(orphan.CanDeletePublication);
     }
 
     [Fact]
@@ -97,7 +101,8 @@ public sealed class GetCalendarEventDetailResponseTests
             "abc123youtubeid",
             publishedUtc,
             null,
-            CanPublish: false);
+            CanPublish: false,
+            CanDeletePublication: true);
 
         var response = CalendarEventsApi.ToEventPlatformResponse(view);
 
@@ -106,6 +111,7 @@ public sealed class GetCalendarEventDetailResponseTests
         Assert.Equal(publishedUtc, response.PublishedUtc);
         Assert.Null(response.PlatformDeletedUtc);
         Assert.False(response.CanPublish);
+        Assert.True(response.CanDeletePublication);
     }
 
     [Fact]
@@ -120,12 +126,14 @@ public sealed class GetCalendarEventDetailResponseTests
             "oldyoutubeid",
             new DateTimeOffset(2026, 6, 20, 8, 0, 0, TimeSpan.Zero),
             deletedUtc,
-            CanPublish: false);
+            CanPublish: false,
+            CanDeletePublication: false);
 
         var response = CalendarEventsApi.ToEventPlatformResponse(view);
 
         Assert.Equal(deletedUtc, response.PlatformDeletedUtc);
         Assert.False(response.CanPublish);
+        Assert.False(response.CanDeletePublication);
     }
 
     private static CalendarEventView CreateEvent() =>

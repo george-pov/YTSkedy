@@ -16,12 +16,16 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 internal static class EventPlatformProjection
 {
     internal static IReadOnlyList<EventPlatformView> Project(
+        Domain.CalendarEvents.CalendarEventView calendarEvent,
         IReadOnlyList<PlatformView> activePlatforms,
-        IReadOnlyList<PlatformPublication> publicationRows)
+        IReadOnlyList<PlatformPublication> publicationRows,
+        DateTimeOffset now)
     {
+        ArgumentNullException.ThrowIfNull(calendarEvent);
         ArgumentNullException.ThrowIfNull(activePlatforms);
         ArgumentNullException.ThrowIfNull(publicationRows);
 
+        var isFuture = calendarEvent.ScheduledStartUtc > now;
         var publicationsByPlatform = publicationRows.ToDictionary(
             publication => publication.PlatformId,
             StringComparer.Ordinal);
@@ -36,6 +40,7 @@ internal static class EventPlatformProjection
             // rather than read from storage.
             var status = publication?.Status ?? PublishStatus.NotPublished;
             var isOrphaned = publication?.IsOrphaned ?? false;
+            var hasExternalResourceId = !string.IsNullOrWhiteSpace(publication?.ExternalResourceId);
 
             items.Add(new EventPlatformView(
                 platform.PlatformId,
@@ -45,7 +50,12 @@ internal static class EventPlatformProjection
                 publication?.ExternalResourceId,
                 publication?.PublishedUtc,
                 publication?.PlatformDeletedUtc,
-                PlatformActionPolicy.CanPublish(status, isOrphaned)));
+                PlatformActionPolicy.CanPublish(status, isOrphaned, isFuture),
+                PlatformActionPolicy.CanDeletePublication(
+                    status,
+                    isOrphaned,
+                    hasExternalResourceId,
+                    isFuture)));
         }
 
         var activePlatformIds = activePlatforms
@@ -70,7 +80,15 @@ internal static class EventPlatformProjection
                 publication.ExternalResourceId,
                 publication.PublishedUtc,
                 publication.PlatformDeletedUtc,
-                PlatformActionPolicy.CanPublish(publication.Status, publication.IsOrphaned)));
+                PlatformActionPolicy.CanPublish(
+                    publication.Status,
+                    publication.IsOrphaned,
+                    isFuture),
+                PlatformActionPolicy.CanDeletePublication(
+                    publication.Status,
+                    publication.IsOrphaned,
+                    !string.IsNullOrWhiteSpace(publication.ExternalResourceId),
+                    isFuture)));
         }
 
         return items;

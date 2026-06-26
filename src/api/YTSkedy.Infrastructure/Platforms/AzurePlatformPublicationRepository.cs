@@ -114,6 +114,64 @@ public sealed class AzurePlatformPublicationRepository(
         }
     }
 
+    public async Task<DeletePublishedResult> DeletePublishedAsync(
+        string calendarEventId,
+        string platformId,
+        string externalResourceId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(externalResourceId);
+
+        var entity = await TryGetEntityAsync(calendarEventId, platformId, cancellationToken);
+
+        if (entity is null)
+        {
+            return DeletePublishedResult.NotFound;
+        }
+
+        var eligibility = CanDeletePublished(entity, externalResourceId);
+        if (eligibility != DeletePublishedResult.Deleted)
+        {
+            return eligibility;
+        }
+
+        try
+        {
+            await tableClient.DeleteEntityAsync(
+                entity.PartitionKey,
+                entity.RowKey,
+                entity.ETag,
+                cancellationToken);
+
+            return DeletePublishedResult.Deleted;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            return DeletePublishedResult.NotFound;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 412)
+        {
+            return DeletePublishedResult.Changed;
+        }
+    }
+
+    internal static DeletePublishedResult CanDeletePublished(
+        PlatformPublicationEntity entity,
+        string externalResourceId)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        ArgumentException.ThrowIfNullOrWhiteSpace(externalResourceId);
+
+        var status = PlatformPublicationMapper.ParseStatus(entity.Status);
+        return status == PublishStatus.Published &&
+            entity.PlatformDeletedUtc is null &&
+            string.Equals(entity.ExternalResourceId, externalResourceId, StringComparison.Ordinal)
+                ? DeletePublishedResult.Deleted
+                : DeletePublishedResult.Changed;
+    }
+
     public async Task<int> OrphanPublishedByPlatformAsync(
         string platformId,
         CancellationToken cancellationToken)

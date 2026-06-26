@@ -383,6 +383,13 @@ public class PublishHandlerTests
             return Task.FromResult(MarkPublishedResult);
         }
 
+        public Task<DeletePublishedResult> DeletePublishedAsync(
+            string calendarEventId,
+            string platformId,
+            string externalResourceId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<int> OrphanPublishedByPlatformAsync(
             string platformId,
             CancellationToken cancellationToken) =>

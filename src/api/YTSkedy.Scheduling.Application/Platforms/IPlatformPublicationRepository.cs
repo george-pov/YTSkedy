@@ -43,6 +43,20 @@ public interface IPlatformPublicationRepository
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Deletes a completed publication row after provider cleanup succeeds.
+    /// Deletion is conditional on the row still being non-orphan
+    /// <see cref="Domain.Platforms.PublishStatus.Published"/> with the same
+    /// provider <paramref name="externalResourceId"/>. This is separate from
+    /// <see cref="ReleasePublishingAsync"/>, which only releases failed
+    /// in-progress attempts.
+    /// </summary>
+    Task<DeletePublishedResult> DeletePublishedAsync(
+        string calendarEventId,
+        string platformId,
+        string externalResourceId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Orphans the <see cref="Domain.Platforms.PublishStatus.Published"/> rows for
     /// a platform by stamping each with the platform-deleted instant, keeping the
     /// rows as read-only history when the platform is deleted. Rows in other

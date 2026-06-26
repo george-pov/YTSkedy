@@ -108,6 +108,21 @@ public class PublishSettingsSerializerTests
     }
 
     [Fact]
+    public void DeserializeSnapshot_YouTubeSnapshot_ReturnsTargetSnapshot()
+    {
+        var json = PublishSettingsSerializer.SerializeSnapshot(
+            PlatformType.YouTube,
+            new YouTubeSettings(Credentials(), "private", false));
+
+        var snapshot = PublishSettingsSerializer.DeserializeSnapshot(PlatformType.YouTube, json);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(PlatformType.YouTube, snapshot!.PlatformType);
+        Assert.Equal("client-id", snapshot.YouTubeClientId);
+        Assert.Null(snapshot.WordPressSiteUrl);
+    }
+
+    [Fact]
     public void SerializeSnapshot_WordPressSettings_OmitsApplicationPassword()
     {
         var json = PublishSettingsSerializer.SerializeSnapshot(
@@ -125,6 +140,31 @@ public class PublishSettingsSerializerTests
         Assert.Equal("draft", root.GetProperty("postStatus").GetString());
         Assert.False(root.TryGetProperty("applicationPassword", out _));
         Assert.DoesNotContain("application-password", json);
+    }
+
+    [Fact]
+    public void DeserializeSnapshot_WordPressSnapshot_ReturnsTargetSnapshot()
+    {
+        var json = PublishSettingsSerializer.SerializeSnapshot(
+            PlatformType.WordPress,
+            new WordPressSettings(
+                "https://example.com",
+                "editor",
+                "application-password",
+                "draft"));
+
+        var snapshot = PublishSettingsSerializer.DeserializeSnapshot(PlatformType.WordPress, json);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(PlatformType.WordPress, snapshot!.PlatformType);
+        Assert.Equal("https://example.com", snapshot.WordPressSiteUrl);
+        Assert.Null(snapshot.YouTubeClientId);
+    }
+
+    [Fact]
+    public void DeserializeSnapshot_MalformedJson_ReturnsNull()
+    {
+        Assert.Null(PublishSettingsSerializer.DeserializeSnapshot(PlatformType.YouTube, "{not-json"));
     }
 
     private static YouTubeCredentials Credentials() =>

@@ -426,9 +426,9 @@ public sealed class CalendarEventsApi(
     /// <summary>
     /// Maps one event-platform projection item to its response shape: the
     /// platform id and type a client needs to drive the publish route, the
-    /// publication status, and the precomputed <c>canPublish</c> action flag.
-    /// Orphaned history rows set <c>platformDeletedUtc</c> and report
-    /// <c>canPublish: false</c>.
+    /// publication status, and the precomputed row action flags. Orphaned
+    /// history rows set <c>platformDeletedUtc</c> and report both action flags
+    /// as false.
     /// </summary>
     internal static EventPlatformResponse ToEventPlatformResponse(EventPlatformView view)
     {
@@ -442,7 +442,8 @@ public sealed class CalendarEventsApi(
             view.ExternalResourceId,
             view.PublishedUtc,
             view.PlatformDeletedUtc,
-            view.CanPublish);
+            view.CanPublish,
+            view.CanDeletePublication);
     }
 
     private static string ToSortString(CalendarEventSortField sort) =>

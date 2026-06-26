@@ -2,21 +2,37 @@ namespace YTSkedy.Scheduling.Domain.Platforms;
 
 /// <summary>
 /// Decides which actions a publication state allows. Centralizing the rules keeps
-/// the event-platform listing, the publish use case, and the platform delete
-/// guard consistent. The policy is intentionally state-only: event timing and
-/// provider-required content are validated separately at publish time.
+/// the event-platform listing, the publish use case, the publication delete use
+/// case, and the platform delete guard consistent.
 /// </summary>
 public static class PlatformActionPolicy
 {
     /// <summary>
-    /// True when a publish may be attempted. A publish is allowed only for an
-    /// active platform whose publication is <see cref="PublishStatus.NotPublished"/>.
-    /// Orphaned history, in-flight (<see cref="PublishStatus.Publishing"/>), and
-    /// completed (<see cref="PublishStatus.Published"/>) publications are not
-    /// publishable in this iteration.
+    /// True when a publish may be attempted. A publish is allowed only for a
+    /// future event on an active platform whose publication is
+    /// <see cref="PublishStatus.NotPublished"/>. Orphaned history, in-flight
+    /// (<see cref="PublishStatus.Publishing"/>), and completed
+    /// (<see cref="PublishStatus.Published"/>) publications are not publishable.
     /// </summary>
-    public static bool CanPublish(PublishStatus status, bool isOrphaned) =>
-        !isOrphaned && status == PublishStatus.NotPublished;
+    public static bool CanPublish(
+        PublishStatus status,
+        bool isOrphaned,
+        bool isFuture) =>
+        !isOrphaned && isFuture && status == PublishStatus.NotPublished;
+
+    /// <summary>
+    /// True when a completed platform publication may be deleted. Only a future,
+    /// active, published row with a provider resource id is deletable.
+    /// </summary>
+    public static bool CanDeletePublication(
+        PublishStatus status,
+        bool isOrphaned,
+        bool hasExternalResourceId,
+        bool isFuture) =>
+        !isOrphaned &&
+        isFuture &&
+        hasExternalResourceId &&
+        status == PublishStatus.Published;
 
     /// <summary>
     /// True when a publication blocks deleting its platform. Deletion is blocked

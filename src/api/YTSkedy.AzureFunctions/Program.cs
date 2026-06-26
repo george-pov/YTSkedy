@@ -225,4 +225,10 @@ builder.Services.AddSingleton<IPlatformPublisher>(
 builder.Services.AddSingleton<IPlatformPublisherSelector, PlatformPublisherSelector>();
 builder.Services.AddScoped<PublishHandler>();
 
+// Platform publication cleanup: provider adapters are registered by the
+// infrastructure slice. Until then the selector is empty and the delete route
+// returns 501 for provider cleanup.
+builder.Services.AddSingleton<IPublicationDeleterSelector, PublicationDeleterSelector>();
+builder.Services.AddScoped<DeletePublicationHandler>();
+
 builder.Build().Run();

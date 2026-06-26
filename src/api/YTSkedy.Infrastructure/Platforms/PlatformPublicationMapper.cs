@@ -27,7 +27,10 @@ internal static class PlatformPublicationMapper
             entity.ExternalResourceId,
             entity.PublishedUtc,
             entity.PlatformDeletedUtc,
-            entity.UpdatedUtc);
+            entity.UpdatedUtc,
+            PublishSettingsSerializer.DeserializeSnapshot(
+                PlatformViewMapper.ParseType(entity.PlatformType),
+                entity.PublishSettingsJson));
     }
 
     internal static IReadOnlyList<PlatformPublication> ToPublications(

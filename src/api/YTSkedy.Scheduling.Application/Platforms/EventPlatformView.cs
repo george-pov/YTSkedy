@@ -8,8 +8,8 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// are reported as <see cref="PublishStatus.NotPublished"/> with no external
 /// resource. Orphaned history rows carry the deleted platform's name and type
 /// from the stored row and set <see cref="PlatformDeletedUtc"/>.
-/// <see cref="CanPublish"/> is the precomputed action flag from
-/// <see cref="PlatformActionPolicy"/>.
+/// <see cref="CanPublish"/> and <see cref="CanDeletePublication"/> are the
+/// precomputed action flags from <see cref="PlatformActionPolicy"/>.
 /// </summary>
 public sealed record EventPlatformView(
     string PlatformId,
@@ -19,4 +19,5 @@ public sealed record EventPlatformView(
     string? ExternalResourceId,
     DateTimeOffset? PublishedUtc,
     DateTimeOffset? PlatformDeletedUtc,
-    bool CanPublish);
+    bool CanPublish,
+    bool CanDeletePublication);

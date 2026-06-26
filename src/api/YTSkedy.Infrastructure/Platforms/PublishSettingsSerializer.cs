@@ -64,6 +64,31 @@ internal static class PublishSettingsSerializer
         };
     }
 
+    internal static PublicationTargetSnapshot? DeserializeSnapshot(PlatformType type, string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+
+            return type switch
+            {
+                PlatformType.YouTube => DeserializeYouTubeSnapshot(root),
+                PlatformType.WordPress => DeserializeWordPressSnapshot(root),
+                _ => null
+            };
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private static YouTubeSettings DeserializeYouTube(string json)
     {
         try
@@ -119,6 +144,35 @@ internal static class PublishSettingsSerializer
             ?? throw new ArgumentException(
                 "A WordPress platform requires WordPress publish settings.",
                 nameof(settings));
+
+    private static PublicationTargetSnapshot? DeserializeYouTubeSnapshot(JsonElement root)
+    {
+        if (!root.TryGetProperty("credentials", out var credentials) ||
+            !credentials.TryGetProperty("clientId", out var clientId) ||
+            string.IsNullOrWhiteSpace(clientId.GetString()))
+        {
+            return null;
+        }
+
+        return new PublicationTargetSnapshot(
+            PlatformType.YouTube,
+            WordPressSiteUrl: null,
+            YouTubeClientId: clientId.GetString()!.Trim());
+    }
+
+    private static PublicationTargetSnapshot? DeserializeWordPressSnapshot(JsonElement root)
+    {
+        if (!root.TryGetProperty("siteUrl", out var siteUrl) ||
+            string.IsNullOrWhiteSpace(siteUrl.GetString()))
+        {
+            return null;
+        }
+
+        return new PublicationTargetSnapshot(
+            PlatformType.WordPress,
+            WordPressSiteUrl: siteUrl.GetString()!.Trim(),
+            YouTubeClientId: null);
+    }
 
     private sealed record YouTubeSnapshot(
         YouTubeCredentialsSnapshot Credentials,

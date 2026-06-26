@@ -13,7 +13,8 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents;
 public sealed class GetCalendarEventDetailHandler(
     ICalendarEventReader calendarEvents,
     IPlatformReader platforms,
-    IPlatformPublicationReader publications)
+    IPlatformPublicationReader publications,
+    TimeProvider timeProvider)
 {
     public async Task<CalendarEventDetailView?> HandleAsync(
         string calendarEventId,
@@ -33,6 +34,10 @@ public sealed class GetCalendarEventDetailHandler(
 
         return new CalendarEventDetailView(
             calendarEvent,
-            EventPlatformProjection.Project(activePlatforms, publicationRows));
+            EventPlatformProjection.Project(
+                calendarEvent,
+                activePlatforms,
+                publicationRows,
+                timeProvider.GetUtcNow()));
     }
 }

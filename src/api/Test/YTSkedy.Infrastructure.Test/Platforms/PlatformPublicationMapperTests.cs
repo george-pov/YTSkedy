@@ -30,6 +30,9 @@ public class PlatformPublicationMapperTests
         Assert.Equal(publishedUtc, publication.PublishedUtc);
         Assert.Null(publication.PlatformDeletedUtc);
         Assert.Equal(updatedUtc, publication.UpdatedUtc);
+        Assert.NotNull(publication.TargetSnapshot);
+        Assert.Equal(PlatformType.YouTube, publication.TargetSnapshot!.PlatformType);
+        Assert.Equal("client-id", publication.TargetSnapshot.YouTubeClientId);
         Assert.False(publication.IsOrphaned);
     }
 
