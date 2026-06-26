@@ -147,19 +147,25 @@ one platform.
 - `StartPublishingAsync` creates the row directly as `Publishing` with a
   conditional insert, so two concurrent publish attempts cannot both start the
   same pair; the loser receives a conflict. The platform name, type, and a
-  sanitized publish-settings snapshot are copied onto the row when publishing
-  starts so the attempt stays describable even if the platform record later
-  changes.
+  secret-free target snapshot are copied onto the row when publishing starts so
+  cleanup can prove the active platform still points at the provider target
+  that created the external resource.
 - `ReleasePublishingAsync` removes a `Publishing` row to return the pair to
   computed `NotPublished` after a failed provider call. `MarkPublishedAsync`
   records the `Published` status, the provider `ExternalResourceId`, and the
   publish instant.
+- `DeletePublishedAsync` removes a completed publication row after provider
+  cleanup succeeds. The delete is conditional on the row still being non-orphan
+  `Published` with the same `ExternalResourceId`; otherwise the caller receives
+  a changed-row outcome and the row is kept.
 - Deleting a platform does not delete `Published` rows. The delete handler
   stamps `PlatformDeletedUtc` to turn them into read-only orphan history, and is
   blocked while any row for the platform is `Publishing`.
 - `PlatformPublications.PublishSettingsJson` is a snapshot, not the live
-  platform settings store. WordPress snapshots include `siteUrl`, `username`,
-  and `postStatus`, but must omit `applicationPassword`.
+  platform settings store. Cleanup target snapshots use only non-secret
+  provider target data such as the YouTube OAuth client id or the WordPress
+  site URL. They must omit secrets such as refresh tokens, client secrets, and
+  Application Passwords.
 - Calendar event ids reach the partition filter from the request route, so the
   partition literal is escaped (single quotes doubled) as defense in depth.
 

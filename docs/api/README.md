@@ -18,6 +18,8 @@ Durable documentation for the backend API under `src/api/`.
 - Deployment: [`operations/deployment.md`](operations/deployment.md)
 - YouTube publish setup:
   [`operations/youtube-publish-setup.md`](operations/youtube-publish-setup.md)
+- Platform publication cleanup:
+  [`operations/platform-publication-cleanup.md`](operations/platform-publication-cleanup.md)
 
 ## Scope
 

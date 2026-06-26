@@ -24,8 +24,8 @@ Every call must:
   `Authorization: Bearer <token>`. Missing, invalid, expired, wrong-audience,
   or wrong-issuer tokens return `401`.
 - Carry the scope required by the endpoint (`CalendarEvents.Read` for `GET`,
-  `CalendarEvents.Write` for `POST`, `PUT`, `DELETE`, and `publish`). Wrong
-  scope returns `403`.
+  `CalendarEvents.Write` for `POST`, `PUT`, `DELETE`, publish, and
+  publication delete). Wrong scope returns `403`.
 - Carry the `CalendarEvents.Operator` app role in the `roles` claim. Missing
   role returns `403`.
 
@@ -309,7 +309,8 @@ Status codes:
 
 After delete, the platform no longer appears in `GET /api/platforms`, but its
 `Published` publications remain visible as orphan history in the calendar event
-detail response with `platformDeletedUtc` set and `canPublish: false`.
+detail response with `platformDeletedUtc` set, `canPublish: false`, and
+`canDeletePublication: false`.
 
 ## Event Platform Publication State
 
@@ -317,7 +318,9 @@ The per-platform publication state of a calendar event is returned by the
 calendar event detail endpoint `GET /api/calendar-events/{calendarEventId}` as
 its `platforms` array (see [`calendar-events.md`](calendar-events.md), which
 documents the item fields and the `status` / `canPublish` / orphan-history
-semantics). There is no separate event-platform listing endpoint.
+semantics). Each row also carries `canDeletePublication`, the backend-computed
+flag that tells clients whether the platform publication can be deleted. There
+is no separate event-platform listing endpoint.
 
 ## Publish Calendar Event To Platform
 
@@ -395,6 +398,74 @@ State conflicts are evaluated before content validation, so an
 already-published or in-progress publication returns `409` even when the start
 is in the past.
 
+## Delete Platform Publication
+
+```text
+DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication
+```
+
+Deletes one completed platform publication from one calendar event. Both ids
+come from the route and the request body is empty. The API deletes or confirms
+the provider resource first, then conditionally deletes the local publication
+row only when it is still a non-orphan `Published` row with the same
+`externalResourceId`.
+
+The route is allowed only for a future calendar event by backend UTC time, an
+active platform, a `Published` publication with an `externalResourceId`, and a
+secret-free target snapshot that still matches the active platform. The browser
+must use the `canDeletePublication` flag from the calendar event detail row and
+must not re-derive eligibility from local time, status, or provider ids.
+
+For a YouTube platform, the provider cleanup deletes the stored
+`externalResourceId` as a YouTube `liveBroadcast` id. A YouTube not-found result
+is success-equivalent because the requested provider state already holds. A
+YouTube state conflict, such as a broadcast that cannot be deleted in its
+current provider status, maps to `409 Conflict`.
+
+For a WordPress platform, the provider cleanup treats `externalResourceId` as
+the numeric WordPress post id and calls
+`DELETE /wp-json/wp/v2/posts/{id}?force=true` with Basic Auth using the stored
+WordPress username and Application Password. A WordPress not-found result is
+success-equivalent. Authorization or other provider failures map to
+`502 Bad Gateway`.
+
+Success response (`200 OK`) is the recomputed event-platform row, using the
+same shape as `GET /api/calendar-events/{calendarEventId}`:
+
+```json
+{
+  "platformId": "4fb4a32f3f344de1a7c3a9f4a2f94918",
+  "platformName": "Main YouTube channel",
+  "platformType": "YouTube",
+  "status": "NotPublished",
+  "externalResourceId": null,
+  "publishedUtc": null,
+  "platformDeletedUtc": null,
+  "canPublish": true,
+  "canDeletePublication": false
+}
+```
+
+Status codes:
+
+- `200 OK` when provider cleanup succeeds, when the provider resource is
+  already gone, or when the local row is already not published. The response is
+  the recomputed event-platform row.
+- `404 Not Found` when the calendar event id or active platform id does not
+  exist.
+- `409 Conflict` when the publication is orphaned, the event start is past or
+  equal to backend UTC now, the row has no `externalResourceId`, the platform
+  target no longer matches the stored snapshot, a publish is already in
+  progress, the provider reports a state conflict, or the row changes before
+  local deletion.
+- `501 Not Implemented` when no provider cleanup adapter serves the platform
+  type.
+- `502 Bad Gateway` when provider cleanup fails. The local publication row is
+  kept so the operator can recover and retry.
+
+See [`../operations/platform-publication-cleanup.md`](../operations/platform-publication-cleanup.md)
+for provider-specific cleanup behavior and recovery notes.
+
 ## Manual Checks
 
 Manual `.http` checks live under:
@@ -405,8 +476,9 @@ src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/CalendarEvents/
 ```
 
 Platform CRUD and platform delete checks are in the `Platforms/` folder. Event
-platform listing and platform-aware publish checks are in the `CalendarEvents/`
-folder because they hang off the calendar-event route.
+platform listing, platform-aware publish checks, and platform-publication delete
+checks are in the `CalendarEvents/` folder because they hang off the
+calendar-event route.
 
 Before sending local requests:
 

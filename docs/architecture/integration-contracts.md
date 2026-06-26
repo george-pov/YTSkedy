@@ -16,6 +16,7 @@ Current implemented HTTP surface:
 - `PUT /api/calendar-events/{calendarEventId}`
 - `DELETE /api/calendar-events/{calendarEventId}`
 - `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
+- `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`
 - `GET /api/platforms` and `GET /api/platforms?type={type}`
 - `GET /api/platforms/{platformId}`
 - `POST /api/platforms`
@@ -38,8 +39,11 @@ that endpoint returns the calendar event detail shape
 `{ calendarEventId, start: { localDateTime, timeZoneId }, scheduledStartUtc, descriptions, platforms }`
 or `404` when the id is unknown. The `platforms` array carries one item per
 active platform plus orphan history, so the detail read exposes publish state in
-one call while the event itself stays provider-neutral. This is the only
-endpoint that exposes per-event publication state. Save sends
+one call while the event itself stays provider-neutral. Each platform row
+carries backend-computed `canPublish` and `canDeletePublication` flags; clients
+must use those flags rather than browser time or provider ids to decide which
+row actions to show. This is the only endpoint that exposes per-event
+publication state. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with a body of
 `{ descriptions: [{ language, title, description? }] }` and reads
 `{ calendarEventId }` from the response. The scheduled start is immutable on
@@ -96,16 +100,21 @@ platform (computed `NotPublished` when no row exists) plus orphan history for
 deleted platforms in its `platforms` array; and
 `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
 publishes to one selected platform and returns the provider-neutral
-`externalResourceId`. Deleting a platform preserves `Published` rows as
-read-only orphan history and is blocked while any row is `Publishing`. These
-routes reuse the `CalendarEvents.Read` (GET) and `CalendarEvents.Write` (POST,
-PUT, DELETE, publish) scopes; no new scope was added. YouTube publish settings
-accept `clientId`, `clientSecret`, and `refreshToken` on create and update; the
-secret values are stored only in the platform row, are never returned from HTTP
-reads, and are omitted from platform-publication snapshots. WordPress publish
-settings accept an Application Password on create and update; the Application
-Password is stored only in the platform row, is never returned from HTTP reads,
-and is omitted from platform-publication snapshots. The `Platforms` page
+`externalResourceId`. The row-level
+`DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`
+route deletes or confirms the provider resource first, then conditionally
+removes the local publication row and returns the recomputed event-platform row.
+Deleting a platform preserves `Published` rows as read-only orphan history and
+is blocked while any row is `Publishing`. These routes reuse the
+`CalendarEvents.Read` (GET) and `CalendarEvents.Write` (POST, PUT, DELETE,
+publish, and publication delete) scopes; no new scope was added. YouTube
+publish settings accept `clientId`, `clientSecret`, and `refreshToken` on
+create and update; the secret values are stored only in the platform row, are
+never returned from HTTP reads, and are omitted from platform-publication
+snapshots. WordPress publish settings accept an Application Password on create
+and update; the Application Password is stored only in the platform row, is
+never returned from HTTP reads, and is omitted from platform-publication
+snapshots. The `Platforms` page
 (`/platforms`) consumes the platform list, create, update, and delete endpoints
 through a typed
 `PlatformsService`, mapping the API `items` envelope and `platformId` field to
@@ -115,7 +124,8 @@ stored value. The canonical request, response, status-code, and publishing-model
 details live in
 [`../api/http/platforms.md`](../api/http/platforms.md). The
 `CalendarEventDetails` edit route renders the detail response `platforms` array
-and exposes a Publish action for each row with `canPublish: true`.
+and exposes a Publish action for each row with `canPublish: true` and a Delete
+publication action for each row with `canDeletePublication: true`.
 
 The UI must treat API request and response shapes as integration contracts.
 When a contract changes, update:
@@ -138,9 +148,10 @@ Azure Functions worker pipeline (not the Functions host key check).
   - `CalendarEvents.Write` for `POST /api/calendar-events`,
     `PUT /api/calendar-events/{calendarEventId}`,
     `DELETE /api/calendar-events/{calendarEventId}`.
-  - The `platforms`, event-platform listing, and publish routes reuse the same
-    scopes: `CalendarEvents.Read` for `GET`, `CalendarEvents.Write` for `POST`,
-    `PUT`, `DELETE`, and publish.
+  - The `platforms`, event-platform listing, publish, and
+    platform-publication delete routes reuse the same scopes:
+    `CalendarEvents.Read` for `GET`, `CalendarEvents.Write` for `POST`, `PUT`,
+    `DELETE`, publish, and publication delete.
 - Required app role on every protected endpoint:
   `CalendarEvents.Operator` (in the `roles` claim).
 - Frontend access tokens are obtained through MSAL via the YTSkedy-owned
@@ -198,9 +209,13 @@ The calendar-event-level YouTube publish route was removed for the platform
 publishing cutover. Publishing now goes through explicit platform endpoints:
 `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
 selects a configured platform and publishes through its provider adapter.
-YouTube and WordPress are implemented providers. The provider boundary is the
-application port `IPlatformPublisher`, selected by platform type; YouTube SDK
-types, WordPress REST DTOs, and provider credential handling stay inside
+Deleting a completed publication now goes through the matching
+`DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`
+endpoint, which selects provider cleanup through `IPlatformPublicationDeleter`
+before local row deletion. YouTube and WordPress are implemented providers. The
+provider boundary is the application port `IPlatformPublisher` for publish and
+`IPlatformPublicationDeleter` for cleanup, selected by platform type; YouTube
+SDK types, WordPress REST DTOs, and provider credential handling stay inside
 `YTSkedy.Infrastructure`.
 
 For YouTube, a platform stores Google OAuth `clientId`, `clientSecret`,
@@ -212,7 +227,11 @@ those stored settings. For WordPress, a platform stores `siteUrl`, `username`,
 username and Application Password. The event English title maps to WordPress
 `title`, the optional English description maps to `content`, `postStatus` maps
 to `status`, and the returned numeric post id becomes the provider-neutral
-`externalResourceId`.
+`externalResourceId`. Platform-publication delete uses the stored
+`externalResourceId` to delete the provider resource: a YouTube `liveBroadcast`
+delete for YouTube, and a WordPress hard post delete with `force=true` for
+WordPress. Cleanup is skipped when the active platform no longer matches the
+secret-free publication target snapshot.
 
 Per-user OAuth, credential migration to a dedicated secret store, and production
 telemetry remain roadmap integration surfaces. Implementation must satisfy

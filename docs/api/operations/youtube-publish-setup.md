@@ -7,7 +7,9 @@ platform's `publishSettings.credentials` object when creating or updating the
 platform.
 See [`../configuration.md`](../configuration.md) for how the API consumes them
 and [`../http/platforms.md`](../http/platforms.md) for the platform and publish
-contract.
+contract. See
+[`platform-publication-cleanup.md`](platform-publication-cleanup.md) for
+deleting scheduled broadcasts created by this integration.
 
 This is a proof-of-concept integration. The credentials are static and shared:
 every publish through a platform acts on the single YouTube channel that minted
@@ -153,6 +155,10 @@ production hardening item.
    `status: "Published"`, an `externalResourceId`, and `publishedUtc`.
 6. Confirm in YouTube Studio under Content, then Live: a private scheduled
    broadcast appears with the English title at the scheduled time.
+7. To delete that created broadcast through YTSkedy, call
+   `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`
+   before the event start time. On success the platform row returns to
+   `NotPublished` and can be published again.
 
 The platform CRUD, event platform listing, and publish manual checks under
 `src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/` exercise these steps.
@@ -193,6 +199,14 @@ already in progress, or orphaned because the platform was deleted, `404` means
 the calendar event or platform id is unknown, `501` means no provider serves the
 platform type, and `401` or `403` are the Entra sign-in, write-scope, or
 operator-role checks. See [`../http/platforms.md`](../http/platforms.md).
+
+Publication delete uses the same stored YouTube credentials to call
+`liveBroadcasts.delete`. A YouTube not-found result is success-equivalent.
+Provider state conflicts such as `liveBroadcastDeletionNotAllowed` return
+`409 Conflict`; credential, permission, quota, network, and other provider
+failures return `502 Bad Gateway`. See
+[`platform-publication-cleanup.md`](platform-publication-cleanup.md) for the
+cleanup recovery flow.
 
 ## Security
 

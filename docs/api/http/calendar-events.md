@@ -15,8 +15,8 @@ Every call must:
   `Authorization: Bearer <token>`. Missing, invalid, expired, wrong-audience,
   or wrong-issuer tokens return `401`.
 - Carry the scope required by the endpoint (`CalendarEvents.Read` for `GET`,
-  `CalendarEvents.Write` for `POST`, `PUT`, and `DELETE`). Wrong scope returns
-  `403`.
+  `CalendarEvents.Write` for `POST`, `PUT`, `DELETE`, platform publish, and
+  platform-publication delete). Wrong scope returns `403`.
 - Carry the `CalendarEvents.Operator` app role in the `roles` claim. Missing
   role returns `403`.
 
@@ -212,7 +212,8 @@ Success response (`200 OK`):
       "externalResourceId": null,
       "publishedUtc": null,
       "platformDeletedUtc": null,
-      "canPublish": true
+      "canPublish": true,
+      "canDeletePublication": false
     }
   ]
 }
@@ -228,9 +229,13 @@ Current behavior:
 - `externalResourceId` and `publishedUtc` are populated for `Published` items
   and are `null` otherwise.
 - `platformDeletedUtc` is set only on orphan history items whose platform was
-  deleted. Orphan items carry `canPublish: false`.
+  deleted. Orphan items carry `canPublish: false` and
+  `canDeletePublication: false`.
 - `canPublish` is `true` only for an active platform whose publication is
-  `NotPublished`.
+  `NotPublished` and whose calendar event start is future by backend UTC time.
+- `canDeletePublication` is `true` only for an active platform whose
+  publication is `Published`, has an `externalResourceId`, and whose calendar
+  event start is future by backend UTC time.
 - The `CalendarEventDetails` edit route (`/calendar-events/{calendarEventId}/edit`)
   consumes this endpoint to load an event into the form.
 
@@ -313,7 +318,8 @@ Rejected states and error mapping:
 Scope and proof-of-concept limitations:
 
 - Platform publication rows and provider cleanup are not handled by this
-  calendar-event endpoint in P01.
+  calendar-event endpoint. Use the platform-publication delete route for
+  provider cleanup and row reset.
 - The delete is a hard delete: removed events are not recoverable. Tombstones,
   recycle-bin behavior, audit retention, and restore are out of scope.
 - The `CalendarEventDetails` edit route
@@ -334,6 +340,9 @@ The publication state of an event is part of the calendar event detail response
 
 - `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
   publishes the event to one selected platform.
+- `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`
+  deletes one completed provider publication and resets the platform row when
+  cleanup succeeds.
 
 ## Manual Checks
 
