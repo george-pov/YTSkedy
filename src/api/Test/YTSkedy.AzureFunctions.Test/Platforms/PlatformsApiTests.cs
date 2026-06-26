@@ -50,9 +50,27 @@ public sealed class PlatformsApiTests
         Assert.Equal("Main YouTube channel", command.Name);
         Assert.Equal(PlatformType.YouTube, command.Type);
         var settings = Assert.IsType<YouTubeSettings>(command.PublishSettings);
-        Assert.Equal("main-youtube-channel", settings.Credentials);
+        Assert.Equal("client-id", settings.Credentials.ClientId);
+        Assert.Equal("client-secret", settings.Credentials.ClientSecret);
+        Assert.Equal("refresh-token", settings.Credentials.RefreshToken);
         Assert.Equal("private", settings.PrivacyStatus);
         Assert.False(settings.SelfDeclaredMadeForKids);
+    }
+
+    [Fact]
+    public void TryBuildCreateCommand_YouTubeMissingClientSecret_ReturnsBadRequest()
+    {
+        var request = new CreatePlatformRequest(
+            "Main YouTube channel",
+            "YouTube",
+            YouTubePayload(clientSecret: ""));
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
+
+        Assert.False(built);
+        Assert.Equal(
+            "Publish settings credentials client secret is required.",
+            BadRequestMessage(error));
     }
 
     [Fact]
@@ -195,15 +213,27 @@ public sealed class PlatformsApiTests
             "yt-platform",
             "Main YouTube channel",
             PlatformType.YouTube,
-            new YouTubeSettings("old-channel", "private", false));
-        var request = new UpdatePlatformRequest("Renamed YouTube channel", YouTubePayload());
+            YouTubeSettings(
+                clientId: "old-client-id",
+                clientSecret: "stored-client-secret",
+                refreshToken: "stored-refresh-token"));
+        var request = new UpdatePlatformRequest(
+            "Renamed YouTube channel",
+            YouTubePayload(
+                clientId: "new-client-id",
+                clientSecret: "",
+                refreshToken: null,
+                privacyStatus: "unlisted"));
 
         var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
 
         Assert.True(built);
         Assert.Equal("yt-platform", command.PlatformId);
         var settings = Assert.IsType<YouTubeSettings>(command.PublishSettings);
-        Assert.Equal("main-youtube-channel", settings.Credentials);
+        Assert.Equal("new-client-id", settings.Credentials.ClientId);
+        Assert.Equal("stored-client-secret", settings.Credentials.ClientSecret);
+        Assert.Equal("stored-refresh-token", settings.Credentials.RefreshToken);
+        Assert.Equal("unlisted", settings.PrivacyStatus);
     }
 
     [Fact]
@@ -265,16 +295,23 @@ public sealed class PlatformsApiTests
     }
 
     [Fact]
-    public void ToPublishSettingsResponse_YouTubeSettings_KeepsExistingShape()
+    public void ToPublishSettingsResponse_YouTubeSettings_RedactsSecrets()
     {
         var response = PlatformsApi.ToPublishSettingsResponse(
-            new YouTubeSettings("main-youtube-channel", "private", false));
+            YouTubeSettings());
 
-        Assert.Equal("main-youtube-channel", response.Credentials);
+        Assert.NotNull(response.Credentials);
+        Assert.Equal("client-id", response.Credentials.ClientId);
+        Assert.True(response.Credentials.ClientSecretConfigured);
+        Assert.True(response.Credentials.RefreshTokenConfigured);
         Assert.Equal("private", response.PrivacyStatus);
         Assert.False(response.SelfDeclaredMadeForKids);
         Assert.Null(response.SiteUrl);
         Assert.Null(response.ApplicationPasswordConfigured);
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+        Assert.DoesNotContain("client-secret", json);
+        Assert.DoesNotContain("refresh-token", json);
     }
 
     [Fact]
@@ -303,11 +340,16 @@ public sealed class PlatformsApiTests
         Assert.Equal(PlatformType.WordPress, type);
     }
 
-    private static PublishSettingsPayload YouTubePayload() =>
+    private static PublishSettingsPayload YouTubePayload(
+        string? clientId = "client-id",
+        string? clientSecret = "client-secret",
+        string? refreshToken = "refresh-token",
+        string? privacyStatus = "private",
+        bool? selfDeclaredMadeForKids = false) =>
         new(
-            "main-youtube-channel",
-            "private",
-            false,
+            new YouTubeCredentialsPayload(clientId, clientSecret, refreshToken),
+            privacyStatus,
+            selfDeclaredMadeForKids,
             null,
             null,
             null,
@@ -337,6 +379,12 @@ public sealed class PlatformsApiTests
                 "editor",
                 "stored-password",
                 "publish"));
+
+    private static YouTubeSettings YouTubeSettings(
+        string clientId = "client-id",
+        string clientSecret = "client-secret",
+        string refreshToken = "refresh-token") =>
+        new(new YouTubeCredentials(clientId, clientSecret, refreshToken), "private", false);
 
     private static string BadRequestMessage(IActionResult actionResult)
     {

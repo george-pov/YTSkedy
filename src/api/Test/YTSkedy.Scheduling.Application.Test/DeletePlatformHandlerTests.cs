@@ -11,7 +11,10 @@ public class DeletePlatformHandlerTests
         PlatformId,
         "Main channel",
         PlatformType.YouTube,
-        new YouTubeSettings("creds", "private", false));
+        new YouTubeSettings(
+            new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
+            "private",
+            false));
 
     [Fact]
     public async Task HandleAsync_NoPublishingRows_OrphansThenDeletesAndReturnsDeleted()

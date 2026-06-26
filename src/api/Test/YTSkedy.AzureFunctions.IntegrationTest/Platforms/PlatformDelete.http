@@ -21,8 +21,8 @@ Authorization: Bearer {{accessToken}}
 
 ### Delete a platform that has a Published publication row (orphan history)
 # Scenario 2: a platform that was published to. Set this up first:
-#   1. Create a platform (PlatformCrud.http) backed by a configured YouTube
-#      channel (see docs/api/operations/youtube-publish-setup.md).
+#   1. Create a YouTube platform (PlatformCrud.http) with OAuth values minted
+#      for the target channel (see docs/api/operations/youtube-publish-setup.md).
 #   2. Create a future calendar event with an English title
 #      (CalendarEvents/CreateCalendarEvent.http).
 #   3. Publish the event to the platform (CalendarEvents/EventPlatforms.http)

@@ -95,13 +95,15 @@ The `Platforms` page calls `GET /api/platforms` through the shared platforms
 API service and maps the backend `{ items: [...] }` envelope plus `platformId`
 field into the page-facing platform model. Create sends the selected type,
 name, and provider-specific publish settings to `POST /api/platforms`; the
-create type select offers YouTube and WordPress. YouTube settings include the
-credentials reference, privacy status, and made-for-kids flag. WordPress
-settings include site URL, username, Application Password, and post status.
-Edit sends name and publish settings to `PUT /api/platforms/{platformId}`. For
-WordPress, the Application Password input is intentionally blank on edit; a
-blank save omits the secret from the request so the API preserves the stored
-value, and a non-blank value replaces it. Delete calls
+create type select offers YouTube and WordPress. YouTube settings include
+client ID, client secret, refresh token, privacy status, and made-for-kids
+flag. WordPress settings include site URL, username, Application Password, and
+post status. Edit sends name and publish settings to
+`PUT /api/platforms/{platformId}`. For YouTube, the client secret and refresh
+token inputs are intentionally blank on edit; blank values are omitted so the
+API preserves the stored values. For WordPress, the Application Password input
+is intentionally blank on edit; a blank save omits the secret from the request
+so the API preserves the stored value, and a non-blank value replaces it. Delete calls
 `DELETE /api/platforms/{platformId}` and removes the row after a successful
 `204 No Content`. The HTTP client attaches an Entra External ID access token
 through the same bearer interceptor and calendar-event scopes used by the other

@@ -11,13 +11,16 @@ import {
   PlatformPublishSettings,
   PlatformType,
   UpdatePlatformRequest,
+  YouTubeCredentials,
   YouTubePrivacyStatus,
   YouTubePublishSettings,
   WordPressPostStatus,
 } from 'src/app/shared/api/platforms/platforms-service';
 
 export const nameMaxLength = 50;
-export const credentialsMaxLength = 100;
+export const youTubeClientIdMaxLength = 256;
+export const youTubeClientSecretMaxLength = 256;
+export const youTubeRefreshTokenMaxLength = 2048;
 export const wordPressSiteUrlMaxLength = 2048;
 export const wordPressUsernameMaxLength = 100;
 export const wordPressApplicationPasswordMaxLength = 512;
@@ -31,7 +34,11 @@ export const wordPressApplicationPasswordMaxLength = 512;
 export interface PlatformFormModel {
   type: string;
   name: string;
-  youTubeCredentials: string;
+  youTubeClientId: string;
+  youTubeClientSecret: string;
+  youTubeRefreshToken: string;
+  youTubeClientSecretConfigured: string;
+  youTubeRefreshTokenConfigured: string;
   youTubePrivacyStatus: string;
   youTubeMadeForKids: string;
   wordPressSiteUrl: string;
@@ -47,7 +54,11 @@ export function createPlatformFormModel(): PlatformFormModel {
   return {
     type: 'YouTube',
     name: '',
-    youTubeCredentials: '',
+    youTubeClientId: '',
+    youTubeClientSecret: '',
+    youTubeRefreshToken: '',
+    youTubeClientSecretConfigured: 'false',
+    youTubeRefreshTokenConfigured: 'false',
     youTubePrivacyStatus: 'private',
     youTubeMadeForKids: 'false',
     wordPressSiteUrl: '',
@@ -75,13 +86,37 @@ export function applyPlatformRules(path: SchemaPathTree<PlatformFormModel>): voi
     path,
     ({ value }) => value().type === 'YouTube',
     (youTubePath) => {
-      validate(youTubePath.youTubeCredentials, ({ value }) =>
+      validate(youTubePath.youTubeClientId, ({ value }) =>
         value().trim().length === 0
-          ? { kind: 'required', message: 'Credentials are required.' }
+          ? { kind: 'required', message: 'Client ID is required.' }
           : undefined,
       );
-      maxLength(youTubePath.youTubeCredentials, credentialsMaxLength, {
-        message: `Credentials must be at most ${credentialsMaxLength} characters.`,
+      maxLength(youTubePath.youTubeClientId, youTubeClientIdMaxLength, {
+        message: `Client ID must be at most ${youTubeClientIdMaxLength} characters.`,
+      });
+
+      validate(youTubePath.youTubeClientSecret, ({ value, valueOf }) => {
+        const configured = valueOf(youTubePath.youTubeClientSecretConfigured);
+        if (configured !== 'true' && value().trim().length === 0) {
+          return { kind: 'required', message: 'Client secret is required.' };
+        }
+
+        return undefined;
+      });
+      maxLength(youTubePath.youTubeClientSecret, youTubeClientSecretMaxLength, {
+        message: `Client secret must be at most ${youTubeClientSecretMaxLength} characters.`,
+      });
+
+      validate(youTubePath.youTubeRefreshToken, ({ value, valueOf }) => {
+        const configured = valueOf(youTubePath.youTubeRefreshTokenConfigured);
+        if (configured !== 'true' && value().trim().length === 0) {
+          return { kind: 'required', message: 'Refresh token is required.' };
+        }
+
+        return undefined;
+      });
+      maxLength(youTubePath.youTubeRefreshToken, youTubeRefreshTokenMaxLength, {
+        message: `Refresh token must be at most ${youTubeRefreshTokenMaxLength} characters.`,
       });
     },
   );
@@ -133,8 +168,21 @@ export function applyPlatformRules(path: SchemaPathTree<PlatformFormModel>): voi
 // settings yet (currently anything other than YouTube).
 function toPublishSettings(model: PlatformFormModel): PlatformPublishSettings | undefined {
   if (model.type === 'YouTube') {
+    const credentials: YouTubeCredentials = {
+      clientId: model.youTubeClientId.trim(),
+    };
+    const clientSecret = model.youTubeClientSecret.trim();
+    if (clientSecret.length > 0) {
+      credentials.clientSecret = clientSecret;
+    }
+
+    const refreshToken = model.youTubeRefreshToken.trim();
+    if (refreshToken.length > 0) {
+      credentials.refreshToken = refreshToken;
+    }
+
     return {
-      credentials: model.youTubeCredentials.trim(),
+      credentials,
       privacyStatus: model.youTubePrivacyStatus as YouTubePrivacyStatus,
       selfDeclaredMadeForKids: model.youTubeMadeForKids === 'true',
     };

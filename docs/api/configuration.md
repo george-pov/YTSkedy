@@ -49,38 +49,33 @@ issuer rejects valid tokens.
 ## YouTube Publish Settings
 
 Publishing a calendar event to a YouTube platform creates a scheduled YouTube
-live broadcast using static, predefined Google OAuth credentials. The backend
-exchanges the refresh token for short-lived access tokens at runtime, so there
-is no interactive Google consent at request time.
+live broadcast using Google OAuth credentials stored on the selected platform.
+The backend exchanges the refresh token for short-lived access tokens at
+runtime, so there is no interactive Google consent at request time.
 
-Credentials are configured per channel under the `YouTubeChannels` section,
-keyed by the non-secret `credentials` reference a platform stores in its publish
-settings. Each entry holds the Google OAuth secrets for one channel, so multiple
-YouTube platforms can publish to different channels.
+YouTube does not use API host configuration keys in this slice. Operators enter
+YouTube OAuth values through platform create or update requests:
 
-| Setting | Classification | Purpose |
+| Field | Classification | Purpose |
 | --- | --- | --- |
-| `YouTubeChannels:{reference}:ClientId` | Non-secret | Google OAuth 2.0 client identifier for that channel. |
-| `YouTubeChannels:{reference}:ClientSecret` | Secret | Google OAuth 2.0 client secret. |
-| `YouTubeChannels:{reference}:RefreshToken` | Secret | Long-lived refresh token minted once during setup with the YouTube scope. |
+| `publishSettings.credentials.clientId` | Non-secret | Google OAuth 2.0 client identifier. |
+| `publishSettings.credentials.clientSecret` | Secret | Google OAuth 2.0 client secret. |
+| `publishSettings.credentials.refreshToken` | Secret | Long-lived refresh token minted once during setup with the YouTube scope. |
+| `publishSettings.privacyStatus` | Non-secret | YouTube broadcast privacy, currently `private`, `public`, or `unlisted`. |
+| `publishSettings.selfDeclaredMadeForKids` | Non-secret | YouTube made-for-kids flag sent to the broadcast status. |
 
-`{reference}` is the platform's `publishSettings.credentials` value (for example
-`main-youtube-channel`). The lookup is case-insensitive. `ClientSecret` and
-`RefreshToken` are secrets: never commit real values; keep them in the ignored
-`local.settings.json` locally and in hosted app settings or a secret store in
-deployed environments.
+`clientSecret` and `refreshToken` are accepted on platform create and update but
+are never returned by platform reads. Responses return
+`credentials.clientSecretConfigured` and
+`credentials.refreshTokenConfigured` instead. On update, omitting either secret
+or sending it blank preserves the stored value; sending a non-blank value
+replaces it. `clientId` is returned because it is not secret and is required on
+create and update.
 
-Broadcast privacy (`privacyStatus`) and the made-for-kids flag
-(`selfDeclaredMadeForKids`) are no longer global configuration. They come from
-the selected platform's publish settings, so different platforms can publish
-with different visibility. See
+For local manual checks, keep YouTube client secrets and refresh tokens in
+`http-client.env.json.user`, not tracked `.http` environment files or
+`local.settings.json`. See
 [`../http/platforms.md`](../http/platforms.md) for the platform shape.
-
-Unlike the previous single-channel integration, channel configuration is not
-validated on host start. A publish that references an unconfigured or incomplete
-channel fails that request as a provider error (`502 Bad Gateway`) with only the
-non-secret reference name logged; it does not stop the Functions host. The
-calendar-event and platform CRUD endpoints work without any channel configured.
 
 For the one-time procedure that creates the Google Cloud project, OAuth client,
 and refresh token, see the setup runbook:
@@ -92,6 +87,9 @@ This is a proof-of-concept integration with deliberate limitations:
   on the single YouTube channel that minted that channel's refresh token,
   regardless of which user is signed in. A per-user Google OAuth flow is
   deferred.
+- The YouTube client secret and refresh token are stored in the platform row's
+  `PublishSettingsJson` so the provider can publish later. Moving provider
+  secrets to an app-managed secret store remains a production hardening item.
 - Only the English title, optional description, scheduled start, privacy, and
   made-for-kids state are sent. Thumbnails, categories, and stream binding are
   out of scope for this slice.
@@ -233,10 +231,10 @@ Per-contributor bearer tokens and deployed host URLs belong in
 
 Production configuration must define:
 
-- YouTube OAuth client IDs and callback behavior.
-- Credential store location or provider for provider secrets that are not
-  already externalized through host configuration.
-- Default channel assumptions.
+- YouTube OAuth client callback behavior and operator setup process.
+- Credential store location or provider for provider secrets that are currently
+  stored in platform rows.
+- Platform credential migration and rotation behavior.
 - API base URL behavior for the frontend host.
 - Feature flags for dry-run or preview flows.
 - Telemetry settings that do not expose secrets or personal account data.

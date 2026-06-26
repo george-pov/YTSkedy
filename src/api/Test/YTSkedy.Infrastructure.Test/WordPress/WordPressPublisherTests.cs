@@ -208,7 +208,10 @@ public class WordPressPublisherTests
 
         await Assert.ThrowsAsync<PlatformPublishException>(
             () => publisher.PublishAsync(
-                Request(new YouTubeSettings("creds", "private", false)),
+                Request(new YouTubeSettings(
+                    new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
+                    "private",
+                    false)),
                 CancellationToken.None));
     }
 

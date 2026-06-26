@@ -167,7 +167,10 @@ public class GetCalendarEventDetailHandlerTests
             [new LocalizedDescription("en", "English stream 1", null)]);
 
     private static PlatformView CreatePlatform(string platformId, string name) =>
-        new(platformId, name, PlatformType.YouTube, new YouTubeSettings("creds", "private", false));
+        new(platformId, name, PlatformType.YouTube, YouTubeSettings());
+
+    private static YouTubeSettings YouTubeSettings() =>
+        new(new YouTubeCredentials("client-id", "client-secret", "refresh-token"), "private", false);
 
     private static PlatformPublication CreatePublication(
         string platformId,

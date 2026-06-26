@@ -100,12 +100,14 @@ publishes to one selected platform and returns the provider-neutral
 read-only orphan history and is blocked while any row is `Publishing`. These
 routes reuse the `CalendarEvents.Read` (GET) and `CalendarEvents.Write` (POST,
 PUT, DELETE, publish) scopes; no new scope was added. YouTube publish settings
-store a non-secret credentials reference that resolves to `YouTubeChannels`
-configuration at publish time. WordPress publish settings accept an Application
-Password on create and update; the Application Password is stored only in the
-platform row, is never returned from HTTP reads, and is omitted from
-platform-publication snapshots. The `Platforms` page (`/platforms`) consumes the
-platform list, create, update, and delete endpoints through a typed
+accept `clientId`, `clientSecret`, and `refreshToken` on create and update; the
+secret values are stored only in the platform row, are never returned from HTTP
+reads, and are omitted from platform-publication snapshots. WordPress publish
+settings accept an Application Password on create and update; the Application
+Password is stored only in the platform row, is never returned from HTTP reads,
+and is omitted from platform-publication snapshots. The `Platforms` page
+(`/platforms`) consumes the platform list, create, update, and delete endpoints
+through a typed
 `PlatformsService`, mapping the API `items` envelope and `platformId` field to
 the page model. It renders YouTube and WordPress settings, leaving the
 WordPress Application Password blank on edit so a blank update preserves the
@@ -201,11 +203,12 @@ application port `IPlatformPublisher`, selected by platform type; YouTube SDK
 types, WordPress REST DTOs, and provider credential handling stay inside
 `YTSkedy.Infrastructure`.
 
-For YouTube, a platform's non-secret `credentials` reference resolves to
-channel secrets bound from the `YouTubeChannels` configuration section, which
-is never committed to source control. For WordPress, a platform stores
-`siteUrl`, `username`, `applicationPassword`, and `postStatus`; publishing posts
-to `POST /wp-json/wp/v2/posts` with Basic Auth using the configured WordPress
+For YouTube, a platform stores Google OAuth `clientId`, `clientSecret`,
+`refreshToken`, `privacyStatus`, and `selfDeclaredMadeForKids`; publishing
+creates a scheduled YouTube `liveBroadcast` through the YouTube Data API using
+those stored settings. For WordPress, a platform stores `siteUrl`, `username`,
+`applicationPassword`, and `postStatus`; publishing posts to
+`POST /wp-json/wp/v2/posts` with Basic Auth using the configured WordPress
 username and Application Password. The event English title maps to WordPress
 `title`, the optional English description maps to `content`, `postStatus` maps
 to `status`, and the returned numeric post id becomes the provider-neutral

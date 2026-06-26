@@ -82,7 +82,7 @@ public class PlatformPublicationMapperTests
             PlatformId,
             "Main YouTube channel",
             PlatformType.YouTube,
-            new YouTubeSettings("main-youtube-channel", "private", false));
+            new YouTubeSettings(Credentials(), "private", false));
 
         var entity = PlatformPublicationMapper.ToPublishingEntity(attempt, now);
 
@@ -108,17 +108,21 @@ public class PlatformPublicationMapperTests
             PlatformId,
             "Main YouTube channel",
             PlatformType.YouTube,
-            new YouTubeSettings("main-youtube-channel", "unlisted", true));
+            new YouTubeSettings(Credentials(), "unlisted", true));
 
         var entity = PlatformPublicationMapper.ToPublishingEntity(
             attempt,
             new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero));
 
-        var settings = Assert.IsType<YouTubeSettings>(
-            PublishSettingsSerializer.Deserialize(PlatformType.YouTube, entity.PublishSettingsJson));
-        Assert.Equal("main-youtube-channel", settings.Credentials);
-        Assert.Equal("unlisted", settings.PrivacyStatus);
-        Assert.True(settings.SelfDeclaredMadeForKids);
+        Assert.Contains("\"clientId\":\"client-id\"", entity.PublishSettingsJson);
+        Assert.Contains("\"clientSecretConfigured\":true", entity.PublishSettingsJson);
+        Assert.Contains("\"refreshTokenConfigured\":true", entity.PublishSettingsJson);
+        Assert.Contains("\"privacyStatus\":\"unlisted\"", entity.PublishSettingsJson);
+        Assert.Contains("\"selfDeclaredMadeForKids\":true", entity.PublishSettingsJson);
+        Assert.DoesNotContain("\"clientSecret\":\"", entity.PublishSettingsJson);
+        Assert.DoesNotContain("\"refreshToken\":\"", entity.PublishSettingsJson);
+        Assert.DoesNotContain("client-secret", entity.PublishSettingsJson);
+        Assert.DoesNotContain("refresh-token", entity.PublishSettingsJson);
     }
 
     [Fact]
@@ -178,8 +182,11 @@ public class PlatformPublicationMapperTests
             Status = status.ToString(),
             PublishSettingsJson = PublishSettingsSerializer.Serialize(
                 PlatformType.YouTube,
-                new YouTubeSettings("main-youtube-channel", "private", false)),
+                new YouTubeSettings(Credentials(), "private", false)),
             CreatedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
             UpdatedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
         };
+
+    private static YouTubeCredentials Credentials() =>
+        new("client-id", "client-secret", "refresh-token");
 }

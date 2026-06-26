@@ -216,14 +216,8 @@ builder.Services.AddScoped<IPlatformPublicationRepository>(
 builder.Services.AddScoped<IPlatformPublicationReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
 
-// Platform publishing: providers are selected by platform type. YouTube
-// resolves a non-secret credentials reference from configuration; WordPress
-// uses settings stored on the platform row.
-builder.Services
-    .AddOptions<YouTubeOptions>()
-    .Bind(builder.Configuration.GetSection(YouTubeOptions.SectionName));
-
-builder.Services.AddSingleton<IYouTubeCredentialStore, YouTubeCredentialStore>();
+// Platform publishing: providers are selected by platform type and use settings
+// stored on the platform row.
 builder.Services.AddSingleton<IPlatformPublisher, YouTubePublisher>();
 builder.Services.AddHttpClient<WordPressPublisher>();
 builder.Services.AddSingleton<IPlatformPublisher>(

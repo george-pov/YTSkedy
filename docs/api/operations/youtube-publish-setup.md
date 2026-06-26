@@ -1,11 +1,10 @@
 # YouTube Publish Setup
 
 One-time setup to let the API publish calendar events as scheduled YouTube live
-broadcasts. The result is three values for one channel that go in backend
-configuration under a chosen reference name: `YouTubeChannels:{reference}:ClientId`,
-`YouTubeChannels:{reference}:ClientSecret`, and
-`YouTubeChannels:{reference}:RefreshToken`. The `{reference}` name is what a
-YouTube platform stores as its non-secret `publishSettings.credentials` value.
+broadcasts. The result is three values for one channel: a Google OAuth client
+ID, client secret, and refresh token. Enter those values into a YouTube
+platform's `publishSettings.credentials` object when creating or updating the
+platform.
 See [`../configuration.md`](../configuration.md) for how the API consumes them
 and [`../http/platforms.md`](../http/platforms.md) for the platform and publish
 contract.
@@ -14,8 +13,8 @@ This is a proof-of-concept integration. The credentials are static and shared:
 every publish through a platform acts on the single YouTube channel that minted
 that channel's refresh token, regardless of which user is signed in to YTSkedy. A
 per-user Google OAuth flow is deferred. You can configure more than one channel
-by repeating this runbook with a different reference name. Do not commit any
-value produced here.
+by repeating this runbook for another YouTube platform. Do not commit any value
+produced here.
 
 ## Prerequisites
 
@@ -79,60 +78,68 @@ flow.
    channel. If an unverified-app warning appears, choose Advanced, then proceed;
    as the owner you can continue past it.
 5. Click Exchange authorization code for tokens.
-6. Copy the Refresh token value. This is the
-   `YouTubeChannels:{reference}:RefreshToken` secret.
+6. Copy the Refresh token value. This becomes the platform's
+   `publishSettings.credentials.refreshToken` secret.
 
-## Part C: Configure the backend
+## Part C: Store the values on a platform
 
-1. If you do not already have the gitignored settings file, copy the tracked
-   sample to it:
-
-   ```text
-   src/api/YTSkedy.AzureFunctions/local.settings.sample.json
-   -> src/api/YTSkedy.AzureFunctions/local.settings.json
-   ```
-
-2. Choose a reference name for the channel (for example `main-youtube-channel`)
-   and fill the values under `Values`:
+1. If you use the manual `.http` checks, keep the OAuth values only in
+   `http-client.env.json.user`:
 
    ```json
-   "YouTubeChannels:main-youtube-channel:ClientId": "your-google-oauth-client-id",
-   "YouTubeChannels:main-youtube-channel:ClientSecret": "your-google-oauth-client-secret",
-   "YouTubeChannels:main-youtube-channel:RefreshToken": "your-refresh-token-from-the-playground"
+   {
+     "local": {
+       "youtubeClientId": "your-google-oauth-client-id",
+       "youtubeClientSecret": "your-google-oauth-client-secret",
+       "youtubeRefreshToken": "your-refresh-token-from-the-playground"
+     }
+   }
    ```
 
-   The reference name must match the `publishSettings.credentials` value of the
-   YouTube platform you create later. To configure more channels, repeat this
-   runbook and add another `YouTubeChannels:{anotherReference}:*` group.
-
-Privacy and the made-for-kids flag are not configured here. They are part of each
-platform's publish settings, so keep test platforms at `private` to avoid public
-test broadcasts. Channel configuration is not validated on host start: a publish
-that references a missing or incomplete channel fails that request as a provider
-error, but the host still starts and the non-publish endpoints still work.
-
-For a hosted Azure deployment, set these as Function App application settings
-using the double-underscore form
-(`YouTubeChannels__main-youtube-channel__ClientId`,
-`YouTubeChannels__main-youtube-channel__ClientSecret`,
-`YouTubeChannels__main-youtube-channel__RefreshToken`) and prefer a secret store
-such as Key Vault for the two secret values. See [`deployment.md`](deployment.md).
-
-## Part D: Run and verify
-
-1. Start Azurite, or provide an Azure Storage connection string.
-2. Start the Azure Functions host. The local default port is
-   `http://localhost:7087`.
-3. Create a YouTube platform whose `publishSettings.credentials` equals the
-   reference name you chose in Part C, for example with
-   `POST /api/platforms`:
+2. Create a YouTube platform with those values in
+   `publishSettings.credentials`, for example through `POST /api/platforms`:
 
    ```json
    {
      "name": "Main YouTube channel",
      "type": "YouTube",
      "publishSettings": {
-       "credentials": "main-youtube-channel",
+       "credentials": {
+         "clientId": "your-google-oauth-client-id",
+         "clientSecret": "your-google-oauth-client-secret",
+         "refreshToken": "your-refresh-token-from-the-playground"
+       },
+       "privacyStatus": "private",
+       "selfDeclaredMadeForKids": false
+     }
+   }
+   ```
+
+Privacy and the made-for-kids flag are not configured here. They are part of each
+platform's publish settings, so keep test platforms at `private` to avoid public
+test broadcasts. YouTube provider credentials are stored in the platform row in
+this local/test slice, matching WordPress Application Password storage. Moving
+provider secrets to an app-managed secret store such as Key Vault remains a
+production hardening item.
+
+## Part D: Run and verify
+
+1. Start Azurite, or provide an Azure Storage connection string.
+2. Start the Azure Functions host. The local default port is
+   `http://localhost:7087`.
+3. Create a YouTube platform with the OAuth values from Part C, for example
+   with `POST /api/platforms`:
+
+   ```json
+   {
+     "name": "Main YouTube channel",
+     "type": "YouTube",
+     "publishSettings": {
+       "credentials": {
+         "clientId": "your-google-oauth-client-id",
+         "clientSecret": "your-google-oauth-client-secret",
+         "refreshToken": "your-refresh-token-from-the-playground"
+       },
        "privacyStatus": "private",
        "selfDeclaredMadeForKids": false
      }
@@ -163,7 +170,7 @@ Token lifetime:
   account owner revokes access, or if the per-account, per-client token limit is
   exceeded.
 
-A failed provider call returns `502 Bad Gateway` and releases the reservation,
+A failed provider call returns `502 Bad Gateway` and releases the attempt,
 so the event/platform pair returns to `NotPublished` and can be retried. Check
 the Functions host console for the underlying Google error:
 
@@ -177,8 +184,8 @@ the Functions host console for the underlying Google error:
 - Broadcast created on the wrong channel: redo Part B and select the correct
   Brand Account during sign-in.
 
-A reference to a channel that is missing from `YouTubeChannels` or is missing a
-field also returns `502`; the host logs only the non-secret reference name.
+A platform with invalid, expired, or revoked stored YouTube credential values
+also returns `502`; the host must not log the client secret or refresh token.
 
 Other publish responses are unrelated to Google: `400` means a past start time
 or a missing English title, `409` means the publication is already `Published`,
@@ -189,12 +196,10 @@ operator-role checks. See [`../http/platforms.md`](../http/platforms.md).
 
 ## Security
 
-- `local.settings.json` is gitignored. Never commit it.
-  `YouTubeChannels:{reference}:ClientSecret` and
-  `YouTubeChannels:{reference}:RefreshToken` are secrets; do not paste them into
-  shared chats, issues, or logs.
+- `local.settings.json` and `http-client.env.json.user` are gitignored. Never
+  commit them. YouTube client secrets and refresh tokens are secrets; do not
+  paste them into shared chats, issues, or logs.
 - Revoke a leaked or unwanted token at
   <https://myaccount.google.com/permissions>.
-- The adapter does not log credentials, tokens, or authorization headers, and
-  the credential reference name is the only channel value written to logs. Keep
+- The adapter does not log credentials, tokens, or authorization headers. Keep
   it that way when extending this integration.

@@ -7,10 +7,15 @@ namespace YTSkedy.AzureFunctions.Platforms;
 /// settings fields are selected by the platform type.
 /// </summary>
 internal sealed record PublishSettingsPayload(
-    string? Credentials,
+    YouTubeCredentialsPayload? Credentials,
     string? PrivacyStatus,
     bool? SelfDeclaredMadeForKids,
     string? SiteUrl,
     string? Username,
     string? ApplicationPassword,
     string? PostStatus);
+
+internal sealed record YouTubeCredentialsPayload(
+    string? ClientId,
+    string? ClientSecret,
+    string? RefreshToken);

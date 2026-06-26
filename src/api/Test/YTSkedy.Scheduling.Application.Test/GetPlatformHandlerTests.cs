@@ -12,7 +12,7 @@ public class GetPlatformHandlerTests
             "p1",
             "Main channel",
             PlatformType.YouTube,
-            new YouTubeSettings("creds", "private", false));
+            YouTubeSettings());
         var reader = new FakePlatformReader { View = view };
         var handler = new GetPlatformHandler(reader);
 
@@ -65,4 +65,7 @@ public class GetPlatformHandlerTests
             return Task.FromResult(View);
         }
     }
+
+    private static YouTubeSettings YouTubeSettings() =>
+        new(new YouTubeCredentials("client-id", "client-secret", "refresh-token"), "private", false);
 }

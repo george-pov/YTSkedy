@@ -5,7 +5,10 @@ namespace YTSkedy.Scheduling.Domain.Test.Platforms;
 public class PlatformTests
 {
     private static readonly YouTubeSettings Settings =
-        new("main-youtube-channel", "private", false);
+        new(
+            new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
+            "private",
+            false);
 
     [Fact]
     public void Constructor_ValidInput_SetsProperties()

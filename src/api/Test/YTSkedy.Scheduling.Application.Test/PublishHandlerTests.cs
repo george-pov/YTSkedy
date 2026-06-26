@@ -15,7 +15,10 @@ public class PublishHandlerTests
     private static readonly DateTimeOffset FutureStart = new(2026, 6, 25, 17, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset PastStart = new(2026, 6, 1, 17, 0, 0, TimeSpan.Zero);
 
-    private static readonly YouTubeSettings Settings = new("main-youtube-channel", "private", false);
+    private static readonly YouTubeSettings Settings = new(
+        new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
+        "private",
+        false);
     private static readonly WordPressSettings WordPressSettings =
         new("https://blog.example.test/", "publisher", "application-password", "publish");
 

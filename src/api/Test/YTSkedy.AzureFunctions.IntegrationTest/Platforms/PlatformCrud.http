@@ -8,6 +8,8 @@
 # Expected response: 200 OK with the created platform, including a generated
 # 32-character lowercase hex `platformId`. Copy that id into the requests below
 # and into EventPlatforms.http for publish checks.
+# - `youtubeClientId`, `youtubeClientSecret`, and `youtubeRefreshToken` are set
+#   in `http-client.env.json.user` (not committed).
 
 POST {{HostAddress}}/api/platforms
 Content-Type: application/json
@@ -17,7 +19,11 @@ Authorization: Bearer {{accessToken}}
   "name": "Main YouTube channel",
   "type": "YouTube",
   "publishSettings": {
-    "credentials": "main-youtube-channel",
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false
   }
@@ -33,7 +39,11 @@ Content-Type: application/json
   "name": "Auth-missing probe",
   "type": "YouTube",
   "publishSettings": {
-    "credentials": "main-youtube-channel",
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false
   }
@@ -52,7 +62,11 @@ Authorization: Bearer {{accessTokenReadOnly}}
   "name": "Scope-insufficient probe",
   "type": "YouTube",
   "publishSettings": {
-    "credentials": "main-youtube-channel",
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false
   }
@@ -70,7 +84,11 @@ Authorization: Bearer {{accessToken}}
   "name": "",
   "type": "YouTube",
   "publishSettings": {
-    "credentials": "main-youtube-channel",
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false
   }
@@ -88,7 +106,11 @@ Authorization: Bearer {{accessToken}}
   "name": "Unknown type probe",
   "type": "Twitch",
   "publishSettings": {
-    "credentials": "main-youtube-channel",
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false
   }
@@ -131,7 +153,11 @@ Authorization: Bearer {{accessToken}}
   "name": "Bad privacy probe",
   "type": "YouTube",
   "publishSettings": {
-    "credentials": "main-youtube-channel",
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
     "privacyStatus": "secret",
     "selfDeclaredMadeForKids": false
   }
@@ -148,7 +174,7 @@ Authorization: Bearer {{accessToken}}
   "name": "Missing credentials probe",
   "type": "YouTube",
   "publishSettings": {
-    "credentials": "",
+    "credentials": null,
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false
   }
@@ -166,7 +192,11 @@ Authorization: Bearer {{accessToken}}
   "name": "Main YouTube channel",
   "type": "YouTube",
   "publishSettings": {
-    "credentials": "second-youtube-channel",
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
     "privacyStatus": "unlisted",
     "selfDeclaredMadeForKids": false
   }
@@ -214,7 +244,8 @@ Authorization: Bearer {{accessToken}}
 ### Update a platform
 # Replace the id with one returned by a create above. The type is immutable and
 # is not accepted in the body. Expected response: 200 OK with the updated
-# platform (privacy changed to unlisted here).
+# platform (privacy changed to unlisted here). Omitting clientSecret and
+# refreshToken preserves the stored secret values.
 
 PUT {{HostAddress}}/api/platforms/REPLACE_WITH_PLATFORM_ID
 Content-Type: application/json
@@ -223,7 +254,9 @@ Authorization: Bearer {{accessToken}}
 {
   "name": "Main YouTube channel",
   "publishSettings": {
-    "credentials": "main-youtube-channel",
+    "credentials": {
+      "clientId": "{{youtubeClientId}}"
+    },
     "privacyStatus": "unlisted",
     "selfDeclaredMadeForKids": false
   }
@@ -277,7 +310,9 @@ Authorization: Bearer {{accessToken}}
 {
   "name": "Ghost platform",
   "publishSettings": {
-    "credentials": "main-youtube-channel",
+    "credentials": {
+      "clientId": "{{youtubeClientId}}"
+    },
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false
   }
@@ -294,7 +329,9 @@ Authorization: Bearer {{accessToken}}
 {
   "name": "Main YouTube channel",
   "publishSettings": {
-    "credentials": "second-youtube-channel",
+    "credentials": {
+      "clientId": "{{youtubeClientId}}"
+    },
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false
   }

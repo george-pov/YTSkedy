@@ -5,10 +5,8 @@ import { Input } from 'src/app/shared/components/input/input';
 import { Select, SelectOption } from 'src/app/shared/components/select/select';
 
 /**
- * Editor settings specific to a YouTube platform. Presentational only: it binds
- * the supplied Signal Forms fields to the shared form controls. The platform
- * editor owns the form model and validation; each other platform type provides
- * its own settings component (for example a future `wordpress-settings`).
+ * Editor settings specific to a YouTube platform. Presentational only: the
+ * parent editor owns the form model, validation, and request mapping.
  */
 @Component({
   selector: 'app-youtube-settings',
@@ -18,8 +16,11 @@ import { Select, SelectOption } from 'src/app/shared/components/select/select';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class YouTubeSettings {
-  /** Credential reference for the YouTube channel. */
-  readonly credentials = input.required<Field<string>>();
+  readonly clientId = input.required<Field<string>>();
+  readonly clientSecret = input.required<Field<string>>();
+  readonly refreshToken = input.required<Field<string>>();
+  readonly clientSecretConfigured = input(false);
+  readonly refreshTokenConfigured = input(false);
   /** Broadcast visibility: `private`, `public`, or `unlisted`. */
   readonly privacyStatus = input.required<Field<string>>();
   /** Self-declared "made for kids" flag, carried as `'true'`/`'false'`. */

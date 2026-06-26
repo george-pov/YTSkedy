@@ -41,7 +41,11 @@
 
             @if (selectedType() === 'YouTube') {
               <app-youtube-settings
-                [credentials]="form.youTubeCredentials"
+                [clientId]="form.youTubeClientId"
+                [clientSecret]="form.youTubeClientSecret"
+                [refreshToken]="form.youTubeRefreshToken"
+                [clientSecretConfigured]="model().youTubeClientSecretConfigured === 'true'"
+                [refreshTokenConfigured]="model().youTubeRefreshTokenConfigured === 'true'"
                 [privacyStatus]="form.youTubePrivacyStatus"
                 [madeForKids]="form.youTubeMadeForKids"
               />

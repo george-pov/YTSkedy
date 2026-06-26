@@ -51,7 +51,9 @@ internal static class PublishSettingsSerializer
 
         return type switch
         {
-            PlatformType.YouTube => JsonSerializer.Serialize(AsYouTube(settings), Options),
+            PlatformType.YouTube => JsonSerializer.Serialize(
+                YouTubeSnapshot.From(AsYouTube(settings)),
+                Options),
             PlatformType.WordPress => JsonSerializer.Serialize(
                 WordPressSnapshot.From(AsWordPress(settings)),
                 Options),
@@ -117,6 +119,30 @@ internal static class PublishSettingsSerializer
             ?? throw new ArgumentException(
                 "A WordPress platform requires WordPress publish settings.",
                 nameof(settings));
+
+    private sealed record YouTubeSnapshot(
+        YouTubeCredentialsSnapshot Credentials,
+        string PrivacyStatus,
+        bool SelfDeclaredMadeForKids)
+    {
+        internal static YouTubeSnapshot From(YouTubeSettings settings) =>
+            new(
+                YouTubeCredentialsSnapshot.From(settings.Credentials),
+                settings.PrivacyStatus,
+                settings.SelfDeclaredMadeForKids);
+    }
+
+    private sealed record YouTubeCredentialsSnapshot(
+        string ClientId,
+        bool ClientSecretConfigured,
+        bool RefreshTokenConfigured)
+    {
+        internal static YouTubeCredentialsSnapshot From(YouTubeCredentials credentials) =>
+            new(
+                credentials.ClientId,
+                YouTubeCredentials.IsValidClientSecret(credentials.ClientSecret),
+                YouTubeCredentials.IsValidRefreshToken(credentials.RefreshToken));
+    }
 
     private sealed record WordPressSnapshot(
         string SiteUrl,

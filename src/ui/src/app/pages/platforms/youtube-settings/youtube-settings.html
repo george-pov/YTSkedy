@@ -1,4 +1,16 @@
-<app-input [field]="credentials()" label="Credentials" />
+<app-input [field]="clientId()" label="Client ID" />
+<app-input
+  [field]="clientSecret()"
+  label="Client secret"
+  type="password"
+  [placeholder]="clientSecretConfigured() ? 'Leave blank to keep existing secret' : ''"
+/>
+<app-input
+  [field]="refreshToken()"
+  label="Refresh token"
+  type="password"
+  [placeholder]="refreshTokenConfigured() ? 'Leave blank to keep existing token' : ''"
+/>
 <app-select
   [field]="privacyStatus()"
   label="Privacy status"

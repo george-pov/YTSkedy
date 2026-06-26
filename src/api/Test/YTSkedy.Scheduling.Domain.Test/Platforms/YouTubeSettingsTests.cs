@@ -7,21 +7,23 @@ public class YouTubeSettingsTests
     [Fact]
     public void Constructor_ValidInput_SetsProperties()
     {
-        var settings = new YouTubeSettings("main-youtube-channel", "unlisted", true);
+        var credentials = new YouTubeCredentials(
+            "client-id",
+            "client-secret",
+            "refresh-token");
 
-        Assert.Equal("main-youtube-channel", settings.Credentials);
+        var settings = new YouTubeSettings(credentials, "unlisted", true);
+
+        Assert.Same(credentials, settings.Credentials);
         Assert.Equal("unlisted", settings.PrivacyStatus);
         Assert.True(settings.SelfDeclaredMadeForKids);
     }
 
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void Constructor_EmptyCredentials_Throws(string? credentials)
+    [Fact]
+    public void Constructor_NullCredentials_Throws()
     {
-        Assert.Throws<ArgumentException>(
-            () => new YouTubeSettings(credentials!, "private", false));
+        Assert.Throws<ArgumentNullException>(
+            () => new YouTubeSettings(null!, "private", false));
     }
 
     [Theory]
@@ -32,7 +34,7 @@ public class YouTubeSettingsTests
     public void Constructor_InvalidPrivacyStatus_Throws(string privacyStatus)
     {
         Assert.Throws<ArgumentException>(
-            () => new YouTubeSettings("creds", privacyStatus, false));
+            () => new YouTubeSettings(Credentials(), privacyStatus, false));
     }
 
     [Theory]
@@ -56,17 +58,48 @@ public class YouTubeSettingsTests
     }
 
     [Fact]
-    public void IsValidCredentials_NonEmpty_ReturnsTrue()
+    public void Credentials_ValidInput_SetsProperties()
     {
-        Assert.True(YouTubeSettings.IsValidCredentials("main-youtube-channel"));
+        var credentials = new YouTubeCredentials(
+            " client-id ",
+            "client-secret",
+            "refresh-token");
+
+        Assert.Equal("client-id", credentials.ClientId);
+        Assert.Equal("client-secret", credentials.ClientSecret);
+        Assert.Equal("refresh-token", credentials.RefreshToken);
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void IsValidCredentials_NullOrWhiteSpace_ReturnsFalse(string? credentials)
+    public void Credentials_InvalidClientId_Throws(string? clientId)
     {
-        Assert.False(YouTubeSettings.IsValidCredentials(credentials));
+        Assert.Throws<ArgumentException>(
+            () => new YouTubeCredentials(clientId!, "client-secret", "refresh-token"));
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Credentials_InvalidClientSecret_Throws(string? clientSecret)
+    {
+        Assert.Throws<ArgumentException>(
+            () => new YouTubeCredentials("client-id", clientSecret!, "refresh-token"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Credentials_InvalidRefreshToken_Throws(string? refreshToken)
+    {
+        Assert.Throws<ArgumentException>(
+            () => new YouTubeCredentials("client-id", "client-secret", refreshToken!));
+    }
+
+    private static YouTubeCredentials Credentials() =>
+        new("client-id", "client-secret", "refresh-token");
 }

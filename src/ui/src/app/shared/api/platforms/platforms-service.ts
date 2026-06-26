@@ -14,9 +14,18 @@ export type PlatformType = 'YouTube' | 'WordPress';
 /** YouTube broadcast visibility. Mirrors the YouTube Data API privacy values. */
 export type YouTubePrivacyStatus = 'private' | 'public' | 'unlisted';
 
+/** Secret-bearing request shape and redacted response shape for YouTube OAuth. */
+export interface YouTubeCredentials {
+  clientId: string;
+  clientSecret?: string;
+  refreshToken?: string;
+  clientSecretConfigured?: boolean;
+  refreshTokenConfigured?: boolean;
+}
+
 /** Publish settings specific to a YouTube platform. */
 export interface YouTubePublishSettings {
-  credentials: string;
+  credentials: YouTubeCredentials;
   privacyStatus: YouTubePrivacyStatus;
   selfDeclaredMadeForKids: boolean;
 }
@@ -35,8 +44,9 @@ export interface WordPressPublishSettings {
 export type PlatformPublishSettings = YouTubePublishSettings | WordPressPublishSettings;
 
 /**
- * A configured publishing platform. WordPress responses are redacted: the API
- * returns `applicationPasswordConfigured`, never the stored password.
+ * A configured publishing platform. Secret-bearing settings are redacted in API
+ * responses: YouTube returns configured flags for secret values, and WordPress
+ * returns `applicationPasswordConfigured`.
  */
 export interface Platform {
   id: string;

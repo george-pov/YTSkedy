@@ -110,8 +110,7 @@ public sealed class AzureTableStorageCalendarEventRepositoryImplementation
   must end with `Async`.
 - Methods that accept cancellation should name the parameter
   `cancellationToken`.
-- Options classes should end in `Options`, such as `AuthOptions` or
-  `YouTubeOptions`.
+- Options classes should end in `Options`, such as `AuthOptions`.
 - Service registration extension methods should use `Add{Service}` when this
   project later exposes reusable registration methods.
 
@@ -156,7 +155,7 @@ Use these verbs consistently.
 | `Publish` | Create or update an externally visible provider resource from an application-owned record. |
 | `Reserve` | Move a local record into an in-progress state before an external write. |
 | `Mark` | Record a completed state transition, such as `MarkPublishedAsync`. |
-| `Release` | Undo an in-progress local reservation after a failed external write. |
+| `Release` | Undo an in-progress local attempt after a failed external write. |
 | `Validate` | Check rules and report failures. No mutation. |
 | `Map` | Convert between API, application, domain, or persistence models. |
 | `Parse` | Convert text into a typed value and fail on invalid input. Use `TryParse` when returning a success flag. |
@@ -197,12 +196,13 @@ such as `ProcessAsync` or `SubmitAsync`.
   creates an external provider resource for a platform type.
 - `authorization policy`: API boundary rule that maps authenticated principals,
   scopes, roles, and resolved endpoints to an authorization result.
-- `credentials`: Non-secret name for credential material configured outside
-  tracked source.
+- `credentials`: Provider credential material needed by a platform. It may be
+  secret-bearing and must be redacted from reads, logs, and snapshots.
 - `platform`: Configured publishing destination such as a YouTube channel or a
   future WordPress site.
-- `publish settings`: Non-secret settings used when publishing through a
-  platform.
+- `publish settings`: Provider-specific settings used when publishing through a
+  platform. These settings may carry secrets and must be redacted where they
+  cross read, logging, or snapshot boundaries.
 - `platform publication`: Publish state and provider result for one calendar
   event on one platform.
 - `provider`: Infrastructure adapter that performs an external publish for a
@@ -248,7 +248,7 @@ Shorter names are acceptable for:
 | `TemplateToken` | Placeholder token available to template content. | `Token` is acceptable inside template-token-specific code. |
 | `TemplateTokenCatalog` | Code-defined source of available template tokens. | `Catalog` is acceptable inside template-token-specific code. |
 | `Platform` | Configured publishing destination. | `Destination` is acceptable only for user-facing copy when it is clearer. |
-| `PublishSettings` | Non-secret settings used when publishing through a platform. | Avoid `DefaultPublishingSettings`; create a new platform when settings differ. |
+| `PublishSettings` | Provider-specific settings used when publishing through a platform. May be secret-bearing. | Avoid `DefaultPublishingSettings`; create a new platform when settings differ. |
 | `YouTubeSettings` | YouTube-specific publish settings used by a YouTube platform. | `PublishSettings` is acceptable inside YouTube-platform-specific code. |
 | `PlatformPublication` | Publish state for one calendar event on one platform. | `Publication` is acceptable inside platform-specific namespaces, types, or tests. |
 | `PublishStatus` | Status of a platform publication. | `Status` is acceptable inside platform-publication-specific code. |
@@ -258,13 +258,12 @@ Shorter names are acceptable for:
 | `Broadcast` | YouTube live broadcast metadata concept. | Use mainly in YouTube-specific adapters and tests. |
 | `YouTubeBroadcast` | YouTube `liveBroadcast` resource or adapter concept. | `Broadcast` is acceptable inside YouTube-specific adapters when the provider context is already clear. |
 | `YouTubeBroadcastId` | Stored id of a YouTube `liveBroadcast` resource. | `BroadcastId` is acceptable inside YouTube-specific code. |
-| `YouTubeCredentials` | Secret Google OAuth credentials for one channel, bound from `YouTubeChannels:{reference}`. | Resolved by the non-secret `credentials` reference; never stored in application tables or logs. |
-| `YouTubeOptions` | Map of channel reference name to `YouTubeCredentials`, bound from the `YouTubeChannels` section. | `Options` is acceptable inside YouTube composition code. |
+| `YouTubeCredentials` | Secret Google OAuth credentials for one YouTube platform. | Stored in the platform row until provider secrets move to the app-managed secret store. Never expose in HTTP reads, logs, or publication snapshots. |
 | `Visibility` | YouTube visibility or privacy state. | `Privacy` is acceptable when mirroring YouTube field names or user-facing wording. |
 | `AuthOptions` | API bearer-token validation and authorization configuration. | `Options` is acceptable inside auth composition code. |
 | `AuthorizationPolicy` | API authorization rule that evaluates scopes, roles, and endpoints. | `Policy` is acceptable inside auth-specific tests and helpers. |
 | `AuthorizationResult` | Authorization decision returned by `AuthorizationPolicy`. | `Result` is acceptable inside auth-specific code. |
-| `Credentials` | Non-secret name for externally configured credential material. | Do not use this value to store raw secrets, tokens, or authorization headers. |
+| `Credentials` | Provider credential material for a platform. | Treat as secret-bearing unless the type explicitly exposes a redacted projection. |
 
 Use `Id` suffixes for identifiers: `CalendarEventId`, `TemplateId`,
 `YouTubeBroadcastId`, `ClientId`, `TenantId`, and `PlatformId`. A bare `Id` is
@@ -285,7 +284,7 @@ Keep layer roles explicit but short.
 | Persistence entity | `{Domain}Entity` | `CalendarEventEntity` |
 | Repository | `{Provider}{Domain}Repository` | `AzureCalendarEventRepository` |
 | External adapter or client | `{Provider}{Resource}Adapter`, `{Provider}{Resource}Client`, or a `{Provider}{Role}` port implementation | `YouTubePublisher` |
-| Configuration | `{Scenario}Options` | `AuthOptions`, `YouTubeOptions` |
+| Configuration | `{Scenario}Options` | `AuthOptions` |
 | Test double | `Fake{Role}` | `FakeCalendarEventModifier` |
 
 When touching current calendar-event code, prefer the fully qualified domain

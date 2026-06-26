@@ -2,13 +2,10 @@ namespace YTSkedy.Scheduling.Domain.Platforms;
 
 /// <summary>
 /// YouTube-specific <see cref="PublishSettings"/> for a YouTube
-/// <see cref="Platform"/>. Carries the non-secret credential reference and the
-/// broadcast defaults applied when publishing. The constructor enforces the same
-/// rules the API boundary exposes through <see cref="IsValidCredentials"/> and
-/// <see cref="IsValidPrivacyStatus"/>, so the boundary and the domain share one
-/// source of truth. <see cref="Credentials"/> is a non-secret name for
-/// externally configured credential material; the actual secrets are never
-/// stored here.
+/// <see cref="Platform"/>. Carries secret-bearing Google OAuth credential
+/// material and the broadcast defaults applied when publishing. This type must
+/// be redacted from HTTP responses and sanitized before publication snapshots
+/// are written.
 /// </summary>
 public sealed record YouTubeSettings : PublishSettings
 {
@@ -16,16 +13,11 @@ public sealed record YouTubeSettings : PublishSettings
         ["private", "public", "unlisted"];
 
     public YouTubeSettings(
-        string credentials,
+        YouTubeCredentials credentials,
         string privacyStatus,
         bool selfDeclaredMadeForKids)
     {
-        if (!IsValidCredentials(credentials))
-        {
-            throw new ArgumentException(
-                "Credentials must be a non-empty reference name.",
-                nameof(credentials));
-        }
+        ArgumentNullException.ThrowIfNull(credentials);
 
         if (!IsValidPrivacyStatus(privacyStatus))
         {
@@ -39,19 +31,11 @@ public sealed record YouTubeSettings : PublishSettings
         SelfDeclaredMadeForKids = selfDeclaredMadeForKids;
     }
 
-    public string Credentials { get; }
+    public YouTubeCredentials Credentials { get; }
 
     public string PrivacyStatus { get; }
 
     public bool SelfDeclaredMadeForKids { get; }
-
-    /// <summary>
-    /// True when <paramref name="credentials"/> is a non-empty reference name.
-    /// The API boundary uses this to reject input with <c>400 Bad Request</c>
-    /// before constructing settings.
-    /// </summary>
-    public static bool IsValidCredentials(string? credentials) =>
-        !string.IsNullOrWhiteSpace(credentials);
 
     /// <summary>
     /// True when <paramref name="privacyStatus"/> is one of the lowercase

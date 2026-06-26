@@ -345,7 +345,7 @@ public sealed class PlatformsApi(
         publishSettings switch
         {
             YouTubeSettings youTube => new PublishSettingsResponse(
-                youTube.Credentials,
+                ToYouTubeCredentialsResponse(youTube.Credentials),
                 youTube.PrivacyStatus,
                 youTube.SelfDeclaredMadeForKids,
                 null,
@@ -365,6 +365,13 @@ public sealed class PlatformsApi(
                 publishSettings.GetType().Name,
                 "Unknown publish settings type.")
         };
+
+    private static YouTubeCredentialsResponse ToYouTubeCredentialsResponse(
+        YouTubeCredentials credentials) =>
+        new(
+            credentials.ClientId,
+            YouTubeCredentials.IsValidClientSecret(credentials.ClientSecret),
+            YouTubeCredentials.IsValidRefreshToken(credentials.RefreshToken));
 
     internal static PlatformType TypeOf(PublishSettings publishSettings) =>
         publishSettings switch
@@ -402,7 +409,11 @@ public sealed class PlatformsApi(
 
         return type switch
         {
-            PlatformType.YouTube => TryBuildYouTubeSettings(payload, out publishSettings, out error),
+            PlatformType.YouTube => TryBuildYouTubeSettings(
+                payload,
+                currentSettings as YouTubeSettings,
+                out publishSettings,
+                out error),
             PlatformType.WordPress => TryBuildWordPressSettings(
                 payload,
                 currentSettings as WordPressSettings,
@@ -417,17 +428,53 @@ public sealed class PlatformsApi(
 
     private static bool TryBuildYouTubeSettings(
         PublishSettingsPayload payload,
+        YouTubeSettings? currentSettings,
         out PublishSettings publishSettings,
         out IActionResult error)
     {
         publishSettings = default!;
         error = new EmptyResult();
 
-        if (!YouTubeSettings.IsValidCredentials(payload.Credentials))
+        if (payload.Credentials is null)
         {
-            error = InvalidCredentialsResult();
+            error = MissingYouTubeCredentialsResult();
             return false;
         }
+
+        if (!YouTubeCredentials.IsValidClientId(payload.Credentials.ClientId))
+        {
+            error = MissingYouTubeClientIdResult();
+            return false;
+        }
+
+        var clientSecret = payload.Credentials.ClientSecret;
+        if (string.IsNullOrWhiteSpace(clientSecret))
+        {
+            if (currentSettings is null)
+            {
+                error = MissingYouTubeClientSecretResult();
+                return false;
+            }
+
+            clientSecret = currentSettings.Credentials.ClientSecret;
+        }
+
+        var refreshToken = payload.Credentials.RefreshToken;
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            if (currentSettings is null)
+            {
+                error = MissingYouTubeRefreshTokenResult();
+                return false;
+            }
+
+            refreshToken = currentSettings.Credentials.RefreshToken;
+        }
+
+        var credentials = new YouTubeCredentials(
+            payload.Credentials.ClientId!,
+            clientSecret,
+            refreshToken);
 
         if (!YouTubeSettings.IsValidPrivacyStatus(payload.PrivacyStatus))
         {
@@ -436,7 +483,7 @@ public sealed class PlatformsApi(
         }
 
         publishSettings = new YouTubeSettings(
-            payload.Credentials!,
+            credentials,
             payload.PrivacyStatus!,
             payload.SelfDeclaredMadeForKids ?? false);
         return true;
@@ -524,9 +571,17 @@ public sealed class PlatformsApi(
     private static IActionResult InvalidTypeResult() =>
         new BadRequestObjectResult("Platform type must be 'YouTube' or 'WordPress'.");
 
-    private static IActionResult InvalidCredentialsResult() =>
-        new BadRequestObjectResult(
-            "Publish settings credentials must be a non-empty reference name.");
+    private static IActionResult MissingYouTubeCredentialsResult() =>
+        new BadRequestObjectResult("Publish settings credentials are required.");
+
+    private static IActionResult MissingYouTubeClientIdResult() =>
+        new BadRequestObjectResult("Publish settings credentials client ID is required.");
+
+    private static IActionResult MissingYouTubeClientSecretResult() =>
+        new BadRequestObjectResult("Publish settings credentials client secret is required.");
+
+    private static IActionResult MissingYouTubeRefreshTokenResult() =>
+        new BadRequestObjectResult("Publish settings credentials refresh token is required.");
 
     private static IActionResult InvalidPrivacyStatusResult() =>
         new BadRequestObjectResult(

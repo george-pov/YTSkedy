@@ -49,7 +49,11 @@ describe('Platforms', () => {
       name: 'Main YouTube channel',
       type: 'YouTube',
       publishSettings: {
-        credentials: 'main-youtube-channel',
+        credentials: {
+          clientId: 'client-id',
+          clientSecretConfigured: true,
+          refreshTokenConfigured: true,
+        },
         privacyStatus: 'private',
         selfDeclaredMadeForKids: false,
       },
@@ -178,11 +182,14 @@ describe('Platforms', () => {
     expect(editor()).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.readonly-type')?.textContent).toContain('YouTube');
     expect(nameInput().value).toBe('Main YouTube channel');
-    // The YouTube credentials input is rendered with the stored value.
     const inputs = Array.from(
       fixture.nativeElement.querySelectorAll('app-input input'),
     ) as HTMLInputElement[];
-    expect(inputs.some((input) => input.value === 'main-youtube-channel')).toBe(true);
+    expect(inputs.some((input) => input.value === 'client-id')).toBe(true);
+    expect(inputs.some((input) => input.value === 'client-secret')).toBe(false);
+    expect(inputs.some((input) => input.value === 'refresh-token')).toBe(false);
+    expect(inputs.some((input) => input.placeholder.includes('keep existing secret'))).toBe(true);
+    expect(inputs.some((input) => input.placeholder.includes('keep existing token'))).toBe(true);
   });
 
   it('opens a WordPress platform in an edit form with redacted settings', async () => {
@@ -207,7 +214,22 @@ describe('Platforms', () => {
 
   it('creates a platform and adds it to the list', async () => {
     service.list.mockReturnValue(of({ platforms: [] }));
-    service.create.mockReturnValue(of({ id: 'new-id', name: 'Second channel', type: 'YouTube' }));
+    service.create.mockReturnValue(
+      of({
+        id: 'new-id',
+        name: 'Second channel',
+        type: 'YouTube',
+        publishSettings: {
+          credentials: {
+            clientId: 'second-client-id',
+            clientSecretConfigured: true,
+            refreshTokenConfigured: true,
+          },
+          privacyStatus: 'private',
+          selfDeclaredMadeForKids: false,
+        },
+      }),
+    );
 
     await createComponent();
     buttonByText('New Platform').click();
@@ -216,10 +238,12 @@ describe('Platforms', () => {
     fixture.detectChanges();
 
     await setValue(nameInput(), 'Second channel');
-    const credentials = Array.from(
+    const inputs = Array.from(
       fixture.nativeElement.querySelectorAll('app-input input'),
-    )[1] as HTMLInputElement;
-    await setValue(credentials, 'second-channel');
+    ) as HTMLInputElement[];
+    await setValue(inputs[1], 'second-client-id');
+    await setValue(inputs[2], 'second-client-secret');
+    await setValue(inputs[3], 'second-refresh-token');
 
     await submitEditor();
 
@@ -229,7 +253,11 @@ describe('Platforms', () => {
       name: 'Second channel',
       type: 'YouTube',
       publishSettings: {
-        credentials: 'second-channel',
+        credentials: {
+          clientId: 'second-client-id',
+          clientSecret: 'second-client-secret',
+          refreshToken: 'second-refresh-token',
+        },
         privacyStatus: 'private',
         selfDeclaredMadeForKids: false,
       },
@@ -263,7 +291,11 @@ describe('Platforms', () => {
     componentModel().set({
       type: 'WordPress',
       name: 'Company blog',
-      youTubeCredentials: '',
+      youTubeClientId: '',
+      youTubeClientSecret: '',
+      youTubeRefreshToken: '',
+      youTubeClientSecretConfigured: 'false',
+      youTubeRefreshTokenConfigured: 'false',
       youTubePrivacyStatus: 'private',
       youTubeMadeForKids: 'false',
       wordPressSiteUrl: ' https://blog.example.test/ ',
@@ -342,7 +374,11 @@ describe('Platforms', () => {
     componentModel().set({
       type: 'WordPress',
       name: 'Company blog',
-      youTubeCredentials: '',
+      youTubeClientId: '',
+      youTubeClientSecret: '',
+      youTubeRefreshToken: '',
+      youTubeClientSecretConfigured: 'false',
+      youTubeRefreshTokenConfigured: 'false',
       youTubePrivacyStatus: 'private',
       youTubeMadeForKids: 'false',
       wordPressSiteUrl: 'https://blog.example.test/',
@@ -377,10 +413,12 @@ describe('Platforms', () => {
     fixture.detectChanges();
 
     await setValue(nameInput(), 'Main YouTube channel');
-    const credentials = Array.from(
+    const inputs = Array.from(
       fixture.nativeElement.querySelectorAll('app-input input'),
-    )[1] as HTMLInputElement;
-    await setValue(credentials, 'main-youtube-channel');
+    ) as HTMLInputElement[];
+    await setValue(inputs[1], 'client-id');
+    await setValue(inputs[2], 'client-secret');
+    await setValue(inputs[3], 'refresh-token');
 
     await submitEditor();
 

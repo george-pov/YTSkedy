@@ -8,7 +8,7 @@ namespace YTSkedy.AzureFunctions.Platforms;
 /// </summary>
 internal sealed record PublishSettingsResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    string? Credentials,
+    YouTubeCredentialsResponse? Credentials,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? PrivacyStatus,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -21,3 +21,8 @@ internal sealed record PublishSettingsResponse(
     string? PostStatus,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     bool? ApplicationPasswordConfigured);
+
+internal sealed record YouTubeCredentialsResponse(
+    string ClientId,
+    bool ClientSecretConfigured,
+    bool RefreshTokenConfigured);

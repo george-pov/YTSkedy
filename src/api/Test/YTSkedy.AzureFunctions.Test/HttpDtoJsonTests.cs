@@ -48,7 +48,11 @@ public sealed class HttpDtoJsonTests
               "name": "Main YouTube channel",
               "type": "YouTube",
               "publishSettings": {
-                "credentials": "main-channel",
+                "credentials": {
+                  "clientId": "client-id",
+                  "clientSecret": "client-secret",
+                  "refreshToken": "refresh-token"
+                },
                 "privacyStatus": "private",
                 "selfDeclaredMadeForKids": false
               }
@@ -61,7 +65,10 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("Main YouTube channel", request.Name);
         Assert.Equal("YouTube", request.Type);
         Assert.NotNull(request.PublishSettings);
-        Assert.Equal("main-channel", request.PublishSettings.Credentials);
+        Assert.NotNull(request.PublishSettings.Credentials);
+        Assert.Equal("client-id", request.PublishSettings.Credentials.ClientId);
+        Assert.Equal("client-secret", request.PublishSettings.Credentials.ClientSecret);
+        Assert.Equal("refresh-token", request.PublishSettings.Credentials.RefreshToken);
         Assert.Equal("private", request.PublishSettings.PrivacyStatus);
         Assert.False(request.PublishSettings.SelfDeclaredMadeForKids.GetValueOrDefault());
     }

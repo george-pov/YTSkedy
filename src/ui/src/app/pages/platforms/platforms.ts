@@ -195,6 +195,7 @@ export class Platforms implements OnInit {
           this.platforms.update((list) => sortPlatforms([created, ...list]));
           this.selected.set(created);
           this.editorMode.set('edit');
+          this.model.set(toFormModel(created));
           this.notifications.showSuccess('Platform created.');
         },
         error: (error: unknown) => {
@@ -230,6 +231,7 @@ export class Platforms implements OnInit {
             sortPlatforms(list.map((entry) => (entry.id === current.id ? updated : entry))),
           );
           this.selected.set(updated);
+          this.model.set(toFormModel(updated));
           this.notifications.showSuccess('Platform saved.');
         },
         error: (error: unknown) => {
@@ -259,7 +261,15 @@ function toFormModel(platform: Platform): PlatformFormModel {
   return {
     type: platform.type,
     name: platform.name,
-    youTubeCredentials: youTubeSettings?.credentials ?? defaults.youTubeCredentials,
+    youTubeClientId: youTubeSettings?.credentials.clientId ?? defaults.youTubeClientId,
+    youTubeClientSecret: '',
+    youTubeRefreshToken: '',
+    youTubeClientSecretConfigured: String(
+      youTubeSettings?.credentials.clientSecretConfigured ?? false,
+    ),
+    youTubeRefreshTokenConfigured: String(
+      youTubeSettings?.credentials.refreshTokenConfigured ?? false,
+    ),
     youTubePrivacyStatus: youTubeSettings?.privacyStatus ?? defaults.youTubePrivacyStatus,
     youTubeMadeForKids: String(
       youTubeSettings?.selfDeclaredMadeForKids ?? defaults.youTubeMadeForKids,

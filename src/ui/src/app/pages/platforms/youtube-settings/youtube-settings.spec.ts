@@ -6,7 +6,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { YouTubeSettings } from './youtube-settings';
 
 interface YouTubeSettingsModel {
-  credentials: string;
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
   privacyStatus: string;
   madeForKids: string;
 }
@@ -15,14 +17,20 @@ interface YouTubeSettingsModel {
   selector: 'app-youtube-settings-host',
   imports: [YouTubeSettings],
   template: `<app-youtube-settings
-    [credentials]="form.credentials"
+    [clientId]="form.clientId"
+    [clientSecret]="form.clientSecret"
+    [refreshToken]="form.refreshToken"
+    [clientSecretConfigured]="true"
+    [refreshTokenConfigured]="true"
     [privacyStatus]="form.privacyStatus"
     [madeForKids]="form.madeForKids"
   />`,
 })
 class YouTubeSettingsHost {
   readonly model = signal<YouTubeSettingsModel>({
-    credentials: 'main-youtube-channel',
+    clientId: 'client-id',
+    clientSecret: '',
+    refreshToken: '',
     privacyStatus: 'private',
     madeForKids: 'false',
   });
@@ -42,23 +50,21 @@ describe('YouTubeSettings', () => {
     fixture.detectChanges();
   });
 
-  it('renders the credentials input and the two settings selects', () => {
-    expect(
-      fixture.nativeElement.querySelector('app-input input'),
-    ).not.toBeNull();
+  it('renders the credential inputs and the two settings selects', () => {
+    expect(fixture.nativeElement.querySelectorAll('app-input input')).toHaveLength(3);
     expect(fixture.nativeElement.querySelectorAll('app-select')).toHaveLength(2);
   });
 
-  it('binds the supplied credentials field to its model value', async () => {
+  it('binds the supplied client ID field to its model value', async () => {
     const input = fixture.nativeElement.querySelector(
       'app-input input',
     ) as HTMLInputElement;
-    expect(input.value).toBe('main-youtube-channel');
+    expect(input.value).toBe('client-id');
 
-    input.value = 'second-channel';
+    input.value = 'second-client-id';
     input.dispatchEvent(new Event('input'));
     await fixture.whenStable();
 
-    expect(host.model().credentials).toBe('second-channel');
+    expect(host.model().clientId).toBe('second-client-id');
   });
 });

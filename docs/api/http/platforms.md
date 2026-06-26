@@ -43,7 +43,11 @@ A YouTube platform is returned as:
   "name": "Main YouTube channel",
   "type": "YouTube",
   "publishSettings": {
-    "credentials": "main-youtube-channel",
+    "credentials": {
+      "clientId": "google-oauth-client-id",
+      "clientSecretConfigured": true,
+      "refreshTokenConfigured": true
+    },
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false
   }
@@ -71,10 +75,13 @@ A WordPress platform is returned as:
   all platforms.
 - `type` is `YouTube` or `WordPress`. It is set on create and is immutable
   because it determines the publish-settings schema and provider adapter.
-- YouTube `publishSettings.credentials` is a non-secret reference name for
-  externally configured Google OAuth credential material. `privacyStatus` is
-  `private`, `public`, or `unlisted`; `selfDeclaredMadeForKids` defaults to
-  `false` on create when omitted.
+- YouTube `publishSettings.credentials.clientId` is the Google OAuth client id.
+  YouTube create and update requests can include
+  `publishSettings.credentials.clientSecret` and
+  `publishSettings.credentials.refreshToken`, but responses never return them.
+  Responses return `clientSecretConfigured` and `refreshTokenConfigured`
+  instead. `privacyStatus` is `private`, `public`, or `unlisted`;
+  `selfDeclaredMadeForKids` defaults to `false` on create when omitted.
 - WordPress `publishSettings.siteUrl` is the WordPress site root.
   Non-local site URLs must use HTTPS. `http://localhost` and
   `http://127.0.0.1` are allowed for local development only.
@@ -106,7 +113,11 @@ Success response (`200 OK`):
       "name": "Main YouTube channel",
       "type": "YouTube",
       "publishSettings": {
-        "credentials": "main-youtube-channel",
+        "credentials": {
+          "clientId": "google-oauth-client-id",
+          "clientSecretConfigured": true,
+          "refreshTokenConfigured": true
+        },
         "privacyStatus": "private",
         "selfDeclaredMadeForKids": false
       }
@@ -158,7 +169,11 @@ YouTube request body:
   "name": "Main YouTube channel",
   "type": "YouTube",
   "publishSettings": {
-    "credentials": "main-youtube-channel",
+    "credentials": {
+      "clientId": "<google-oauth-client-id>",
+      "clientSecret": "<google-oauth-client-secret>",
+      "refreshToken": "<google-oauth-refresh-token>"
+    },
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false
   }
@@ -181,8 +196,9 @@ WordPress request body:
 ```
 
 Success returns `200 OK` with the created platform, including its generated
-`platformId`. WordPress responses redact `applicationPassword` and return
-`applicationPasswordConfigured`.
+`platformId`. YouTube responses redact `clientSecret` and `refreshToken` and
+return configured flags. WordPress responses redact `applicationPassword` and
+return `applicationPasswordConfigured`.
 
 Status codes:
 
@@ -191,8 +207,10 @@ Status codes:
 - `400 Bad Request` when `name` is empty or longer than 50 characters.
 - `400 Bad Request` when `type` is not a recognized platform type.
 - `400 Bad Request` when `publishSettings` is missing.
-- `400 Bad Request` for invalid YouTube settings: missing `credentials`, or
-  `privacyStatus` not `private`, `public`, or `unlisted`.
+- `400 Bad Request` for invalid YouTube settings: missing `credentials`,
+  missing `credentials.clientId`, missing `credentials.clientSecret` on create,
+  missing `credentials.refreshToken` on create, or `privacyStatus` not
+  `private`, `public`, or `unlisted`.
 - `400 Bad Request` for invalid WordPress settings: missing `siteUrl`, invalid
   or insecure `siteUrl`, missing `username`, missing `applicationPassword`, or
   `postStatus` not `draft` or `publish`.
@@ -214,12 +232,18 @@ YouTube request body:
 {
   "name": "Main YouTube channel",
   "publishSettings": {
-    "credentials": "main-youtube-channel",
+    "credentials": {
+      "clientId": "<google-oauth-client-id>"
+    },
     "privacyStatus": "unlisted",
     "selfDeclaredMadeForKids": false
   }
 }
 ```
+
+Omitting `credentials.clientSecret` or `credentials.refreshToken`, or sending
+either field blank, preserves the stored YouTube secret values. A non-blank
+value replaces the stored value.
 
 WordPress request body that preserves the stored Application Password:
 
@@ -256,8 +280,10 @@ Status codes:
 
 - `200 OK` with the updated platform.
 - `400 Bad Request` for a missing or invalid body, invalid name, or invalid
-  publish settings using the same type-specific rules as create. A WordPress
-  update can omit or blank `applicationPassword` to preserve the stored value.
+  publish settings using the same type-specific rules as create. A YouTube
+  update can omit or blank `credentials.clientSecret` and
+  `credentials.refreshToken` to preserve the stored values. A WordPress update
+  can omit or blank `applicationPassword` to preserve the stored value.
 - `404 Not Found` when no platform has the id.
 - `409 Conflict` when renaming to a name already used by another platform.
 - `409 Conflict` when the platform has a publication that is currently
@@ -388,8 +414,9 @@ Before sending local requests:
   from a clean state. See the reset note in
   `src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/Platforms/ResetFeatureData.http`.
 - Start Azurite or provide an Azure Storage connection string.
-- Configure at least one YouTube channel credential set for YouTube publish
-  checks. See
+- For YouTube publish checks, create a Google OAuth refresh token and put the
+  YouTube client id, client secret, and refresh token only in
+  `http-client.env.json.user`. See
   [`../operations/youtube-publish-setup.md`](../operations/youtube-publish-setup.md).
 - For WordPress publish checks, create a WordPress Application Password and put
   the WordPress username, Application Password, and site URL only in

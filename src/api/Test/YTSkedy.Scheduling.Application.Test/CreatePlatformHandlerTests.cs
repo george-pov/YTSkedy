@@ -6,7 +6,10 @@ namespace YTSkedy.Scheduling.Application.Test;
 public class CreatePlatformHandlerTests
 {
     private static readonly YouTubeSettings Settings =
-        new("main-youtube-channel", "private", false);
+        new(
+            new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
+            "private",
+            false);
 
     [Fact]
     public async Task HandleAsync_ValidCommand_CreatesPlatformAndReturnsCreatedWithId()

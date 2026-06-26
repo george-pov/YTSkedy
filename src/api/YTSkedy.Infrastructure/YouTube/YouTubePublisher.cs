@@ -10,17 +10,15 @@ using YTSkedy.Scheduling.Domain.Platforms;
 namespace YTSkedy.Infrastructure.YouTube;
 
 /// <summary>
-/// YouTube implementation of <see cref="IPlatformPublisher"/>. It resolves the
-/// selected platform's non-secret credentials reference to channel secrets,
-/// builds a <see cref="YouTubeService"/> for that channel, and creates a
-/// scheduled live broadcast with the privacy and made-for-kids settings from the
-/// platform's <see cref="YouTubeSettings"/>. The created broadcast id is returned
-/// as the provider-neutral external resource id. Unconfigured credentials and
-/// provider failures throw <see cref="PlatformPublishException"/>; Google SDK
-/// types never cross this boundary, and secrets and tokens are never logged.
+/// YouTube implementation of <see cref="IPlatformPublisher"/>. It builds a
+/// <see cref="YouTubeService"/> from the selected platform's stored credential
+/// values and creates a scheduled live broadcast with the privacy and
+/// made-for-kids settings from the platform's <see cref="YouTubeSettings"/>.
+/// The created broadcast id is returned as the provider-neutral external
+/// resource id. Google SDK types never cross this boundary, and secrets and
+/// tokens are never logged.
 /// </summary>
 public sealed class YouTubePublisher(
-    IYouTubeCredentialStore credentialStore,
     ILogger<YouTubePublisher> logger) : IPlatformPublisher
 {
     private const string ApplicationName = "YTSkedy";
@@ -41,19 +39,6 @@ public sealed class YouTubePublisher(
                 "A YouTube publish requires YouTube publish settings.");
         }
 
-        var credentials = credentialStore.Find(settings.Credentials);
-        if (credentials is null)
-        {
-            // The reference is a non-secret name, safe to log to aid setup. No
-            // secret material is available on this path to leak.
-            logger.LogWarning(
-                "YouTube credentials reference {CredentialsReference} is not configured.",
-                settings.Credentials);
-
-            throw new PlatformPublishException(
-                $"YouTube credentials '{settings.Credentials}' are not configured.");
-        }
-
         var broadcast = YouTubeBroadcastFactory.Create(
             request.Title,
             request.Description,
@@ -63,7 +48,7 @@ public sealed class YouTubePublisher(
 
         try
         {
-            var service = CreateService(credentials);
+            var service = CreateService(settings.Credentials);
 
             var created = await service.LiveBroadcasts
                 .Insert(broadcast, "snippet,status")

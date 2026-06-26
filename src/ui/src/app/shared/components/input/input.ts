@@ -7,7 +7,7 @@ import {
 import { FormField, type Field } from '@angular/forms/signals';
 import { MatInputModule } from '@angular/material/input';
 
-type InputType = 'text' | 'date' | 'time';
+type InputType = 'text' | 'date' | 'time' | 'password';
 
 // Default (CheckAlways) change detection. The bound Signal Forms field exposes
 // its value/touched/errors as signals, so the error message and character

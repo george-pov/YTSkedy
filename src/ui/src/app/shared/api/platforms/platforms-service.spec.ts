@@ -54,7 +54,11 @@ describe('PlatformsService', () => {
           name: 'Main YouTube channel',
           type: 'YouTube',
           publishSettings: {
-            credentials: 'main-youtube-channel',
+            credentials: {
+              clientId: 'client-id',
+              clientSecretConfigured: true,
+              refreshTokenConfigured: true,
+            },
             privacyStatus: 'private',
             selfDeclaredMadeForKids: false,
           },
@@ -81,7 +85,11 @@ describe('PlatformsService', () => {
           name: 'Main YouTube channel',
           type: 'YouTube',
           publishSettings: {
-            credentials: 'main-youtube-channel',
+            credentials: {
+              clientId: 'client-id',
+              clientSecretConfigured: true,
+              refreshTokenConfigured: true,
+            },
             privacyStatus: 'private',
             selfDeclaredMadeForKids: false,
           },
@@ -118,7 +126,11 @@ describe('PlatformsService', () => {
       name: 'Second channel',
       type: 'YouTube',
       publishSettings: {
-        credentials: 'second-channel',
+        credentials: {
+          clientId: 'second-client-id',
+          clientSecret: 'second-client-secret',
+          refreshToken: 'second-refresh-token',
+        },
         privacyStatus: 'public',
         selfDeclaredMadeForKids: true,
       },
@@ -136,7 +148,11 @@ describe('PlatformsService', () => {
       name: 'Second channel',
       type: 'YouTube',
       publishSettings: {
-        credentials: 'second-channel',
+        credentials: {
+          clientId: 'second-client-id',
+          clientSecretConfigured: true,
+          refreshTokenConfigured: true,
+        },
         privacyStatus: 'public',
         selfDeclaredMadeForKids: true,
       },
@@ -147,7 +163,11 @@ describe('PlatformsService', () => {
       name: 'Second channel',
       type: 'YouTube',
       publishSettings: {
-        credentials: 'second-channel',
+        credentials: {
+          clientId: 'second-client-id',
+          clientSecretConfigured: true,
+          refreshTokenConfigured: true,
+        },
         privacyStatus: 'public',
         selfDeclaredMadeForKids: true,
       },
@@ -204,7 +224,11 @@ describe('PlatformsService', () => {
         name: 'Main YouTube channel',
         type: 'YouTube',
         publishSettings: {
-          credentials: 'main-youtube-channel',
+          credentials: {
+            clientId: 'client-id',
+            clientSecret: 'client-secret',
+            refreshToken: 'refresh-token',
+          },
           privacyStatus: 'private',
           selfDeclaredMadeForKids: false,
         },
@@ -225,7 +249,9 @@ describe('PlatformsService', () => {
     const updateRequest: UpdatePlatformRequest = {
       name: 'Renamed channel',
       publishSettings: {
-        credentials: 'renamed-channel',
+        credentials: {
+          clientId: 'renamed-client-id',
+        },
         privacyStatus: 'unlisted',
         selfDeclaredMadeForKids: false,
       },
@@ -247,7 +273,11 @@ describe('PlatformsService', () => {
       name: 'Renamed channel',
       type: 'YouTube',
       publishSettings: {
-        credentials: 'renamed-channel',
+        credentials: {
+          clientId: 'renamed-client-id',
+          clientSecretConfigured: true,
+          refreshTokenConfigured: true,
+        },
         privacyStatus: 'unlisted',
         selfDeclaredMadeForKids: false,
       },
@@ -258,7 +288,11 @@ describe('PlatformsService', () => {
       name: 'Renamed channel',
       type: 'YouTube',
       publishSettings: {
-        credentials: 'renamed-channel',
+        credentials: {
+          clientId: 'renamed-client-id',
+          clientSecretConfigured: true,
+          refreshTokenConfigured: true,
+        },
         privacyStatus: 'unlisted',
         selfDeclaredMadeForKids: false,
       },
@@ -316,7 +350,9 @@ describe('PlatformsService', () => {
       service.update('YouTube', '4fb4a32f3f344de1a7c3a9f4a2f94918', {
         name: 'Main YouTube channel',
         publishSettings: {
-          credentials: 'main-youtube-channel',
+          credentials: {
+            clientId: 'client-id',
+          },
           privacyStatus: 'private',
           selfDeclaredMadeForKids: false,
         },

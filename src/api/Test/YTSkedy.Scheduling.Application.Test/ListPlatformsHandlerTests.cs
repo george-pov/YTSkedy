@@ -14,7 +14,7 @@ public class ListPlatformsHandlerTests
                 "p1",
                 "Main channel",
                 PlatformType.YouTube,
-                new YouTubeSettings("creds", "private", false))
+                YouTubeSettings())
         };
         var reader = new FakePlatformReader { Views = views };
         var handler = new ListPlatformsHandler(reader);
@@ -72,4 +72,7 @@ public class ListPlatformsHandlerTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
+
+    private static YouTubeSettings YouTubeSettings() =>
+        new(new YouTubeCredentials("client-id", "client-secret", "refresh-token"), "private", false);
 }

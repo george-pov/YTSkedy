@@ -6,7 +6,10 @@ namespace YTSkedy.Scheduling.Application.Test;
 public class UpdatePlatformHandlerTests
 {
     private static readonly YouTubeSettings Settings =
-        new("main-youtube-channel", "unlisted", false);
+        new(
+            new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
+            "unlisted",
+            false);
 
     [Fact]
     public async Task HandleAsync_Updated_ForwardsCommandAndReturnsUpdated()
