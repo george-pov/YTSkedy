@@ -3,16 +3,14 @@
 Platform and platform-publishing endpoints are hosted by `YTSkedy.AzureFunctions`
 under the Azure Functions `/api` prefix.
 
-A `platform` is a configured publishing destination such as a YouTube channel. A
-calendar event is a provider-neutral scheduling record and carries no publish
-status of its own. Publish state lives in a `platform publication`: the
-relationship between one calendar event and one platform. Publishing always
-targets an explicit platform id; there is no calendar-event-level publish route.
+A `platform` is a configured publishing destination such as a YouTube channel
+or WordPress site. A calendar event is a provider-neutral scheduling record and
+carries no publish status of its own. Publish state lives in a
+`platform publication`: the relationship between one calendar event and one
+platform. Publishing always targets an explicit platform id; there is no
+calendar-event-level publish route.
 
-The first implemented provider is YouTube. `WordPress` is recognized as a
-platform type value but cannot be configured yet because no WordPress publish
-settings are defined; create and update reject a non-YouTube type with
-`400 Bad Request`.
+The implemented provider types are `YouTube` and `WordPress`.
 
 ## Authorization
 
@@ -37,7 +35,7 @@ acquire a bearer token via the `az`-based recipe documented in
 
 ## Platform Shape
 
-A platform is returned as:
+A YouTube platform is returned as:
 
 ```json
 {
@@ -52,22 +50,47 @@ A platform is returned as:
 }
 ```
 
+A WordPress platform is returned as:
+
+```json
+{
+  "platformId": "5aa4a32f3f344de1a7c3a9f4a2f94918",
+  "name": "Company blog",
+  "type": "WordPress",
+  "publishSettings": {
+    "siteUrl": "https://blog.example.test/",
+    "username": "publisher",
+    "postStatus": "draft",
+    "applicationPasswordConfigured": true
+  }
+}
+```
+
 - `platformId` is a server-generated 32-character lowercase hex GUID.
 - `name` is required, trimmed, at most 50 characters, and globally unique across
   all platforms.
-- `type` is `YouTube` (the only configurable type in this slice). It is set on
-  create and is immutable because it determines the publish-settings schema and
-  the provider adapter.
-- `publishSettings` is the only settings object on a platform. For YouTube it
-  carries `credentials` (a non-secret reference name for externally configured
-  credential material), `privacyStatus` (`private`, `public`, or `unlisted`),
-  and `selfDeclaredMadeForKids`. No secret material is ever stored or returned.
+- `type` is `YouTube` or `WordPress`. It is set on create and is immutable
+  because it determines the publish-settings schema and provider adapter.
+- YouTube `publishSettings.credentials` is a non-secret reference name for
+  externally configured Google OAuth credential material. `privacyStatus` is
+  `private`, `public`, or `unlisted`; `selfDeclaredMadeForKids` defaults to
+  `false` on create when omitted.
+- WordPress `publishSettings.siteUrl` is the WordPress site root.
+  Non-local site URLs must use HTTPS. `http://localhost` and
+  `http://127.0.0.1` are allowed for local development only.
+- WordPress `publishSettings.username` is the WordPress username used with an
+  Application Password.
+- WordPress `publishSettings.postStatus` is `draft` or `publish`.
+- WordPress create and update requests can include
+  `publishSettings.applicationPassword`, but responses never return it.
+  Responses return `applicationPasswordConfigured` instead.
 
 ## List Platforms
 
 ```text
 GET /api/platforms
 GET /api/platforms?type=YouTube
+GET /api/platforms?type=WordPress
 ```
 
 Returns every configured platform. The optional `type` query parameter filters
@@ -86,6 +109,17 @@ Success response (`200 OK`):
         "credentials": "main-youtube-channel",
         "privacyStatus": "private",
         "selfDeclaredMadeForKids": false
+      }
+    },
+    {
+      "platformId": "5aa4a32f3f344de1a7c3a9f4a2f94918",
+      "name": "Company blog",
+      "type": "WordPress",
+      "publishSettings": {
+        "siteUrl": "https://blog.example.test/",
+        "username": "publisher",
+        "postStatus": "draft",
+        "applicationPasswordConfigured": true
       }
     }
   ]
@@ -117,7 +151,7 @@ Status codes:
 POST /api/platforms
 ```
 
-Request body:
+YouTube request body:
 
 ```json
 {
@@ -131,8 +165,24 @@ Request body:
 }
 ```
 
-`selfDeclaredMadeForKids` defaults to `false` when omitted. Success returns
-`200 OK` with the created platform (including its generated `platformId`).
+WordPress request body:
+
+```json
+{
+  "name": "Company blog",
+  "type": "WordPress",
+  "publishSettings": {
+    "siteUrl": "https://blog.example.test/",
+    "username": "publisher",
+    "applicationPassword": "<wordpress-application-password>",
+    "postStatus": "draft"
+  }
+}
+```
+
+Success returns `200 OK` with the created platform, including its generated
+`platformId`. WordPress responses redact `applicationPassword` and return
+`applicationPasswordConfigured`.
 
 Status codes:
 
@@ -140,10 +190,12 @@ Status codes:
 - `400 Bad Request` when the body is missing or not valid JSON.
 - `400 Bad Request` when `name` is empty or longer than 50 characters.
 - `400 Bad Request` when `type` is not a recognized platform type.
-- `400 Bad Request` when `type` is recognized but not supported for create
-  (anything other than `YouTube` in this slice).
-- `400 Bad Request` when `publishSettings` is missing, `credentials` is empty,
-  or `privacyStatus` is not `private`, `public`, or `unlisted`.
+- `400 Bad Request` when `publishSettings` is missing.
+- `400 Bad Request` for invalid YouTube settings: missing `credentials`, or
+  `privacyStatus` not `private`, `public`, or `unlisted`.
+- `400 Bad Request` for invalid WordPress settings: missing `siteUrl`, invalid
+  or insecure `siteUrl`, missing `username`, missing `applicationPassword`, or
+  `postStatus` not `draft` or `publish`.
 - `409 Conflict` when another platform already uses the same name.
 
 ## Update Platform
@@ -153,9 +205,10 @@ PUT /api/platforms/{platformId}
 ```
 
 Replaces the name and publish settings of an existing platform. `type` is
-immutable and is not accepted in the update body.
+immutable and is not accepted in the update body. The existing platform type
+selects the expected settings schema.
 
-Request body:
+YouTube request body:
 
 ```json
 {
@@ -168,13 +221,43 @@ Request body:
 }
 ```
 
-Success returns `200 OK` with the updated platform.
+WordPress request body that preserves the stored Application Password:
+
+```json
+{
+  "name": "Company blog",
+  "publishSettings": {
+    "siteUrl": "https://blog.example.test/",
+    "username": "publisher",
+    "postStatus": "draft"
+  }
+}
+```
+
+WordPress request body that replaces the stored Application Password:
+
+```json
+{
+  "name": "Company blog",
+  "publishSettings": {
+    "siteUrl": "https://blog.example.test/",
+    "username": "publisher",
+    "applicationPassword": "<replacement-wordpress-application-password>",
+    "postStatus": "publish"
+  }
+}
+```
+
+For WordPress updates, omitting `applicationPassword` or sending it blank
+preserves the stored Application Password. A non-blank value replaces it.
+Success returns `200 OK` with the updated platform and redacted settings.
 
 Status codes:
 
 - `200 OK` with the updated platform.
 - `400 Bad Request` for a missing or invalid body, invalid name, or invalid
-  publish settings (same rules as create).
+  publish settings using the same type-specific rules as create. A WordPress
+  update can omit or blank `applicationPassword` to preserve the stored value.
 - `404 Not Found` when no platform has the id.
 - `409 Conflict` when renaming to a name already used by another platform.
 - `409 Conflict` when the platform has a publication that is currently
@@ -223,12 +306,19 @@ route. The request body is empty in this iteration:
 {}
 ```
 
-For a YouTube platform this creates a scheduled YouTube `liveBroadcast` using the
-event's English title and optional description, the stored UTC scheduled start,
-and the platform's `privacyStatus` and `selfDeclaredMadeForKids`. The created
-broadcast id is returned as the provider-neutral `externalResourceId`.
+For a YouTube platform this creates a scheduled YouTube `liveBroadcast` using
+the event's English title and optional description, the stored UTC scheduled
+start, and the platform's `privacyStatus` and `selfDeclaredMadeForKids`. The
+created broadcast id is returned as the provider-neutral `externalResourceId`.
 
-Success response (`200 OK`):
+For a WordPress platform this creates a post through
+`POST /wp-json/wp/v2/posts` using Basic Auth with the configured WordPress
+username and Application Password. The request maps the event's English title
+to `title`, the optional English description to `content`, and the platform's
+`postStatus` to `status`. The numeric WordPress post id is returned as the
+provider-neutral `externalResourceId`.
+
+YouTube success response (`200 OK`):
 
 ```json
 {
@@ -242,27 +332,42 @@ Success response (`200 OK`):
 }
 ```
 
+WordPress success response (`200 OK`):
+
+```json
+{
+  "calendarEventId": "20260606T170000Z",
+  "platformId": "5aa4a32f3f344de1a7c3a9f4a2f94918",
+  "platformName": "Company blog",
+  "platformType": "WordPress",
+  "status": "Published",
+  "externalResourceId": "123",
+  "publishedUtc": "2026-06-22T12:00:00+00:00"
+}
+```
+
 Status codes:
 
 - `200 OK` when the publish succeeds and the publication row is marked
   `Published`.
 - `400 Bad Request` when the event start is not in the future.
-- `400 Bad Request` when provider-required content is missing. For YouTube the
-  event must have an English (`en`) description with a non-empty title.
+- `400 Bad Request` when provider-required content is missing. The event must
+  have an English (`en`) description with a non-empty title.
 - `404 Not Found` when the calendar event id or the platform id does not exist.
 - `409 Conflict` when the publication is already `Published`.
-- `409 Conflict` when a publish is already in progress (`Publishing`), including
-  when a concurrent request wins the reservation race.
+- `409 Conflict` when a publish is already in progress (`Publishing`),
+  including when a concurrent request wins the start-publishing race.
 - `409 Conflict` when the publication is orphaned because the platform was
   deleted; orphan history is read-only.
 - `501 Not Implemented` when no provider adapter serves the platform type.
 - `502 Bad Gateway` when the provider call fails.
 - `500 Internal Server Error` when the external resource was created but the
   publication row could not be finalized. There is no provider cleanup in this
-  slice, so the orphaned external resource id is logged for operator follow-up.
+  slice, so the external resource id may require operator follow-up.
 
-State conflicts are evaluated before content validation, so an already-published
-or in-progress publication returns `409` even when the start is in the past.
+State conflicts are evaluated before content validation, so an
+already-published or in-progress publication returns `409` even when the start
+is in the past.
 
 ## Manual Checks
 
@@ -283,11 +388,16 @@ Before sending local requests:
   from a clean state. See the reset note in
   `src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/Platforms/ResetFeatureData.http`.
 - Start Azurite or provide an Azure Storage connection string.
-- Configure at least one YouTube channel credential set for publish checks. See
+- Configure at least one YouTube channel credential set for YouTube publish
+  checks. See
   [`../operations/youtube-publish-setup.md`](../operations/youtube-publish-setup.md).
+- For WordPress publish checks, create a WordPress Application Password and put
+  the WordPress username, Application Password, and site URL only in
+  `http-client.env.json.user`.
 - Start the Azure Functions host.
 - Select the `local` environment in the `.http` editor and set tokens in
   `http-client.env.json.user`.
 
-Keep deployed URLs, bearer access tokens, and personal values in
-`http-client.env.json.user`, not in tracked environment files.
+Keep deployed URLs, bearer access tokens, WordPress usernames, WordPress
+Application Passwords, and personal values in `http-client.env.json.user`, not
+in tracked environment files.

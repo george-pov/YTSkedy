@@ -116,8 +116,16 @@ than duplicated in documentation.
 - `type` is immutable after create because it determines the publish-settings
   schema and provider adapter. `UpdateAsync` reads the stored type and reuses it
   to serialize the new settings.
-- Publish settings are stored as `PublishSettingsJson` without secret material;
-  only the non-secret `credentials` reference name is stored.
+- Publish settings are stored as `PublishSettingsJson`.
+  - For YouTube rows, `PublishSettingsJson` stores the non-secret
+    `credentials` reference, `privacyStatus`, and
+    `selfDeclaredMadeForKids`.
+  - For WordPress rows, `PublishSettingsJson` is secret-bearing. It stores
+    `siteUrl`, `username`, `applicationPassword`, and `postStatus` so the
+    provider can publish later.
+  - HTTP responses must project platform settings through redacted response
+    DTOs. WordPress responses return `applicationPasswordConfigured`, not
+    `applicationPassword`.
 
 Entity fields, table keys, and formatting details are defined in code rather
 than duplicated in documentation.
@@ -136,17 +144,22 @@ one platform.
   and all rows for an event read from a single partition.
 - Rows are created lazily. Calendar event create and platform create write no
   publication rows; a missing row is read as computed `NotPublished`.
-- `ReserveAsync` creates the row directly as `Publishing` with a conditional
-  insert, so two concurrent publish attempts cannot both reserve the same pair;
-  the loser receives a conflict. The platform name, type, and publish settings
-  are copied onto the row at reservation so the attempt stays describable even
-  if the platform record later changes.
-- `ReleaseAsync` removes a `Publishing` row to return the pair to computed
-  `NotPublished` after a failed provider call. `MarkPublishedAsync` records the
-  `Published` status, the provider `ExternalResourceId`, and the publish instant.
+- `StartPublishingAsync` creates the row directly as `Publishing` with a
+  conditional insert, so two concurrent publish attempts cannot both start the
+  same pair; the loser receives a conflict. The platform name, type, and a
+  sanitized publish-settings snapshot are copied onto the row when publishing
+  starts so the attempt stays describable even if the platform record later
+  changes.
+- `ReleasePublishingAsync` removes a `Publishing` row to return the pair to
+  computed `NotPublished` after a failed provider call. `MarkPublishedAsync`
+  records the `Published` status, the provider `ExternalResourceId`, and the
+  publish instant.
 - Deleting a platform does not delete `Published` rows. The delete handler
   stamps `PlatformDeletedUtc` to turn them into read-only orphan history, and is
   blocked while any row for the platform is `Publishing`.
+- `PlatformPublications.PublishSettingsJson` is a snapshot, not the live
+  platform settings store. WordPress snapshots include `siteUrl`, `username`,
+  and `postStatus`, but must omit `applicationPassword`.
 - Calendar event ids reach the partition filter from the request route, so the
   partition literal is escaped (single quotes doubled) as defense in depth.
 

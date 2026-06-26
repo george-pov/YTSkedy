@@ -96,6 +96,43 @@ This is a proof-of-concept integration with deliberate limitations:
   made-for-kids state are sent. Thumbnails, categories, and stream binding are
   out of scope for this slice.
 
+## WordPress Publish Settings
+
+Publishing a calendar event to a WordPress platform creates a post through the
+WordPress REST API. WordPress does not use API host configuration keys in this
+slice. Operators enter WordPress connection details through platform create or
+update requests:
+
+| Field | Classification | Purpose |
+| --- | --- | --- |
+| `publishSettings.siteUrl` | Non-secret | WordPress site root used to build `/wp-json/wp/v2/posts`. |
+| `publishSettings.username` | Personal configuration | WordPress username used with an Application Password. |
+| `publishSettings.applicationPassword` | Secret | WordPress Application Password sent through Basic Auth to the WordPress REST API. |
+| `publishSettings.postStatus` | Non-secret | Initial WordPress post status, currently `draft` or `publish`. |
+
+`applicationPassword` is accepted on platform create and update but is never
+returned by platform reads. Responses return `applicationPasswordConfigured`
+instead. On update, omitting `applicationPassword` or sending it blank preserves
+the stored value; sending a non-blank value replaces it.
+
+For local manual checks, keep WordPress site URLs, usernames, and Application
+Passwords in `http-client.env.json.user`, not tracked `.http` environment
+files. Do not put WordPress Application Passwords in
+`local.settings.sample.json`, tracked docs samples, logs, or source code.
+
+WordPress site URL validation allows `http://localhost` and
+`http://127.0.0.1` for local development. Every non-local WordPress site URL
+must use HTTPS and must not include embedded credentials.
+
+This is a first-slice integration with deliberate limitations:
+
+- The WordPress Application Password is stored in the platform row's
+  `PublishSettingsJson` so the provider can publish later. Moving provider
+  secrets to an app-managed secret store remains a production hardening item.
+- Only the English title and optional description are sent. Categories, tags,
+  excerpts, slugs, featured media, and scheduling a future WordPress post are
+  out of scope for this slice.
+
 ## CORS
 
 Browser bearer-token calls cross an origin boundary. CORS for the deployed
@@ -197,7 +234,8 @@ Per-contributor bearer tokens and deployed host URLs belong in
 Production configuration must define:
 
 - YouTube OAuth client IDs and callback behavior.
-- Credential store location or provider.
+- Credential store location or provider for provider secrets that are not
+  already externalized through host configuration.
 - Default channel assumptions.
 - API base URL behavior for the frontend host.
 - Feature flags for dry-run or preview flows.

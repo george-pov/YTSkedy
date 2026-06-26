@@ -85,12 +85,12 @@ response, and error details live in
 
 The `platforms` resource and the calendar-event publishing routes are the
 multi-platform publishing contract. A `platform` is a configured publishing
-destination (the first provider is YouTube) with a server-generated
-`platformId`, a unique `name`, an immutable `type`, and non-secret
-`publishSettings`. A calendar event is provider-neutral and has no publish
-status; publish state is a `platform publication` keyed by calendar event and
-platform. `GET /api/platforms` and the platform CRUD routes manage
-destinations; the calendar event detail response
+destination for YouTube or WordPress with a server-generated `platformId`, a
+unique `name`, an immutable `type`, and provider-specific `publishSettings`. A
+calendar event is provider-neutral and has no publish status; publish state is a
+`platform publication` keyed by calendar event and platform.
+`GET /api/platforms` and the platform CRUD routes manage destinations; the
+calendar event detail response
 (`GET /api/calendar-events/{calendarEventId}`) returns one item per active
 platform (computed `NotPublished` when no row exists) plus orphan history for
 deleted platforms in its `platforms` array; and
@@ -99,13 +99,18 @@ publishes to one selected platform and returns the provider-neutral
 `externalResourceId`. Deleting a platform preserves `Published` rows as
 read-only orphan history and is blocked while any row is `Publishing`. These
 routes reuse the `CalendarEvents.Read` (GET) and `CalendarEvents.Write` (POST,
-PUT, DELETE, publish) scopes; no new scope was added. `publishSettings` and
-publication rows never carry secret credential material; only a non-secret
-credentials reference is stored. The `Platforms` page (`/platforms`) consumes
-the platform list, create, update, and delete endpoints through a typed
+PUT, DELETE, publish) scopes; no new scope was added. YouTube publish settings
+store a non-secret credentials reference that resolves to `YouTubeChannels`
+configuration at publish time. WordPress publish settings accept an Application
+Password on create and update; the Application Password is stored only in the
+platform row, is never returned from HTTP reads, and is omitted from
+platform-publication snapshots. The `Platforms` page (`/platforms`) consumes the
+platform list, create, update, and delete endpoints through a typed
 `PlatformsService`, mapping the API `items` envelope and `platformId` field to
-the page model. The canonical request, response, status-code, and
-publishing-model details live in
+the page model. It renders YouTube and WordPress settings, leaving the
+WordPress Application Password blank on edit so a blank update preserves the
+stored value. The canonical request, response, status-code, and publishing-model
+details live in
 [`../api/http/platforms.md`](../api/http/platforms.md). The
 `CalendarEventDetails` edit route renders the detail response `platforms` array
 and exposes a Publish action for each row with `canPublish: true`.
@@ -191,15 +196,24 @@ The calendar-event-level YouTube publish route was removed for the platform
 publishing cutover. Publishing now goes through explicit platform endpoints:
 `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
 selects a configured platform and publishes through its provider adapter.
-YouTube is the first implemented provider. The provider boundary is the
+YouTube and WordPress are implemented providers. The provider boundary is the
 application port `IPlatformPublisher`, selected by platform type; YouTube SDK
-types and credential resolution stay inside `YTSkedy.Infrastructure`. A
-platform's non-secret `credentials` reference resolves to channel secrets bound
-from the `YouTubeChannels` configuration section, which is never committed to
-source control.
+types, WordPress REST DTOs, and provider credential handling stay inside
+`YTSkedy.Infrastructure`.
 
-WordPress, per-user OAuth, credential storage, and production telemetry remain
-roadmap integration surfaces. Implementation must satisfy these requirements:
+For YouTube, a platform's non-secret `credentials` reference resolves to
+channel secrets bound from the `YouTubeChannels` configuration section, which
+is never committed to source control. For WordPress, a platform stores
+`siteUrl`, `username`, `applicationPassword`, and `postStatus`; publishing posts
+to `POST /wp-json/wp/v2/posts` with Basic Auth using the configured WordPress
+username and Application Password. The event English title maps to WordPress
+`title`, the optional English description maps to `content`, `postStatus` maps
+to `status`, and the returned numeric post id becomes the provider-neutral
+`externalResourceId`.
+
+Per-user OAuth, credential migration to a dedicated secret store, and production
+telemetry remain roadmap integration surfaces. Implementation must satisfy
+these requirements:
 
 - Verify contract-sensitive behavior against official provider
   documentation.
