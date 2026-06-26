@@ -15,6 +15,8 @@ import { DataTable, DataTableState } from 'src/app/shared/components/data-table/
 import { CalendarEvents } from './calendar-events';
 
 describe('CalendarEvents', () => {
+  const calendarEventId = '6f9619ff8b864fb5bdfd4f5c2f2f16a1';
+
   let fixture: ComponentFixture<CalendarEvents>;
   let service: {
     list: Mock<(query: CalendarEventListQuery) => Observable<CalendarEventListPage>>;
@@ -33,7 +35,7 @@ describe('CalendarEvents', () => {
   });
 
   it('requests the first page sorted by scheduled start descending with no month scope', async () => {
-    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)])));
 
     await createComponent();
 
@@ -47,7 +49,7 @@ describe('CalendarEvents', () => {
   });
 
   it('renders the returned page items in a table', async () => {
-    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)])));
 
     await createComponent();
 
@@ -116,7 +118,7 @@ describe('CalendarEvents', () => {
   });
 
   it('navigates to the edit form for the row when "Edit" is clicked', async () => {
-    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)])));
 
     await createComponent();
 
@@ -125,11 +127,11 @@ describe('CalendarEvents', () => {
 
     editButton.dispatchEvent(new Event('click'));
 
-    expect(navigations).toEqual(['/calendar-events/20260606T170000Z/edit']);
+    expect(navigations).toEqual([`/calendar-events/${calendarEventId}/edit`]);
   });
 
   it('falls back to scheduled start when a table state has no API sort field', async () => {
-    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')], 40)));
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)], 40)));
 
     await createComponent();
     service.list.mockClear();
@@ -151,7 +153,7 @@ describe('CalendarEvents', () => {
   });
 
   it('maps the Title column to the title sort field', async () => {
-    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')], 40)));
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)], 40)));
 
     await createComponent();
     service.list.mockClear();
@@ -172,7 +174,7 @@ describe('CalendarEvents', () => {
   });
 
   it('re-fetches the requested page when the page index changes', async () => {
-    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')], 40)));
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)], 40)));
 
     await createComponent();
     service.list.mockClear();
@@ -193,7 +195,7 @@ describe('CalendarEvents', () => {
   });
 
   it('resets to the first page when the page size changes', async () => {
-    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')], 40)));
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)], 40)));
 
     await createComponent();
 
@@ -224,7 +226,7 @@ describe('CalendarEvents', () => {
   });
 
   it('does not show a list-level Publish action because publishing is platform-scoped', async () => {
-    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)])));
 
     await createComponent();
 
@@ -232,7 +234,7 @@ describe('CalendarEvents', () => {
   });
 
   it('keeps the Edit icon enabled and navigable from provider-neutral list rows', async () => {
-    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)])));
 
     await createComponent();
 
@@ -244,7 +246,7 @@ describe('CalendarEvents', () => {
 
     fixture.nativeElement.querySelector('.edit-button').dispatchEvent(new Event('click'));
 
-    expect(navigations).toEqual(['/calendar-events/20260606T170000Z/edit']);
+    expect(navigations).toEqual([`/calendar-events/${calendarEventId}/edit`]);
   });
 
   function emitTableState(state: DataTableState): void {

@@ -81,7 +81,7 @@ Authorization: Bearer {{accessToken}}
 ### Publish an unknown calendar event
 # Expected response: 404 Not Found (calendar event).
 
-POST {{HostAddress}}/api/calendar-events/20000101T000000Z/platforms/REPLACE_WITH_PLATFORM_ID/publish
+POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_UNKNOWN_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_PLATFORM_ID/publish
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 

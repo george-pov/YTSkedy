@@ -47,7 +47,7 @@ publication state. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with a body of
 `{ descriptions: [{ language, title, description? }] }` and reads
 `{ calendarEventId }` from the response. The scheduled start is immutable on
-edit because the id is derived from it, so only the descriptions change. The
+edit, so only the descriptions change. The
 edit route also exposes a Delete action that calls
 `DELETE /api/calendar-events/{calendarEventId}` and reads no body: it returns
 `204 No Content` on success, `404 Not Found` when the id is unknown, and

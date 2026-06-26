@@ -7,7 +7,7 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class DeleteCalendarEventHandlerTests
 {
-    private const string CalendarEventId = "20260615T170000Z";
+    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
     private static readonly DateTimeOffset StartUtc =
         new(2026, 06, 15, 17, 00, 00, TimeSpan.Zero);
 

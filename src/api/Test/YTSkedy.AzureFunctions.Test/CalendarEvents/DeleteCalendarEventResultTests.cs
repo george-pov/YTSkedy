@@ -7,7 +7,7 @@ namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
 
 public sealed class DeleteCalendarEventResultTests
 {
-    private const string CalendarEventId = "20260615T170000Z";
+    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
 
     [Fact]
     public void ToDeleteResult_Deleted_Returns204NoContent()

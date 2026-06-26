@@ -8,8 +8,8 @@ public class PlatformPublicationKeyTests
     public void PartitionKeyFor_PrefixesEvent()
     {
         Assert.Equal(
-            "event-20260615T170000Z",
-            PlatformPublicationKey.PartitionKeyFor("20260615T170000Z"));
+            "event-f81d4fae7dec11d0a76500a0c91e6bf6",
+            PlatformPublicationKey.PartitionKeyFor("f81d4fae7dec11d0a76500a0c91e6bf6"));
     }
 
     [Fact]
@@ -24,8 +24,8 @@ public class PlatformPublicationKeyTests
     public void EscapeLiteral_NoQuotes_ReturnsUnchanged()
     {
         Assert.Equal(
-            "event-20260615T170000Z",
-            PlatformPublicationKey.EscapeLiteral("event-20260615T170000Z"));
+            "event-f81d4fae7dec11d0a76500a0c91e6bf6",
+            PlatformPublicationKey.EscapeLiteral("event-f81d4fae7dec11d0a76500a0c91e6bf6"));
     }
 
     [Fact]

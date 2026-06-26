@@ -56,7 +56,7 @@ Success response:
 
 ```json
 {
-  "calendarEventId": "20260606T170000Z"
+  "calendarEventId": "start-20260606T170000Z-6f9619ff8b864fb5bdfd4f5c2f2f16a1"
 }
 ```
 
@@ -106,7 +106,7 @@ Success response (`200 OK`) is a paged envelope:
 {
   "items": [
     {
-      "calendarEventId": "20260606T170000Z",
+      "calendarEventId": "start-20260606T170000Z-6f9619ff8b864fb5bdfd4f5c2f2f16a1",
       "start": {
         "localDateTime": "2026-06-06T10:00:00",
         "timeZoneId": "America/Vancouver"
@@ -185,7 +185,7 @@ Success response (`200 OK`):
 
 ```json
 {
-  "calendarEventId": "20260606T170000Z",
+  "calendarEventId": "start-20260606T170000Z-6f9619ff8b864fb5bdfd4f5c2f2f16a1",
   "start": {
     "localDateTime": "2026-06-06T10:00:00",
     "timeZoneId": "America/Vancouver"
@@ -247,8 +247,9 @@ PUT /api/calendar-events/{calendarEventId}
 
 Replaces the localized descriptions of an existing calendar event in place.
 Requires the `CalendarEvents.Write` scope. Only the descriptions can change: the
-scheduled start is immutable because the event id is derived from its UTC start
-instant, so the request body carries no start.
+scheduled start is immutable because changing it would move the event's
+scheduling identity and active-start uniqueness key, so the request body carries
+no start.
 
 Request body:
 
@@ -272,7 +273,7 @@ Success response (`200 OK`):
 
 ```json
 {
-  "calendarEventId": "20260606T170000Z"
+  "calendarEventId": "start-20260606T170000Z-6f9619ff8b864fb5bdfd4f5c2f2f16a1"
 }
 ```
 
@@ -310,9 +311,8 @@ Success returns `204 No Content` with an empty body.
 
 Rejected states and error mapping:
 
-- Unknown `calendarEventId` returns `404 Not Found`. A syntactically invalid
-  non-empty id also returns `404 Not Found`, matching the by-id read; there is
-  no `400` id-format contract.
+- Unknown non-empty `calendarEventId` returns `404 Not Found`. Calendar event
+  IDs are opaque; there is no public id-format validation contract.
 - Any platform publication row for the event returns `409 Conflict`. Use the
   platform-publication delete route to clean up completed provider publications
   before deleting the event.

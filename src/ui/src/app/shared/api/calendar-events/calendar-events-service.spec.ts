@@ -48,7 +48,7 @@ describe('CalendarEventsService', () => {
     const apiResponse: CalendarEventListPage = {
       items: [
         {
-          calendarEventId: 'calendar-event-1',
+          calendarEventId: '6f9619ff8b864fb5bdfd4f5c2f2f16a1',
           start: {
             localDateTime: '2026-01-15T09:30:00',
             timeZoneId: 'Etc/UTC',
@@ -143,7 +143,7 @@ describe('CalendarEventsService', () => {
       ],
     };
     const apiResponse: CreateCalendarEventResponse = {
-      calendarEventId: '20260606T170000Z',
+      calendarEventId: '6f9619ff8b864fb5bdfd4f5c2f2f16a1',
     };
 
     let actualResponse: CreateCalendarEventResponse | undefined;
@@ -163,7 +163,7 @@ describe('CalendarEventsService', () => {
 
   it('requests a single calendar event by id and returns it', () => {
     const apiResponse: CalendarEventDetail = {
-      calendarEventId: '20260606T170000Z',
+      calendarEventId: '6f9619ff8b864fb5bdfd4f5c2f2f16a1',
       start: {
         localDateTime: '2026-06-06T10:00:00',
         timeZoneId: 'America/Vancouver',
@@ -192,11 +192,13 @@ describe('CalendarEventsService', () => {
     };
 
     let actual: CalendarEventDetail | undefined;
-    service.getById('20260606T170000Z').subscribe((event) => {
+    service.getById('6f9619ff8b864fb5bdfd4f5c2f2f16a1').subscribe((event) => {
       actual = event;
     });
 
-    const request = http.expectOne('https://api.example.test/api/calendar-events/20260606T170000Z');
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/6f9619ff8b864fb5bdfd4f5c2f2f16a1',
+    );
 
     expect(request.request.method).toBe('GET');
 
@@ -221,15 +223,19 @@ describe('CalendarEventsService', () => {
       ],
     };
     const apiResponse: UpdateCalendarEventResponse = {
-      calendarEventId: '20260606T170000Z',
+      calendarEventId: '6f9619ff8b864fb5bdfd4f5c2f2f16a1',
     };
 
     let actual: UpdateCalendarEventResponse | undefined;
-    service.update('20260606T170000Z', updateRequest).subscribe((response) => {
-      actual = response;
-    });
+    service
+      .update('6f9619ff8b864fb5bdfd4f5c2f2f16a1', updateRequest)
+      .subscribe((response) => {
+        actual = response;
+      });
 
-    const request = http.expectOne('https://api.example.test/api/calendar-events/20260606T170000Z');
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/6f9619ff8b864fb5bdfd4f5c2f2f16a1',
+    );
 
     expect(request.request.method).toBe('PUT');
     expect(request.request.body).toEqual(updateRequest);
@@ -253,12 +259,14 @@ describe('CalendarEventsService', () => {
     };
 
     let actualResponse: PublishPlatformResponse | undefined;
-    service.publishPlatform('20260615T170000Z', 'platform-1').subscribe((response) => {
-      actualResponse = response;
-    });
+    service
+      .publishPlatform('f81d4fae7dec11d0a76500a0c91e6bf6', 'platform-1')
+      .subscribe((response) => {
+        actualResponse = response;
+      });
 
     const request = http.expectOne(
-      'https://api.example.test/api/calendar-events/20260615T170000Z/platforms/platform-1/publish',
+      'https://api.example.test/api/calendar-events/f81d4fae7dec11d0a76500a0c91e6bf6/platforms/platform-1/publish',
     );
 
     expect(request.request.method).toBe('POST');
@@ -283,12 +291,14 @@ describe('CalendarEventsService', () => {
     };
 
     let actualResponse: CalendarEventPlatform | undefined;
-    service.deletePlatformPublication('20260615T170000Z', 'platform-1').subscribe((response) => {
-      actualResponse = response;
-    });
+    service
+      .deletePlatformPublication('f81d4fae7dec11d0a76500a0c91e6bf6', 'platform-1')
+      .subscribe((response) => {
+        actualResponse = response;
+      });
 
     const request = http.expectOne(
-      'https://api.example.test/api/calendar-events/20260615T170000Z/platforms/platform-1/publication',
+      'https://api.example.test/api/calendar-events/f81d4fae7dec11d0a76500a0c91e6bf6/platforms/platform-1/publication',
     );
 
     expect(request.request.method).toBe('DELETE');
@@ -301,7 +311,7 @@ describe('CalendarEventsService', () => {
   it('issues a DELETE to the by-id endpoint and completes with no body', () => {
     let completed = false;
     let emittedBody: unknown = 'unset';
-    service.delete('20260606T170000Z').subscribe({
+    service.delete('6f9619ff8b864fb5bdfd4f5c2f2f16a1').subscribe({
       next: (value) => {
         emittedBody = value;
       },
@@ -310,7 +320,9 @@ describe('CalendarEventsService', () => {
       },
     });
 
-    const request = http.expectOne('https://api.example.test/api/calendar-events/20260606T170000Z');
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/6f9619ff8b864fb5bdfd4f5c2f2f16a1',
+    );
 
     expect(request.request.method).toBe('DELETE');
 

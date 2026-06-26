@@ -77,8 +77,8 @@ edits. A `409` keeps the page open with
 `The provider publication could not be deleted. Try again later.`; other
 failures show generic publication-delete copy. While loading it shows a
 progress bar; a failed load shows an inline error. The scheduled start is
-read-only in edit mode (the id is derived from it), so only the descriptions
-are editable. The form shows a read-only "Scheduled start (UTC)" translation of
+read-only in edit mode, so only the descriptions are editable. The form shows a
+read-only "Scheduled start (UTC)" translation of
 the local start: in edit mode it is the stored `scheduledStartUtc`; in create
 mode it is derived live from the chosen local date, time, and zone. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with the descriptions and navigates

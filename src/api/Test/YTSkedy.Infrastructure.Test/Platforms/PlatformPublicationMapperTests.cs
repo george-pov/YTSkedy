@@ -6,7 +6,7 @@ namespace YTSkedy.Infrastructure.Test.Platforms;
 
 public class PlatformPublicationMapperTests
 {
-    private const string CalendarEventId = "20260615T170000Z";
+    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
     private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
 
     [Fact]
@@ -87,7 +87,7 @@ public class PlatformPublicationMapperTests
 
         var entity = PlatformPublicationMapper.ToPublishingEntity(attempt, now);
 
-        Assert.Equal("event-20260615T170000Z", entity.PartitionKey);
+        Assert.Equal("event-f81d4fae7dec11d0a76500a0c91e6bf6", entity.PartitionKey);
         Assert.Equal("platform-4fb4a32f3f344de1a7c3a9f4a2f94918", entity.RowKey);
         Assert.Equal(CalendarEventId, entity.CalendarEventId);
         Assert.Equal(PlatformId, entity.PlatformId);

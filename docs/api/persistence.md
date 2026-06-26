@@ -63,8 +63,16 @@ See [`configuration.md`](configuration.md) for runtime configuration guidance.
 `AzureCalendarEventRepository.CreateAsync` creates the table if it does not
 exist, then inserts one calendar event row.
 
-Entity fields, table keys, and formatting details are defined in code rather
-than duplicated in documentation.
+- The partition key is derived from the scheduled start UTC month, so local
+  month reads can scan the target UTC month plus adjacent UTC months.
+- The row key is derived from scheduled start UTC to keep one active event per
+  scheduled UTC instant. Deleting and recreating an event at the same scheduled
+  start writes a new calendar event id.
+- `calendarEventId` is a non-reusable route identifier generated from the
+  scheduled-start row key and a GUID nonce. The repository resolves by-id
+  operations to the calendar event row and verifies the stored `CalendarEventId`
+  before returning it. Publication rows use this id in their partition key, so a
+  recreated event cannot inherit publication rows from a deleted event.
 
 `AzureCalendarEventRepository.ListAsync` reads candidate calendar event rows and
 returns application read models. When a local-calendar-month criteria is
@@ -193,7 +201,7 @@ The current repository implementation allows one calendar event per scheduled
 UTC start time. A duplicate insert receives a storage conflict and is raised as:
 
 ```text
-Calendar event '<calendarEventId>' already exists.
+Calendar event scheduled for '<scheduledStartUtc>' already exists.
 ```
 
 Production API behavior must map that conflict to a stable HTTP response before

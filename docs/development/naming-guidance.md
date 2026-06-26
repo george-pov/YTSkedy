@@ -179,7 +179,7 @@ such as `ProcessAsync` or `SubmitAsync`.
   and persisted by the API.
 - `scheduled start`: Submitted local date-time plus explicit time-zone id.
 - `scheduled start UTC`: UTC instant derived from a scheduled start and used for
-  calendar event identity and ordering.
+  ordering and active calendar-event duplicate detection.
 - `localized description`: Calendar event title and optional description for one
   language code.
 - `publish status`: Platform-publication state such as `NotPublished`,

@@ -59,9 +59,9 @@ public class AzurePlatformPublicationRepositoryTests
     private static PlatformPublicationEntity PublishedEntity(string externalResourceId) =>
         new()
         {
-            PartitionKey = PlatformPublicationKey.PartitionKeyFor("20260615T170000Z"),
+            PartitionKey = PlatformPublicationKey.PartitionKeyFor("f81d4fae7dec11d0a76500a0c91e6bf6"),
             RowKey = PlatformPublicationKey.RowKeyFor("4fb4a32f3f344de1a7c3a9f4a2f94918"),
-            CalendarEventId = "20260615T170000Z",
+            CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6",
             PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918",
             PlatformName = "Main YouTube channel",
             PlatformType = PlatformType.YouTube.ToString(),

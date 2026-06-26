@@ -26,7 +26,7 @@ public class PlatformPublicationTests
         PublishStatus status,
         DateTimeOffset? platformDeletedUtc) =>
         new(
-            "20260615T170000Z",
+            "f81d4fae7dec11d0a76500a0c91e6bf6",
             "4fb4a32f3f344de1a7c3a9f4a2f94918",
             "Main YouTube channel",
             PlatformType.YouTube,

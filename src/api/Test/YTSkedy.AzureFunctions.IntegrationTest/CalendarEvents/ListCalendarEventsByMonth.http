@@ -32,7 +32,7 @@ Authorization: Bearer {{accessToken}}
 # same shape as a list item (local start, time zone, descriptions).
 # Expected response: 200 OK, or 404 Not Found for an unknown id.
 
-GET {{HostAddress}}/api/calendar-events/20260606T170000Z
+GET {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID
 Authorization: Bearer {{accessToken}}
 
 ### List calendar events scoped to a local month (optional filter)

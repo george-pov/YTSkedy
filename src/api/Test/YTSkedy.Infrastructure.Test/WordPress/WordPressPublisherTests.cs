@@ -10,7 +10,7 @@ namespace YTSkedy.Infrastructure.Test.WordPress;
 
 public class WordPressPublisherTests
 {
-    private const string CalendarEventId = "20260615T170000Z";
+    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
     private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
     private const string ApplicationPassword = "application-password-secret";
 

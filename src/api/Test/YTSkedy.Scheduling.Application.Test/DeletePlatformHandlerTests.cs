@@ -133,7 +133,7 @@ public class DeletePlatformHandlerTests
 
     private static PlatformPublication CreatePublication(PublishStatus status) =>
         new(
-            "20260615T170000Z",
+            "f81d4fae7dec11d0a76500a0c91e6bf6",
             PlatformId,
             "Main channel",
             PlatformType.YouTube,

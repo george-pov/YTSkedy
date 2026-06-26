@@ -39,6 +39,8 @@ const testDateFormats: MatDateFormats = {
 };
 
 describe('CalendarEventDetails', () => {
+  const calendarEventId = '6f9619ff8b864fb5bdfd4f5c2f2f16a1';
+
   let fixture: ComponentFixture<CalendarEventDetails>;
   let service: {
     create: Mock<(request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>>;
@@ -280,7 +282,7 @@ describe('CalendarEventDetails', () => {
   });
 
   describe('edit mode', () => {
-    const editId = '20260606T170000Z';
+    const editId = calendarEventId;
 
     function createEditComponent(): void {
       TestBed.resetTestingModule();
@@ -995,7 +997,7 @@ describe('CalendarEventDetails', () => {
 
   function sampleEvent(overrides: Partial<CalendarEventDetail> = {}): CalendarEventDetail {
     return {
-      calendarEventId: '20260606T170000Z',
+      calendarEventId,
       start: {
         localDateTime: '2030-07-04T09:30:00',
         timeZoneId: 'Europe/London',
