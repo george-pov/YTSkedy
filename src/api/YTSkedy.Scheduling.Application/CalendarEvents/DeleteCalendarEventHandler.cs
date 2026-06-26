@@ -1,7 +1,10 @@
+using YTSkedy.Scheduling.Application.Platforms;
+
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
 public sealed class DeleteCalendarEventHandler(
     ICalendarEventReader calendarEventReader,
+    IPlatformPublicationReader publicationReader,
     ICalendarEventModifier calendarEventModifier)
 {
     public async Task<DeleteCalendarEventResult> HandleAsync(
@@ -10,9 +13,6 @@ public sealed class DeleteCalendarEventHandler(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
 
-        // One application read decides eligibility and supplies the broadcast id.
-        // No fresh snapshot is taken before the YouTube call, and the local row
-        // is deleted by id afterwards without re-reading status.
         var calendarEvent = await calendarEventReader.GetByIdAsync(
             calendarEventId,
             cancellationToken);
@@ -20,6 +20,14 @@ public sealed class DeleteCalendarEventHandler(
         if (calendarEvent is null)
         {
             return DeleteCalendarEventResult.NotFound;
+        }
+
+        var publicationRows = await publicationReader.ListByEventAsync(
+            calendarEventId,
+            cancellationToken);
+        if (publicationRows.Count > 0)
+        {
+            return DeleteCalendarEventResult.HasPlatformPublications;
         }
 
         await calendarEventModifier.DeleteAsync(calendarEventId, cancellationToken);

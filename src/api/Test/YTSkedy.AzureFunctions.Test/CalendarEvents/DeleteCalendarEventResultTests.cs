@@ -30,4 +30,15 @@ public sealed class DeleteCalendarEventResultTests
         var notFound = Assert.IsType<NotFoundObjectResult>(result);
         Assert.Equal(StatusCodes.Status404NotFound, notFound.StatusCode);
     }
+
+    [Fact]
+    public void ToDeleteResult_HasPlatformPublications_Returns409()
+    {
+        var result = CalendarEventsApi.ToDeleteResult(
+            DeleteCalendarEventResult.HasPlatformPublications,
+            CalendarEventId);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(result);
+        Assert.Equal(StatusCodes.Status409Conflict, conflict.StatusCode);
+    }
 }

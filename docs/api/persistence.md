@@ -86,9 +86,10 @@ does not exist, then inserts one template row.
   create and returned to the caller. Identity is stable across renames.
 - `name` is unique within a type using an ordinal comparison. Uniqueness is
   enforced check-then-write on create and on rename; a duplicate yields a
-  `NameAlreadyExists` outcome the host maps to `409 Conflict`. The rare
-  concurrent race is accepted in this slice.
+  `NameAlreadyExists` outcome the host maps to `409 Conflict`.
 - `content` is stored as free text; placeholder tokens are not validated.
+- `type` is stored as an enum name. Unknown stored values fail the read instead
+  of defaulting to a supported type.
 - `UpdateAsync` replaces `name` and `content` by `(type, id)` with a
   last-write-wins write and returns `NotFound` when the row is missing.
   `DeleteAsync` removes the row by `(type, id)` and maps a storage not-found to
@@ -110,12 +111,11 @@ than duplicated in documentation.
 - `name` is globally unique across all platform types using an ordinal
   comparison. Uniqueness is enforced check-then-write on create and on rename; a
   duplicate yields a `NameAlreadyExists` outcome the host maps to `409 Conflict`.
-  The rare concurrent race is accepted in this slice; the expected number of
-  platforms is small, so a dedicated uniqueness index row is intentionally out
-  of scope.
+  The expected number of platforms is small, so a dedicated uniqueness index row
+  is intentionally out of scope.
 - `type` is immutable after create because it determines the publish-settings
   schema and provider adapter. `UpdateAsync` reads the stored type and reuses it
-  to serialize the new settings.
+  to serialize the new settings. Unknown stored type values fail the read.
 - Publish settings are stored as `PublishSettingsJson`.
   - For YouTube rows, `PublishSettingsJson` stores the non-secret
     `credentials` reference, `privacyStatus`, and

@@ -30,7 +30,13 @@ internal static class PlatformViewMapper
     }
 
     internal static PlatformType ParseType(string? type) =>
-        Enum.TryParse<PlatformType>(type, ignoreCase: true, out var parsed)
-            ? parsed
-            : PlatformType.YouTube;
+        type?.ToLowerInvariant() switch
+        {
+            "youtube" => PlatformType.YouTube,
+            "wordpress" => PlatformType.WordPress,
+            _ => throw InvalidStoredValue(nameof(PlatformType), type)
+        };
+
+    private static InvalidOperationException InvalidStoredValue(string fieldName, string? value) =>
+        new($"Stored {fieldName} value '{value ?? "<null>"}' is invalid.");
 }

@@ -37,7 +37,7 @@ Every call must:
 - `name`: required, editable label. Non-empty and at most 50 characters. Unique
   within a type using an ordinal comparison.
 - `content`: required free text. Non-empty and at most 2000 characters. Tokens
-  are stored as-is and are not validated against the catalog in this slice.
+  are stored as-is and are not validated against the catalog by template writes.
 
 ## List Templates
 
@@ -117,7 +117,7 @@ Current behavior and error mapping:
   (`Template type must be 'YouTube' or 'WordPress'.`).
 - A `name` already used within the type returns `409 Conflict`
   (`A {type} template named '{name}' already exists.`). The uniqueness check is
-  check-then-write, so a rare concurrent create race is accepted in this slice.
+  check-then-write.
 
 ## Update Template
 

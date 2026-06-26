@@ -2,8 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Identity.Web.Resource;
-using System.Globalization;
-using System.Text.Json;
+using YTSkedy.AzureFunctions.Http;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
@@ -17,8 +16,6 @@ public sealed class CalendarEventsApi(
     UpdateCalendarEventHandler updateHandler,
     DeleteCalendarEventHandler deleteHandler)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     [Function("CreateCalendarEvent")]
     [RequiredScope("CalendarEvents.Write")]
     public async Task<IActionResult> CreateCalendarEventAsync(
@@ -26,25 +23,15 @@ public sealed class CalendarEventsApi(
         HttpRequest request,
         CancellationToken cancellationToken)
     {
-        CreateCalendarEventRequest? createRequest;
-
-        try
+        var body = await HttpJsonBody.ReadRequiredAsync<CreateCalendarEventRequest>(
+            request,
+            cancellationToken);
+        if (body.Error is not null)
         {
-            createRequest = await JsonSerializer.DeserializeAsync<CreateCalendarEventRequest>(
-                request.Body,
-                JsonOptions,
-                cancellationToken);
-        }
-        catch (JsonException)
-        {
-            return new BadRequestObjectResult("Request body must be valid JSON.");
+            return body.Error;
         }
 
-        if (createRequest is null)
-        {
-            return new BadRequestObjectResult("Request body is required.");
-        }
-
+        var createRequest = body.Value!;
         var command = new CreateCalendarEventCommand(
             new ScheduledStart(
                 createRequest.Start.LocalDateTime,
@@ -122,25 +109,15 @@ public sealed class CalendarEventsApi(
         string calendarEventId,
         CancellationToken cancellationToken)
     {
-        UpdateCalendarEventRequest? updateRequest;
-
-        try
+        var body = await HttpJsonBody.ReadRequiredAsync<UpdateCalendarEventRequest>(
+            request,
+            cancellationToken);
+        if (body.Error is not null)
         {
-            updateRequest = await JsonSerializer.DeserializeAsync<UpdateCalendarEventRequest>(
-                request.Body,
-                JsonOptions,
-                cancellationToken);
-        }
-        catch (JsonException)
-        {
-            return new BadRequestObjectResult("Request body must be valid JSON.");
+            return body.Error;
         }
 
-        if (updateRequest is null)
-        {
-            return new BadRequestObjectResult("Request body is required.");
-        }
-
+        var updateRequest = body.Value!;
         var command = new UpdateDescriptionsCommand(
             calendarEventId,
             updateRequest.Descriptions
@@ -187,6 +164,9 @@ public sealed class CalendarEventsApi(
             DeleteCalendarEventResult.Deleted => new NoContentResult(),
             DeleteCalendarEventResult.NotFound => new NotFoundObjectResult(
                 $"Calendar event '{calendarEventId}' was not found."),
+            DeleteCalendarEventResult.HasPlatformPublications => new ConflictObjectResult(
+                $"Calendar event '{calendarEventId}' has platform publications. " +
+                "Delete platform publications before deleting the event."),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
 
@@ -199,32 +179,39 @@ public sealed class CalendarEventsApi(
         page = 0;
         pageSize = 10;
 
-        if (!TryGetSingleValue(request, "page", out var pageValue, out error))
+        if (!HttpQuery.TryParseOptionalInt(
+                request,
+                "page",
+                out page,
+                out var hasPage,
+                out error,
+                "Query parameter 'page' must be a non-negative integer."))
         {
             return false;
         }
 
-        if (pageValue is not null &&
-            !int.TryParse(pageValue, NumberStyles.None, CultureInfo.InvariantCulture, out page))
+        if (!hasPage)
         {
-            error = new BadRequestObjectResult(
-                "Query parameter 'page' must be a non-negative integer.");
+            page = 0;
+        }
+
+        if (!HttpQuery.TryParseOptionalInt(
+                request,
+                "pageSize",
+                out pageSize,
+                out var hasPageSize,
+                out error,
+                "Query parameter 'pageSize' must be an integer between 1 and 100."))
+        {
             return false;
         }
 
-        if (!TryGetSingleValue(request, "pageSize", out var pageSizeValue, out error))
+        if (!hasPageSize)
         {
-            return false;
+            pageSize = 10;
         }
 
-        if (pageSizeValue is not null &&
-            (!int.TryParse(
-                pageSizeValue,
-                NumberStyles.None,
-                CultureInfo.InvariantCulture,
-                out pageSize) ||
-            pageSize < 1 ||
-            pageSize > 100))
+        if (pageSize < 1 || pageSize > 100)
         {
             error = new BadRequestObjectResult(
                 "Query parameter 'pageSize' must be an integer between 1 and 100.");
@@ -244,7 +231,7 @@ public sealed class CalendarEventsApi(
         sort = CalendarEventSortField.ScheduledStart;
         direction = SortDirection.Descending;
 
-        if (!TryGetSingleValue(request, "sort", out var sortValue, out error))
+        if (!HttpQuery.TryGetSingleValue(request, "sort", out var sortValue, out error))
         {
             return false;
         }
@@ -269,7 +256,7 @@ public sealed class CalendarEventsApi(
             }
         }
 
-        if (!TryGetSingleValue(request, "direction", out var directionValue, out error))
+        if (!HttpQuery.TryGetSingleValue(request, "direction", out var directionValue, out error))
         {
             return false;
         }
@@ -320,60 +307,28 @@ public sealed class CalendarEventsApi(
             return false;
         }
 
-        if (!TryParseNumber(request, "year", out var parsedYear, out error))
+        if (!HttpQuery.TryParseRequiredInt(request, "year", out var parsedYear, out error))
         {
             return false;
         }
 
-        if (!ValidateRange("year", parsedYear, 1000, 9999, out error))
+        if (!HttpQuery.TryValidateRange("year", parsedYear, 1000, 9999, out error))
         {
             return false;
         }
 
-        if (!TryParseNumber(request, "month", out var parsedMonth, out error))
+        if (!HttpQuery.TryParseRequiredInt(request, "month", out var parsedMonth, out error))
         {
             return false;
         }
 
-        if (!ValidateRange("month", parsedMonth, 1, 12, out error))
+        if (!HttpQuery.TryValidateRange("month", parsedMonth, 1, 12, out error))
         {
             return false;
         }
 
         year = parsedYear;
         month = parsedMonth;
-        return true;
-    }
-
-    private static bool TryGetSingleValue(
-        HttpRequest request,
-        string name,
-        out string? value,
-        out IActionResult error)
-    {
-        value = null;
-        error = new EmptyResult();
-
-        if (!request.Query.TryGetValue(name, out var values) || values.Count == 0)
-        {
-            return true;
-        }
-
-        if (values.Count > 1)
-        {
-            error = new BadRequestObjectResult(
-                $"Query parameter '{name}' must have a single value.");
-            return false;
-        }
-
-        var rawValue = values[0];
-        if (string.IsNullOrWhiteSpace(rawValue))
-        {
-            error = new BadRequestObjectResult($"Query parameter '{name}' must not be empty.");
-            return false;
-        }
-
-        value = rawValue;
         return true;
     }
 
@@ -457,66 +412,4 @@ public sealed class CalendarEventsApi(
     private static string ToDirectionString(SortDirection direction) =>
         direction == SortDirection.Descending ? "desc" : "asc";
 
-    private static bool TryParseNumber(
-        HttpRequest request,
-        string name,
-        out int value,
-        out IActionResult error)
-    {
-        value = 0;
-        error = new EmptyResult();
-
-        if (!request.Query.TryGetValue(name, out var values) || values.Count == 0)
-        {
-            error = new BadRequestObjectResult($"Query parameter '{name}' is required.");
-            return false;
-        }
-
-        if (values.Count > 1)
-        {
-            error = new BadRequestObjectResult(
-                $"Query parameter '{name}' must have a single value.");
-            return false;
-        }
-
-        var rawValue = values[0];
-        if (string.IsNullOrWhiteSpace(rawValue))
-        {
-            error = new BadRequestObjectResult($"Query parameter '{name}' must not be empty.");
-            return false;
-        }
-
-        if (!int.TryParse(
-                rawValue,
-                NumberStyles.None,
-                CultureInfo.InvariantCulture,
-                out value))
-        {
-            error = new BadRequestObjectResult($"Query parameter '{name}' must be an integer.");
-            return false;
-        }
-
-        return true;
-    }
-
-    private static bool ValidateRange(
-        string name,
-        int value,
-        int minValue,
-        int maxValue,
-        out IActionResult error)
-    {
-        error = new EmptyResult();
-
-        if (value >= minValue && value <= maxValue)
-        {
-            return true;
-        }
-
-        error = new BadRequestObjectResult(
-            $"Query parameter '{name}' must be between {minValue} and {maxValue}.");
-
-        return false;
-
-    }
 }

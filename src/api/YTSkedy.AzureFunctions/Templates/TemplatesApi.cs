@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Identity.Web.Resource;
-using System.Text.Json;
+using YTSkedy.AzureFunctions.Http;
 using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.Templates;
 
@@ -15,8 +15,6 @@ public sealed class TemplatesApi(
     DeleteTemplateHandler deleteHandler,
     ListTemplateTokensHandler tokensHandler)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     [Function("ListTemplates")]
     [RequiredScope("CalendarEvents.Read")]
     public async Task<IActionResult> ListTemplatesAsync(
@@ -26,14 +24,17 @@ public sealed class TemplatesApi(
     {
         TemplateType? typeFilter = null;
 
-        if (request.Query.TryGetValue("type", out var typeValues))
+        if (!HttpQuery.TryGetSingleValue(request, "type", out var typeValue, out var typeError))
         {
-            if (typeValues.Count != 1 ||
-                !TryParseTemplateType(typeValues[0], out var parsedType))
+            return typeError;
+        }
+
+        if (typeValue is not null)
+        {
+            if (!TryParseTemplateType(typeValue, out var parsedType))
             {
                 return InvalidTypeResult();
             }
-
             typeFilter = parsedType;
         }
 
@@ -51,25 +52,15 @@ public sealed class TemplatesApi(
         HttpRequest request,
         CancellationToken cancellationToken)
     {
-        CreateTemplateRequest? createRequest;
-
-        try
+        var body = await HttpJsonBody.ReadRequiredAsync<CreateTemplateRequest>(
+            request,
+            cancellationToken);
+        if (body.Error is not null)
         {
-            createRequest = await JsonSerializer.DeserializeAsync<CreateTemplateRequest>(
-                request.Body,
-                JsonOptions,
-                cancellationToken);
-        }
-        catch (JsonException)
-        {
-            return new BadRequestObjectResult("Request body must be valid JSON.");
+            return body.Error;
         }
 
-        if (createRequest is null)
-        {
-            return new BadRequestObjectResult("Request body is required.");
-        }
-
+        var createRequest = body.Value!;
         if (!TryBuildCreateCommand(createRequest, out var command, out var error))
         {
             return error;
@@ -89,25 +80,15 @@ public sealed class TemplatesApi(
         string id,
         CancellationToken cancellationToken)
     {
-        UpdateTemplateRequest? updateRequest;
-
-        try
+        var body = await HttpJsonBody.ReadRequiredAsync<UpdateTemplateRequest>(
+            request,
+            cancellationToken);
+        if (body.Error is not null)
         {
-            updateRequest = await JsonSerializer.DeserializeAsync<UpdateTemplateRequest>(
-                request.Body,
-                JsonOptions,
-                cancellationToken);
-        }
-        catch (JsonException)
-        {
-            return new BadRequestObjectResult("Request body must be valid JSON.");
+            return body.Error;
         }
 
-        if (updateRequest is null)
-        {
-            return new BadRequestObjectResult("Request body is required.");
-        }
-
+        var updateRequest = body.Value!;
         if (!TryBuildUpdateCommand(type, id, updateRequest, out var command, out var error))
         {
             return error;

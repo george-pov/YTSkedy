@@ -301,9 +301,10 @@ Production release requirements:
 DELETE /api/calendar-events/{calendarEventId}
 ```
 
-Deletes a calendar event. Requires the `CalendarEvents.Write` scope. Deleting a
-calendar event is local application-data cleanup only; this endpoint does not
-contact YouTube or any other provider.
+Deletes a calendar event that has no platform publication rows. Requires the
+`CalendarEvents.Write` scope. Deleting a calendar event is local
+application-data cleanup only; this endpoint does not contact YouTube,
+WordPress, or any other provider.
 
 Success returns `204 No Content` with an empty body.
 
@@ -312,14 +313,14 @@ Rejected states and error mapping:
 - Unknown `calendarEventId` returns `404 Not Found`. A syntactically invalid
   non-empty id also returns `404 Not Found`, matching the by-id read; there is
   no `400` id-format contract.
+- Any platform publication row for the event returns `409 Conflict`. Use the
+  platform-publication delete route to clean up completed provider publications
+  before deleting the event.
 - A row that disappears between the existence check and delete write returns
   `204 No Content` because the requested end state already holds.
 
 Scope and proof-of-concept limitations:
 
-- Platform publication rows and provider cleanup are not handled by this
-  calendar-event endpoint. Use the platform-publication delete route for
-  provider cleanup and row reset.
 - The delete is a hard delete: removed events are not recoverable. Tombstones,
   recycle-bin behavior, audit retention, and restore are out of scope.
 - The `CalendarEventDetails` edit route

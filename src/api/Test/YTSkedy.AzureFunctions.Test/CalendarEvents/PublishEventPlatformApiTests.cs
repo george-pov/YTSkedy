@@ -15,7 +15,7 @@ public sealed class PublishEventPlatformApiTests
     public void ToResult_Published_Returns200WithPublishBody()
     {
         var publishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
-        var result = PublishResult.Published(
+        var result = PublishedResult(
             "Main YouTube channel",
             PlatformType.YouTube,
             "yt-broadcast-id",
@@ -25,21 +25,23 @@ public sealed class PublishEventPlatformApiTests
 
         var ok = Assert.IsType<OkObjectResult>(actionResult);
         Assert.Equal(StatusCodes.Status200OK, ok.StatusCode);
-        var body = Assert.IsType<PublishEventPlatformResponse>(ok.Value);
-        Assert.Equal(CalendarEventId, body.CalendarEventId);
+        var body = Assert.IsType<EventPlatformResponse>(ok.Value);
         Assert.Equal(PlatformId, body.PlatformId);
         Assert.Equal("Main YouTube channel", body.PlatformName);
         Assert.Equal("YouTube", body.PlatformType);
         Assert.Equal("Published", body.Status);
         Assert.Equal("yt-broadcast-id", body.ExternalResourceId);
         Assert.Equal(publishedUtc, body.PublishedUtc);
+        Assert.Null(body.PlatformDeletedUtc);
+        Assert.False(body.CanPublish);
+        Assert.True(body.CanDeletePublication);
     }
 
     [Fact]
     public void ToResult_WordPressPublished_Returns200WithWordPressPublishBody()
     {
         var publishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
-        var result = PublishResult.Published(
+        var result = PublishedResult(
             "Company blog",
             PlatformType.WordPress,
             "123",
@@ -48,12 +50,15 @@ public sealed class PublishEventPlatformApiTests
         var actionResult = PublishEventPlatformApi.ToResult(result, CalendarEventId, PlatformId);
 
         var ok = Assert.IsType<OkObjectResult>(actionResult);
-        var body = Assert.IsType<PublishEventPlatformResponse>(ok.Value);
+        var body = Assert.IsType<EventPlatformResponse>(ok.Value);
         Assert.Equal("Company blog", body.PlatformName);
         Assert.Equal("WordPress", body.PlatformType);
         Assert.Equal("Published", body.Status);
         Assert.Equal("123", body.ExternalResourceId);
         Assert.Equal(publishedUtc, body.PublishedUtc);
+        Assert.Null(body.PlatformDeletedUtc);
+        Assert.False(body.CanPublish);
+        Assert.True(body.CanDeletePublication);
     }
 
     [Theory]
@@ -85,4 +90,21 @@ public sealed class PublishEventPlatformApiTests
 
         Assert.Equal(expectedStatusCode, statusCode);
     }
+
+    private static PublishResult PublishedResult(
+        string platformName,
+        PlatformType platformType,
+        string externalResourceId,
+        DateTimeOffset publishedUtc) =>
+        PublishResult.Published(
+            new EventPlatformView(
+                PlatformId,
+                platformName,
+                platformType,
+                PublishStatus.Published,
+                externalResourceId,
+                publishedUtc,
+                null,
+                CanPublish: false,
+                CanDeletePublication: true));
 }

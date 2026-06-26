@@ -12,8 +12,8 @@ namespace YTSkedy.Infrastructure.Platforms;
 /// (<c>platforms</c>) and the row key is <c>platform-{platformId}</c>, where the
 /// platform id is a server-generated GUID. Name uniqueness is global and
 /// enforced check-then-write against the single partition with an ordinal
-/// comparison; the rare concurrent create or rename race is accepted for this
-/// slice. Publish settings are stored as JSON without secret material. Storage
+/// comparison; duplicate-name races are resolved by the last writer that reaches
+/// storage. Publish settings are stored as JSON without secret material. Storage
 /// identity, id generation, and ETags stay inside this class.
 /// </summary>
 public sealed class AzurePlatformRepository(
@@ -33,9 +33,8 @@ public sealed class AzurePlatformRepository(
         await tableClient.CreateIfNotExistsAsync(cancellationToken);
 
         // Check-then-write global name uniqueness against the single partition.
-        // The rare concurrent create race is accepted for this slice; the small
-        // expected number of platforms is why a dedicated index row is out of
-        // scope.
+        // The small expected number of platforms is why this store does not use
+        // a dedicated uniqueness index row.
         var existing = await QueryPartitionAsync(cancellationToken);
 
         if (existing.Any(entity => NameEquals(entity.Name, platform.Name)))

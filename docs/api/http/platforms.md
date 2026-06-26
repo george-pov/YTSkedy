@@ -329,7 +329,7 @@ POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish
 ```
 
 Publishes one calendar event to one selected platform. Both ids come from the
-route. The request body is empty in this iteration:
+route. The request body is empty:
 
 ```json
 {}
@@ -351,13 +351,15 @@ YouTube success response (`200 OK`):
 
 ```json
 {
-  "calendarEventId": "20260606T170000Z",
   "platformId": "4fb4a32f3f344de1a7c3a9f4a2f94918",
   "platformName": "Main YouTube channel",
   "platformType": "YouTube",
   "status": "Published",
   "externalResourceId": "abc123youtubeid",
-  "publishedUtc": "2026-06-22T12:00:00+00:00"
+  "publishedUtc": "2026-06-22T12:00:00+00:00",
+  "platformDeletedUtc": null,
+  "canPublish": false,
+  "canDeletePublication": true
 }
 ```
 
@@ -365,20 +367,22 @@ WordPress success response (`200 OK`):
 
 ```json
 {
-  "calendarEventId": "20260606T170000Z",
   "platformId": "5aa4a32f3f344de1a7c3a9f4a2f94918",
   "platformName": "Company blog",
   "platformType": "WordPress",
   "status": "Published",
   "externalResourceId": "123",
-  "publishedUtc": "2026-06-22T12:00:00+00:00"
+  "publishedUtc": "2026-06-22T12:00:00+00:00",
+  "platformDeletedUtc": null,
+  "canPublish": false,
+  "canDeletePublication": true
 }
 ```
 
 Status codes:
 
 - `200 OK` when the publish succeeds and the publication row is marked
-  `Published`.
+  `Published`. The response is the computed event-platform row.
 - `400 Bad Request` when the event start is not in the future.
 - `400 Bad Request` when provider-required content is missing. The event must
   have an English (`en`) description with a non-empty title.
@@ -391,8 +395,9 @@ Status codes:
 - `501 Not Implemented` when no provider adapter serves the platform type.
 - `502 Bad Gateway` when the provider call fails.
 - `500 Internal Server Error` when the external resource was created but the
-  publication row could not be finalized. There is no provider cleanup in this
-  slice, so the external resource id may require operator follow-up.
+  publication row could not be finalized. The publish finalization path does
+  not delete provider resources, so the external resource id may require
+  operator follow-up.
 
 State conflicts are evaluated before content validation, so an
 already-published or in-progress publication returns `409` even when the start

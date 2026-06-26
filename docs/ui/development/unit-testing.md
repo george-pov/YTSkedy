@@ -102,8 +102,8 @@ rules, date conversion, or native behavior that affects form submission.
 ## Component Tests
 
 Prefer user-visible behavior and public component contracts. Use DOM
-interaction for simple user-triggered behavior, such as selecting a month and
-clicking a button.
+interaction for simple user-triggered behavior, such as changing a table page,
+submitting a form, or clicking a button.
 
 Direct component method calls are acceptable when they keep the test focused
 and the method is a deliberate component boundary. Do not reach into private or
@@ -111,8 +111,8 @@ protected state with `as any`.
 
 Good component tests answer questions such as:
 
-- Does the page wait for both year and month before loading events?
-- Does selecting a valid year and month call the service with expected values?
+- Does changing table sort or page state call the service with expected values?
+- Does submitting a valid form call the service with the expected request?
 - Does an empty response show the empty state?
 - Does a failed request show the error state?
 - Does a public output emit when the user takes the action?

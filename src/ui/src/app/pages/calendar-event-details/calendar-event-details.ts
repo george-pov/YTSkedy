@@ -216,8 +216,7 @@ export class CalendarEventDetails {
 
   protected deleteEvent(): void {
     // Page mutations are mutually exclusive: a save in flight blocks delete and
-    // an in-flight delete blocks re-entry. The backend owns final delete
-    // eligibility for stale or no-longer-deletable events.
+    // an in-flight delete blocks re-entry. The backend owns final delete eligibility.
     if (
       this.isDeleting() ||
       this.isSubmitting() ||
@@ -240,11 +239,6 @@ export class CalendarEventDetails {
           this.router.navigateByUrl('/calendar-events');
         },
         error: (error: unknown) => {
-          // 404 means the row is already gone; treat that as completed cleanup
-          // and leave for the list. 409 means it is no longer deletable in its
-          // current state, so keep the operator here with an explanation. 502
-          // means the YouTube broadcast could not be deleted and the local row
-          // was kept. Anything else is a generic transient failure.
           if (error instanceof HttpErrorResponse && error.status === 404) {
             this.deleteErrorMessage.set(null);
             this.notifications.showSuccess('Calendar event no longer exists.');
@@ -254,14 +248,7 @@ export class CalendarEventDetails {
 
           if (error instanceof HttpErrorResponse && error.status === 409) {
             this.deleteErrorMessage.set(
-              'The event can no longer be deleted. Reload the page and try again.',
-            );
-            return;
-          }
-
-          if (error instanceof HttpErrorResponse && error.status === 502) {
-            this.deleteErrorMessage.set(
-              'The YouTube broadcast could not be deleted. Try again later.',
+              'Delete platform publications before deleting this event.',
             );
             return;
           }
@@ -295,18 +282,7 @@ export class CalendarEventDetails {
         next: (response) => {
           this.platforms.update((platforms) =>
             platforms.map((entry) =>
-              entry.platformId === response.platformId
-                ? {
-                    ...entry,
-                    platformName: response.platformName,
-                    platformType: response.platformType,
-                    status: response.status,
-                    externalResourceId: response.externalResourceId,
-                    publishedUtc: response.publishedUtc,
-                    canPublish: false,
-                    canDeletePublication: entry.canDeletePublication,
-                  }
-                : entry,
+              entry.platformId === response.platformId ? response : entry,
             ),
           );
           this.notifications.showSuccess('Calendar event published.');
@@ -361,8 +337,7 @@ export class CalendarEventDetails {
   }
 }
 
-// A 409 means the event is no longer updatable (it left Draft); reloading is the
-// recovery. Anything else is a transient or connection failure.
+// A 409 is a backend eligibility conflict. Reloading refreshes the event state.
 function describeSaveError(error: unknown): string {
   if (error instanceof HttpErrorResponse && error.status === 409) {
     return 'The event can no longer be updated. Reload the page and try again.';

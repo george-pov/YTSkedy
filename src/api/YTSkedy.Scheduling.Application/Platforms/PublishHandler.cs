@@ -8,13 +8,12 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// Publishes one calendar event to one selected platform. The flow loads the
 /// event, the platform, and the selected provider, then guards state and content:
 /// an existing row that is orphaned, published, or publishing is a conflict; the
-/// start must be in the future; and the first slice requires an English title.
+/// start must be in the future; and publishing requires an English title.
 /// It then starts the publication row (a conditional write, so a concurrent
 /// publish yields a conflict), calls the provider, and finalizes the row with the
 /// external resource id. A provider failure releases the attempt and surfaces
 /// an upstream failure; a finalize failure after the external resource was
-/// created is recorded for follow-up because the first-slice provider abstraction
-/// has no cleanup.
+/// created is recorded for follow-up.
 /// </summary>
 public sealed class PublishHandler(
     ICalendarEventReader calendarEvents,
@@ -59,8 +58,7 @@ public sealed class PublishHandler(
             cancellationToken);
         if (existing is not null)
         {
-            // Any persisted row is terminal or in-flight for this slice: a
-            // NotPublished pair has no row. Orphaned history cannot be republished.
+            // A NotPublished pair has no row. Orphaned history cannot be republished.
             if (existing.IsOrphaned)
             {
                 return PublishResult.ForStatus(PublishResultStatus.PlatformDeleted);
@@ -144,8 +142,8 @@ public sealed class PublishHandler(
         if (publishedUtc is null)
         {
             // The external resource exists but the started row vanished before it
-            // could be finalized. There is no provider cleanup in this slice, so
-            // record the orphaned external resource for operator follow-up.
+            // could be finalized. The publish finalization path does not delete
+            // provider resources, so record the external resource for follow-up.
             logger.LogError(
                 "Published calendar event {CalendarEventId} to platform {PlatformId} as external " +
                 "resource {ExternalResourceId}, but the publication row could not be finalized.",
@@ -156,10 +154,22 @@ public sealed class PublishHandler(
             return PublishResult.ForStatus(PublishResultStatus.FinalizeFailed);
         }
 
+        var publishedStatus = PublishStatus.Published;
+        var isFuture = calendarEvent.ScheduledStartUtc > timeProvider.GetUtcNow();
         return PublishResult.Published(
-            platform.Name,
-            platform.Type,
-            publishResult.ExternalResourceId,
-            publishedUtc.Value);
+            new EventPlatformView(
+                command.PlatformId,
+                platform.Name,
+                platform.Type,
+                publishedStatus,
+                publishResult.ExternalResourceId,
+                publishedUtc.Value,
+                null,
+                PlatformActionPolicy.CanPublish(publishedStatus, isOrphaned: false, isFuture),
+                PlatformActionPolicy.CanDeletePublication(
+                    publishedStatus,
+                    isOrphaned: false,
+                    hasExternalResourceId: true,
+                    isFuture)));
     }
 }

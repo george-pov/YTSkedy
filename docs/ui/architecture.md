@@ -22,11 +22,11 @@ The Angular frontend lives under `src/ui/`.
   through the calendar events API service and renders the result through the
   shared `app-data-table` component in server mode. It defaults to the first
   page sorted by scheduled start descending, re-fetches on each sort, page, or
-  page-size change. The Scheduled Start (UTC), Title, and Status columns are
-  sortable, and the Actions column projects the Edit button. The scheduled start
-  is rendered as the UTC instant; local time and zone are shown on the
-  create/edit form. Publishing is platform-scoped and is exposed from the
-  calendar event details edit route.
+  page-size change. The Scheduled Start (UTC) and Title columns are sortable,
+  and the Actions column projects the Edit button. The scheduled start is
+  rendered as the UTC instant; local time and zone are shown on the create/edit
+  form. Publishing is platform-scoped and is exposed from the calendar event
+  details edit route.
 - The `platforms` page route lists, creates, updates, and deletes configured
   publishing destinations through the platforms API service. It exposes YouTube
   and WordPress provider settings. WordPress Application Passwords are accepted

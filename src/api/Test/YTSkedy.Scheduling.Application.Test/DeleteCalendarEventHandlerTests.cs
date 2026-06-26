@@ -1,5 +1,7 @@
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
+using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
@@ -35,6 +37,18 @@ public class DeleteCalendarEventHandlerTests
     }
 
     [Fact]
+    public async Task Delete_EventWithPlatformPublications_ReturnsConflictWithoutDeleting()
+    {
+        var modifier = new FakeCalendarEventModifier();
+        var handler = CreateHandler(CreateDetail(), modifier, [Publication()]);
+
+        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+
+        Assert.Equal(DeleteCalendarEventResult.HasPlatformPublications, result);
+        Assert.Equal(0, modifier.DeleteCallCount);
+    }
+
+    [Fact]
     public async Task Delete_BlankId_Throws()
     {
         var handler = CreateHandler(CreateDetail(), new FakeCalendarEventModifier());
@@ -45,8 +59,12 @@ public class DeleteCalendarEventHandlerTests
 
     private static DeleteCalendarEventHandler CreateHandler(
         CalendarEventView? detail,
-        FakeCalendarEventModifier modifier) =>
-        new(new FakeCalendarEventReader(detail), modifier);
+        FakeCalendarEventModifier modifier,
+        IReadOnlyList<PlatformPublication>? publications = null) =>
+        new(
+            new FakeCalendarEventReader(detail),
+            new FakePlatformPublicationReader(publications ?? []),
+            modifier);
 
     private static CalendarEventView CreateDetail() =>
         new(
@@ -54,6 +72,18 @@ public class DeleteCalendarEventHandlerTests
             new ScheduledStart(StartUtc.UtcDateTime, "UTC"),
             StartUtc,
             [new LocalizedDescription("en", "English title", "English description")]);
+
+    private static PlatformPublication Publication() =>
+        new(
+            CalendarEventId,
+            "platform-1",
+            "Main YouTube channel",
+            PlatformType.YouTube,
+            PublishStatus.Published,
+            "external-1",
+            StartUtc,
+            null,
+            StartUtc);
 
     private sealed class FakeCalendarEventReader(CalendarEventView? detail) : ICalendarEventReader
     {
@@ -66,6 +96,26 @@ public class DeleteCalendarEventHandlerTests
             string calendarEventId,
             CancellationToken cancellationToken) =>
             Task.FromResult(detail);
+    }
+
+    private sealed class FakePlatformPublicationReader(
+        IReadOnlyList<PlatformPublication> publications) : IPlatformPublicationReader
+    {
+        public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(publications);
+
+        public Task<PlatformPublication?> GetAsync(
+            string calendarEventId,
+            string platformId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<PlatformPublication>> ListPublishingByPlatformAsync(
+            string platformId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeCalendarEventModifier : ICalendarEventModifier

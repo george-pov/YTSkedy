@@ -241,13 +241,15 @@ describe('CalendarEventsService', () => {
 
   it('posts a platform publish request to the event-platform publish endpoint', () => {
     const apiResponse: PublishPlatformResponse = {
-      calendarEventId: '20260615T170000Z',
       platformId: 'platform-1',
       platformName: 'Main YouTube channel',
       platformType: 'YouTube',
       status: 'Published',
       externalResourceId: 'broadcast-123',
       publishedUtc: '2026-06-15T17:30:00+00:00',
+      platformDeletedUtc: null,
+      canPublish: false,
+      canDeletePublication: true,
     };
 
     let actualResponse: PublishPlatformResponse | undefined;

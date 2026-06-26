@@ -433,13 +433,15 @@ describe('CalendarEventDetails', () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.publishPlatform.mockReturnValue(
         of({
-          calendarEventId: editId,
           platformId: 'platform-1',
           platformName: 'Main YouTube channel',
           platformType: 'YouTube',
           status: 'Published',
           externalResourceId: 'broadcast-123',
           publishedUtc: '2030-07-04T08:45:00+00:00',
+          platformDeletedUtc: null,
+          canPublish: false,
+          canDeletePublication: true,
         }),
       );
 
@@ -453,6 +455,7 @@ describe('CalendarEventDetails', () => {
       expect(service.publishPlatform).toHaveBeenCalledWith(editId, 'platform-1');
       expect(fixture.nativeElement.textContent).toContain('Published');
       expect(platformPublishHosts()).toHaveLength(0);
+      expect(platformDeletePublicationButton()).not.toBeNull();
       expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event published.');
     });
 
@@ -478,13 +481,15 @@ describe('CalendarEventDetails', () => {
       );
       service.publishPlatform.mockReturnValue(
         of({
-          calendarEventId: editId,
           platformId: 'wordpress-platform',
           platformName: 'Company blog',
           platformType: 'WordPress',
           status: 'Published',
           externalResourceId: '123',
           publishedUtc: '2030-07-04T08:45:00+00:00',
+          platformDeletedUtc: null,
+          canPublish: false,
+          canDeletePublication: true,
         }),
       );
 
@@ -859,7 +864,7 @@ describe('CalendarEventDetails', () => {
       expect(navigations).toEqual(['/calendar-events']);
     });
 
-    it('shows a conflict message and stays on the page when no longer deletable', async () => {
+    it('shows a conflict message and stays on the page when platform publications exist', async () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.delete.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
 
@@ -871,13 +876,13 @@ describe('CalendarEventDetails', () => {
       fixture.detectChanges();
 
       expect(fixture.nativeElement.textContent).toContain(
-        'The event can no longer be deleted. Reload the page and try again.',
+        'Delete platform publications before deleting this event.',
       );
       expect(navigations).toEqual([]);
       expect(notifications.showSuccess).not.toHaveBeenCalled();
     });
 
-    it('shows a YouTube failure message and stays on the page on 502', async () => {
+    it('shows a generic delete error and stays on the page on 502', async () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.delete.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 502 })));
 
@@ -889,7 +894,7 @@ describe('CalendarEventDetails', () => {
       fixture.detectChanges();
 
       expect(fixture.nativeElement.textContent).toContain(
-        'The YouTube broadcast could not be deleted. Try again later.',
+        'The event could not be deleted. Check your connection and try again.',
       );
       expect(navigations).toEqual([]);
     });

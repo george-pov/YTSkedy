@@ -12,8 +12,9 @@ namespace YTSkedy.Infrastructure.Templates;
 /// <see cref="TemplateType"/> through <see cref="TemplatePartitionKey"/>, so all
 /// templates of one type share a partition and the row key is the
 /// server-generated GUID id. Name uniqueness within a type is enforced
-/// check-then-write against the type partition with an ordinal comparison; the
-/// rare concurrent create or rename race is accepted for this slice. Storage
+/// check-then-write against the type partition with an ordinal comparison.
+/// Duplicate-name races are resolved by the last writer that reaches storage.
+/// Storage
 /// identity, id generation, and ETags stay inside this class.
 /// </summary>
 public sealed class AzureTemplateRepository(
@@ -33,8 +34,7 @@ public sealed class AzureTemplateRepository(
         await tableClient.CreateIfNotExistsAsync(cancellationToken);
 
         // Check-then-write name uniqueness within the type partition. The rare
-        // concurrent create race is accepted for this slice; an atomic name-index
-        // row is noted as future hardening in the feature record.
+        // This store does not use an atomic name-index row.
         var partitionEntities = await QueryEntitiesAsync(
             PartitionFilter(partitionKey),
             cancellationToken);

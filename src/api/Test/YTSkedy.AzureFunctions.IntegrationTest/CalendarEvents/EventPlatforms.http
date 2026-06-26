@@ -9,9 +9,10 @@
 #   channel. See
 #   docs/api/operations/youtube-publish-setup.md.
 # - The calendar event has a FUTURE start and an English (en) title.
-# Replace both ids. The request body is empty in this iteration.
-# Expected response: 200 OK with { calendarEventId, platformId, platformName,
-# platformType, status: "Published", externalResourceId, publishedUtc }. A
+# Replace both ids. The request body is empty.
+# Expected response: 200 OK with the event-platform row: { platformId,
+# platformName, platformType, status: "Published", externalResourceId,
+# publishedUtc, platformDeletedUtc, canPublish, canDeletePublication }. A
 # private scheduled broadcast appears in YouTube Studio under Content > Live.
 
 POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_PLATFORM_ID/publish

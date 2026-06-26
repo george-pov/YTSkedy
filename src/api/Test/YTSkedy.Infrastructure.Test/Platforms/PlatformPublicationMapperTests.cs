@@ -50,14 +50,12 @@ public class PlatformPublicationMapperTests
     }
 
     [Fact]
-    public void ToPublication_UnknownStoredStatus_ReadsAsNotPublished()
+    public void ToPublication_UnknownStoredStatus_Throws()
     {
         var entity = CreateEntity(PublishStatus.Publishing);
         entity.Status = "Garbled";
 
-        var publication = PlatformPublicationMapper.ToPublication(entity);
-
-        Assert.Equal(PublishStatus.NotPublished, publication.Status);
+        Assert.Throws<InvalidOperationException>(() => PlatformPublicationMapper.ToPublication(entity));
     }
 
     [Fact]
@@ -168,9 +166,9 @@ public class PlatformPublicationMapperTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("nonsense")]
-    public void ParseStatus_UnknownValue_DefaultsToNotPublished(string? stored)
+    public void ParseStatus_UnknownValue_Throws(string? stored)
     {
-        Assert.Equal(PublishStatus.NotPublished, PlatformPublicationMapper.ParseStatus(stored));
+        Assert.Throws<InvalidOperationException>(() => PlatformPublicationMapper.ParseStatus(stored));
     }
 
     private static PlatformPublicationEntity CreateEntity(PublishStatus status) =>

@@ -183,10 +183,16 @@ public class PublishHandlerTests
         var result = await Handle(handler);
 
         Assert.Equal(PublishResultStatus.Published, result.Status);
-        Assert.Equal("Main YouTube channel", result.PlatformName);
-        Assert.Equal(PlatformType.YouTube, result.PlatformType);
-        Assert.Equal("yt-broadcast-id", result.ExternalResourceId);
-        Assert.Equal(publishedUtc, result.PublishedUtc);
+        Assert.NotNull(result.Platform);
+        Assert.Equal(PlatformId, result.Platform!.PlatformId);
+        Assert.Equal("Main YouTube channel", result.Platform.PlatformName);
+        Assert.Equal(PlatformType.YouTube, result.Platform.PlatformType);
+        Assert.Equal(PublishStatus.Published, result.Platform.Status);
+        Assert.Equal("yt-broadcast-id", result.Platform.ExternalResourceId);
+        Assert.Equal(publishedUtc, result.Platform.PublishedUtc);
+        Assert.Null(result.Platform.PlatformDeletedUtc);
+        Assert.False(result.Platform.CanPublish);
+        Assert.True(result.Platform.CanDeletePublication);
 
         Assert.True(repository.Started);
         Assert.Equal("yt-broadcast-id", repository.MarkedExternalResourceId);
@@ -219,10 +225,13 @@ public class PublishHandlerTests
         var result = await Handle(handler);
 
         Assert.Equal(PublishResultStatus.Published, result.Status);
-        Assert.Equal("Company blog", result.PlatformName);
-        Assert.Equal(PlatformType.WordPress, result.PlatformType);
-        Assert.Equal("123", result.ExternalResourceId);
-        Assert.Equal(publishedUtc, result.PublishedUtc);
+        Assert.NotNull(result.Platform);
+        Assert.Equal("Company blog", result.Platform!.PlatformName);
+        Assert.Equal(PlatformType.WordPress, result.Platform.PlatformType);
+        Assert.Equal(publishedUtc, result.Platform.PublishedUtc);
+        Assert.Equal("123", result.Platform.ExternalResourceId);
+        Assert.False(result.Platform.CanPublish);
+        Assert.True(result.Platform.CanDeletePublication);
 
         Assert.Equal("123", repository.MarkedExternalResourceId);
         Assert.Same(WordPressSettings, publisher.Request!.PublishSettings);

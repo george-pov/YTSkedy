@@ -5,7 +5,9 @@ automation of YouTube streams.
 
 ## Purpose
 
-This README is the human developer table of contents for durable docs.
+This README is the human developer chapter map for durable docs. It points to
+the main documentation entry points; lower-level indexes own complete file
+inventories for their areas.
 
 ## Repository Layout
 

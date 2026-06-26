@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Identity.Web.Resource;
-using System.Text.Json;
+using YTSkedy.AzureFunctions.Http;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
 
@@ -22,8 +22,6 @@ public sealed class PlatformsApi(
     UpdatePlatformHandler updateHandler,
     DeletePlatformHandler deleteHandler)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     [Function("ListPlatforms")]
     [RequiredScope("CalendarEvents.Read")]
     public async Task<IActionResult> ListPlatformsAsync(
@@ -33,14 +31,17 @@ public sealed class PlatformsApi(
     {
         PlatformType? typeFilter = null;
 
-        if (request.Query.TryGetValue("type", out var typeValues))
+        if (!HttpQuery.TryGetSingleValue(request, "type", out var typeValue, out var typeError))
         {
-            if (typeValues.Count != 1 ||
-                !TryParsePlatformType(typeValues[0], out var parsedType))
+            return typeError;
+        }
+
+        if (typeValue is not null)
+        {
+            if (!TryParsePlatformType(typeValue, out var parsedType))
             {
                 return InvalidTypeResult();
             }
-
             typeFilter = parsedType;
         }
 
@@ -73,25 +74,15 @@ public sealed class PlatformsApi(
         HttpRequest request,
         CancellationToken cancellationToken)
     {
-        CreatePlatformRequest? createRequest;
-
-        try
+        var body = await HttpJsonBody.ReadRequiredAsync<CreatePlatformRequest>(
+            request,
+            cancellationToken);
+        if (body.Error is not null)
         {
-            createRequest = await JsonSerializer.DeserializeAsync<CreatePlatformRequest>(
-                request.Body,
-                JsonOptions,
-                cancellationToken);
-        }
-        catch (JsonException)
-        {
-            return new BadRequestObjectResult("Request body must be valid JSON.");
+            return body.Error;
         }
 
-        if (createRequest is null)
-        {
-            return new BadRequestObjectResult("Request body is required.");
-        }
-
+        var createRequest = body.Value!;
         if (!TryBuildCreateCommand(createRequest, out var command, out var error))
         {
             return error;
@@ -110,25 +101,15 @@ public sealed class PlatformsApi(
         string platformId,
         CancellationToken cancellationToken)
     {
-        UpdatePlatformRequest? updateRequest;
-
-        try
+        var body = await HttpJsonBody.ReadRequiredAsync<UpdatePlatformRequest>(
+            request,
+            cancellationToken);
+        if (body.Error is not null)
         {
-            updateRequest = await JsonSerializer.DeserializeAsync<UpdatePlatformRequest>(
-                request.Body,
-                JsonOptions,
-                cancellationToken);
-        }
-        catch (JsonException)
-        {
-            return new BadRequestObjectResult("Request body must be valid JSON.");
+            return body.Error;
         }
 
-        if (updateRequest is null)
-        {
-            return new BadRequestObjectResult("Request body is required.");
-        }
-
+        var updateRequest = body.Value!;
         var existingPlatform = await getHandler.HandleAsync(platformId, cancellationToken);
         if (existingPlatform is null)
         {
@@ -208,7 +189,11 @@ public sealed class PlatformsApi(
             return false;
         }
 
-        if (!TryBuildPublishSettings(type, request.PublishSettings, out var publishSettings, out error))
+        if (!PlatformPublishSettingsHttpMapper.TryBuild(
+                type,
+                request.PublishSettings,
+                out var publishSettings,
+                out error))
         {
             return false;
         }
@@ -241,7 +226,7 @@ public sealed class PlatformsApi(
             return false;
         }
 
-        if (!TryBuildPublishSettings(
+        if (!PlatformPublishSettingsHttpMapper.TryBuild(
                 existingPlatform.Type,
                 request.PublishSettings,
                 existingPlatform.PublishSettings,
@@ -292,7 +277,7 @@ public sealed class PlatformsApi(
                 ToPlatformResponse(
                     command.PlatformId,
                     command.Name,
-                    TypeOf(command.PublishSettings),
+                    PlatformPublishSettingsHttpMapper.TypeOf(command.PublishSettings),
                     command.PublishSettings)),
             UpdatePlatformResult.NotFound => new NotFoundObjectResult(
                 $"Platform '{command.PlatformId}' was not found."),
@@ -339,230 +324,7 @@ public sealed class PlatformsApi(
             platformId,
             name,
             type.ToString(),
-            ToPublishSettingsResponse(publishSettings));
-
-    internal static PublishSettingsResponse ToPublishSettingsResponse(PublishSettings publishSettings) =>
-        publishSettings switch
-        {
-            YouTubeSettings youTube => new PublishSettingsResponse(
-                ToYouTubeCredentialsResponse(youTube.Credentials),
-                youTube.PrivacyStatus,
-                youTube.SelfDeclaredMadeForKids,
-                null,
-                null,
-                null,
-                null),
-            WordPressSettings wordPress => new PublishSettingsResponse(
-                null,
-                null,
-                null,
-                wordPress.SiteUrl,
-                wordPress.Username,
-                wordPress.PostStatus,
-                WordPressSettings.IsValidApplicationPassword(wordPress.ApplicationPassword)),
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(publishSettings),
-                publishSettings.GetType().Name,
-                "Unknown publish settings type.")
-        };
-
-    private static YouTubeCredentialsResponse ToYouTubeCredentialsResponse(
-        YouTubeCredentials credentials) =>
-        new(
-            credentials.ClientId,
-            YouTubeCredentials.IsValidClientSecret(credentials.ClientSecret),
-            YouTubeCredentials.IsValidRefreshToken(credentials.RefreshToken));
-
-    internal static PlatformType TypeOf(PublishSettings publishSettings) =>
-        publishSettings switch
-        {
-            YouTubeSettings => PlatformType.YouTube,
-            WordPressSettings => PlatformType.WordPress,
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(publishSettings),
-                publishSettings.GetType().Name,
-                "Unknown publish settings type.")
-        };
-
-    private static bool TryBuildPublishSettings(
-        PlatformType type,
-        PublishSettingsPayload? payload,
-        out PublishSettings publishSettings,
-        out IActionResult error) =>
-        TryBuildPublishSettings(type, payload, currentSettings: null, out publishSettings, out error);
-
-    private static bool TryBuildPublishSettings(
-        PlatformType type,
-        PublishSettingsPayload? payload,
-        PublishSettings? currentSettings,
-        out PublishSettings publishSettings,
-        out IActionResult error)
-    {
-        publishSettings = default!;
-        error = new EmptyResult();
-
-        if (payload is null)
-        {
-            error = new BadRequestObjectResult("Publish settings are required.");
-            return false;
-        }
-
-        return type switch
-        {
-            PlatformType.YouTube => TryBuildYouTubeSettings(
-                payload,
-                currentSettings as YouTubeSettings,
-                out publishSettings,
-                out error),
-            PlatformType.WordPress => TryBuildWordPressSettings(
-                payload,
-                currentSettings as WordPressSettings,
-                out publishSettings,
-                out error),
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(type),
-                type,
-                "Unknown platform type.")
-        };
-    }
-
-    private static bool TryBuildYouTubeSettings(
-        PublishSettingsPayload payload,
-        YouTubeSettings? currentSettings,
-        out PublishSettings publishSettings,
-        out IActionResult error)
-    {
-        publishSettings = default!;
-        error = new EmptyResult();
-
-        if (payload.Credentials is null)
-        {
-            error = MissingYouTubeCredentialsResult();
-            return false;
-        }
-
-        if (!YouTubeCredentials.IsValidClientId(payload.Credentials.ClientId))
-        {
-            error = MissingYouTubeClientIdResult();
-            return false;
-        }
-
-        var clientSecret = payload.Credentials.ClientSecret;
-        if (string.IsNullOrWhiteSpace(clientSecret))
-        {
-            if (currentSettings is null)
-            {
-                error = MissingYouTubeClientSecretResult();
-                return false;
-            }
-
-            clientSecret = currentSettings.Credentials.ClientSecret;
-        }
-
-        var refreshToken = payload.Credentials.RefreshToken;
-        if (string.IsNullOrWhiteSpace(refreshToken))
-        {
-            if (currentSettings is null)
-            {
-                error = MissingYouTubeRefreshTokenResult();
-                return false;
-            }
-
-            refreshToken = currentSettings.Credentials.RefreshToken;
-        }
-
-        var credentials = new YouTubeCredentials(
-            payload.Credentials.ClientId!,
-            clientSecret,
-            refreshToken);
-
-        if (!YouTubeSettings.IsValidPrivacyStatus(payload.PrivacyStatus))
-        {
-            error = InvalidPrivacyStatusResult();
-            return false;
-        }
-
-        publishSettings = new YouTubeSettings(
-            credentials,
-            payload.PrivacyStatus!,
-            payload.SelfDeclaredMadeForKids ?? false);
-        return true;
-    }
-
-    private static bool TryBuildWordPressSettings(
-        PublishSettingsPayload payload,
-        WordPressSettings? currentSettings,
-        out PublishSettings publishSettings,
-        out IActionResult error)
-    {
-        publishSettings = default!;
-        error = new EmptyResult();
-
-        if (!TryValidateWordPressSiteUrl(payload.SiteUrl, out error))
-        {
-            return false;
-        }
-
-        if (!WordPressSettings.IsValidUsername(payload.Username))
-        {
-            error = InvalidWordPressUsernameResult();
-            return false;
-        }
-
-        var applicationPassword = payload.ApplicationPassword;
-        if (string.IsNullOrWhiteSpace(applicationPassword))
-        {
-            if (currentSettings is null)
-            {
-                error = MissingWordPressApplicationPasswordResult();
-                return false;
-            }
-
-            applicationPassword = currentSettings.ApplicationPassword;
-        }
-
-        if (!WordPressSettings.IsValidPostStatus(payload.PostStatus))
-        {
-            error = InvalidWordPressPostStatusResult();
-            return false;
-        }
-
-        publishSettings = new WordPressSettings(
-            payload.SiteUrl!,
-            payload.Username!,
-            applicationPassword,
-            payload.PostStatus!);
-        return true;
-    }
-
-    private static bool TryValidateWordPressSiteUrl(string? siteUrl, out IActionResult error)
-    {
-        error = new EmptyResult();
-
-        if (string.IsNullOrWhiteSpace(siteUrl))
-        {
-            error = MissingWordPressSiteUrlResult();
-            return false;
-        }
-
-        if (!Uri.TryCreate(siteUrl.Trim(), UriKind.Absolute, out var uri) ||
-            uri.Scheme is not "http" and not "https" ||
-            !string.IsNullOrEmpty(uri.UserInfo))
-        {
-            error = InvalidWordPressSiteUrlResult();
-            return false;
-        }
-
-        if (uri.Scheme == "http" &&
-            !string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) &&
-            uri.Host != "127.0.0.1")
-        {
-            error = InsecureWordPressSiteUrlResult();
-            return false;
-        }
-
-        return true;
-    }
+            PlatformPublishSettingsHttpMapper.ToResponse(publishSettings));
 
     private static IActionResult InvalidNameResult() =>
         new BadRequestObjectResult(
@@ -571,39 +333,4 @@ public sealed class PlatformsApi(
     private static IActionResult InvalidTypeResult() =>
         new BadRequestObjectResult("Platform type must be 'YouTube' or 'WordPress'.");
 
-    private static IActionResult MissingYouTubeCredentialsResult() =>
-        new BadRequestObjectResult("Publish settings credentials are required.");
-
-    private static IActionResult MissingYouTubeClientIdResult() =>
-        new BadRequestObjectResult("Publish settings credentials client ID is required.");
-
-    private static IActionResult MissingYouTubeClientSecretResult() =>
-        new BadRequestObjectResult("Publish settings credentials client secret is required.");
-
-    private static IActionResult MissingYouTubeRefreshTokenResult() =>
-        new BadRequestObjectResult("Publish settings credentials refresh token is required.");
-
-    private static IActionResult InvalidPrivacyStatusResult() =>
-        new BadRequestObjectResult(
-            "Publish settings privacy status must be 'private', 'public', or 'unlisted'.");
-
-    private static IActionResult MissingWordPressSiteUrlResult() =>
-        new BadRequestObjectResult("Publish settings site URL is required.");
-
-    private static IActionResult InvalidWordPressSiteUrlResult() =>
-        new BadRequestObjectResult(
-            "Publish settings site URL must be an absolute HTTP(S) URL without credentials.");
-
-    private static IActionResult InsecureWordPressSiteUrlResult() =>
-        new BadRequestObjectResult(
-            "Publish settings site URL must use HTTPS unless it targets localhost or 127.0.0.1.");
-
-    private static IActionResult InvalidWordPressUsernameResult() =>
-        new BadRequestObjectResult("Publish settings username is required.");
-
-    private static IActionResult MissingWordPressApplicationPasswordResult() =>
-        new BadRequestObjectResult("Publish settings Application Password is required.");
-
-    private static IActionResult InvalidWordPressPostStatusResult() =>
-        new BadRequestObjectResult("Publish settings post status must be 'publish' or 'draft'.");
 }

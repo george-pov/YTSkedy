@@ -7,8 +7,7 @@ namespace YTSkedy.Infrastructure.Platforms;
 /// Translates between <see cref="PlatformPublicationEntity"/> rows and the
 /// domain <see cref="PlatformPublication"/> read model, and builds the row for
 /// a fresh attempt. Status round-trips as its enum name; an
-/// unparsable stored status is read defensively as
-/// <see cref="PublishStatus.NotPublished"/>. Publish settings snapshots are
+/// unparsable stored status fails the read. Publish settings snapshots are
 /// serialized without secret material through
 /// <see cref="PublishSettingsSerializer.SerializeSnapshot(PlatformType, PublishSettings)"/>.
 /// </summary>
@@ -18,18 +17,20 @@ internal static class PlatformPublicationMapper
     {
         ArgumentNullException.ThrowIfNull(entity);
 
+        var platformType = PlatformViewMapper.ParseType(entity.PlatformType);
+
         return new PlatformPublication(
             entity.CalendarEventId,
             entity.PlatformId,
             entity.PlatformName,
-            PlatformViewMapper.ParseType(entity.PlatformType),
+            platformType,
             ParseStatus(entity.Status),
             entity.ExternalResourceId,
             entity.PublishedUtc,
             entity.PlatformDeletedUtc,
             entity.UpdatedUtc,
             PublishSettingsSerializer.DeserializeSnapshot(
-                PlatformViewMapper.ParseType(entity.PlatformType),
+                platformType,
                 entity.PublishSettingsJson));
     }
 
@@ -76,7 +77,14 @@ internal static class PlatformPublicationMapper
     }
 
     internal static PublishStatus ParseStatus(string? status) =>
-        Enum.TryParse<PublishStatus>(status, ignoreCase: true, out var parsed)
-            ? parsed
-            : PublishStatus.NotPublished;
+        status?.ToLowerInvariant() switch
+        {
+            "notpublished" => PublishStatus.NotPublished,
+            "publishing" => PublishStatus.Publishing,
+            "published" => PublishStatus.Published,
+            _ => throw InvalidStoredValue(nameof(PublishStatus), status)
+        };
+
+    private static InvalidOperationException InvalidStoredValue(string fieldName, string? value) =>
+        new($"Stored {fieldName} value '{value ?? "<null>"}' is invalid.");
 }

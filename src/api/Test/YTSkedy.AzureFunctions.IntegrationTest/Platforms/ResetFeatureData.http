@@ -1,9 +1,8 @@
 ### Data reset validation note
 #
-# The multi-platform publishing cutover is destructive: before testing the new
-# model, reset the application-owned Azure Table Storage tables for the feature
-# environment instead of converting old rows. The reset is operator-run and is
-# never a host-start side effect.
+# Resetting multi-platform publishing data is destructive. Reset the
+# application-owned Azure Table Storage tables for the feature environment as an
+# operator-run action, never as a host-start side effect.
 #
 # Tables in the reset scope:
 #   - CalendarEvents

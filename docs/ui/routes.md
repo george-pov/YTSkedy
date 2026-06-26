@@ -29,7 +29,7 @@ placeholder.
 | `/` | Public | Renders `Home` with a sign-in button. Auto-redirects signed-in visitors to `/calendar-events`. |
 | `/calendar-events` | Protected | Renders `CalendarEvents` and loads the first page of all events sorted by scheduled start descending. The scheduled start is shown as the UTC instant (`scheduledStartUtc`). Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`. |
 | `/calendar-events/new` | Protected | Renders `CalendarEventDetails`, a Signal Forms form (a typed model plus a `schema()` of validators) that creates an event via `POST /api/calendar-events` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
-| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, repopulates the form, keeps the scheduled start read-only, and shows the response `platforms` array as a Type, Name, Status, and Actions table. Platform rows with `canPublish: true` show a Publish action that calls `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`; rows with `canDeletePublication: true` show a Delete publication action that confirms and calls `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`. Save sends `PUT /api/calendar-events/{calendarEventId}` with the descriptions and is enabled only while the API's `canUpdate` flag is `true`. A separate Delete action removes a loaded event the API marks deletable (`canDelete`: a `Draft`, or a future `Published` event) via `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events`. Guarded by `authenticatedGuard`. |
+| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, repopulates the form, keeps the scheduled start read-only, and shows the response `platforms` array as a Type, Name, Status, and Actions table. Platform rows with `canPublish: true` show a Publish action that calls `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`; rows with `canDeletePublication: true` show a Delete publication action that confirms and calls `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`. Save sends `PUT /api/calendar-events/{calendarEventId}` with the descriptions. A separate Delete action calls `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
 | `/templates` | Protected | Renders `Templates`, a single-page CRUD for reusable social-post templates backed by the `templates` API through a typed `TemplatesService`. On load it lists templates with `GET /api/templates` and shows each template's type (platform) and name. New Template opens an unsaved editor whose type is selectable and creates via `POST /api/templates`. Selecting a row opens the editor with the type read-only (immutable after create) and saves name and content via `PUT /api/templates/{type}/{id}`; Delete calls `DELETE /api/templates/{type}/{id}`. A failed load, save, or delete shows an inline error, and a duplicate name surfaces the `409` conflict. Guarded by `authenticatedGuard`. |
 | `/platforms` | Protected | Renders `Platforms`, a single-page CRUD for configured publishing destinations backed by the `platforms` API through a typed `PlatformsService`. On load it lists platforms with `GET /api/platforms`; New Platform creates a YouTube or WordPress platform via `POST /api/platforms`; selecting a row opens an editor that saves via `PUT /api/platforms/{platformId}` or deletes via `DELETE /api/platforms/{platformId}`. Existing WordPress Application Passwords are not displayed; leaving the password field blank on edit preserves the stored password. A failed load, save, or delete shows an inline error, and duplicate names surface the `409` conflict. Guarded by `authenticatedGuard`. |
 | `/signed-out` | Public | Renders post-logout confirmation. Auto-redirects already-authenticated visitors to `/calendar-events`. |
@@ -84,19 +84,14 @@ mode it is derived live from the chosen local date, time, and zone. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with the descriptions and navigates
 back to `/calendar-events` on success.
 
-In edit mode the page also shows a Delete action whenever the loaded event's
-API-computed `canDelete` flag is `true` (a `Draft`, or a future `Published`
-event with a recorded broadcast id); it is hidden in create mode. The UI reads
-`canDelete` and does not inspect `status`, scheduled start, or
-`youTubeBroadcastId` itself. Delete calls
+In edit mode the page also shows a Delete action; it is hidden in create mode.
+Delete calls
 `DELETE /api/calendar-events/{calendarEventId}` immediately with no confirmation
 prompt and, on success, shows the `Calendar event deleted.` notification and
 navigates back to `/calendar-events`. A `404` is treated as the event already
 being gone (`Calendar event no longer exists.` then navigation); a `409` keeps
-the page open with `The event can no longer be deleted. Reload the page and try
-again.`; a `502` keeps the page open with `The YouTube broadcast could not be
-deleted. Try again later.`; other failures show generic delete copy. Save is
-enabled only while `canUpdate` is `true`, and an update `409` keeps the page
+the page open with `Delete platform publications before deleting this event.`;
+other failures show generic delete copy. An update `409` keeps the page
 open with `The event can no longer be updated. Reload the page and try again.`
 Save and Delete are mutually exclusive while either is in flight.
 Save, Delete, Cancel, Publish, and Delete publication are disabled while a

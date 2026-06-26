@@ -104,15 +104,7 @@ export interface UpdateCalendarEventResponse {
   calendarEventId: string;
 }
 
-export interface PublishPlatformResponse {
-  calendarEventId: string;
-  platformId: string;
-  platformName: string;
-  platformType: string;
-  status: CalendarEventPlatformStatus;
-  externalResourceId: string;
-  publishedUtc: string;
-}
+export type PublishPlatformResponse = CalendarEventPlatform;
 
 @Injectable({
   providedIn: 'root',

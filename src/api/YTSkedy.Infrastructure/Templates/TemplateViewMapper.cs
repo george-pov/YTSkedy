@@ -25,7 +25,13 @@ internal static class TemplateViewMapper
     }
 
     internal static TemplateType ParseType(string? type) =>
-        Enum.TryParse<TemplateType>(type, ignoreCase: true, out var parsed)
-            ? parsed
-            : TemplateType.YouTube;
+        type?.ToLowerInvariant() switch
+        {
+            "youtube" => TemplateType.YouTube,
+            "wordpress" => TemplateType.WordPress,
+            _ => throw InvalidStoredValue(nameof(TemplateType), type)
+        };
+
+    private static InvalidOperationException InvalidStoredValue(string fieldName, string? value) =>
+        new($"Stored {fieldName} value '{value ?? "<null>"}' is invalid.");
 }

@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Identity.Web.Resource;
 using YTSkedy.Scheduling.Application.Platforms;
-using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.AzureFunctions.CalendarEvents;
 
@@ -11,7 +10,7 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 /// HTTP boundary for publishing a calendar event to a selected platform. Hosts
 /// <c>POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish</c>
 /// under the Azure Functions <c>/api</c> prefix with the <c>CalendarEvents.Write</c>
-/// scope. The request body is empty in this iteration; both ids come from the
+/// scope. The request body is empty; both ids come from the
 /// route. The boundary owns mapping the publish outcome to a status code.
 /// </summary>
 public sealed class PublishEventPlatformApi(PublishHandler publishHandler)
@@ -52,7 +51,7 @@ public sealed class PublishEventPlatformApi(PublishHandler publishHandler)
         return result.Status switch
         {
             PublishResultStatus.Published =>
-                new OkObjectResult(ToResponse(result, calendarEventId, platformId)),
+                new OkObjectResult(CalendarEventsApi.ToEventPlatformResponse(result.Platform!)),
             PublishResultStatus.EventNotFound =>
                 new NotFoundObjectResult($"Calendar event '{calendarEventId}' was not found."),
             PublishResultStatus.PlatformNotFound =>
@@ -87,16 +86,4 @@ public sealed class PublishEventPlatformApi(PublishHandler publishHandler)
         };
     }
 
-    private static PublishEventPlatformResponse ToResponse(
-        PublishResult result,
-        string calendarEventId,
-        string platformId) =>
-        new(
-            calendarEventId,
-            platformId,
-            result.PlatformName!,
-            result.PlatformType!.Value.ToString(),
-            PublishStatus.Published.ToString(),
-            result.ExternalResourceId!,
-            result.PublishedUtc!.Value);
 }

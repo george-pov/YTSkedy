@@ -10,7 +10,7 @@ public interface IPlatformPublicationRepository
     /// the same event/platform pair yields
     /// <see cref="StartPublicationResult.Conflict"/> and only one caller may
     /// proceed to the provider. Any existing row (publishing, published, or
-    /// orphaned) is also a conflict in this iteration.
+    /// orphaned) is also a conflict.
     /// </summary>
     Task<StartPublicationResult> StartPublishingAsync(
         PlatformPublicationAttempt attempt,

@@ -50,7 +50,8 @@ publication state. Save sends
 edit because the id is derived from it, so only the descriptions change. The
 edit route also exposes a Delete action that calls
 `DELETE /api/calendar-events/{calendarEventId}` and reads no body: it returns
-`204 No Content` on success and `404 Not Found` when the id is unknown.
+`204 No Content` on success, `404 Not Found` when the id is unknown, and
+`409 Conflict` when platform publication rows exist for the event.
 
 The `GET` endpoint returns a server-side sorted paged envelope
 `{ items, page, pageSize, totalCount, sort, direction }`. The query carries
@@ -59,7 +60,7 @@ The `GET` endpoint returns a server-side sorted paged envelope
 `direction` (`asc` | `desc`, default `desc`), and an optional both-or-neither
 `year`/`month` filter. The default page is the first page sorted by scheduled
 start descending. The UI consumes one page at a time and uses `totalCount` to
-drive its paginator; it no longer scopes the list to a month. The canonical
+drive its paginator. The canonical
 parameter, envelope, and validation details live in
 [`../api/http/calendar-events.md`](../api/http/calendar-events.md). The calendar
 event list response is provider-neutral; the calendar event itself carries no
@@ -77,8 +78,8 @@ template carries a server-generated GUID `id`, a
 `type` (`YouTube` or `WordPress`, immutable after create because it drives
 storage partitioning), a `name` (required, at most 50 characters, unique within
 a type), and free-text `content` (required, at most 2000 characters; tokens are
-stored as-is and not validated in this slice). Create returns `200 OK` with the
-new `id`, `400 Bad Request` on invalid input, and `409 Conflict` when the name
+stored as-is and not validated by template writes). Create returns `200 OK`
+with the new `id`, `400 Bad Request` on invalid input, and `409 Conflict` when the name
 already exists in that type; update and delete locate by `{type}/{id}` and add
 `404 Not Found`. Templates reuse the `CalendarEvents.Read` (GET) and
 `CalendarEvents.Write` (POST, PUT, DELETE) scopes; no new scope was added. The
@@ -99,8 +100,8 @@ calendar event detail response
 platform (computed `NotPublished` when no row exists) plus orphan history for
 deleted platforms in its `platforms` array; and
 `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
-publishes to one selected platform and returns the provider-neutral
-`externalResourceId`. The row-level
+publishes to one selected platform and returns the computed event-platform row
+with the provider-neutral `externalResourceId`. The row-level
 `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`
 route deletes or confirms the provider resource first, then conditionally
 removes the local publication row and returns the recomputed event-platform row.
@@ -205,11 +206,10 @@ explicitly exposes them through HTTP.
 
 ## External Integrations
 
-The calendar-event-level YouTube publish route was removed for the platform
-publishing cutover. Publishing now goes through explicit platform endpoints:
+Publishing goes through explicit platform endpoints:
 `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
 selects a configured platform and publishes through its provider adapter.
-Deleting a completed publication now goes through the matching
+Deleting a completed publication goes through the matching
 `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`
 endpoint, which selects provider cleanup through `IPlatformPublicationDeleter`
 before local row deletion. YouTube and WordPress are implemented providers. The

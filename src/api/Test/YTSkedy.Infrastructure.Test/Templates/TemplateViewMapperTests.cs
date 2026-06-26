@@ -63,9 +63,9 @@ public class TemplateViewMapperTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("not-a-real-type")]
-    public void ParseType_UnknownType_DefaultsToYouTube(string? stored)
+    public void ParseType_UnknownType_Throws(string? stored)
     {
-        Assert.Equal(TemplateType.YouTube, TemplateViewMapper.ParseType(stored));
+        Assert.Throws<InvalidOperationException>(() => TemplateViewMapper.ParseType(stored));
     }
 
     private static TemplateEntity CreateEntity(
