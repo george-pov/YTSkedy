@@ -63,7 +63,64 @@ public sealed class HttpDtoJsonTests
         Assert.NotNull(request.PublishSettings);
         Assert.Equal("main-channel", request.PublishSettings.Credentials);
         Assert.Equal("private", request.PublishSettings.PrivacyStatus);
-        Assert.False(request.PublishSettings.SelfDeclaredMadeForKids);
+        Assert.False(request.PublishSettings.SelfDeclaredMadeForKids.GetValueOrDefault());
+    }
+
+    [Fact]
+    public void CreatePlatformRequest_WordPressNestedDto_DeserializesWithWebDefaults()
+    {
+        const string json = """
+            {
+              "name": "Main WordPress site",
+              "type": "WordPress",
+              "publishSettings": {
+                "siteUrl": "https://example.com",
+                "username": "editor",
+                "applicationPassword": "application-password",
+                "postStatus": "publish"
+              }
+            }
+            """;
+
+        var request = JsonSerializer.Deserialize<CreatePlatformRequest>(json, JsonOptions);
+
+        Assert.NotNull(request);
+        Assert.Equal("Main WordPress site", request.Name);
+        Assert.Equal("WordPress", request.Type);
+        Assert.NotNull(request.PublishSettings);
+        Assert.Equal("https://example.com", request.PublishSettings.SiteUrl);
+        Assert.Equal("editor", request.PublishSettings.Username);
+        Assert.Equal("application-password", request.PublishSettings.ApplicationPassword);
+        Assert.Equal("publish", request.PublishSettings.PostStatus);
+    }
+
+    [Fact]
+    public void PlatformResponse_WordPressSettings_SerializesRedactedSettings()
+    {
+        object response = new PlatformResponse(
+            "wp-platform",
+            "Main WordPress site",
+            "WordPress",
+            new PublishSettingsResponse(
+                null,
+                null,
+                null,
+                "https://example.com",
+                "editor",
+                "publish",
+                true));
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+
+        using var document = JsonDocument.Parse(json);
+        var settings = document.RootElement.GetProperty("publishSettings");
+
+        Assert.Equal("https://example.com", settings.GetProperty("siteUrl").GetString());
+        Assert.Equal("editor", settings.GetProperty("username").GetString());
+        Assert.Equal("publish", settings.GetProperty("postStatus").GetString());
+        Assert.True(settings.GetProperty("applicationPasswordConfigured").GetBoolean());
+        Assert.DoesNotContain("applicationPassword\":\"", json);
+        Assert.DoesNotContain("application-password", json);
     }
 
     [Fact]

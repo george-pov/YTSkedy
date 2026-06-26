@@ -13,9 +13,7 @@ namespace YTSkedy.AzureFunctions.Platforms;
 /// update, and delete under the Azure Functions <c>/api</c> prefix, reusing the
 /// calendar-event bearer-token scopes (<c>CalendarEvents.Read</c> for reads,
 /// <c>CalendarEvents.Write</c> for writes). The boundary owns request parsing,
-/// validation to <c>400 Bad Request</c>, and result-to-status mapping. The first
-/// slice supports YouTube platforms; WordPress is recognized as a type value but
-/// cannot be configured yet because no WordPress publish settings are defined.
+/// validation to <c>400 Bad Request</c>, and result-to-status mapping.
 /// </summary>
 public sealed class PlatformsApi(
     ListPlatformsHandler listHandler,
@@ -131,7 +129,13 @@ public sealed class PlatformsApi(
             return new BadRequestObjectResult("Request body is required.");
         }
 
-        if (!TryBuildUpdateCommand(platformId, updateRequest, out var command, out var error))
+        var existingPlatform = await getHandler.HandleAsync(platformId, cancellationToken);
+        if (existingPlatform is null)
+        {
+            return new NotFoundObjectResult($"Platform '{platformId}' was not found.");
+        }
+
+        if (!TryBuildUpdateCommand(existingPlatform, updateRequest, out var command, out var error))
         {
             return error;
         }
@@ -160,7 +164,7 @@ public sealed class PlatformsApi(
     /// Parses a route or query platform-type segment (case-insensitive) to a
     /// <see cref="PlatformType"/>. Numeric and unknown values are rejected.
     /// </summary>
-    private static bool TryParsePlatformType(string? value, out PlatformType type)
+    internal static bool TryParsePlatformType(string? value, out PlatformType type)
     {
         switch (value?.ToLowerInvariant())
         {
@@ -182,7 +186,7 @@ public sealed class PlatformsApi(
     /// settings are validated against the type. Any failure yields a
     /// <c>400 Bad Request</c> through <paramref name="error"/>.
     /// </summary>
-    private static bool TryBuildCreateCommand(
+    internal static bool TryBuildCreateCommand(
         CreatePlatformRequest request,
         out CreatePlatformCommand command,
         out IActionResult error)
@@ -204,13 +208,7 @@ public sealed class PlatformsApi(
             return false;
         }
 
-        if (type != PlatformType.YouTube)
-        {
-            error = UnsupportedPlatformResult();
-            return false;
-        }
-
-        if (!TryBuildPublishSettings(request.PublishSettings, out var publishSettings, out error))
+        if (!TryBuildPublishSettings(type, request.PublishSettings, out var publishSettings, out error))
         {
             return false;
         }
@@ -225,12 +223,13 @@ public sealed class PlatformsApi(
     /// body. Any failure yields a <c>400 Bad Request</c> through
     /// <paramref name="error"/>.
     /// </summary>
-    private static bool TryBuildUpdateCommand(
-        string platformId,
+    internal static bool TryBuildUpdateCommand(
+        PlatformView existingPlatform,
         UpdatePlatformRequest request,
         out UpdatePlatformCommand command,
         out IActionResult error)
     {
+        ArgumentNullException.ThrowIfNull(existingPlatform);
         ArgumentNullException.ThrowIfNull(request);
 
         command = default!;
@@ -242,14 +241,20 @@ public sealed class PlatformsApi(
             return false;
         }
 
-        // Only YouTube platforms exist in this slice, so update settings are
-        // validated as YouTube publish settings.
-        if (!TryBuildPublishSettings(request.PublishSettings, out var publishSettings, out error))
+        if (!TryBuildPublishSettings(
+                existingPlatform.Type,
+                request.PublishSettings,
+                existingPlatform.PublishSettings,
+                out var publishSettings,
+                out error))
         {
             return false;
         }
 
-        command = new UpdatePlatformCommand(platformId, request.Name!.Trim(), publishSettings);
+        command = new UpdatePlatformCommand(
+            existingPlatform.PlatformId,
+            request.Name!.Trim(),
+            publishSettings);
         return true;
     }
 
@@ -257,7 +262,7 @@ public sealed class PlatformsApi(
     /// Maps a create outcome to its HTTP result. Created is 200 with the single
     /// platform shape; a duplicate name is 409.
     /// </summary>
-    private static IActionResult ToCreateResult(
+    internal static IActionResult ToCreateResult(
         CreatePlatformResult result,
         CreatePlatformCommand command) =>
         result.Status switch
@@ -278,7 +283,7 @@ public sealed class PlatformsApi(
     /// platform shape; an unknown id is 404; a duplicate name is 409; a publish
     /// in progress is 409.
     /// </summary>
-    private static IActionResult ToUpdateResult(
+    internal static IActionResult ToUpdateResult(
         UpdatePlatformResult result,
         UpdatePlatformCommand command) =>
         result switch
@@ -302,7 +307,7 @@ public sealed class PlatformsApi(
     /// Maps a delete outcome to its HTTP result. Deleted is 204; an unknown id is
     /// 404; a publish in progress is 409.
     /// </summary>
-    private static IActionResult ToDeleteResult(
+    internal static IActionResult ToDeleteResult(
         DeletePlatformResult result,
         string platformId) =>
         result switch
@@ -315,17 +320,17 @@ public sealed class PlatformsApi(
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
 
-    private static PlatformListResponse ToListResponse(IReadOnlyList<PlatformView> views) =>
+    internal static PlatformListResponse ToListResponse(IReadOnlyList<PlatformView> views) =>
         new(views.Select(ToPlatformResponse).ToArray());
 
-    private static PlatformResponse ToPlatformResponse(PlatformView view)
+    internal static PlatformResponse ToPlatformResponse(PlatformView view)
     {
         ArgumentNullException.ThrowIfNull(view);
 
         return ToPlatformResponse(view.PlatformId, view.Name, view.Type, view.PublishSettings);
     }
 
-    private static PlatformResponse ToPlatformResponse(
+    internal static PlatformResponse ToPlatformResponse(
         string platformId,
         string name,
         PlatformType type,
@@ -336,23 +341,36 @@ public sealed class PlatformsApi(
             type.ToString(),
             ToPublishSettingsResponse(publishSettings));
 
-    private static PublishSettingsResponse ToPublishSettingsResponse(PublishSettings publishSettings) =>
+    internal static PublishSettingsResponse ToPublishSettingsResponse(PublishSettings publishSettings) =>
         publishSettings switch
         {
             YouTubeSettings youTube => new PublishSettingsResponse(
                 youTube.Credentials,
                 youTube.PrivacyStatus,
-                youTube.SelfDeclaredMadeForKids),
+                youTube.SelfDeclaredMadeForKids,
+                null,
+                null,
+                null,
+                null),
+            WordPressSettings wordPress => new PublishSettingsResponse(
+                null,
+                null,
+                null,
+                wordPress.SiteUrl,
+                wordPress.Username,
+                wordPress.PostStatus,
+                WordPressSettings.IsValidApplicationPassword(wordPress.ApplicationPassword)),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(publishSettings),
                 publishSettings.GetType().Name,
                 "Unknown publish settings type.")
         };
 
-    private static PlatformType TypeOf(PublishSettings publishSettings) =>
+    internal static PlatformType TypeOf(PublishSettings publishSettings) =>
         publishSettings switch
         {
             YouTubeSettings => PlatformType.YouTube,
+            WordPressSettings => PlatformType.WordPress,
             _ => throw new ArgumentOutOfRangeException(
                 nameof(publishSettings),
                 publishSettings.GetType().Name,
@@ -360,7 +378,16 @@ public sealed class PlatformsApi(
         };
 
     private static bool TryBuildPublishSettings(
+        PlatformType type,
         PublishSettingsPayload? payload,
+        out PublishSettings publishSettings,
+        out IActionResult error) =>
+        TryBuildPublishSettings(type, payload, currentSettings: null, out publishSettings, out error);
+
+    private static bool TryBuildPublishSettings(
+        PlatformType type,
+        PublishSettingsPayload? payload,
+        PublishSettings? currentSettings,
         out PublishSettings publishSettings,
         out IActionResult error)
     {
@@ -372,6 +399,29 @@ public sealed class PlatformsApi(
             error = new BadRequestObjectResult("Publish settings are required.");
             return false;
         }
+
+        return type switch
+        {
+            PlatformType.YouTube => TryBuildYouTubeSettings(payload, out publishSettings, out error),
+            PlatformType.WordPress => TryBuildWordPressSettings(
+                payload,
+                currentSettings as WordPressSettings,
+                out publishSettings,
+                out error),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(type),
+                type,
+                "Unknown platform type.")
+        };
+    }
+
+    private static bool TryBuildYouTubeSettings(
+        PublishSettingsPayload payload,
+        out PublishSettings publishSettings,
+        out IActionResult error)
+    {
+        publishSettings = default!;
+        error = new EmptyResult();
 
         if (!YouTubeSettings.IsValidCredentials(payload.Credentials))
         {
@@ -392,16 +442,87 @@ public sealed class PlatformsApi(
         return true;
     }
 
+    private static bool TryBuildWordPressSettings(
+        PublishSettingsPayload payload,
+        WordPressSettings? currentSettings,
+        out PublishSettings publishSettings,
+        out IActionResult error)
+    {
+        publishSettings = default!;
+        error = new EmptyResult();
+
+        if (!TryValidateWordPressSiteUrl(payload.SiteUrl, out error))
+        {
+            return false;
+        }
+
+        if (!WordPressSettings.IsValidUsername(payload.Username))
+        {
+            error = InvalidWordPressUsernameResult();
+            return false;
+        }
+
+        var applicationPassword = payload.ApplicationPassword;
+        if (string.IsNullOrWhiteSpace(applicationPassword))
+        {
+            if (currentSettings is null)
+            {
+                error = MissingWordPressApplicationPasswordResult();
+                return false;
+            }
+
+            applicationPassword = currentSettings.ApplicationPassword;
+        }
+
+        if (!WordPressSettings.IsValidPostStatus(payload.PostStatus))
+        {
+            error = InvalidWordPressPostStatusResult();
+            return false;
+        }
+
+        publishSettings = new WordPressSettings(
+            payload.SiteUrl!,
+            payload.Username!,
+            applicationPassword,
+            payload.PostStatus!);
+        return true;
+    }
+
+    private static bool TryValidateWordPressSiteUrl(string? siteUrl, out IActionResult error)
+    {
+        error = new EmptyResult();
+
+        if (string.IsNullOrWhiteSpace(siteUrl))
+        {
+            error = MissingWordPressSiteUrlResult();
+            return false;
+        }
+
+        if (!Uri.TryCreate(siteUrl.Trim(), UriKind.Absolute, out var uri) ||
+            uri.Scheme is not "http" and not "https" ||
+            !string.IsNullOrEmpty(uri.UserInfo))
+        {
+            error = InvalidWordPressSiteUrlResult();
+            return false;
+        }
+
+        if (uri.Scheme == "http" &&
+            !string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) &&
+            uri.Host != "127.0.0.1")
+        {
+            error = InsecureWordPressSiteUrlResult();
+            return false;
+        }
+
+        return true;
+    }
+
     private static IActionResult InvalidNameResult() =>
         new BadRequestObjectResult(
             $"Name must be non-empty and at most {Platform.MaxNameLength} characters.");
 
     private static IActionResult InvalidTypeResult() =>
         new BadRequestObjectResult("Platform type must be 'YouTube' or 'WordPress'.");
-
-    private static IActionResult UnsupportedPlatformResult() =>
-        new BadRequestObjectResult(
-            "Only YouTube platforms can be configured in this slice.");
 
     private static IActionResult InvalidCredentialsResult() =>
         new BadRequestObjectResult(
@@ -410,4 +531,24 @@ public sealed class PlatformsApi(
     private static IActionResult InvalidPrivacyStatusResult() =>
         new BadRequestObjectResult(
             "Publish settings privacy status must be 'private', 'public', or 'unlisted'.");
+
+    private static IActionResult MissingWordPressSiteUrlResult() =>
+        new BadRequestObjectResult("Publish settings site URL is required.");
+
+    private static IActionResult InvalidWordPressSiteUrlResult() =>
+        new BadRequestObjectResult(
+            "Publish settings site URL must be an absolute HTTP(S) URL without credentials.");
+
+    private static IActionResult InsecureWordPressSiteUrlResult() =>
+        new BadRequestObjectResult(
+            "Publish settings site URL must use HTTPS unless it targets localhost or 127.0.0.1.");
+
+    private static IActionResult InvalidWordPressUsernameResult() =>
+        new BadRequestObjectResult("Publish settings username is required.");
+
+    private static IActionResult MissingWordPressApplicationPasswordResult() =>
+        new BadRequestObjectResult("Publish settings Application Password is required.");
+
+    private static IActionResult InvalidWordPressPostStatusResult() =>
+        new BadRequestObjectResult("Publish settings post status must be 'publish' or 'draft'.");
 }
