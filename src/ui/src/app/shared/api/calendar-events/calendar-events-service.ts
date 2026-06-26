@@ -10,22 +10,18 @@ import {
   publishPlatformUrl,
 } from './calendar-events-endpoint';
 
-export type CalendarEventStatus = 'Draft' | 'Publishing' | 'Published';
-
 export type CalendarEventPlatformStatus = 'NotPublished' | 'Publishing' | 'Published';
 
-export interface CalendarEvent {
+interface CalendarEventFields {
   calendarEventId: string;
   start: CalendarEventStart;
   scheduledStartUtc: string;
   descriptions: CalendarEventDescription[];
-  status: CalendarEventStatus;
-  canPublish: boolean;
-  canUpdate: boolean;
-  canDelete: boolean;
 }
 
-export interface CalendarEventDetail extends CalendarEvent {
+export interface CalendarEvent extends CalendarEventFields {}
+
+export interface CalendarEventDetail extends CalendarEventFields {
   platforms: CalendarEventPlatform[];
 }
 
@@ -52,14 +48,14 @@ export interface CalendarEventDescription {
   description: string | null;
 }
 
-export type CalendarEventSortField = 'scheduledStart' | 'status' | 'timeZone' | 'title';
+export type CalendarEventSortField = 'scheduledStart' | 'timeZone' | 'title';
 
 export type CalendarEventSortDirection = 'asc' | 'desc';
 
 /**
- * Server-side paged and sorted list query. `year` and `month` are optional and
- * must be supplied together; the page no longer scopes by month, so they are
- * currently unused by callers but kept for the backend reader contract.
+ * Server-side paged and sorted list query. `year` and `month` optionally scope
+ * the backend reader when supplied together; list callers can omit them for an
+ * all-events page.
  */
 export interface CalendarEventListQuery {
   page: number;

@@ -56,7 +56,6 @@ describe('CalendarEvents', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Scheduled Start (UTC)');
     expect(text).toContain('Title');
-    expect(text).toContain('Status');
     expect(text).toContain('2026-06-06 17:00');
     expect(text).not.toContain('Time Zone');
     expect(text).toContain('English stream 1');
@@ -129,7 +128,7 @@ describe('CalendarEvents', () => {
     expect(navigations).toEqual(['/calendar-events/20260606T170000Z/edit']);
   });
 
-  it('re-fetches with the mapped sort field and direction on a table state change', async () => {
+  it('falls back to scheduled start when a table state has no API sort field', async () => {
     service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')], 40)));
 
     await createComponent();
@@ -138,7 +137,7 @@ describe('CalendarEvents', () => {
     emitTableState({
       pageIndex: 0,
       pageSize: 10,
-      sortActive: 'status',
+      sortActive: 'actions',
       sortDirection: 'asc',
     });
 
@@ -146,7 +145,7 @@ describe('CalendarEvents', () => {
     expect(service.list).toHaveBeenCalledWith({
       page: 0,
       pageSize: 10,
-      sort: 'status',
+      sort: 'scheduledStart',
       direction: 'asc',
     });
   });
@@ -232,12 +231,8 @@ describe('CalendarEvents', () => {
     expect(fixture.nativeElement.querySelector('.publish-button')).toBeNull();
   });
 
-  it('keeps the Edit icon enabled and navigable even when the row is not updatable', async () => {
-    // Edit always opens the details/edit view; update eligibility is enforced on
-    // Save (and Delete) inside that view, not on the list Edit icon.
-    service.list.mockReturnValue(
-      of(pageOf([{ ...draftEvent('20260606T170000Z'), canUpdate: false }])),
-    );
+  it('keeps the Edit icon enabled and navigable from provider-neutral list rows', async () => {
+    service.list.mockReturnValue(of(pageOf([draftEvent('20260606T170000Z')])));
 
     await createComponent();
 
@@ -278,10 +273,6 @@ describe('CalendarEvents', () => {
           description: 'Description for stream 1 in English',
         },
       ],
-      status: 'Draft',
-      canPublish: true,
-      canUpdate: true,
-      canDelete: true,
     };
   }
 

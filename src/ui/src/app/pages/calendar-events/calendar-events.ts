@@ -60,12 +60,6 @@ export class CalendarEvents implements OnInit {
       truncate: true,
     },
     {
-      key: 'status',
-      header: 'Status',
-      value: (event) => event.status,
-      sortable: true,
-    },
-    {
       key: 'actions',
       header: 'Actions',
     },
@@ -162,8 +156,6 @@ function englishTitle(event: CalendarEvent): string {
 // mapped; any other key falls back to the scheduled-start default.
 function toSortField(columnKey: string): CalendarEventSortField {
   switch (columnKey) {
-    case 'status':
-      return 'status';
     case 'title':
       return 'title';
     default:

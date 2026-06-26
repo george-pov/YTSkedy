@@ -743,17 +743,6 @@ describe('CalendarEventDetails', () => {
       expect(navigations).toEqual(['/calendar-events']);
     });
 
-    it('disables Save when the loaded event is not updatable', () => {
-      service.getById.mockReturnValue(of(sampleEvent({ canUpdate: false })));
-
-      createEditComponent();
-
-      const save = fixture.nativeElement.querySelector(
-        'button[type="submit"]',
-      ) as HTMLButtonElement;
-      expect(save.disabled).toBe(true);
-    });
-
     it('shows a save error and does not navigate when the update fails', async () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.update.mockReturnValue(throwError(() => new Error('boom')));
@@ -817,21 +806,13 @@ describe('CalendarEventDetails', () => {
       }
     });
 
-    it('enables delete when the loaded event is deletable', () => {
-      service.getById.mockReturnValue(of(sampleEvent({ canDelete: true })));
+    it('enables delete in edit mode after the event is loaded', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
 
       createEditComponent();
 
       expect(deleteButton()).not.toBeNull();
       expect(deleteButton()!.disabled).toBe(false);
-    });
-
-    it('disables delete when the loaded event is not deletable', () => {
-      service.getById.mockReturnValue(of(sampleEvent({ canDelete: false })));
-
-      createEditComponent();
-
-      expect(deleteButton()!.disabled).toBe(true);
     });
 
     it('deletes a draft, notifies, and navigates to the list', async () => {
@@ -849,8 +830,8 @@ describe('CalendarEventDetails', () => {
       expect(navigations).toEqual(['/calendar-events']);
     });
 
-    it('deletes a future published event immediately without confirmation', async () => {
-      service.getById.mockReturnValue(of(sampleEvent({ status: 'Published', canDelete: true })));
+    it('deletes through the backend without event-level publish state', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
       service.delete.mockReturnValue(of<void>(undefined));
 
       createEditComponent();
@@ -1027,10 +1008,6 @@ describe('CalendarEventDetails', () => {
           description: 'Russian description',
         },
       ],
-      status: 'Draft',
-      canPublish: true,
-      canUpdate: true,
-      canDelete: true,
       platforms: [
         {
           platformId: 'platform-1',

@@ -61,10 +61,6 @@ describe('CalendarEventsService', () => {
               description: 'Synthetic API response fixture.',
             },
           ],
-          status: 'Draft',
-          canPublish: true,
-          canUpdate: true,
-          canDelete: true,
         },
       ],
       page: 0,
@@ -98,7 +94,7 @@ describe('CalendarEventsService', () => {
       page: 1,
       pageSize: 25,
       totalCount: 0,
-      sort: 'status',
+      sort: 'timeZone',
       direction: 'asc',
     };
 
@@ -107,7 +103,7 @@ describe('CalendarEventsService', () => {
       .list({
         page: 1,
         pageSize: 25,
-        sort: 'status',
+        sort: 'timeZone',
         direction: 'asc',
         year: 2026,
         month: 6,
@@ -117,7 +113,7 @@ describe('CalendarEventsService', () => {
       });
 
     const request = http.expectOne(
-      'https://api.example.test/api/calendar-events?page=1&pageSize=25&sort=status&direction=asc&year=2026&month=6',
+      'https://api.example.test/api/calendar-events?page=1&pageSize=25&sort=timeZone&direction=asc&year=2026&month=6',
     );
 
     expect(request.request.method).toBe('GET');
@@ -180,10 +176,6 @@ describe('CalendarEventsService', () => {
           description: 'Description for stream 1 in English',
         },
       ],
-      status: 'Draft',
-      canPublish: false,
-      canUpdate: true,
-      canDelete: false,
       platforms: [
         {
           platformId: 'platform-1',

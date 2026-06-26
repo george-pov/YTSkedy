@@ -105,15 +105,9 @@ export class CalendarEventDetails {
     { key: 'actions', header: 'Actions' },
   ];
 
-  // Action eligibility comes from the loaded event's API-computed flags; the
-  // page never re-derives it from status, scheduled start, or broadcast id.
-  // Delete is hidden entirely in create mode and enabled only when the loaded
-  // event is deletable; Save is always available when creating and enabled when
-  // editing only while the loaded event is updatable (Draft-only).
-  private readonly loadedCanDelete = signal(false);
-  private readonly loadedCanUpdate = signal(false);
-  protected readonly canDelete = computed(() => this.isEditMode && this.loadedCanDelete());
-  protected readonly canSave = computed(() => !this.isEditMode || this.loadedCanUpdate());
+  // The page owns local mutation guards. The backend remains authoritative for
+  // event edit and delete eligibility through 404/409 responses.
+  protected readonly canDelete = computed(() => this.isEditMode);
 
   // In edit mode the stored UTC instant comes from the loaded event (exact). In
   // create mode it is derived live from the start controls so the operator sees
@@ -163,8 +157,6 @@ export class CalendarEventDetails {
         next: (event) => {
           patchCalendarEventDetailsModel(this.model, event);
           this.loadedScheduledStartUtc.set(event.scheduledStartUtc);
-          this.loadedCanDelete.set(event.canDelete);
-          this.loadedCanUpdate.set(event.canUpdate);
           this.platforms.set(event.platforms);
         },
         error: () => {
@@ -183,12 +175,6 @@ export class CalendarEventDetails {
 
   protected submit(): void {
     if (this.hasActiveMutation()) {
-      return;
-    }
-
-    // Update is Draft-only: a stale client whose loaded event is no longer
-    // updatable must not call the API. The backend rejects it as well.
-    if (this.isEditMode && !this.loadedCanUpdate()) {
       return;
     }
 
@@ -230,8 +216,8 @@ export class CalendarEventDetails {
 
   protected deleteEvent(): void {
     // Page mutations are mutually exclusive: a save in flight blocks delete and
-    // an in-flight delete blocks re-entry. Only a loaded Draft in edit mode is
-    // deletable, which canDelete enforces.
+    // an in-flight delete blocks re-entry. The backend owns final delete
+    // eligibility for stale or no-longer-deletable events.
     if (
       this.isDeleting() ||
       this.isSubmitting() ||
