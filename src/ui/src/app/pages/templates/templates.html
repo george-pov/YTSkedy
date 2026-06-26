@@ -4,8 +4,9 @@
     <app-button (click)="newTemplate()">New Template</app-button>
   </header>
 
-  <app-progress-bar *appDelayedLoading="isLoading(); else loaded" label="Loading templates" />
-  <ng-template #loaded>
+  @if (showLoading()) {
+    <app-progress-bar label="Loading templates" />
+  } @else {
     @if (loadFailed()) {
       <app-alert variant="error">
         Templates could not be loaded. Check your connection and try again.
@@ -64,5 +65,5 @@
         }
       </div>
     }
-  </ng-template>
+  }
 </section>

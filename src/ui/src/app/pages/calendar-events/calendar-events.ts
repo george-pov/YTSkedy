@@ -13,13 +13,13 @@ import { Button } from 'src/app/shared/components/button/button';
 import { DataTable, DataTableState } from 'src/app/shared/components/data-table/data-table';
 import { DataTableCell } from 'src/app/shared/components/data-table/data-table-cell';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
+import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
-import { DelayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-calendar-events',
-  imports: [Alert, Button, DataTable, DataTableCell, ProgressBar, DelayedLoading],
+  imports: [Alert, Button, DataTable, DataTableCell, ProgressBar],
   templateUrl: './calendar-events.html',
   styleUrl: './calendar-events.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,6 +31,9 @@ export class CalendarEvents implements OnInit {
   protected readonly events = signal<CalendarEvent[]>([]);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly isLoading = signal(true);
+  protected readonly showLoading = delayedLoading(
+    () => this.isLoading() && this.events().length === 0,
+  );
 
   // Server-side paging and sorting state. `sortActive` is the table column key;
   // it is mapped to the API sort field when a request is built. The defaults

@@ -4,8 +4,9 @@
     <app-button (click)="newPlatform()">New Platform</app-button>
   </header>
 
-  <app-progress-bar *appDelayedLoading="isLoading(); else loaded" label="Loading platforms" />
-  <ng-template #loaded>
+  @if (showLoading()) {
+    <app-progress-bar label="Loading platforms" />
+  } @else {
     @if (loadFailed()) {
       <app-alert variant="error">
         Platforms could not be loaded. Check your connection and try again.
@@ -88,5 +89,5 @@
         }
       </div>
     }
-  </ng-template>
+  }
 </section>

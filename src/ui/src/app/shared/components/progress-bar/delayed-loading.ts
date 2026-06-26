@@ -1,15 +1,4 @@
-import {
-  DestroyRef,
-  Directive,
-  effect,
-  inject,
-  input,
-  signal,
-  Signal,
-  TemplateRef,
-  untracked,
-  ViewContainerRef,
-} from '@angular/core';
+import { DestroyRef, effect, inject, signal, Signal, untracked } from '@angular/core';
 
 /** Tuning for {@link delayedLoading}. Durations are in milliseconds. */
 export interface DelayedLoadingOptions {
@@ -34,7 +23,7 @@ const DEFAULT_MIN_VISIBLE_MS = 400;
  * Wraps a boolean loading flag so a transient `true` does not flicker a loading
  * indicator. The returned signal stays `false` until `source` has been `true`
  * for `appearDelayMs`, then stays `true` for at least `minVisibleMs`. Pair it
- * with an indicator gate, for example `@if (showProgress())`.
+ * with an indicator gate, for example `@if (showLoading())`.
  *
  * Must be called in an injection context, such as a component field
  * initializer. It owns an `effect` and clears its timers on destroy.
@@ -110,61 +99,4 @@ export function delayedLoading(
   });
 
   return visible.asReadonly();
-}
-
-/**
- * Structural directive that renders its `then` template only after
- * `appDelayedLoading` has stayed true for a short grace period, then keeps it
- * for a minimum time, so quick operations never flash a loading indicator. It
- * mirrors `NgIf` with an `else`: the loaded content goes in the `else` template
- * and shows whenever the debounced indicator is not visible, including the brief
- * grace period before a slow load reveals the indicator.
- *
- * The single debounced decision drives both branches, so the indicator and the
- * loaded content can never show at the same time.
- *
- * Usage:
- * ```html
- * <app-progress-bar *appDelayedLoading="isLoading(); else loaded" label="..." />
- * <ng-template #loaded> ...loaded content... </ng-template>
- * ```
- */
-@Directive({
-  selector: '[appDelayedLoading]',
-})
-export class DelayedLoading {
-  private readonly thenTemplate = inject<TemplateRef<unknown>>(TemplateRef);
-  private readonly viewContainer = inject(ViewContainerRef);
-
-  /** Raw loading flag. The `then` template appears only after the grace period. */
-  readonly loading = input.required<boolean>({ alias: 'appDelayedLoading' });
-
-  /** Template shown once loading has finished. */
-  readonly elseTemplate = input<TemplateRef<unknown> | null>(null, {
-    alias: 'appDelayedLoadingElse',
-  });
-
-  private readonly visible = delayedLoading(() => this.loading());
-  private shown: 'then' | 'else' = 'else';
-
-  constructor() {
-    effect(() => {
-      // Track only the debounced visibility, not the raw loading flag, so the
-      // view is rebuilt only at debounce boundaries and never on unrelated
-      // changes in the bound expression (such as the loaded data).
-      const branch: 'then' | 'else' = this.visible() ? 'then' : 'else';
-      const elseTemplate = this.elseTemplate();
-      if (branch === this.shown && this.viewContainer.length > 0) {
-        return;
-      }
-
-      this.shown = branch;
-      this.viewContainer.clear();
-      if (branch === 'then') {
-        this.viewContainer.createEmbeddedView(this.thenTemplate);
-      } else if (elseTemplate !== null) {
-        this.viewContainer.createEmbeddedView(elseTemplate);
-      }
-    });
-  }
 }

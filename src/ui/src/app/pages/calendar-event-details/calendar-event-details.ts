@@ -25,8 +25,8 @@ import { DataTableCell } from 'src/app/shared/components/data-table/data-table-c
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { DateField } from 'src/app/shared/components/date/date';
 import { Input } from 'src/app/shared/components/input/input';
+import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
-import { DelayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { Select } from 'src/app/shared/components/select/select';
 import { TimeField } from 'src/app/shared/components/time/time';
 import {
@@ -53,7 +53,6 @@ import {
     TimeField,
     Select,
     ProgressBar,
-    DelayedLoading,
   ],
   templateUrl: './calendar-event-details.html',
   styleUrl: './calendar-event-details.scss',
@@ -80,6 +79,7 @@ export class CalendarEventDetails {
   protected readonly isSubmitting = signal(false);
   protected readonly saveErrorMessage = signal<string | null>(null);
   protected readonly isLoading = signal(false);
+  protected readonly showLoading = delayedLoading(() => this.isLoading());
   protected readonly loadFailed = signal(false);
 
   protected readonly isDeleting = signal(false);

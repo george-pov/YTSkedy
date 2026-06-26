@@ -21,8 +21,8 @@ import { Button } from 'src/app/shared/components/button/button';
 import { DataTable } from 'src/app/shared/components/data-table/data-table';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { Input } from 'src/app/shared/components/input/input';
+import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
-import { DelayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { Select, SelectOption } from 'src/app/shared/components/select/select';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import {
@@ -51,7 +51,6 @@ type EditorMode = 'none' | 'create' | 'edit';
     Select,
     YouTubeSettings,
     WordPressSettings,
-    DelayedLoading,
   ],
   templateUrl: './platforms.html',
   styleUrl: './platforms.scss',
@@ -66,6 +65,7 @@ export class Platforms implements OnInit {
   protected readonly editorMode = signal<EditorMode>('none');
 
   protected readonly isLoading = signal(true);
+  protected readonly showLoading = delayedLoading(() => this.isLoading());
   protected readonly loadFailed = signal(false);
   protected readonly isSaving = signal(false);
   protected readonly isDeleting = signal(false);

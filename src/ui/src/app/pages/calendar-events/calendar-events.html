@@ -6,11 +6,9 @@
     </app-button>
   </header>
 
-  <app-progress-bar
-    *appDelayedLoading="isLoading() && events().length === 0; else loaded"
-    label="Loading calendar events"
-  />
-  <ng-template #loaded>
+  @if (showLoading()) {
+    <app-progress-bar label="Loading calendar events" />
+  } @else {
     @if (errorMessage(); as message) {
       <app-alert variant="error">{{ message }}</app-alert>
     }
@@ -39,5 +37,5 @@
         </div>
       </ng-template>
     </app-data-table>
-  </ng-template>
+  }
 </section>
