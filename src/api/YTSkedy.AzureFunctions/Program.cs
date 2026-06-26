@@ -10,6 +10,7 @@ using YTSkedy.AzureFunctions.Auth;
 using YTSkedy.Infrastructure.CalendarEvents;
 using YTSkedy.Infrastructure.Platforms;
 using YTSkedy.Infrastructure.Templates;
+using YTSkedy.Infrastructure.WordPress;
 using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
@@ -215,15 +216,18 @@ builder.Services.AddScoped<IPlatformPublicationRepository>(
 builder.Services.AddScoped<IPlatformPublicationReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
 
-// Platform publishing: providers are selected by platform type. The YouTube
-// provider resolves a platform's non-secret credentials reference to channel
-// secrets bound from the YouTubeChannels configuration section.
+// Platform publishing: providers are selected by platform type. YouTube
+// resolves a non-secret credentials reference from configuration; WordPress
+// uses settings stored on the platform row.
 builder.Services
     .AddOptions<YouTubeOptions>()
     .Bind(builder.Configuration.GetSection(YouTubeOptions.SectionName));
 
 builder.Services.AddSingleton<IYouTubeCredentialStore, YouTubeCredentialStore>();
 builder.Services.AddSingleton<IPlatformPublisher, YouTubePublisher>();
+builder.Services.AddHttpClient<WordPressPublisher>();
+builder.Services.AddSingleton<IPlatformPublisher>(
+    serviceProvider => serviceProvider.GetRequiredService<WordPressPublisher>());
 builder.Services.AddSingleton<IPlatformPublisherSelector, PlatformPublisherSelector>();
 builder.Services.AddScoped<PublishHandler>();
 
