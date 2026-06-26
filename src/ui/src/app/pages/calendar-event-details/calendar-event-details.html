@@ -72,24 +72,38 @@
               emptyText="No platforms found."
             >
               <ng-template appDataTableCell="actions" let-platform>
-                @if (platform.canPublish) {
-                  <app-button
-                    class="platform-publish-button"
-                    iconButton
-                    icon="publish"
-                    [ariaLabel]="'Publish ' + platform.platformName"
-                    [disabled]="
-                      publishingPlatformId() === platform.platformId ||
-                      isSubmitting() ||
-                      isDeleting()
-                    "
-                    (click)="publishPlatform(platform)"
-                  />
-                }
+                <div class="app-actions">
+                  @if (platform.canPublish) {
+                    <app-button
+                      class="platform-publish-button"
+                      iconButton
+                      icon="publish"
+                      [ariaLabel]="'Publish ' + platform.platformName"
+                      [disabled]="hasActiveMutation()"
+                      (click)="publishPlatform(platform)"
+                    />
+                  }
+                  @if (platform.canDeletePublication) {
+                    <app-button
+                      class="platform-delete-publication-button"
+                      iconButton
+                      icon="delete"
+                      [ariaLabel]="'Delete publication for ' + platform.platformName"
+                      [disabled]="hasActiveMutation()"
+                      (click)="deletePlatformPublication(platform)"
+                    />
+                  }
+                </div>
               </ng-template>
             </app-data-table>
 
             @if (publishErrorMessage(); as message) {
+              <app-alert variant="error">
+                {{ message }}
+              </app-alert>
+            }
+
+            @if (deletePublicationErrorMessage(); as message) {
               <app-alert variant="error">
                 {{ message }}
               </app-alert>
@@ -117,7 +131,11 @@
                 appearance="outlined"
                 icon="delete"
                 [disabled]="
-                  !canDelete() || isDeleting() || isSubmitting() || publishingPlatformId() !== null
+                  !canDelete() ||
+                  isDeleting() ||
+                  isSubmitting() ||
+                  publishingPlatformId() !== null ||
+                  deletingPublicationPlatformId() !== null
                 "
                 (click)="deleteEvent()"
               >
@@ -127,7 +145,11 @@
             <app-button
               type="button"
               appearance="outlined"
-              [disabled]="isDeleting() || publishingPlatformId() !== null"
+              [disabled]="
+                isDeleting() ||
+                publishingPlatformId() !== null ||
+                deletingPublicationPlatformId() !== null
+              "
               (click)="cancel()"
             >
               Cancel
@@ -135,7 +157,11 @@
             <app-button
               type="submit"
               [disabled]="
-                isSubmitting() || isDeleting() || publishingPlatformId() !== null || !canSave()
+                isSubmitting() ||
+                isDeleting() ||
+                publishingPlatformId() !== null ||
+                deletingPublicationPlatformId() !== null ||
+                !canSave()
               "
             >
               {{ isEditMode ? 'Save changes' : 'Save event' }}

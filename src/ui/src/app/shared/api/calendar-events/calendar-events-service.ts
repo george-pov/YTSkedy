@@ -6,6 +6,7 @@ import { APP_CONFIG } from 'src/app/shared/config/app-config';
 import {
   calendarEventByIdUrl,
   calendarEventsUrl,
+  deletePlatformPublicationUrl,
   publishPlatformUrl,
 } from './calendar-events-endpoint';
 
@@ -37,6 +38,7 @@ export interface CalendarEventPlatform {
   publishedUtc: string | null;
   platformDeletedUtc: string | null;
   canPublish: boolean;
+  canDeletePublication: boolean;
 }
 
 export interface CalendarEventStart {
@@ -167,6 +169,15 @@ export class CalendarEventsService {
     return this.http.post<PublishPlatformResponse>(
       publishPlatformUrl(this.appConfig.api, calendarEventId, platformId),
       {},
+    );
+  }
+
+  deletePlatformPublication(
+    calendarEventId: string,
+    platformId: string,
+  ): Observable<CalendarEventPlatform> {
+    return this.http.delete<CalendarEventPlatform>(
+      deletePlatformPublicationUrl(this.appConfig.api, calendarEventId, platformId),
     );
   }
 

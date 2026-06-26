@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
   CalendarEventDetail,
+  CalendarEventPlatform,
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
@@ -17,6 +18,7 @@ import {
   UpdateCalendarEventRequest,
   UpdateCalendarEventResponse,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { CalendarEventDetails } from './calendar-event-details';
 import { CalendarEventDetailsModel } from './calendar-event-details.form';
@@ -51,7 +53,11 @@ describe('CalendarEventDetails', () => {
     publishPlatform: Mock<
       (calendarEventId: string, platformId: string) => Observable<PublishPlatformResponse>
     >;
+    deletePlatformPublication: Mock<
+      (calendarEventId: string, platformId: string) => Observable<CalendarEventPlatform>
+    >;
   };
+  let confirmation: { confirm: Mock<(data: unknown) => Observable<string | undefined>> };
   let notifications: { showSuccess: Mock<(message: string) => void> };
   let navigations: string[];
 
@@ -72,7 +78,11 @@ describe('CalendarEventDetails', () => {
         vi.fn<
           (calendarEventId: string, platformId: string) => Observable<PublishPlatformResponse>
         >(),
+      deletePlatformPublication:
+        vi.fn<(calendarEventId: string, platformId: string) => Observable<CalendarEventPlatform>>(),
     };
+    confirmation = { confirm: vi.fn<(data: unknown) => Observable<string | undefined>>() };
+    confirmation.confirm.mockReturnValue(of('delete'));
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
     navigations = [];
 
@@ -82,6 +92,7 @@ describe('CalendarEventDetails', () => {
         provideRouter([]),
         provideLuxonDateAdapter(testDateFormats),
         { provide: CalendarEventsService, useValue: service },
+        { provide: ConfirmationDialogService, useValue: confirmation },
         { provide: NotificationService, useValue: notifications },
         { provide: ActivatedRoute, useValue: routeWithId(null) },
       ],
@@ -152,6 +163,16 @@ describe('CalendarEventDetails', () => {
 
   function platformPublishButton(): HTMLButtonElement | null {
     return platformPublishHosts()[0]?.querySelector('button') ?? null;
+  }
+
+  function platformDeletePublicationHosts(): HTMLElement[] {
+    return Array.from(
+      fixture.nativeElement.querySelectorAll('.platform-delete-publication-button'),
+    ) as HTMLElement[];
+  }
+
+  function platformDeletePublicationButton(): HTMLButtonElement | null {
+    return platformDeletePublicationHosts()[0]?.querySelector('button') ?? null;
   }
 
   it('blocks submit and reveals required errors when the form is empty', async () => {
@@ -269,6 +290,7 @@ describe('CalendarEventDetails', () => {
           provideRouter([]),
           provideLuxonDateAdapter(testDateFormats),
           { provide: CalendarEventsService, useValue: service },
+          { provide: ConfirmationDialogService, useValue: confirmation },
           { provide: NotificationService, useValue: notifications },
           { provide: ActivatedRoute, useValue: routeWithId(editId) },
         ],
@@ -339,6 +361,7 @@ describe('CalendarEventDetails', () => {
                 publishedUtc: null,
                 platformDeletedUtc: null,
                 canPublish: true,
+                canDeletePublication: false,
               },
               {
                 platformId: 'platform-2',
@@ -349,6 +372,7 @@ describe('CalendarEventDetails', () => {
                 publishedUtc: '2030-07-04T08:45:00+00:00',
                 platformDeletedUtc: null,
                 canPublish: false,
+                canDeletePublication: true,
               },
             ],
           }),
@@ -393,6 +417,7 @@ describe('CalendarEventDetails', () => {
                 publishedUtc: '2030-07-04T08:45:00+00:00',
                 platformDeletedUtc: null,
                 canPublish: false,
+                canDeletePublication: false,
               },
             ],
           }),
@@ -445,6 +470,7 @@ describe('CalendarEventDetails', () => {
                 publishedUtc: null,
                 platformDeletedUtc: null,
                 canPublish: true,
+                canDeletePublication: false,
               },
             ],
           }),
@@ -493,6 +519,164 @@ describe('CalendarEventDetails', () => {
 
       expect(fixture.nativeElement.textContent).toContain(
         'The platform could not publish this event. Try again later.',
+      );
+      expect(navigations).toEqual([]);
+    });
+
+    it('does not show a platform publication delete action when canDeletePublication is false', () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            platforms: [publishedPlatform({ canDeletePublication: false })],
+          }),
+        ),
+      );
+
+      createEditComponent();
+
+      expect(platformDeletePublicationHosts()).toHaveLength(0);
+    });
+
+    it('does not delete a platform publication when confirmation is cancelled', async () => {
+      confirmation.confirm.mockReturnValue(of('cancel'));
+      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
+
+      createEditComponent();
+
+      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(confirmation.confirm).toHaveBeenCalledTimes(1);
+      expect(service.deletePlatformPublication).not.toHaveBeenCalled();
+    });
+
+    it('deletes a platform publication after confirmation', async () => {
+      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
+      service.deletePlatformPublication.mockReturnValue(new Subject<CalendarEventPlatform>());
+
+      createEditComponent();
+
+      expect(platformDeletePublicationButton()?.getAttribute('aria-label')).toBe(
+        'Delete publication for Main YouTube channel',
+      );
+
+      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(confirmation.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'warning',
+          title: 'Delete publication for Main YouTube channel?',
+        }),
+      );
+      expect(service.deletePlatformPublication).toHaveBeenCalledWith(editId, 'platform-1');
+    });
+
+    it('replaces only the deleted platform publication row on success', async () => {
+      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
+      service.deletePlatformPublication.mockReturnValue(
+        of({
+          platformId: 'platform-1',
+          platformName: 'Main YouTube channel',
+          platformType: 'YouTube',
+          status: 'NotPublished',
+          externalResourceId: null,
+          publishedUtc: null,
+          platformDeletedUtc: null,
+          canPublish: true,
+          canDeletePublication: false,
+        }),
+      );
+
+      createEditComponent();
+      api().form.descriptions.en.title().value.set('Unsaved English title');
+
+      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain('NotPublished');
+      expect(platformDeletePublicationHosts()).toHaveLength(0);
+      expect(platformPublishHosts()).toHaveLength(1);
+      expect(api().model().descriptions.en.title).toBe('Unsaved English title');
+      expect(notifications.showSuccess).toHaveBeenCalledWith('Platform publication deleted.');
+    });
+
+    it('disables save, event delete, cancel, publish, and delete publication while deleting a publication', () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            platforms: [
+              publishedPlatform(),
+              {
+                platformId: 'platform-2',
+                platformName: 'Archive site',
+                platformType: 'WordPress',
+                status: 'NotPublished',
+                externalResourceId: null,
+                publishedUtc: null,
+                platformDeletedUtc: null,
+                canPublish: true,
+                canDeletePublication: false,
+              },
+            ],
+          }),
+        ),
+      );
+      service.deletePlatformPublication.mockReturnValue(new Subject<CalendarEventPlatform>());
+
+      createEditComponent();
+
+      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+
+      const save = fixture.nativeElement.querySelector(
+        'button[type="submit"]',
+      ) as HTMLButtonElement;
+      expect(save.disabled).toBe(true);
+      expect(deleteButton()!.disabled).toBe(true);
+      expect(cancelButton()!.disabled).toBe(true);
+      expect(platformPublishButton()!.disabled).toBe(true);
+      expect(platformDeletePublicationButton()!.disabled).toBe(true);
+    });
+
+    it('shows a stale-state message when platform publication delete returns 409', async () => {
+      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
+      service.deletePlatformPublication.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 409 })),
+      );
+
+      createEditComponent();
+
+      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'The publication can no longer be deleted. Reload the page and try again.',
+      );
+      expect(navigations).toEqual([]);
+    });
+
+    it('shows a provider cleanup message when platform publication delete returns 502', async () => {
+      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
+      service.deletePlatformPublication.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 502 })),
+      );
+
+      createEditComponent();
+
+      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'The provider publication could not be deleted. Try again later.',
       );
       expect(navigations).toEqual([]);
     });
@@ -806,6 +990,23 @@ describe('CalendarEventDetails', () => {
     } as ActivatedRoute;
   }
 
+  function publishedPlatform(
+    overrides: Partial<CalendarEventPlatform> = {},
+  ): CalendarEventPlatform {
+    return {
+      platformId: 'platform-1',
+      platformName: 'Main YouTube channel',
+      platformType: 'YouTube',
+      status: 'Published',
+      externalResourceId: 'broadcast-123',
+      publishedUtc: '2030-07-04T08:45:00+00:00',
+      platformDeletedUtc: null,
+      canPublish: false,
+      canDeletePublication: true,
+      ...overrides,
+    };
+  }
+
   function sampleEvent(overrides: Partial<CalendarEventDetail> = {}): CalendarEventDetail {
     return {
       calendarEventId: '20260606T170000Z',
@@ -840,6 +1041,7 @@ describe('CalendarEventDetails', () => {
           publishedUtc: null,
           platformDeletedUtc: null,
           canPublish: true,
+          canDeletePublication: false,
         },
       ],
       ...overrides,

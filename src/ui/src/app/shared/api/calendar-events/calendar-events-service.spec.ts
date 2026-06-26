@@ -9,6 +9,7 @@ import {
   CalendarEvent,
   CalendarEventDetail,
   CalendarEventListPage,
+  CalendarEventPlatform,
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
@@ -193,6 +194,7 @@ describe('CalendarEventsService', () => {
           publishedUtc: null,
           platformDeletedUtc: null,
           canPublish: true,
+          canDeletePublication: false,
         },
       ],
     };
@@ -267,6 +269,35 @@ describe('CalendarEventsService', () => {
 
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({});
+
+    request.flush(apiResponse);
+
+    expect(actualResponse).toEqual(apiResponse);
+  });
+
+  it('deletes a platform publication and returns the recomputed platform row', () => {
+    const apiResponse: CalendarEventPlatform = {
+      platformId: 'platform-1',
+      platformName: 'Main YouTube channel',
+      platformType: 'YouTube',
+      status: 'NotPublished',
+      externalResourceId: null,
+      publishedUtc: null,
+      platformDeletedUtc: null,
+      canPublish: true,
+      canDeletePublication: false,
+    };
+
+    let actualResponse: CalendarEventPlatform | undefined;
+    service.deletePlatformPublication('20260615T170000Z', 'platform-1').subscribe((response) => {
+      actualResponse = response;
+    });
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/20260615T170000Z/platforms/platform-1/publication',
+    );
+
+    expect(request.request.method).toBe('DELETE');
 
     request.flush(apiResponse);
 

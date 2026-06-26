@@ -20,6 +20,7 @@ import {
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from 'src/app/shared/components/button/button';
+import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { DataTable } from 'src/app/shared/components/data-table/data-table';
 import { DataTableCell } from 'src/app/shared/components/data-table/data-table-cell';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
@@ -62,6 +63,7 @@ export class CalendarEventDetails {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly calendarEventsService = inject(CalendarEventsService);
+  private readonly confirmation = inject(ConfirmationDialogService);
   private readonly notifications = inject(NotificationService);
 
   // The edit route carries the calendar event id; the create route does not. A
@@ -87,6 +89,15 @@ export class CalendarEventDetails {
   protected readonly platforms = signal<CalendarEventPlatform[]>([]);
   protected readonly publishingPlatformId = signal<string | null>(null);
   protected readonly publishErrorMessage = signal<string | null>(null);
+  protected readonly deletingPublicationPlatformId = signal<string | null>(null);
+  protected readonly deletePublicationErrorMessage = signal<string | null>(null);
+  protected readonly hasActiveMutation = computed(
+    () =>
+      this.isSubmitting() ||
+      this.isDeleting() ||
+      this.publishingPlatformId() !== null ||
+      this.deletingPublicationPlatformId() !== null,
+  );
   protected readonly platformColumns: readonly DataTableColumn<CalendarEventPlatform>[] = [
     { key: 'type', header: 'Type', value: (platform) => platform.platformType },
     { key: 'name', header: 'Name', value: (platform) => platform.platformName, truncate: true },
@@ -159,6 +170,7 @@ export class CalendarEventDetails {
         error: () => {
           this.platforms.set([]);
           this.publishErrorMessage.set(null);
+          this.deletePublicationErrorMessage.set(null);
           this.loadFailed.set(true);
         },
       });
@@ -170,7 +182,7 @@ export class CalendarEventDetails {
   }
 
   protected submit(): void {
-    if (this.isSubmitting() || this.isDeleting() || this.publishingPlatformId() !== null) {
+    if (this.hasActiveMutation()) {
       return;
     }
 
@@ -224,6 +236,7 @@ export class CalendarEventDetails {
       this.isDeleting() ||
       this.isSubmitting() ||
       this.publishingPlatformId() !== null ||
+      this.deletingPublicationPlatformId() !== null ||
       !this.canDelete()
     ) {
       return;
@@ -279,6 +292,7 @@ export class CalendarEventDetails {
       this.editingId === null ||
       !platform.canPublish ||
       this.publishingPlatformId() !== null ||
+      this.deletingPublicationPlatformId() !== null ||
       this.isSubmitting() ||
       this.isDeleting()
     ) {
@@ -304,6 +318,7 @@ export class CalendarEventDetails {
                     externalResourceId: response.externalResourceId,
                     publishedUtc: response.publishedUtc,
                     canPublish: false,
+                    canDeletePublication: entry.canDeletePublication,
                   }
                 : entry,
             ),
@@ -313,6 +328,49 @@ export class CalendarEventDetails {
         error: (error: unknown) => {
           this.publishErrorMessage.set(describePublishError(error));
         },
+      });
+  }
+
+  protected deletePlatformPublication(platform: CalendarEventPlatform): void {
+    if (this.editingId === null || !platform.canDeletePublication || this.hasActiveMutation()) {
+      return;
+    }
+
+    this.confirmation
+      .confirm<'cancel' | 'delete'>({
+        kind: 'warning',
+        title: `Delete publication for ${platform.platformName}?`,
+        body: 'This removes the provider publication and clears this platform row so it can be published again.',
+        actions: [
+          { id: 'cancel', label: 'Cancel' },
+          { id: 'delete', label: 'Delete publication', primary: true },
+        ],
+      })
+      .subscribe((result) => {
+        if (result !== 'delete' || this.hasActiveMutation()) {
+          return;
+        }
+
+        this.publishErrorMessage.set(null);
+        this.deletePublicationErrorMessage.set(null);
+        this.deletingPublicationPlatformId.set(platform.platformId);
+
+        this.calendarEventsService
+          .deletePlatformPublication(this.editingId!, platform.platformId)
+          .pipe(finalize(() => this.deletingPublicationPlatformId.set(null)))
+          .subscribe({
+            next: (response) => {
+              this.platforms.update((platforms) =>
+                platforms.map((entry) =>
+                  entry.platformId === response.platformId ? response : entry,
+                ),
+              );
+              this.notifications.showSuccess('Platform publication deleted.');
+            },
+            error: (error: unknown) => {
+              this.deletePublicationErrorMessage.set(describeDeletePublicationError(error));
+            },
+          });
       });
   }
 }
@@ -341,4 +399,16 @@ function describePublishError(error: unknown): string {
   }
 
   return 'The platform could not publish this event. Check your connection and try again.';
+}
+
+function describeDeletePublicationError(error: unknown): string {
+  if (error instanceof HttpErrorResponse && error.status === 409) {
+    return 'The publication can no longer be deleted. Reload the page and try again.';
+  }
+
+  if (error instanceof HttpErrorResponse && error.status === 502) {
+    return 'The provider publication could not be deleted. Try again later.';
+  }
+
+  return 'The publication could not be deleted. Check your connection and try again.';
 }
