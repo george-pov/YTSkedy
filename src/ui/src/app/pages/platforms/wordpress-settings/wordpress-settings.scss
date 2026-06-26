@@ -1,0 +1,6 @@
+@use 'src/styles/variables' as *;
+
+:host {
+  display: grid;
+  gap: $app-space-4;
+}

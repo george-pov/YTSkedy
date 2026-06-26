@@ -20,6 +20,22 @@ Authorization: Bearer {{accessToken}}
 
 {}
 
+### Publish a calendar event to a WordPress platform (success)
+# Prereqs for a real publish:
+# - The WordPress platform was created with a local-only username and
+#   Application Password in `http-client.env.json.user`.
+# - The platform site URL points at a WordPress site whose
+#   `/wp-json/wp/v2/posts` endpoint returns JSON.
+# - The calendar event has a FUTURE start and an English (en) title.
+# Replace both ids. Expected response: 200 OK with platformType "WordPress",
+# status "Published", and externalResourceId set to the WordPress post id.
+
+POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_WORDPRESS_PLATFORM_ID/publish
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{}
+
 ### Publish again (already published)
 # Run after a successful publish of the same event/platform pair.
 # Expected response: 409 Conflict (already published). State conflicts are

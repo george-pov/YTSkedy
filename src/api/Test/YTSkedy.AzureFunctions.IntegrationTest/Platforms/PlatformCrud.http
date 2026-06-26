@@ -94,21 +94,28 @@ Authorization: Bearer {{accessToken}}
   }
 }
 
-### Create a WordPress platform (recognized but unsupported in this slice)
-# Expected response: 400 Bad Request. WordPress is a known type value but has no
-# publish-settings schema yet, so it cannot be created.
+### Create a WordPress platform
+# Prereqs:
+# - `wordpressSiteUrl`, `wordpressUsername`, and
+#   `wordpressApplicationPassword` are set in `http-client.env.json.user` (not
+#   committed).
+# Expected response: 200 OK with the created platform. The response includes
+# siteUrl, username, postStatus, and applicationPasswordConfigured. It never
+# returns applicationPassword. Copy the returned id into the WordPress update,
+# get, delete, and EventPlatforms.http publish checks.
 
 POST {{HostAddress}}/api/platforms
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
 {
-  "name": "WordPress probe",
+  "name": "Company blog",
   "type": "WordPress",
   "publishSettings": {
-    "credentials": "main-wordpress-site",
-    "privacyStatus": "private",
-    "selfDeclaredMadeForKids": false
+    "siteUrl": "{{wordpressSiteUrl}}",
+    "username": "{{wordpressUsername}}",
+    "applicationPassword": "{{wordpressApplicationPassword}}",
+    "postStatus": "draft"
   }
 }
 
@@ -190,6 +197,14 @@ Authorization: Bearer {{accessToken}}
 GET {{HostAddress}}/api/platforms/REPLACE_WITH_PLATFORM_ID
 Authorization: Bearer {{accessToken}}
 
+### Get a WordPress platform by id
+# Replace the id with one returned by the WordPress create above. Expected
+# response: 200 OK with redacted publishSettings. Confirm
+# applicationPasswordConfigured is present and applicationPassword is absent.
+
+GET {{HostAddress}}/api/platforms/REPLACE_WITH_WORDPRESS_PLATFORM_ID
+Authorization: Bearer {{accessToken}}
+
 ### Get an unknown platform
 # Expected response: 404 Not Found.
 
@@ -211,6 +226,44 @@ Authorization: Bearer {{accessToken}}
     "credentials": "main-youtube-channel",
     "privacyStatus": "unlisted",
     "selfDeclaredMadeForKids": false
+  }
+}
+
+### Update a WordPress platform and preserve the existing Application Password
+# Replace the id with one returned by the WordPress create above. The blank
+# applicationPassword intentionally preserves the stored value. Expected
+# response: 200 OK with redacted publishSettings.
+
+PUT {{HostAddress}}/api/platforms/REPLACE_WITH_WORDPRESS_PLATFORM_ID
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Company blog",
+  "publishSettings": {
+    "siteUrl": "{{wordpressSiteUrl}}",
+    "username": "{{wordpressUsername}}",
+    "applicationPassword": "",
+    "postStatus": "draft"
+  }
+}
+
+### Update a WordPress platform and replace the Application Password
+# Store `wordpressReplacementApplicationPassword` only in
+# `http-client.env.json.user` (not committed). Expected response: 200 OK with
+# applicationPasswordConfigured true and without applicationPassword.
+
+PUT {{HostAddress}}/api/platforms/REPLACE_WITH_WORDPRESS_PLATFORM_ID
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Company blog",
+  "publishSettings": {
+    "siteUrl": "{{wordpressSiteUrl}}",
+    "username": "{{wordpressUsername}}",
+    "applicationPassword": "{{wordpressReplacementApplicationPassword}}",
+    "postStatus": "publish"
   }
 }
 
@@ -246,3 +299,10 @@ Authorization: Bearer {{accessToken}}
     "selfDeclaredMadeForKids": false
   }
 }
+
+### Delete a WordPress platform
+# Replace the id with one returned by the WordPress create above. Expected
+# response: 204 No Content.
+
+DELETE {{HostAddress}}/api/platforms/REPLACE_WITH_WORDPRESS_PLATFORM_ID
+Authorization: Bearer {{accessToken}}

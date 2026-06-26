@@ -15,6 +15,7 @@ import {
 } from 'src/app/shared/api/platforms/platforms-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Platforms } from './platforms';
+import { PlatformFormModel } from './platforms.form';
 
 describe('Platforms', () => {
   let fixture: ComponentFixture<Platforms>;
@@ -61,21 +62,28 @@ describe('Platforms', () => {
       id: 'id-2',
       name: 'Company blog',
       type: 'WordPress',
+      publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'draft',
+        applicationPasswordConfigured: true,
+      },
       ...overrides,
     };
   }
 
+  function componentModel(): { set: (model: PlatformFormModel) => void } {
+    return (
+      fixture.componentInstance as unknown as { model: { set: (model: PlatformFormModel) => void } }
+    ).model;
+  }
+
   function rows(): HTMLElement[] {
-    return Array.from(fixture.nativeElement.querySelectorAll('tr')).filter(
-      (row) => {
-        const element = row as HTMLElement;
-        // Exclude the Material no-data row, which is also a `tr > td`.
-        return (
-          element.querySelector('td') !== null &&
-          !element.classList.contains('empty-row')
-        );
-      },
-    ) as HTMLElement[];
+    return Array.from(fixture.nativeElement.querySelectorAll('tr')).filter((row) => {
+      const element = row as HTMLElement;
+      // Exclude the Material no-data row, which is also a `tr > td`.
+      return element.querySelector('td') !== null && !element.classList.contains('empty-row');
+    }) as HTMLElement[];
   }
 
   function editor(): HTMLElement | null {
@@ -83,23 +91,16 @@ describe('Platforms', () => {
   }
 
   function nameInput(): HTMLInputElement {
-    return fixture.nativeElement.querySelector(
-      'app-input input',
-    ) as HTMLInputElement;
+    return fixture.nativeElement.querySelector('app-input input') as HTMLInputElement;
   }
 
   function buttonByText(text: string): HTMLButtonElement {
-    return Array.from(
-      fixture.nativeElement.querySelectorAll('app-button button'),
-    ).find((button) =>
+    return Array.from(fixture.nativeElement.querySelectorAll('app-button button')).find((button) =>
       ((button as HTMLElement).textContent ?? '').trim().includes(text),
     ) as HTMLButtonElement;
   }
 
-  async function setValue(
-    element: HTMLInputElement,
-    value: string,
-  ): Promise<void> {
+  async function setValue(element: HTMLInputElement, value: string): Promise<void> {
     element.value = value;
     element.dispatchEvent(new Event('input'));
     await fixture.whenStable();
@@ -137,16 +138,14 @@ describe('Platforms', () => {
   }
 
   it('loads platforms on init and renders a row per platform with type and name columns', async () => {
-    service.list.mockReturnValue(
-      of({ platforms: [youTubePlatform(), wordPressPlatform()] }),
-    );
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform(), wordPressPlatform()] }));
 
     await createComponent();
 
     expect(service.list).toHaveBeenCalledTimes(1);
 
-    const headers = Array.from(fixture.nativeElement.querySelectorAll('th')).map(
-      (th) => (th as HTMLElement).textContent?.trim(),
+    const headers = Array.from(fixture.nativeElement.querySelectorAll('th')).map((th) =>
+      (th as HTMLElement).textContent?.trim(),
     );
     expect(headers).toEqual(['Type', 'Name']);
     expect(rows()).toHaveLength(2);
@@ -158,9 +157,7 @@ describe('Platforms', () => {
     await createComponent();
 
     expect(editor()).toBeNull();
-    expect(fixture.nativeElement.textContent).toContain(
-      'Select a platform on the left',
-    );
+    expect(fixture.nativeElement.textContent).toContain('Select a platform on the left');
   });
 
   it('renders a load error when platforms cannot be loaded', async () => {
@@ -168,9 +165,7 @@ describe('Platforms', () => {
 
     await createComponent();
 
-    expect(fixture.nativeElement.textContent).toContain(
-      'Platforms could not be loaded.',
-    );
+    expect(fixture.nativeElement.textContent).toContain('Platforms could not be loaded.');
     expect(rows()).toHaveLength(0);
   });
 
@@ -181,35 +176,38 @@ describe('Platforms', () => {
     await selectRow(0);
 
     expect(editor()).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('.readonly-type')?.textContent).toContain(
-      'YouTube',
-    );
+    expect(fixture.nativeElement.querySelector('.readonly-type')?.textContent).toContain('YouTube');
     expect(nameInput().value).toBe('Main YouTube channel');
     // The YouTube credentials input is rendered with the stored value.
     const inputs = Array.from(
       fixture.nativeElement.querySelectorAll('app-input input'),
     ) as HTMLInputElement[];
-    expect(inputs.some((input) => input.value === 'main-youtube-channel')).toBe(
-      true,
-    );
+    expect(inputs.some((input) => input.value === 'main-youtube-channel')).toBe(true);
   });
 
-  it('shows a not-available notice instead of settings for a WordPress platform', async () => {
+  it('opens a WordPress platform in an edit form with redacted settings', async () => {
     service.list.mockReturnValue(of({ platforms: [wordPressPlatform()] }));
 
     await createComponent();
     await selectRow(0);
 
-    expect(fixture.nativeElement.textContent).toContain(
-      'Settings for WordPress platforms are not available yet.',
+    const inputs = Array.from(
+      fixture.nativeElement.querySelectorAll('app-input input'),
+    ) as HTMLInputElement[];
+
+    expect(fixture.nativeElement.textContent).not.toContain('not available');
+    expect(fixture.nativeElement.querySelector('.readonly-type')?.textContent).toContain(
+      'WordPress',
     );
+    expect(inputs.some((input) => input.value === 'https://blog.example.test/')).toBe(true);
+    expect(inputs.some((input) => input.value === 'publisher')).toBe(true);
+    expect(inputs.some((input) => input.value === 'application-password')).toBe(false);
+    expect(inputs.some((input) => input.placeholder.includes('keep existing password'))).toBe(true);
   });
 
   it('creates a platform and adds it to the list', async () => {
     service.list.mockReturnValue(of({ platforms: [] }));
-    service.create.mockReturnValue(
-      of({ id: 'new-id', name: 'Second channel', type: 'YouTube' }),
-    );
+    service.create.mockReturnValue(of({ id: 'new-id', name: 'Second channel', type: 'YouTube' }));
 
     await createComponent();
     buttonByText('New Platform').click();
@@ -240,11 +238,137 @@ describe('Platforms', () => {
     expect(notifications.showSuccess).toHaveBeenCalledWith('Platform created.');
   });
 
-  it('surfaces a friendly message when the name is already taken', async () => {
+  it('creates a WordPress platform with provider settings', async () => {
     service.list.mockReturnValue(of({ platforms: [] }));
     service.create.mockReturnValue(
-      throwError(() => new PlatformNameConflictError()),
+      of({
+        id: 'new-id',
+        name: 'Company blog',
+        type: 'WordPress',
+        publishSettings: {
+          siteUrl: 'https://blog.example.test/',
+          username: 'publisher',
+          postStatus: 'draft',
+          applicationPasswordConfigured: true,
+        },
+      }),
     );
+
+    await createComponent();
+    buttonByText('New Platform').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    componentModel().set({
+      type: 'WordPress',
+      name: 'Company blog',
+      youTubeCredentials: '',
+      youTubePrivacyStatus: 'private',
+      youTubeMadeForKids: 'false',
+      wordPressSiteUrl: ' https://blog.example.test/ ',
+      wordPressUsername: ' publisher ',
+      wordPressApplicationPassword: 'local-test-password',
+      wordPressPostStatus: 'draft',
+      wordPressApplicationPasswordConfigured: 'false',
+    });
+    fixture.detectChanges();
+
+    await submitEditor();
+
+    expect(service.create).toHaveBeenCalledWith({
+      name: 'Company blog',
+      type: 'WordPress',
+      publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'draft',
+        applicationPassword: 'local-test-password',
+      },
+    });
+    expect(rows()).toHaveLength(1);
+  });
+
+  it('updates a WordPress platform without sending a blank Application Password', async () => {
+    service.list.mockReturnValue(of({ platforms: [wordPressPlatform()] }));
+    service.update.mockReturnValue(
+      of({
+        id: 'id-2',
+        name: 'Company blog',
+        type: 'WordPress',
+        publishSettings: {
+          siteUrl: 'https://blog.example.test/',
+          username: 'publisher',
+          postStatus: 'draft',
+          applicationPasswordConfigured: true,
+        },
+      }),
+    );
+
+    await createComponent();
+    await selectRow(0);
+
+    await submitEditor();
+
+    expect(service.update).toHaveBeenCalledWith('WordPress', 'id-2', {
+      name: 'Company blog',
+      publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'draft',
+      },
+    });
+  });
+
+  it('updates a WordPress platform with a replacement Application Password when supplied', async () => {
+    service.list.mockReturnValue(of({ platforms: [wordPressPlatform()] }));
+    service.update.mockReturnValue(
+      of({
+        id: 'id-2',
+        name: 'Company blog',
+        type: 'WordPress',
+        publishSettings: {
+          siteUrl: 'https://blog.example.test/',
+          username: 'publisher',
+          postStatus: 'publish',
+          applicationPasswordConfigured: true,
+        },
+      }),
+    );
+
+    await createComponent();
+    await selectRow(0);
+
+    componentModel().set({
+      type: 'WordPress',
+      name: 'Company blog',
+      youTubeCredentials: '',
+      youTubePrivacyStatus: 'private',
+      youTubeMadeForKids: 'false',
+      wordPressSiteUrl: 'https://blog.example.test/',
+      wordPressUsername: 'publisher',
+      wordPressApplicationPassword: 'replacement-local-password',
+      wordPressPostStatus: 'publish',
+      wordPressApplicationPasswordConfigured: 'true',
+    });
+    fixture.detectChanges();
+
+    await submitEditor();
+
+    expect(service.update).toHaveBeenCalledWith('WordPress', 'id-2', {
+      name: 'Company blog',
+      publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'publish',
+        applicationPassword: 'replacement-local-password',
+      },
+    });
+  });
+
+  it('surfaces a friendly message when the name is already taken', async () => {
+    service.list.mockReturnValue(of({ platforms: [] }));
+    service.create.mockReturnValue(throwError(() => new PlatformNameConflictError()));
 
     await createComponent();
     buttonByText('New Platform').click();

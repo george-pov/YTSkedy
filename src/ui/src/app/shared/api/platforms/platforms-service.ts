@@ -6,9 +6,8 @@ import { APP_CONFIG } from 'src/app/shared/config/app-config';
 import { platformByIdUrl, platformsUrl } from './platforms-endpoint';
 
 /**
- * The external system a platform publishes to. The set is expected to grow
- * (WordPress settings are not modeled yet), but the type is treated as
- * immutable after create because it drives which settings a platform carries.
+ * The external system a platform publishes to. The type is treated as immutable
+ * after create because it drives which settings a platform carries.
  */
 export type PlatformType = 'YouTube' | 'WordPress';
 
@@ -22,15 +21,28 @@ export interface YouTubePublishSettings {
   selfDeclaredMadeForKids: boolean;
 }
 
+export type WordPressPostStatus = 'publish' | 'draft';
+
+/** Publish settings returned for a WordPress platform. */
+export interface WordPressPublishSettings {
+  siteUrl: string;
+  username: string;
+  postStatus: WordPressPostStatus;
+  applicationPasswordConfigured?: boolean;
+  applicationPassword?: string;
+}
+
+export type PlatformPublishSettings = YouTubePublishSettings | WordPressPublishSettings;
+
 /**
- * A configured publishing platform. `publishSettings` is present for YouTube
- * platforms; other types do not have modeled settings yet.
+ * A configured publishing platform. WordPress responses are redacted: the API
+ * returns `applicationPasswordConfigured`, never the stored password.
  */
 export interface Platform {
   id: string;
   name: string;
   type: PlatformType;
-  publishSettings?: YouTubePublishSettings;
+  publishSettings?: PlatformPublishSettings;
 }
 
 export interface PlatformListResponse {
@@ -40,27 +52,27 @@ export interface PlatformListResponse {
 export interface CreatePlatformRequest {
   name: string;
   type: PlatformType;
-  publishSettings?: YouTubePublishSettings;
+  publishSettings?: PlatformPublishSettings;
 }
 
 export interface CreatePlatformResponse {
   id: string;
   name: string;
   type: PlatformType;
-  publishSettings?: YouTubePublishSettings;
+  publishSettings?: PlatformPublishSettings;
 }
 
 /** The type is immutable, so only the name and settings travel in an update. */
 export interface UpdatePlatformRequest {
   name: string;
-  publishSettings?: YouTubePublishSettings;
+  publishSettings?: PlatformPublishSettings;
 }
 
 export interface UpdatePlatformResponse {
   id: string;
   name: string;
   type: PlatformType;
-  publishSettings?: YouTubePublishSettings;
+  publishSettings?: PlatformPublishSettings;
 }
 
 /** Raised when a create or update would duplicate an existing platform name. */
@@ -115,7 +127,7 @@ interface ApiPlatform {
   platformId: string;
   name: string;
   type: PlatformType;
-  publishSettings?: YouTubePublishSettings;
+  publishSettings?: PlatformPublishSettings;
 }
 
 function toPlatform(platform: ApiPlatform): Platform {

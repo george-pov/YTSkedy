@@ -1,0 +1,8 @@
+<app-input [field]="siteUrl()" label="Site URL" placeholder="https://example.com/" />
+<app-input [field]="username()" label="Username" />
+<app-input
+  [field]="applicationPassword()"
+  label="Application Password"
+  [placeholder]="applicationPasswordConfigured() ? 'Leave blank to keep existing password' : ''"
+/>
+<app-select [field]="postStatus()" label="Post status" [options]="postStatusOptions" />

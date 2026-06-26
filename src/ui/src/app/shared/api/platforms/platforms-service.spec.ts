@@ -59,6 +59,17 @@ describe('PlatformsService', () => {
             selfDeclaredMadeForKids: false,
           },
         },
+        {
+          platformId: '5aa4a32f3f344de1a7c3a9f4a2f94918',
+          name: 'Company blog',
+          type: 'WordPress',
+          publishSettings: {
+            siteUrl: 'https://blog.example.test/',
+            username: 'publisher',
+            postStatus: 'draft',
+            applicationPasswordConfigured: true,
+          },
+        },
       ],
     });
 
@@ -73,6 +84,17 @@ describe('PlatformsService', () => {
             credentials: 'main-youtube-channel',
             privacyStatus: 'private',
             selfDeclaredMadeForKids: false,
+          },
+        },
+        {
+          id: '5aa4a32f3f344de1a7c3a9f4a2f94918',
+          name: 'Company blog',
+          type: 'WordPress',
+          publishSettings: {
+            siteUrl: 'https://blog.example.test/',
+            username: 'publisher',
+            postStatus: 'draft',
+            applicationPasswordConfigured: true,
           },
         },
       ],
@@ -128,6 +150,50 @@ describe('PlatformsService', () => {
         credentials: 'second-channel',
         privacyStatus: 'public',
         selfDeclaredMadeForKids: true,
+      },
+    });
+  });
+
+  it('posts a WordPress create request and maps the redacted created platform', async () => {
+    const createRequest: CreatePlatformRequest = {
+      name: 'Company blog',
+      type: 'WordPress',
+      publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'draft',
+        applicationPassword: 'local-test-password',
+      },
+    };
+
+    const responsePromise = firstValueFrom(service.create(createRequest));
+
+    const request = http.expectOne('https://api.example.test/api/platforms');
+
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(createRequest);
+
+    request.flush({
+      platformId: '5aa4a32f3f344de1a7c3a9f4a2f94918',
+      name: 'Company blog',
+      type: 'WordPress',
+      publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'draft',
+        applicationPasswordConfigured: true,
+      },
+    });
+
+    await expect(responsePromise).resolves.toEqual({
+      id: '5aa4a32f3f344de1a7c3a9f4a2f94918',
+      name: 'Company blog',
+      type: 'WordPress',
+      publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'draft',
+        applicationPasswordConfigured: true,
       },
     });
   });
@@ -195,6 +261,52 @@ describe('PlatformsService', () => {
         credentials: 'renamed-channel',
         privacyStatus: 'unlisted',
         selfDeclaredMadeForKids: false,
+      },
+    });
+  });
+
+  it('puts a WordPress update request and maps the redacted updated platform', async () => {
+    const updateRequest: UpdatePlatformRequest = {
+      name: 'Company blog',
+      publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'publish',
+      },
+    };
+
+    const responsePromise = firstValueFrom(
+      service.update('WordPress', '5aa4a32f3f344de1a7c3a9f4a2f94918', updateRequest),
+    );
+
+    const request = http.expectOne(
+      'https://api.example.test/api/platforms/5aa4a32f3f344de1a7c3a9f4a2f94918',
+    );
+
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual(updateRequest);
+
+    request.flush({
+      platformId: '5aa4a32f3f344de1a7c3a9f4a2f94918',
+      name: 'Company blog',
+      type: 'WordPress',
+      publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'publish',
+        applicationPasswordConfigured: true,
+      },
+    });
+
+    await expect(responsePromise).resolves.toEqual({
+      id: '5aa4a32f3f344de1a7c3a9f4a2f94918',
+      name: 'Company blog',
+      type: 'WordPress',
+      publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'publish',
+        applicationPasswordConfigured: true,
       },
     });
   });

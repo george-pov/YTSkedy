@@ -16,6 +16,8 @@ public class PublishHandlerTests
     private static readonly DateTimeOffset PastStart = new(2026, 6, 1, 17, 0, 0, TimeSpan.Zero);
 
     private static readonly YouTubeSettings Settings = new("main-youtube-channel", "private", false);
+    private static readonly WordPressSettings WordPressSettings =
+        new("https://blog.example.test/", "publisher", "application-password", "publish");
 
     [Fact]
     public async Task HandleAsync_MissingEvent_ReturnsEventNotFound()
@@ -195,6 +197,35 @@ public class PublishHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_WordPressSuccess_ReturnsWordPressPlatformAndPostId()
+    {
+        var publishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 5, TimeSpan.Zero);
+        var repository = new FakePublicationRepository { MarkPublishedResult = publishedUtc };
+        var publisher = new FakePublisher(
+            PlatformType.WordPress,
+            new PlatformPublishResult("123"));
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(
+                "Company blog",
+                PlatformType.WordPress,
+                WordPressSettings),
+            publisher,
+            repository: repository);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.Equal("Company blog", result.PlatformName);
+        Assert.Equal(PlatformType.WordPress, result.PlatformType);
+        Assert.Equal("123", result.ExternalResourceId);
+        Assert.Equal(publishedUtc, result.PublishedUtc);
+
+        Assert.Equal("123", repository.MarkedExternalResourceId);
+        Assert.Same(WordPressSettings, publisher.Request!.PublishSettings);
+    }
+
+    [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
         var handler = CreateHandler(Event(FutureStart), Platform(), new FakePublisher());
@@ -231,7 +262,13 @@ public class PublishHandlerTests
             descriptions ?? [new LocalizedDescription("en", "English title", "English description")]);
 
     private static PlatformView Platform() =>
-        new(PlatformId, "Main YouTube channel", PlatformType.YouTube, Settings);
+        Platform("Main YouTube channel", PlatformType.YouTube, Settings);
+
+    private static PlatformView Platform(
+        string name,
+        PlatformType type,
+        PublishSettings settings) =>
+        new(PlatformId, name, type, settings);
 
     private static PlatformPublication Publication(
         PublishStatus status,
@@ -356,13 +393,24 @@ public class PublishHandlerTests
 
     private sealed class FakePublisher : IPlatformPublisher
     {
+        private readonly PlatformType type;
+        private readonly PlatformPublishResult? result;
+
+        public FakePublisher(
+            PlatformType type = PlatformType.YouTube,
+            PlatformPublishResult? result = null)
+        {
+            this.type = type;
+            this.result = result;
+        }
+
         public PlatformPublishResult? Result { get; init; }
 
         public Exception? Throws { get; init; }
 
         public PlatformPublishRequest? Request { get; private set; }
 
-        public PlatformType Type => PlatformType.YouTube;
+        public PlatformType Type => type;
 
         public Task<PlatformPublishResult> PublishAsync(
             PlatformPublishRequest request,
@@ -375,7 +423,7 @@ public class PublishHandlerTests
                 throw Throws;
             }
 
-            return Task.FromResult(Result ?? new PlatformPublishResult("yt-broadcast-id"));
+            return Task.FromResult(Result ?? result ?? new PlatformPublishResult("yt-broadcast-id"));
         }
     }
 }

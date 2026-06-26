@@ -15,6 +15,16 @@ public class PlatformPublisherSelectorTests
     }
 
     [Fact]
+    public void Find_WordPressPublisherSupplied_ReturnsWordPressPublisher()
+    {
+        var wordPress = new FakePlatformPublisher(PlatformType.WordPress);
+        var selector = new PlatformPublisherSelector(
+            [new FakePlatformPublisher(PlatformType.YouTube), wordPress]);
+
+        Assert.Same(wordPress, selector.Find(PlatformType.WordPress));
+    }
+
+    [Fact]
     public void Find_UnregisteredType_ReturnsNull()
     {
         var selector = new PlatformPublisherSelector([new FakePlatformPublisher(PlatformType.YouTube)]);

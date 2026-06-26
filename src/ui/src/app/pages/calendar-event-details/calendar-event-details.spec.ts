@@ -431,6 +431,53 @@ describe('CalendarEventDetails', () => {
       expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event published.');
     });
 
+    it('publishes a WordPress platform row through the existing table action', async () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            platforms: [
+              {
+                platformId: 'wordpress-platform',
+                platformName: 'Company blog',
+                platformType: 'WordPress',
+                status: 'NotPublished',
+                externalResourceId: null,
+                publishedUtc: null,
+                platformDeletedUtc: null,
+                canPublish: true,
+              },
+            ],
+          }),
+        ),
+      );
+      service.publishPlatform.mockReturnValue(
+        of({
+          calendarEventId: editId,
+          platformId: 'wordpress-platform',
+          platformName: 'Company blog',
+          platformType: 'WordPress',
+          status: 'Published',
+          externalResourceId: '123',
+          publishedUtc: '2030-07-04T08:45:00+00:00',
+        }),
+      );
+
+      createEditComponent();
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('WordPress');
+      expect(text).toContain('Company blog');
+      expect(platformPublishHosts()).toHaveLength(1);
+
+      platformPublishHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(service.publishPlatform).toHaveBeenCalledWith(editId, 'wordpress-platform');
+      expect(fixture.nativeElement.textContent).toContain('Published');
+    });
+
     it('shows a platform publish error and stays on the page when publish fails', async () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.publishPlatform.mockReturnValue(

@@ -13,6 +13,8 @@ import {
   Platform,
   PlatformNameConflictError,
   PlatformsService,
+  YouTubePublishSettings,
+  WordPressPublishSettings,
 } from 'src/app/shared/api/platforms/platforms-service';
 import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from 'src/app/shared/components/button/button';
@@ -31,6 +33,7 @@ import {
   toUpdatePlatformRequest,
 } from './platforms.form';
 import { YouTubeSettings } from './youtube-settings/youtube-settings';
+import { WordPressSettings } from './wordpress-settings/wordpress-settings';
 
 // `none` hides the editor; `create` adds a new platform on save; `edit` puts
 // the selected platform. The type is only editable while creating because it is
@@ -39,7 +42,17 @@ type EditorMode = 'none' | 'create' | 'edit';
 
 @Component({
   selector: 'app-platforms',
-  imports: [Alert, Button, DataTable, Input, ProgressBar, Select, YouTubeSettings, DelayedLoading],
+  imports: [
+    Alert,
+    Button,
+    DataTable,
+    Input,
+    ProgressBar,
+    Select,
+    YouTubeSettings,
+    WordPressSettings,
+    DelayedLoading,
+  ],
   templateUrl: './platforms.html',
   styleUrl: './platforms.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -66,6 +79,7 @@ export class Platforms implements OnInit {
 
   protected readonly typeOptions: readonly SelectOption[] = [
     { value: 'YouTube', label: 'YouTube' },
+    { value: 'WordPress', label: 'WordPress' },
   ];
 
   protected readonly model = signal<PlatformFormModel>(createPlatformFormModel());
@@ -234,13 +248,42 @@ export class Platforms implements OnInit {
 // Maps a stored platform into the flat editor model. Missing YouTube settings
 // fall back to the create defaults so the form always has bindable values.
 function toFormModel(platform: Platform): PlatformFormModel {
+  const defaults = createPlatformFormModel();
+  const youTubeSettings = isYouTubeSettings(platform.publishSettings)
+    ? platform.publishSettings
+    : undefined;
+  const wordPressSettings = isWordPressSettings(platform.publishSettings)
+    ? platform.publishSettings
+    : undefined;
+
   return {
     type: platform.type,
     name: platform.name,
-    youTubeCredentials: platform.publishSettings?.credentials ?? '',
-    youTubePrivacyStatus: platform.publishSettings?.privacyStatus ?? 'private',
-    youTubeMadeForKids: String(platform.publishSettings?.selfDeclaredMadeForKids ?? false),
+    youTubeCredentials: youTubeSettings?.credentials ?? defaults.youTubeCredentials,
+    youTubePrivacyStatus: youTubeSettings?.privacyStatus ?? defaults.youTubePrivacyStatus,
+    youTubeMadeForKids: String(
+      youTubeSettings?.selfDeclaredMadeForKids ?? defaults.youTubeMadeForKids,
+    ),
+    wordPressSiteUrl: wordPressSettings?.siteUrl ?? defaults.wordPressSiteUrl,
+    wordPressUsername: wordPressSettings?.username ?? defaults.wordPressUsername,
+    wordPressApplicationPassword: '',
+    wordPressPostStatus: wordPressSettings?.postStatus ?? defaults.wordPressPostStatus,
+    wordPressApplicationPasswordConfigured: String(
+      wordPressSettings?.applicationPasswordConfigured ?? false,
+    ),
   };
+}
+
+function isYouTubeSettings(
+  settings: Platform['publishSettings'],
+): settings is YouTubePublishSettings {
+  return settings !== undefined && 'credentials' in settings;
+}
+
+function isWordPressSettings(
+  settings: Platform['publishSettings'],
+): settings is WordPressPublishSettings {
+  return settings !== undefined && 'siteUrl' in settings;
 }
 
 // The list order is not significant, so sort client-side by type then name for

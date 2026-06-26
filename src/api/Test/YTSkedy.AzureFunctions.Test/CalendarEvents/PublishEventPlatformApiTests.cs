@@ -35,6 +35,27 @@ public sealed class PublishEventPlatformApiTests
         Assert.Equal(publishedUtc, body.PublishedUtc);
     }
 
+    [Fact]
+    public void ToResult_WordPressPublished_Returns200WithWordPressPublishBody()
+    {
+        var publishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
+        var result = PublishResult.Published(
+            "Company blog",
+            PlatformType.WordPress,
+            "123",
+            publishedUtc);
+
+        var actionResult = PublishEventPlatformApi.ToResult(result, CalendarEventId, PlatformId);
+
+        var ok = Assert.IsType<OkObjectResult>(actionResult);
+        var body = Assert.IsType<PublishEventPlatformResponse>(ok.Value);
+        Assert.Equal("Company blog", body.PlatformName);
+        Assert.Equal("WordPress", body.PlatformType);
+        Assert.Equal("Published", body.Status);
+        Assert.Equal("123", body.ExternalResourceId);
+        Assert.Equal(publishedUtc, body.PublishedUtc);
+    }
+
     [Theory]
     [InlineData(PublishResultStatus.EventNotFound, StatusCodes.Status404NotFound)]
     [InlineData(PublishResultStatus.PlatformNotFound, StatusCodes.Status404NotFound)]

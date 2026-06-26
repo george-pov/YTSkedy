@@ -44,6 +44,16 @@
                 [privacyStatus]="form.youTubePrivacyStatus"
                 [madeForKids]="form.youTubeMadeForKids"
               />
+            } @else if (selectedType() === 'WordPress') {
+              <app-wordpress-settings
+                [siteUrl]="form.wordPressSiteUrl"
+                [username]="form.wordPressUsername"
+                [applicationPassword]="form.wordPressApplicationPassword"
+                [postStatus]="form.wordPressPostStatus"
+                [applicationPasswordConfigured]="
+                  model().wordPressApplicationPasswordConfigured === 'true'
+                "
+              />
             } @else {
               <app-alert variant="info">
                 Settings for {{ selectedType() }} platforms are not available yet.
