@@ -225,9 +225,12 @@ builder.Services.AddSingleton<IPlatformPublisher>(
 builder.Services.AddSingleton<IPlatformPublisherSelector, PlatformPublisherSelector>();
 builder.Services.AddScoped<PublishHandler>();
 
-// Platform publication cleanup: provider adapters are registered by the
-// infrastructure slice. Until then the selector is empty and the delete route
-// returns 501 for provider cleanup.
+// Platform publication cleanup: providers are selected by platform type and use
+// current settings stored on the platform row.
+builder.Services.AddSingleton<IPlatformPublicationDeleter, YouTubePublicationDeleter>();
+builder.Services.AddHttpClient<WordPressPublicationDeleter>();
+builder.Services.AddSingleton<IPlatformPublicationDeleter>(
+    serviceProvider => serviceProvider.GetRequiredService<WordPressPublicationDeleter>());
 builder.Services.AddSingleton<IPublicationDeleterSelector, PublicationDeleterSelector>();
 builder.Services.AddScoped<DeletePublicationHandler>();
 
