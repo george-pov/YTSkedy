@@ -19,7 +19,11 @@ public class CreatePlatformHandlerTests
             CreateResult = CreatePlatformResult.Created("p1")
         };
         var handler = new CreatePlatformHandler(modifier);
-        var command = new CreatePlatformCommand("Main channel", PlatformType.YouTube, Settings);
+        var command = new CreatePlatformCommand(
+            "Main channel",
+            PlatformType.YouTube,
+            Settings,
+            "main-youtube");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -30,6 +34,7 @@ public class CreatePlatformHandlerTests
         Assert.Equal("Main channel", modifier.CreatedPlatform!.Name);
         Assert.Equal(PlatformType.YouTube, modifier.CreatedPlatform.Type);
         Assert.Same(Settings, modifier.CreatedPlatform.PublishSettings);
+        Assert.Equal("main-youtube", modifier.CreatedPlatform.ReferenceKey);
     }
 
     [Fact]
@@ -45,6 +50,26 @@ public class CreatePlatformHandlerTests
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(CreatePlatformStatus.NameAlreadyExists, result.Status);
+        Assert.Null(result.PlatformId);
+    }
+
+    [Fact]
+    public async Task HandleAsync_DuplicateReferenceKey_ReturnsReferenceKeyAlreadyExists()
+    {
+        var modifier = new FakePlatformModifier
+        {
+            CreateResult = CreatePlatformResult.ReferenceKeyAlreadyExists()
+        };
+        var handler = new CreatePlatformHandler(modifier);
+        var command = new CreatePlatformCommand(
+            "Main channel",
+            PlatformType.YouTube,
+            Settings,
+            "main-youtube");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(CreatePlatformStatus.ReferenceKeyAlreadyExists, result.Status);
         Assert.Null(result.PlatformId);
     }
 
@@ -76,6 +101,7 @@ public class CreatePlatformHandlerTests
         public Task<UpdatePlatformResult> UpdateAsync(
             string platformId,
             string name,
+            string? referenceKey,
             PublishSettings publishSettings,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();

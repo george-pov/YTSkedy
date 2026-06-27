@@ -18,7 +18,8 @@ public sealed class CreatePlatformHandler(IPlatformModifier platforms)
         var platform = new Domain.Platforms.Platform(
             command.Name,
             command.Type,
-            command.PublishSettings);
+            command.PublishSettings,
+            command.ReferenceKey);
 
         return await platforms.CreateAsync(platform, cancellationToken);
     }

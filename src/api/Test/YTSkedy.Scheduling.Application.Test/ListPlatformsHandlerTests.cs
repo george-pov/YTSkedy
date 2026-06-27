@@ -13,6 +13,7 @@ public class ListPlatformsHandlerTests
             new PlatformView(
                 "p1",
                 "Main channel",
+                "main-youtube",
                 PlatformType.YouTube,
                 YouTubeSettings())
         };

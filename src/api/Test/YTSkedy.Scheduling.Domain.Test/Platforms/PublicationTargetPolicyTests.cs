@@ -34,6 +34,7 @@ public class PublicationTargetPolicyTests
         var platform = new PlatformView(
             "p1",
             "Company blog",
+            null,
             PlatformType.WordPress,
             new WordPressSettings(
                 "https://example.com/",
@@ -64,6 +65,7 @@ public class PublicationTargetPolicyTests
         new(
             "p1",
             "Main YouTube channel",
+            null,
             PlatformType.YouTube,
             new YouTubeSettings(
                 new YouTubeCredentials(clientId, "client-secret", "refresh-token"),

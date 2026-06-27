@@ -5,4 +5,5 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 public sealed record CreatePlatformCommand(
     string Name,
     PlatformType Type,
-    PublishSettings PublishSettings);
+    PublishSettings PublishSettings,
+    string? ReferenceKey = null);

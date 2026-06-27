@@ -13,11 +13,16 @@ public class PlatformTests
     [Fact]
     public void Constructor_ValidInput_SetsProperties()
     {
-        var platform = new Platform("Main YouTube channel", PlatformType.YouTube, Settings);
+        var platform = new Platform(
+            "Main YouTube channel",
+            PlatformType.YouTube,
+            Settings,
+            "main-youtube");
 
         Assert.Equal("Main YouTube channel", platform.Name);
         Assert.Equal(PlatformType.YouTube, platform.Type);
         Assert.Same(Settings, platform.PublishSettings);
+        Assert.Equal("main-youtube", platform.ReferenceKey);
     }
 
     [Fact]
@@ -64,6 +69,46 @@ public class PlatformTests
             () => new Platform("Main channel", PlatformType.YouTube, null!));
     }
 
+    [Fact]
+    public void Constructor_BlankReferenceKey_SetsNull()
+    {
+        var platform = new Platform("Main channel", PlatformType.YouTube, Settings, "   ");
+
+        Assert.Null(platform.ReferenceKey);
+    }
+
+    [Fact]
+    public void Constructor_ReferenceKeyWithSurroundingWhitespace_IsTrimmed()
+    {
+        var platform = new Platform("Main channel", PlatformType.YouTube, Settings, "  youTube1  ");
+
+        Assert.Equal("youTube1", platform.ReferenceKey);
+    }
+
+    [Fact]
+    public void Constructor_ReferenceKeyAtMaxLength_IsAccepted()
+    {
+        var referenceKey = new string('a', Platform.MaxReferenceKeyLength);
+
+        var platform = new Platform("Main channel", PlatformType.YouTube, Settings, referenceKey);
+
+        Assert.Equal(referenceKey, platform.ReferenceKey);
+    }
+
+    [Theory]
+    [InlineData("with space")]
+    [InlineData("with_underscore")]
+    [InlineData("with.dot")]
+    [InlineData("with/slash")]
+    [InlineData("aaaaaaaaaaaaaaaa")]
+    public void Constructor_InvalidReferenceKey_Throws(string referenceKey)
+    {
+        var exception = Assert.Throws<ArgumentException>(
+            () => new Platform("Main channel", PlatformType.YouTube, Settings, referenceKey));
+
+        Assert.Equal("referenceKey", exception.ParamName);
+    }
+
     [Theory]
     [InlineData("a")]
     [InlineData("Main YouTube channel")]
@@ -93,5 +138,31 @@ public class PlatformTests
     public void IsValidName_AboveMaxLengthAfterTrim_ReturnsFalse()
     {
         Assert.False(Platform.IsValidName(new string('n', Platform.MaxNameLength + 1)));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void IsValidReferenceKey_NullOrBlank_ReturnsTrue(string? referenceKey)
+    {
+        Assert.True(Platform.IsValidReferenceKey(referenceKey));
+    }
+
+    [Theory]
+    [InlineData("youTube1")]
+    [InlineData("youtube1")]
+    [InlineData("YT-1")]
+    [InlineData("abc-123")]
+    public void IsValidReferenceKey_LettersDigitsAndHyphenWithinLimit_ReturnsTrue(
+        string referenceKey)
+    {
+        Assert.True(Platform.IsValidReferenceKey(referenceKey));
+    }
+
+    [Fact]
+    public void ToReferenceKeyLookupValue_MixedCase_ReturnsLowercaseLookupValue()
+    {
+        Assert.Equal("youtube1", Platform.ToReferenceKeyLookupValue("  youTube1  "));
     }
 }

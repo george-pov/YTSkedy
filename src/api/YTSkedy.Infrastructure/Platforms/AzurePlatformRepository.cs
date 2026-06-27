@@ -12,8 +12,9 @@ namespace YTSkedy.Infrastructure.Platforms;
 /// (<c>platforms</c>) and the row key is <c>platform-{platformId}</c>, where the
 /// platform id is a server-generated GUID. Name uniqueness is global and
 /// enforced check-then-write against the single partition with an ordinal
-/// comparison; duplicate-name races are resolved by the last writer that reaches
-/// storage. Publish settings are stored as JSON without secret material. Storage
+/// comparison. Non-empty reference-key uniqueness uses the same partition scan
+/// with case-insensitive comparison; duplicate races are resolved by the last
+/// writer that reaches storage. Publish settings are stored as JSON. Storage
 /// identity, id generation, and ETags stay inside this class.
 /// </summary>
 public sealed class AzurePlatformRepository(
@@ -42,6 +43,11 @@ public sealed class AzurePlatformRepository(
             return CreatePlatformResult.NameAlreadyExists();
         }
 
+        if (HasReferenceKeyConflict(existing, currentRowKey: string.Empty, platform.ReferenceKey))
+        {
+            return CreatePlatformResult.ReferenceKeyAlreadyExists();
+        }
+
         var id = Guid.NewGuid().ToString("N");
         var now = timeProvider.GetUtcNow();
         var entity = new PlatformEntity
@@ -50,6 +56,7 @@ public sealed class AzurePlatformRepository(
             RowKey = RowKeyFor(id),
             PlatformId = id,
             Name = platform.Name,
+            ReferenceKey = platform.ReferenceKey,
             Type = platform.Type.ToString(),
             PublishSettingsJson = PublishSettingsSerializer.Serialize(
                 platform.Type,
@@ -66,6 +73,7 @@ public sealed class AzurePlatformRepository(
     public async Task<UpdatePlatformResult> UpdateAsync(
         string platformId,
         string name,
+        string? referenceKey,
         PublishSettings publishSettings,
         CancellationToken cancellationToken)
     {
@@ -96,10 +104,17 @@ public sealed class AzurePlatformRepository(
             return UpdatePlatformResult.NameAlreadyExists;
         }
 
+        var normalizedReferenceKey = Platform.NormalizeReferenceKey(referenceKey);
+        if (HasReferenceKeyConflict(partition, rowKey, normalizedReferenceKey))
+        {
+            return UpdatePlatformResult.ReferenceKeyAlreadyExists;
+        }
+
         // Type is immutable, so it is read from the stored row and reused to
         // serialize the new settings.
         var type = PlatformViewMapper.ParseType(entity.Type);
         entity.Name = trimmedName;
+        entity.ReferenceKey = normalizedReferenceKey;
         entity.PublishSettingsJson = PublishSettingsSerializer.Serialize(
             type,
             publishSettings);
@@ -214,4 +229,33 @@ public sealed class AzurePlatformRepository(
 
     private static bool NameEquals(string left, string right) =>
         string.Equals(left, right, StringComparison.Ordinal);
+
+    private static bool ReferenceKeyEquals(string? left, string? right)
+    {
+        var normalizedLeft = Platform.NormalizeReferenceKey(left);
+        var normalizedRight = Platform.NormalizeReferenceKey(right);
+
+        return normalizedLeft is not null &&
+            normalizedRight is not null &&
+            string.Equals(
+                Platform.ToReferenceKeyLookupValue(normalizedLeft),
+                Platform.ToReferenceKeyLookupValue(normalizedRight),
+                StringComparison.Ordinal);
+    }
+
+    private static bool HasReferenceKeyConflict(
+        IEnumerable<PlatformEntity> entities,
+        string currentRowKey,
+        string? referenceKey)
+    {
+        var normalizedReferenceKey = Platform.NormalizeReferenceKey(referenceKey);
+        if (normalizedReferenceKey is null)
+        {
+            return false;
+        }
+
+        return entities.Any(entity =>
+            !string.Equals(entity.RowKey, currentRowKey, StringComparison.Ordinal) &&
+            ReferenceKeyEquals(entity.ReferenceKey, normalizedReferenceKey));
+    }
 }

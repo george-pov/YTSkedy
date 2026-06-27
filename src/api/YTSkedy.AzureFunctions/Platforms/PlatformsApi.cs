@@ -189,6 +189,12 @@ public sealed class PlatformsApi(
             return false;
         }
 
+        if (!Platform.IsValidReferenceKey(request.ReferenceKey))
+        {
+            error = InvalidReferenceKeyResult();
+            return false;
+        }
+
         if (!PlatformPublishSettingsHttpMapper.TryBuild(
                 type,
                 request.PublishSettings,
@@ -198,7 +204,11 @@ public sealed class PlatformsApi(
             return false;
         }
 
-        command = new CreatePlatformCommand(request.Name!.Trim(), type, publishSettings);
+        command = new CreatePlatformCommand(
+            request.Name!.Trim(),
+            type,
+            publishSettings,
+            Platform.NormalizeReferenceKey(request.ReferenceKey));
         return true;
     }
 
@@ -226,6 +236,12 @@ public sealed class PlatformsApi(
             return false;
         }
 
+        if (!Platform.IsValidReferenceKey(request.ReferenceKey))
+        {
+            error = InvalidReferenceKeyResult();
+            return false;
+        }
+
         if (!PlatformPublishSettingsHttpMapper.TryBuild(
                 existingPlatform.Type,
                 request.PublishSettings,
@@ -239,13 +255,14 @@ public sealed class PlatformsApi(
         command = new UpdatePlatformCommand(
             existingPlatform.PlatformId,
             request.Name!.Trim(),
+            Platform.NormalizeReferenceKey(request.ReferenceKey),
             publishSettings);
         return true;
     }
 
     /// <summary>
     /// Maps a create outcome to its HTTP result. Created is 200 with the single
-    /// platform shape; a duplicate name is 409.
+    /// platform shape; duplicate name and duplicate reference key are 409.
     /// </summary>
     internal static IActionResult ToCreateResult(
         CreatePlatformResult result,
@@ -257,16 +274,19 @@ public sealed class PlatformsApi(
                     result.PlatformId!,
                     command.Name,
                     command.Type,
+                    command.ReferenceKey,
                     command.PublishSettings)),
             CreatePlatformStatus.NameAlreadyExists => new ConflictObjectResult(
                 $"A platform named '{command.Name}' already exists."),
+            CreatePlatformStatus.ReferenceKeyAlreadyExists => new ConflictObjectResult(
+                $"A platform reference key '{command.ReferenceKey}' already exists."),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
 
     /// <summary>
     /// Maps an update outcome to its HTTP result. Updated is 200 with the single
-    /// platform shape; an unknown id is 404; a duplicate name is 409; a publish
-    /// in progress is 409.
+    /// platform shape; an unknown id is 404; duplicate name, duplicate reference
+    /// key, and publish-in-progress outcomes are 409.
     /// </summary>
     internal static IActionResult ToUpdateResult(
         UpdatePlatformResult result,
@@ -278,11 +298,14 @@ public sealed class PlatformsApi(
                     command.PlatformId,
                     command.Name,
                     PlatformPublishSettingsHttpMapper.TypeOf(command.PublishSettings),
+                    command.ReferenceKey,
                     command.PublishSettings)),
             UpdatePlatformResult.NotFound => new NotFoundObjectResult(
                 $"Platform '{command.PlatformId}' was not found."),
             UpdatePlatformResult.NameAlreadyExists => new ConflictObjectResult(
                 $"A platform named '{command.Name}' already exists."),
+            UpdatePlatformResult.ReferenceKeyAlreadyExists => new ConflictObjectResult(
+                $"A platform reference key '{command.ReferenceKey}' already exists."),
             UpdatePlatformResult.Conflict => new ConflictObjectResult(
                 $"Platform '{command.PlatformId}' cannot be updated while a publish is in progress."),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
@@ -312,17 +335,24 @@ public sealed class PlatformsApi(
     {
         ArgumentNullException.ThrowIfNull(view);
 
-        return ToPlatformResponse(view.PlatformId, view.Name, view.Type, view.PublishSettings);
+        return ToPlatformResponse(
+            view.PlatformId,
+            view.Name,
+            view.Type,
+            view.ReferenceKey,
+            view.PublishSettings);
     }
 
     internal static PlatformResponse ToPlatformResponse(
         string platformId,
         string name,
         PlatformType type,
+        string? referenceKey,
         PublishSettings publishSettings) =>
         new(
             platformId,
             name,
+            referenceKey,
             type.ToString(),
             PlatformPublishSettingsHttpMapper.ToResponse(publishSettings));
 
@@ -332,5 +362,9 @@ public sealed class PlatformsApi(
 
     private static IActionResult InvalidTypeResult() =>
         new BadRequestObjectResult("Platform type must be 'YouTube' or 'WordPress'.");
+
+    private static IActionResult InvalidReferenceKeyResult() =>
+        new BadRequestObjectResult(
+            "Reference key must be 1 to 15 characters and contain only letters, numbers, or hyphen.");
 
 }

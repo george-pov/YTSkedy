@@ -6,6 +6,9 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// <see cref="CreatePlatformStatus.Created"/>, which maps to 200.
 /// <see cref="CreatePlatformStatus.NameAlreadyExists"/> maps to 409 because the
 /// name is already used by another platform.
+/// <see cref="CreatePlatformStatus.ReferenceKeyAlreadyExists"/> maps to 409
+/// because another platform already uses the same non-empty reference key,
+/// compared case-insensitively.
 /// </summary>
 public sealed record CreatePlatformResult(
     CreatePlatformStatus Status,
@@ -16,4 +19,7 @@ public sealed record CreatePlatformResult(
 
     public static CreatePlatformResult NameAlreadyExists() =>
         new(CreatePlatformStatus.NameAlreadyExists, null);
+
+    public static CreatePlatformResult ReferenceKeyAlreadyExists() =>
+        new(CreatePlatformStatus.ReferenceKeyAlreadyExists, null);
 }

@@ -11,6 +11,7 @@ public class GetPlatformHandlerTests
         var view = new PlatformView(
             "p1",
             "Main channel",
+            "main-youtube",
             PlatformType.YouTube,
             YouTubeSettings());
         var reader = new FakePlatformReader { View = view };

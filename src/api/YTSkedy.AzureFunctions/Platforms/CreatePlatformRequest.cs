@@ -7,4 +7,5 @@ namespace YTSkedy.AzureFunctions.Platforms;
 internal sealed record CreatePlatformRequest(
     string? Name,
     string? Type,
+    string? ReferenceKey,
     PublishSettingsPayload? PublishSettings);

@@ -8,5 +8,6 @@ namespace YTSkedy.AzureFunctions.Platforms;
 internal sealed record PlatformResponse(
     string PlatformId,
     string Name,
+    string? ReferenceKey,
     string Type,
     PublishSettingsResponse PublishSettings);

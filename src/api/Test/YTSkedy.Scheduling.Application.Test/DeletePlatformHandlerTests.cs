@@ -10,6 +10,7 @@ public class DeletePlatformHandlerTests
     private static readonly PlatformView ExistingPlatform = new(
         PlatformId,
         "Main channel",
+        null,
         PlatformType.YouTube,
         new YouTubeSettings(
             new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
@@ -170,6 +171,7 @@ public class DeletePlatformHandlerTests
         public Task<UpdatePlatformResult> UpdateAsync(
             string platformId,
             string name,
+            string? referenceKey,
             PublishSettings publishSettings,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();

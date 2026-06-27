@@ -16,6 +16,7 @@ internal static class PlatformViewMapper
         return new PlatformView(
             entity.PlatformId,
             entity.Name,
+            entity.ReferenceKey,
             type,
             publishSettings);
     }

@@ -42,6 +42,7 @@ public sealed class PlatformsApiTests
         var request = new CreatePlatformRequest(
             "Main YouTube channel",
             "YouTube",
+            null,
             YouTubePayload());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
@@ -63,6 +64,7 @@ public sealed class PlatformsApiTests
         var request = new CreatePlatformRequest(
             "Main YouTube channel",
             "YouTube",
+            null,
             YouTubePayload(clientSecret: ""));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
@@ -79,6 +81,7 @@ public sealed class PlatformsApiTests
         var request = new CreatePlatformRequest(
             "Main WordPress site",
             "WordPress",
+            null,
             WordPressPayload(applicationPassword: "application-password"));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
@@ -99,6 +102,7 @@ public sealed class PlatformsApiTests
         var request = new CreatePlatformRequest(
             "Main WordPress site",
             "WordPress",
+            null,
             WordPressPayload(siteUrl: ""));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
@@ -113,6 +117,7 @@ public sealed class PlatformsApiTests
         var request = new CreatePlatformRequest(
             "Main WordPress site",
             "WordPress",
+            null,
             WordPressPayload(siteUrl: "http://example.com"));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
@@ -129,6 +134,7 @@ public sealed class PlatformsApiTests
         var request = new CreatePlatformRequest(
             "Main WordPress site",
             "WordPress",
+            null,
             WordPressPayload(siteUrl: "https://user:password@example.com"));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
@@ -147,6 +153,7 @@ public sealed class PlatformsApiTests
         var request = new CreatePlatformRequest(
             "Main WordPress site",
             "WordPress",
+            null,
             WordPressPayload(applicationPassword: ""));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
@@ -163,6 +170,7 @@ public sealed class PlatformsApiTests
         var request = new CreatePlatformRequest(
             "Main WordPress site",
             "WordPress",
+            null,
             WordPressPayload(applicationPassword: "application-password", postStatus: "pending"));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
@@ -174,11 +182,59 @@ public sealed class PlatformsApiTests
     }
 
     [Fact]
+    public void TryBuildCreateCommand_ValidReferenceKey_PreservesDisplayCasing()
+    {
+        var request = new CreatePlatformRequest(
+            "Main YouTube channel",
+            "YouTube",
+            "youTube1",
+            YouTubePayload());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
+
+        Assert.True(built);
+        Assert.Equal("youTube1", command.ReferenceKey);
+    }
+
+    [Fact]
+    public void TryBuildCreateCommand_BlankReferenceKey_SetsNull()
+    {
+        var request = new CreatePlatformRequest(
+            "Main YouTube channel",
+            "YouTube",
+            "   ",
+            YouTubePayload());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
+
+        Assert.True(built);
+        Assert.Null(command.ReferenceKey);
+    }
+
+    [Fact]
+    public void TryBuildCreateCommand_InvalidReferenceKey_ReturnsBadRequest()
+    {
+        var request = new CreatePlatformRequest(
+            "Main YouTube channel",
+            "YouTube",
+            "bad_key",
+            YouTubePayload());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
+
+        Assert.False(built);
+        Assert.Equal(
+            "Reference key must be 1 to 15 characters and contain only letters, numbers, or hyphen.",
+            BadRequestMessage(error));
+    }
+
+    [Fact]
     public void TryBuildUpdateCommand_WordPressBlankApplicationPassword_PreservesExisting()
     {
         var existing = WordPressPlatform();
         var request = new UpdatePlatformRequest(
             "Renamed WordPress site",
+            null,
             WordPressPayload(applicationPassword: "   ", postStatus: "draft"));
 
         var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
@@ -186,6 +242,7 @@ public sealed class PlatformsApiTests
         Assert.True(built);
         Assert.Equal("wp-platform", command.PlatformId);
         Assert.Equal("Renamed WordPress site", command.Name);
+        Assert.Null(command.ReferenceKey);
         var settings = Assert.IsType<WordPressSettings>(command.PublishSettings);
         Assert.Equal("stored-password", settings.ApplicationPassword);
         Assert.Equal("draft", settings.PostStatus);
@@ -197,6 +254,7 @@ public sealed class PlatformsApiTests
         var existing = WordPressPlatform();
         var request = new UpdatePlatformRequest(
             "Renamed WordPress site",
+            null,
             WordPressPayload(applicationPassword: "replacement-password"));
 
         var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
@@ -212,6 +270,7 @@ public sealed class PlatformsApiTests
         var existing = new PlatformView(
             "yt-platform",
             "Main YouTube channel",
+            null,
             PlatformType.YouTube,
             YouTubeSettings(
                 clientId: "old-client-id",
@@ -219,6 +278,7 @@ public sealed class PlatformsApiTests
                 refreshToken: "stored-refresh-token"));
         var request = new UpdatePlatformRequest(
             "Renamed YouTube channel",
+            null,
             YouTubePayload(
                 clientId: "new-client-id",
                 clientSecret: "",
@@ -237,6 +297,21 @@ public sealed class PlatformsApiTests
     }
 
     [Fact]
+    public void TryBuildUpdateCommand_ValidReferenceKey_BuildsCommand()
+    {
+        var existing = WordPressPlatform();
+        var request = new UpdatePlatformRequest(
+            "Renamed WordPress site",
+            "blog-1",
+            WordPressPayload(applicationPassword: "replacement-password"));
+
+        var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
+
+        Assert.True(built);
+        Assert.Equal("blog-1", command.ReferenceKey);
+    }
+
+    [Fact]
     public void ToCreateResult_WordPressCreated_ReturnsRedactedResponse()
     {
         var command = new CreatePlatformCommand(
@@ -246,7 +321,8 @@ public sealed class PlatformsApiTests
                 "https://example.com",
                 "editor",
                 "application-password",
-                "publish"));
+                "publish"),
+            "company-blog");
 
         var actionResult = PlatformsApi.ToCreateResult(
             CreatePlatformResult.Created("wp-platform"),
@@ -254,8 +330,30 @@ public sealed class PlatformsApiTests
 
         var response = AssertPlatformOk(actionResult);
         Assert.Equal("wp-platform", response.PlatformId);
+        Assert.Equal("company-blog", response.ReferenceKey);
         Assert.Equal("WordPress", response.Type);
         AssertWordPressRedacted(response.PublishSettings);
+    }
+
+    [Fact]
+    public void ToCreateResult_DuplicateReferenceKey_Returns409()
+    {
+        var command = new CreatePlatformCommand(
+            "Main WordPress site",
+            PlatformType.WordPress,
+            new WordPressSettings(
+                "https://example.com",
+                "editor",
+                "application-password",
+                "publish"),
+            "company-blog");
+
+        var actionResult = PlatformsApi.ToCreateResult(
+            CreatePlatformResult.ReferenceKeyAlreadyExists(),
+            command);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(actionResult);
+        Assert.Equal("A platform reference key 'company-blog' already exists.", conflict.Value);
     }
 
     [Fact]
@@ -264,6 +362,7 @@ public sealed class PlatformsApiTests
         var command = new UpdatePlatformCommand(
             "wp-platform",
             "Main WordPress site",
+            "company-blog",
             new WordPressSettings(
                 "https://example.com",
                 "editor",
@@ -273,8 +372,30 @@ public sealed class PlatformsApiTests
         var actionResult = PlatformsApi.ToUpdateResult(UpdatePlatformResult.Updated, command);
 
         var response = AssertPlatformOk(actionResult);
+        Assert.Equal("company-blog", response.ReferenceKey);
         Assert.Equal("WordPress", response.Type);
         AssertWordPressRedacted(response.PublishSettings, "draft");
+    }
+
+    [Fact]
+    public void ToUpdateResult_DuplicateReferenceKey_Returns409()
+    {
+        var command = new UpdatePlatformCommand(
+            "wp-platform",
+            "Main WordPress site",
+            "company-blog",
+            new WordPressSettings(
+                "https://example.com",
+                "editor",
+                "application-password",
+                "draft"));
+
+        var actionResult = PlatformsApi.ToUpdateResult(
+            UpdatePlatformResult.ReferenceKeyAlreadyExists,
+            command);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(actionResult);
+        Assert.Equal("A platform reference key 'company-blog' already exists.", conflict.Value);
     }
 
     [Fact]
@@ -283,6 +404,7 @@ public sealed class PlatformsApiTests
         var command = new UpdatePlatformCommand(
             "missing",
             "Main WordPress site",
+            null,
             new WordPressSettings(
                 "https://example.com",
                 "editor",
@@ -292,6 +414,31 @@ public sealed class PlatformsApiTests
         var actionResult = PlatformsApi.ToUpdateResult(UpdatePlatformResult.NotFound, command);
 
         Assert.IsType<NotFoundObjectResult>(actionResult);
+    }
+
+    [Fact]
+    public void PlatformResponse_WithReferenceKey_SerializesCamelCaseAndRedactsSecrets()
+    {
+        var response = PlatformsApi.ToPlatformResponse(
+            "wp-platform",
+            "Main WordPress site",
+            PlatformType.WordPress,
+            "company-blog",
+            new WordPressSettings(
+                "https://example.com",
+                "editor",
+                "application-password",
+                "draft"));
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+
+        using var document = JsonDocument.Parse(json);
+        Assert.Equal("company-blog", document.RootElement.GetProperty("referenceKey").GetString());
+        Assert.Equal(
+            "https://example.com",
+            document.RootElement.GetProperty("publishSettings").GetProperty("siteUrl").GetString());
+        Assert.DoesNotContain("applicationPassword\":\"", json);
+        Assert.DoesNotContain("application-password", json);
     }
 
     [Fact]
@@ -373,6 +520,7 @@ public sealed class PlatformsApiTests
         new(
             "wp-platform",
             "Main WordPress site",
+            "company-blog",
             PlatformType.WordPress,
             new WordPressSettings(
                 "https://example.com",

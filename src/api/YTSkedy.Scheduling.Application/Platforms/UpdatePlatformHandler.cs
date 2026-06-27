@@ -17,6 +17,7 @@ public sealed class UpdatePlatformHandler(IPlatformModifier platforms)
         return await platforms.UpdateAsync(
             command.PlatformId,
             command.Name,
+            command.ReferenceKey,
             command.PublishSettings,
             cancellationToken);
     }
