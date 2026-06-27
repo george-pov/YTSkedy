@@ -5,8 +5,10 @@
 # - `accessToken` is set in `http-client.env.json.user` (not committed).
 #   See docs/api/development/build-and-test.md, "Acquiring a development
 #   access token".
-# - Change `localDateTime` after a successful run because the UTC start
-#   time is the calendar event ID.
+# - After a successful create, copy the returned `calendarEventId` to
+#   `calendarEventId` in `http-client.env.json.user`.
+# - Change `localDateTime` after a successful run because scheduled starts are
+#   unique.
 
 POST {{HostAddress}}/api/calendar-events
 Content-Type: application/json
@@ -99,7 +101,7 @@ Authorization: Bearer {{accessTokenReadOnly}}
 # - After deleting a platform that had published this event: an orphan history
 #   item with platformDeletedUtc set and canPublish false.
 
-GET {{HostAddress}}/api/calendar-events/20260607T170000Z
+GET {{HostAddress}}/api/calendar-events/{{calendarEventId}}
 Authorization: Bearer {{accessToken}}
 
 ### Update a calendar event's descriptions
@@ -107,7 +109,7 @@ Authorization: Bearer {{accessToken}}
 # change; the scheduled start is immutable. Expected response: 200 OK with
 # { calendarEventId }, or 404 Not Found for an unknown id.
 
-PUT {{HostAddress}}/api/calendar-events/20260607T170000Z
+PUT {{HostAddress}}/api/calendar-events/{{calendarEventId}}
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -127,7 +129,7 @@ Authorization: Bearer {{accessToken}}
 # Expected response: 403 Forbidden (the update requires `CalendarEvents.Write`).
 # Skip this request if a read-only token is not available.
 
-PUT {{HostAddress}}/api/calendar-events/20260607T170000Z
+PUT {{HostAddress}}/api/calendar-events/{{calendarEventId}}
 Content-Type: application/json
 Authorization: Bearer {{accessTokenReadOnly}}
 
