@@ -19,7 +19,7 @@ public class UpdateCalendarEventHandlerTests
     public async Task HandleAsync_ExistingEvent_UpdatesDescriptionsAndReturnsUpdated()
     {
         var modifier = new FakeCalendarEventModifier(updateResult: true);
-        var handler = CreateHandler(CreateDetail(), modifier);
+        var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
         var result = await handler.HandleAsync(
             new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
@@ -35,7 +35,7 @@ public class UpdateCalendarEventHandlerTests
     public async Task HandleAsync_MissingEvent_ReturnsNotFoundWithoutUpdating()
     {
         var modifier = new FakeCalendarEventModifier(updateResult: true);
-        var handler = CreateHandler(detail: null, modifier);
+        var handler = CreateHandler(calendarEvent: null, modifier);
 
         var result = await handler.HandleAsync(
             new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
@@ -49,7 +49,7 @@ public class UpdateCalendarEventHandlerTests
     public async Task HandleAsync_RowVanishedBeforeWrite_ReturnsNotFound()
     {
         var modifier = new FakeCalendarEventModifier(updateResult: false);
-        var handler = CreateHandler(CreateDetail(), modifier);
+        var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
         var result = await handler.HandleAsync(
             new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
@@ -63,7 +63,7 @@ public class UpdateCalendarEventHandlerTests
     public async Task HandleAsync_NullCommand_Throws()
     {
         var handler = CreateHandler(
-            CreateDetail(),
+            CreateCalendarEventView(),
             new FakeCalendarEventModifier(updateResult: true));
 
         await Assert.ThrowsAsync<ArgumentNullException>(
@@ -71,18 +71,18 @@ public class UpdateCalendarEventHandlerTests
     }
 
     private static UpdateCalendarEventHandler CreateHandler(
-        CalendarEventView? detail,
+        CalendarEventView? calendarEvent,
         FakeCalendarEventModifier modifier) =>
-        new(new FakeCalendarEventReader(detail), modifier);
+        new(new FakeCalendarEventReader(calendarEvent), modifier);
 
-    private static CalendarEventView CreateDetail() =>
+    private static CalendarEventView CreateCalendarEventView() =>
         new(
             CalendarEventId,
             new ScheduledStart(StartUtc.UtcDateTime, "UTC"),
             StartUtc,
             [new LocalizedDescription("en", "English title", "English description")]);
 
-    private sealed class FakeCalendarEventReader(CalendarEventView? detail) : ICalendarEventReader
+    private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent) : ICalendarEventReader
     {
         public Task<IReadOnlyList<CalendarEventView>> ListAsync(
             CalendarEventMonthCriteria? criteria,
@@ -92,7 +92,7 @@ public class UpdateCalendarEventHandlerTests
         public Task<CalendarEventView?> GetByIdAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
-            Task.FromResult(detail);
+            Task.FromResult(calendarEvent);
     }
 
     private sealed class FakeCalendarEventModifier(bool updateResult) : ICalendarEventModifier

@@ -15,7 +15,7 @@ public class DeleteCalendarEventHandlerTests
     public async Task Delete_MissingEvent_ReturnsNotFoundWithoutDeleting()
     {
         var modifier = new FakeCalendarEventModifier();
-        var handler = CreateHandler(detail: null, modifier);
+        var handler = CreateHandler(calendarEvent: null, modifier);
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -27,7 +27,7 @@ public class DeleteCalendarEventHandlerTests
     public async Task Delete_ExistingEvent_DeletesRowAndReturnsDeleted()
     {
         var modifier = new FakeCalendarEventModifier();
-        var handler = CreateHandler(CreateDetail(), modifier);
+        var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -40,7 +40,7 @@ public class DeleteCalendarEventHandlerTests
     public async Task Delete_EventWithPlatformPublications_ReturnsConflictWithoutDeleting()
     {
         var modifier = new FakeCalendarEventModifier();
-        var handler = CreateHandler(CreateDetail(), modifier, [Publication()]);
+        var handler = CreateHandler(CreateCalendarEventView(), modifier, [Publication()]);
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -51,22 +51,22 @@ public class DeleteCalendarEventHandlerTests
     [Fact]
     public async Task Delete_BlankId_Throws()
     {
-        var handler = CreateHandler(CreateDetail(), new FakeCalendarEventModifier());
+        var handler = CreateHandler(CreateCalendarEventView(), new FakeCalendarEventModifier());
 
         await Assert.ThrowsAsync<ArgumentException>(
             () => handler.HandleAsync("   ", CancellationToken.None));
     }
 
     private static DeleteCalendarEventHandler CreateHandler(
-        CalendarEventView? detail,
+        CalendarEventView? calendarEvent,
         FakeCalendarEventModifier modifier,
         IReadOnlyList<PlatformPublication>? publications = null) =>
         new(
-            new FakeCalendarEventReader(detail),
+            new FakeCalendarEventReader(calendarEvent),
             new FakePlatformPublicationReader(publications ?? []),
             modifier);
 
-    private static CalendarEventView CreateDetail() =>
+    private static CalendarEventView CreateCalendarEventView() =>
         new(
             CalendarEventId,
             new ScheduledStart(StartUtc.UtcDateTime, "UTC"),
@@ -85,7 +85,7 @@ public class DeleteCalendarEventHandlerTests
             null,
             StartUtc);
 
-    private sealed class FakeCalendarEventReader(CalendarEventView? detail) : ICalendarEventReader
+    private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent) : ICalendarEventReader
     {
         public Task<IReadOnlyList<CalendarEventView>> ListAsync(
             CalendarEventMonthCriteria? criteria,
@@ -95,7 +95,7 @@ public class DeleteCalendarEventHandlerTests
         public Task<CalendarEventView?> GetByIdAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
-            Task.FromResult(detail);
+            Task.FromResult(calendarEvent);
     }
 
     private sealed class FakePlatformPublicationReader(

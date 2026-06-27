@@ -34,7 +34,7 @@ The Angular frontend lives under `src/ui/`.
   displayed in the browser.
 - Calendar events API service code lives under
   `src/ui/src/app/shared/api/calendar-events/`.
-- The calendar event details edit route consumes the single-event detail
+- The calendar event details edit route consumes the single-event details
   response and renders its embedded platform publication rows through the
   shared `app-data-table` component as a Type, Name, Status, and Actions list.
   Rows with `canPublish: true` call the platform-scoped publish endpoint and

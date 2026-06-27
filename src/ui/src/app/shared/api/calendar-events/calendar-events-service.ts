@@ -21,7 +21,7 @@ interface CalendarEventFields {
 
 export interface CalendarEvent extends CalendarEventFields {}
 
-export interface CalendarEventDetail extends CalendarEventFields {
+export interface CalendarEventDetailsResponse extends CalendarEventFields {
   platforms: CalendarEventPlatform[];
 }
 
@@ -127,8 +127,8 @@ export class CalendarEventsService {
     return this.http.get<CalendarEventListPage>(calendarEventsUrl(this.appConfig.api), { params });
   }
 
-  getById(calendarEventId: string): Observable<CalendarEventDetail> {
-    return this.http.get<CalendarEventDetail>(
+  getById(calendarEventId: string): Observable<CalendarEventDetailsResponse> {
+    return this.http.get<CalendarEventDetailsResponse>(
       calendarEventByIdUrl(this.appConfig.api, calendarEventId),
     );
   }

@@ -98,7 +98,7 @@ builder.Services.AddSingleton(_ =>
 
 builder.Services.AddScoped<CreateCalendarEventHandler>();
 builder.Services.AddScoped<ListEventsHandler>();
-builder.Services.AddScoped<GetCalendarEventDetailHandler>();
+builder.Services.AddScoped<GetCalendarEventDetailsHandler>();
 builder.Services.AddScoped<UpdateCalendarEventHandler>();
 builder.Services.AddScoped<DeleteCalendarEventHandler>();
 builder.Services.AddScoped<AzureCalendarEventRepository>();

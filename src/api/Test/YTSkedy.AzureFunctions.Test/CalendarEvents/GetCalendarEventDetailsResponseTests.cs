@@ -6,18 +6,18 @@ using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
 
-public sealed class GetCalendarEventDetailResponseTests
+public sealed class GetCalendarEventDetailsResponseTests
 {
     private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
     private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
     private const string OrphanPlatformId = "8c1d77e0c0a04b2bb0d6f7a9e2c31845";
 
     [Fact]
-    public void ToDetailResponse_MapsEventFieldsAndEmptyPlatforms()
+    public void ToDetailsResponse_MapsEventFieldsAndEmptyPlatforms()
     {
-        var detail = new CalendarEventDetailView(CreateEvent(), []);
+        var details = new CalendarEventDetailsView(CreateEvent(), []);
 
-        var response = CalendarEventsApi.ToDetailResponse(detail);
+        var response = CalendarEventsApi.ToDetailsResponse(details);
 
         Assert.Equal(CalendarEventId, response.CalendarEventId);
         Assert.Equal(new DateTime(2026, 6, 15, 10, 0, 0), response.Start.LocalDateTime);
@@ -35,7 +35,7 @@ public sealed class GetCalendarEventDetailResponseTests
     }
 
     [Fact]
-    public void ToDetailResponse_MapsPlatformItems()
+    public void ToDetailsResponse_MapsPlatformItems()
     {
         var publishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
         var deletedUtc = new DateTimeOffset(2026, 6, 23, 9, 0, 0, TimeSpan.Zero);
@@ -62,9 +62,9 @@ public sealed class GetCalendarEventDetailResponseTests
                 CanPublish: false,
                 CanDeletePublication: false)
         };
-        var detail = new CalendarEventDetailView(CreateEvent(), views);
+        var details = new CalendarEventDetailsView(CreateEvent(), views);
 
-        var response = CalendarEventsApi.ToDetailResponse(detail);
+        var response = CalendarEventsApi.ToDetailsResponse(details);
 
         Assert.Equal(2, response.Platforms.Count);
 

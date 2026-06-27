@@ -5,7 +5,7 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// <summary>
 /// Projects active platforms and stored publication rows for one calendar event
 /// into the event-platform view list shared by the event-platform listing and
-/// the calendar event detail read model. An active platform with no publication
+/// the calendar event details read model. An active platform with no publication
 /// row is reported as a computed <see cref="PublishStatus.NotPublished"/> item,
 /// so no row is created just to read state. Orphaned rows for platforms that no
 /// longer exist are appended as read-only history using the name and type copied

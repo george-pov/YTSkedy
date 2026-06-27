@@ -309,13 +309,13 @@ Status codes:
 
 After delete, the platform no longer appears in `GET /api/platforms`, but its
 `Published` publications remain visible as orphan history in the calendar event
-detail response with `platformDeletedUtc` set, `canPublish: false`, and
+details response with `platformDeletedUtc` set, `canPublish: false`, and
 `canDeletePublication: false`.
 
 ## Event Platform Publication State
 
 The per-platform publication state of a calendar event is returned by the
-calendar event detail endpoint `GET /api/calendar-events/{calendarEventId}` as
+calendar event details endpoint `GET /api/calendar-events/{calendarEventId}` as
 its `platforms` array (see [`calendar-events.md`](calendar-events.md), which
 documents the item fields and the `status` / `canPublish` / orphan-history
 semantics). Each row also carries `canDeletePublication`, the backend-computed
@@ -418,7 +418,7 @@ row only when it is still a non-orphan `Published` row with the same
 The route is allowed only for a future calendar event by backend UTC time, an
 active platform, a `Published` publication with an `externalResourceId`, and a
 secret-free target snapshot that still matches the active platform. The browser
-must use the `canDeletePublication` flag from the calendar event detail row and
+must use the `canDeletePublication` flag from the calendar event details row and
 must not re-derive eligibility from local time, status, or provider ids.
 
 For a YouTube platform, the provider cleanup deletes the stored

@@ -172,10 +172,10 @@ local time. It also carries `scheduledStartUtc`, the same instant as a UTC
 ISO-8601 string, which the edit form shows as a read-only translation of the
 local start.
 
-Unlike a list item, the detail response also carries `platforms`: one entry per
+Unlike a list item, the details response also carries `platforms`: one entry per
 active registered platform with its publish status, plus orphan history rows for
 platforms deleted after publishing this event, so a client can render the event
-detail and its publish state from one read. This is the only endpoint that
+details and its publish state from one read. This is the only endpoint that
 exposes per-event publication state; there is no separate event-platform listing
 route. The calendar event itself stays provider-neutral; the publish state is
 composed at read time and is not stored on the event. The calendar event list
@@ -334,7 +334,7 @@ status of its own. There is no calendar-event-level publish route. Publishing
 state lives in platform publications, and publishing always targets an explicit
 platform id.
 
-The publication state of an event is part of the calendar event detail response
+The publication state of an event is part of the calendar event details response
 (`GET /api/calendar-events/{calendarEventId}`; see the `platforms` array in
 [Get Calendar Event](#get-calendar-event)). The publish action is documented in
 [`platforms.md`](platforms.md):

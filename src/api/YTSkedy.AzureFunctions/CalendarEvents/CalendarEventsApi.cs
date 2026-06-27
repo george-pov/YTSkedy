@@ -12,7 +12,7 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 public sealed class CalendarEventsApi(
     CreateCalendarEventHandler createHandler,
     ListEventsHandler listHandler,
-    GetCalendarEventDetailHandler getDetailHandler,
+    GetCalendarEventDetailsHandler getDetailsHandler,
     UpdateCalendarEventHandler updateHandler,
     DeleteCalendarEventHandler deleteHandler)
 {
@@ -94,11 +94,11 @@ public sealed class CalendarEventsApi(
         string calendarEventId,
         CancellationToken cancellationToken)
     {
-        var detail = await getDetailHandler.HandleAsync(calendarEventId, cancellationToken);
+        var details = await getDetailsHandler.HandleAsync(calendarEventId, cancellationToken);
 
-        return detail is null
+        return details is null
             ? new NotFoundResult()
-            : new OkObjectResult(ToDetailResponse(detail));
+            : new OkObjectResult(ToDetailsResponse(details));
     }
 
     [Function("UpdateCalendarEvent")]
@@ -350,18 +350,18 @@ public sealed class CalendarEventsApi(
     }
 
     /// <summary>
-    /// Maps the calendar event detail read model to the get-by-id response. The
+    /// Maps the calendar event details read model to the get-by-id response. The
     /// event fields mirror one list item; <c>platforms</c> is mapped by
-    /// <see cref="ToEventPlatformResponse"/>. This detail response is the only
+    /// <see cref="ToEventPlatformResponse"/>. This details response is the only
     /// place the per-platform publication state is exposed over HTTP.
     /// </summary>
-    internal static CalendarEventDetailResponse ToDetailResponse(CalendarEventDetailView detail)
+    internal static CalendarEventDetailsResponse ToDetailsResponse(CalendarEventDetailsView details)
     {
-        ArgumentNullException.ThrowIfNull(detail);
+        ArgumentNullException.ThrowIfNull(details);
 
-        var calendarEvent = detail.Event;
+        var calendarEvent = details.Event;
 
-        return new CalendarEventDetailResponse(
+        return new CalendarEventDetailsResponse(
             calendarEvent.CalendarEventId,
             new CalendarEventStart(
                 calendarEvent.Start.LocalDateTime,
@@ -373,7 +373,7 @@ public sealed class CalendarEventsApi(
                     description.Title,
                     description.Description))
                 .ToArray(),
-            detail.Platforms
+            details.Platforms
                 .Select(ToEventPlatformResponse)
                 .ToArray());
     }

@@ -7,7 +7,7 @@ import { APP_CONFIG } from 'src/app/shared/config/app-config';
 import { testAppConfig } from 'src/app/shared/config/testing/app-config.fixture';
 import {
   CalendarEvent,
-  CalendarEventDetail,
+  CalendarEventDetailsResponse,
   CalendarEventListPage,
   CalendarEventPlatform,
   CalendarEventsService,
@@ -162,7 +162,7 @@ describe('CalendarEventsService', () => {
   });
 
   it('requests a single calendar event by id and returns it', () => {
-    const apiResponse: CalendarEventDetail = {
+    const apiResponse: CalendarEventDetailsResponse = {
       calendarEventId: '6f9619ff8b864fb5bdfd4f5c2f2f16a1',
       start: {
         localDateTime: '2026-06-06T10:00:00',
@@ -191,7 +191,7 @@ describe('CalendarEventsService', () => {
       ],
     };
 
-    let actual: CalendarEventDetail | undefined;
+    let actual: CalendarEventDetailsResponse | undefined;
     service.getById('6f9619ff8b864fb5bdfd4f5c2f2f16a1').subscribe((event) => {
       actual = event;
     });

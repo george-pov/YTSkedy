@@ -22,7 +22,7 @@ request, response, status-code, and manual-check details belong in
 | Contract surface | Producer | Consumer | Durable owner |
 | --- | --- | --- | --- |
 | HTTP API routes, DTOs, status codes, and auth requirements | Azure Functions API | Angular UI typed services and manual API clients | [`../api/http/`](../api/http/) |
-| Calendar event list, detail, create, update, and delete behavior | Azure Functions API | `CalendarEvents` and `CalendarEventDetails` pages | [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
+| Calendar event list, details, create, update, and delete behavior | Azure Functions API | `CalendarEvents` and `CalendarEventDetails` pages | [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
 | Platform CRUD, publish, publication delete, and provider-specific settings | Azure Functions API | `Platforms` and `CalendarEventDetails` pages | [`../api/http/platforms.md`](../api/http/platforms.md) |
 | Template CRUD and template-token reads | Azure Functions API | `Templates` page and template editor clients | [`../api/http/templates.md`](../api/http/templates.md) |
 | Browser routes, page orchestration, and client interaction state | Angular UI | Browser users and API contract consumers checking UI behavior | [`../ui/routes.md`](../ui/routes.md) |
@@ -49,7 +49,7 @@ Cross-boundary rules:
   `canDeletePublication`, rather than re-deriving eligibility from browser time,
   provider ids, or local status checks.
 - Calendar event list responses are provider-neutral. Per-platform publication
-  state is exposed through the calendar event detail read model.
+  state is exposed through the calendar event details read model.
 - Platform publish and publication cleanup always target an explicit platform.
   There is no calendar-event-level publish route.
 - Secret-bearing settings may be accepted by write routes, but read models must

@@ -9,7 +9,7 @@ import { Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
-  CalendarEventDetail,
+  CalendarEventDetailsResponse,
   CalendarEventPlatform,
   CalendarEventsService,
   CreateCalendarEventRequest,
@@ -44,7 +44,7 @@ describe('CalendarEventDetails', () => {
   let fixture: ComponentFixture<CalendarEventDetails>;
   let service: {
     create: Mock<(request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>>;
-    getById: Mock<(calendarEventId: string) => Observable<CalendarEventDetail>>;
+    getById: Mock<(calendarEventId: string) => Observable<CalendarEventDetailsResponse>>;
     update: Mock<
       (
         calendarEventId: string,
@@ -67,7 +67,7 @@ describe('CalendarEventDetails', () => {
     service = {
       create:
         vi.fn<(request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>>(),
-      getById: vi.fn<(calendarEventId: string) => Observable<CalendarEventDetail>>(),
+      getById: vi.fn<(calendarEventId: string) => Observable<CalendarEventDetailsResponse>>(),
       update:
         vi.fn<
           (
@@ -797,7 +797,7 @@ describe('CalendarEventDetails', () => {
     it('shows a progress bar while the event is loading', () => {
       vi.useFakeTimers();
       try {
-        service.getById.mockReturnValue(new Subject<CalendarEventDetail>());
+        service.getById.mockReturnValue(new Subject<CalendarEventDetailsResponse>());
 
         createEditComponent();
 
@@ -995,7 +995,7 @@ describe('CalendarEventDetails', () => {
     };
   }
 
-  function sampleEvent(overrides: Partial<CalendarEventDetail> = {}): CalendarEventDetail {
+  function sampleEvent(overrides: Partial<CalendarEventDetailsResponse> = {}): CalendarEventDetailsResponse {
     return {
       calendarEventId,
       start: {

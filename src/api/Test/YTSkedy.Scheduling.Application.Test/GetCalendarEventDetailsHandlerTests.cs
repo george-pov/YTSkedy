@@ -5,7 +5,7 @@ using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
-public class GetCalendarEventDetailHandlerTests
+public class GetCalendarEventDetailsHandlerTests
 {
     private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
     private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
@@ -15,7 +15,7 @@ public class GetCalendarEventDetailHandlerTests
     [Fact]
     public async Task HandleAsync_MissingEvent_ReturnsNull()
     {
-        var handler = new GetCalendarEventDetailHandler(
+        var handler = new GetCalendarEventDetailsHandler(
             new FakeCalendarEventReader(null),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),
@@ -30,7 +30,7 @@ public class GetCalendarEventDetailHandlerTests
     public async Task HandleAsync_ExistingEvent_ReturnsEventReadModel()
     {
         var calendarEvent = CreateEvent();
-        var handler = new GetCalendarEventDetailHandler(
+        var handler = new GetCalendarEventDetailsHandler(
             new FakeCalendarEventReader(calendarEvent),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),
@@ -45,7 +45,7 @@ public class GetCalendarEventDetailHandlerTests
     [Fact]
     public async Task HandleAsync_NoActivePlatforms_ReturnsEmptyPlatforms()
     {
-        var handler = new GetCalendarEventDetailHandler(
+        var handler = new GetCalendarEventDetailsHandler(
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),
@@ -60,7 +60,7 @@ public class GetCalendarEventDetailHandlerTests
     [Fact]
     public async Task HandleAsync_ActivePlatformWithNoRow_ComputesNotPublished()
     {
-        var handler = new GetCalendarEventDetailHandler(
+        var handler = new GetCalendarEventDetailsHandler(
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([]),
@@ -90,7 +90,7 @@ public class GetCalendarEventDetailHandlerTests
             PublishStatus.Published,
             externalResourceId: "abc123youtubeid",
             publishedUtc: publishedUtc);
-        var handler = new GetCalendarEventDetailHandler(
+        var handler = new GetCalendarEventDetailsHandler(
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([publication]),
@@ -116,7 +116,7 @@ public class GetCalendarEventDetailHandlerTests
             PublishStatus.Published,
             externalResourceId: "abc123youtubeid",
             publishedUtc: new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero));
-        var handler = new GetCalendarEventDetailHandler(
+        var handler = new GetCalendarEventDetailsHandler(
             new FakeCalendarEventReader(CreateEvent(
                 new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero))),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
@@ -141,7 +141,7 @@ public class GetCalendarEventDetailHandlerTests
             externalResourceId: "oldyoutubeid",
             publishedUtc: new DateTimeOffset(2026, 6, 20, 8, 0, 0, TimeSpan.Zero),
             platformDeletedUtc: deletedUtc);
-        var handler = new GetCalendarEventDetailHandler(
+        var handler = new GetCalendarEventDetailsHandler(
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([orphan]),
@@ -169,7 +169,7 @@ public class GetCalendarEventDetailHandlerTests
     public async Task HandleAsync_ReadsCalendarEventExactlyOnce()
     {
         var reader = new FakeCalendarEventReader(CreateEvent());
-        var handler = new GetCalendarEventDetailHandler(
+        var handler = new GetCalendarEventDetailsHandler(
             reader,
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([]),
@@ -185,7 +185,7 @@ public class GetCalendarEventDetailHandlerTests
     [InlineData("   ")]
     public async Task HandleAsync_BlankId_Throws(string calendarEventId)
     {
-        var handler = new GetCalendarEventDetailHandler(
+        var handler = new GetCalendarEventDetailsHandler(
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),

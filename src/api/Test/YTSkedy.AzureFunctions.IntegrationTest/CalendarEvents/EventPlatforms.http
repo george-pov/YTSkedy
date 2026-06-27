@@ -1,4 +1,4 @@
-# Per-event platform publication state is read from the calendar event detail
+# Per-event platform publication state is read from the calendar event details
 # endpoint GET /api/calendar-events/{calendarEventId} (its `platforms` array);
 # see CalendarEvents/CreateCalendarEvent.http. There is no separate event-platform
 # listing endpoint. This file covers the publish action.
