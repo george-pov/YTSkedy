@@ -12,6 +12,7 @@ import { finalize } from 'rxjs';
 import {
   Platform,
   PlatformNameConflictError,
+  PlatformReferenceKeyConflictError,
   PlatformsService,
   YouTubePublishSettings,
   WordPressPublishSettings,
@@ -75,6 +76,11 @@ export class Platforms implements OnInit {
   protected readonly columns: readonly DataTableColumn<Platform>[] = [
     { key: 'type', header: 'Type', value: (platform) => platform.type },
     { key: 'name', header: 'Name', value: (platform) => platform.name },
+    {
+      key: 'referenceKey',
+      header: 'Reference key',
+      value: (platform) => platform.referenceKey ?? '',
+    },
   ];
 
   protected readonly typeOptions: readonly SelectOption[] = [
@@ -189,6 +195,7 @@ export class Platforms implements OnInit {
           const created: Platform = {
             id: response.id,
             name: response.name,
+            referenceKey: response.referenceKey,
             type: response.type,
             publishSettings: response.publishSettings,
           };
@@ -225,6 +232,7 @@ export class Platforms implements OnInit {
             id: response.id,
             type: response.type,
             name: response.name,
+            referenceKey: response.referenceKey,
             publishSettings: response.publishSettings,
           };
           this.platforms.update((list) =>
@@ -261,6 +269,7 @@ function toFormModel(platform: Platform): PlatformFormModel {
   return {
     type: platform.type,
     name: platform.name,
+    referenceKey: platform.referenceKey ?? defaults.referenceKey,
     youTubeClientId: youTubeSettings?.credentials.clientId ?? defaults.youTubeClientId,
     youTubeClientSecret: '',
     youTubeRefreshToken: '',
@@ -308,6 +317,10 @@ function sortPlatforms(platforms: readonly Platform[]): Platform[] {
 function describeSaveError(error: unknown): string {
   if (error instanceof PlatformNameConflictError) {
     return 'A platform with this name already exists.';
+  }
+
+  if (error instanceof PlatformReferenceKeyConflictError) {
+    return 'A platform with this reference key already exists.';
   }
 
   return 'The platform could not be saved. Try again.';

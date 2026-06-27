@@ -9,13 +9,14 @@ import {
   Platform,
   PlatformListResponse,
   PlatformNameConflictError,
+  PlatformReferenceKeyConflictError,
   PlatformsService,
   UpdatePlatformRequest,
   UpdatePlatformResponse,
 } from 'src/app/shared/api/platforms/platforms-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Platforms } from './platforms';
-import { PlatformFormModel } from './platforms.form';
+import { PlatformFormModel, referenceKeyMaxLength } from './platforms.form';
 
 describe('Platforms', () => {
   let fixture: ComponentFixture<Platforms>;
@@ -47,6 +48,7 @@ describe('Platforms', () => {
     return {
       id: 'id-1',
       name: 'Main YouTube channel',
+      referenceKey: 'youTube1',
       type: 'YouTube',
       publishSettings: {
         credentials: {
@@ -65,6 +67,7 @@ describe('Platforms', () => {
     return {
       id: 'id-2',
       name: 'Company blog',
+      referenceKey: 'blog-1',
       type: 'WordPress',
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
@@ -95,7 +98,24 @@ describe('Platforms', () => {
   }
 
   function nameInput(): HTMLInputElement {
-    return fixture.nativeElement.querySelector('app-input input') as HTMLInputElement;
+    return inputByLabel('Name');
+  }
+
+  function referenceKeyInput(): HTMLInputElement {
+    return inputByLabel('Reference key');
+  }
+
+  function inputByLabel(label: string): HTMLInputElement {
+    const field = Array.from(fixture.nativeElement.querySelectorAll('app-input')).find(
+      (input) =>
+        ((input as HTMLElement).querySelector('mat-label')?.textContent ?? '').trim() === label,
+    ) as HTMLElement | undefined;
+
+    if (field === undefined) {
+      throw new Error(`Input with label '${label}' was not found.`);
+    }
+
+    return field.querySelector('input') as HTMLInputElement;
   }
 
   function buttonByText(text: string): HTMLButtonElement {
@@ -151,7 +171,7 @@ describe('Platforms', () => {
     const headers = Array.from(fixture.nativeElement.querySelectorAll('th')).map((th) =>
       (th as HTMLElement).textContent?.trim(),
     );
-    expect(headers).toEqual(['Type', 'Name']);
+    expect(headers).toEqual(['Type', 'Name', 'Reference key']);
     expect(rows()).toHaveLength(2);
   });
 
@@ -182,6 +202,7 @@ describe('Platforms', () => {
     expect(editor()).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.readonly-type')?.textContent).toContain('YouTube');
     expect(nameInput().value).toBe('Main YouTube channel');
+    expect(referenceKeyInput().value).toBe('youTube1');
     const inputs = Array.from(
       fixture.nativeElement.querySelectorAll('app-input input'),
     ) as HTMLInputElement[];
@@ -218,6 +239,7 @@ describe('Platforms', () => {
       of({
         id: 'new-id',
         name: 'Second channel',
+        referenceKey: 'youTube1',
         type: 'YouTube',
         publishSettings: {
           credentials: {
@@ -238,12 +260,10 @@ describe('Platforms', () => {
     fixture.detectChanges();
 
     await setValue(nameInput(), 'Second channel');
-    const inputs = Array.from(
-      fixture.nativeElement.querySelectorAll('app-input input'),
-    ) as HTMLInputElement[];
-    await setValue(inputs[1], 'second-client-id');
-    await setValue(inputs[2], 'second-client-secret');
-    await setValue(inputs[3], 'second-refresh-token');
+    await setValue(referenceKeyInput(), ' youTube1 ');
+    await setValue(inputByLabel('Client ID'), 'second-client-id');
+    await setValue(inputByLabel('Client secret'), 'second-client-secret');
+    await setValue(inputByLabel('Refresh token'), 'second-refresh-token');
 
     await submitEditor();
 
@@ -251,6 +271,7 @@ describe('Platforms', () => {
     const request = service.create.mock.calls[0][0];
     expect(request).toMatchObject({
       name: 'Second channel',
+      referenceKey: 'youTube1',
       type: 'YouTube',
       publishSettings: {
         credentials: {
@@ -272,6 +293,7 @@ describe('Platforms', () => {
       of({
         id: 'new-id',
         name: 'Company blog',
+        referenceKey: 'blog-1',
         type: 'WordPress',
         publishSettings: {
           siteUrl: 'https://blog.example.test/',
@@ -291,6 +313,7 @@ describe('Platforms', () => {
     componentModel().set({
       type: 'WordPress',
       name: 'Company blog',
+      referenceKey: ' blog-1 ',
       youTubeClientId: '',
       youTubeClientSecret: '',
       youTubeRefreshToken: '',
@@ -310,6 +333,7 @@ describe('Platforms', () => {
 
     expect(service.create).toHaveBeenCalledWith({
       name: 'Company blog',
+      referenceKey: 'blog-1',
       type: 'WordPress',
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
@@ -327,6 +351,7 @@ describe('Platforms', () => {
       of({
         id: 'id-2',
         name: 'Company blog',
+        referenceKey: 'blog-1',
         type: 'WordPress',
         publishSettings: {
           siteUrl: 'https://blog.example.test/',
@@ -344,6 +369,7 @@ describe('Platforms', () => {
 
     expect(service.update).toHaveBeenCalledWith('WordPress', 'id-2', {
       name: 'Company blog',
+      referenceKey: 'blog-1',
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
@@ -358,6 +384,7 @@ describe('Platforms', () => {
       of({
         id: 'id-2',
         name: 'Company blog',
+        referenceKey: null,
         type: 'WordPress',
         publishSettings: {
           siteUrl: 'https://blog.example.test/',
@@ -374,6 +401,7 @@ describe('Platforms', () => {
     componentModel().set({
       type: 'WordPress',
       name: 'Company blog',
+      referenceKey: '',
       youTubeClientId: '',
       youTubeClientSecret: '',
       youTubeRefreshToken: '',
@@ -393,6 +421,7 @@ describe('Platforms', () => {
 
     expect(service.update).toHaveBeenCalledWith('WordPress', 'id-2', {
       name: 'Company blog',
+      referenceKey: null,
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
@@ -413,17 +442,103 @@ describe('Platforms', () => {
     fixture.detectChanges();
 
     await setValue(nameInput(), 'Main YouTube channel');
-    const inputs = Array.from(
-      fixture.nativeElement.querySelectorAll('app-input input'),
-    ) as HTMLInputElement[];
-    await setValue(inputs[1], 'client-id');
-    await setValue(inputs[2], 'client-secret');
-    await setValue(inputs[3], 'refresh-token');
+    await setValue(inputByLabel('Client ID'), 'client-id');
+    await setValue(inputByLabel('Client secret'), 'client-secret');
+    await setValue(inputByLabel('Refresh token'), 'refresh-token');
 
     await submitEditor();
 
     expect(fixture.nativeElement.textContent).toContain(
       'A platform with this name already exists.',
+    );
+  });
+
+  it.each([
+    ['bad_key', 'Reference key must use only letters, numbers, or hyphen.'],
+    ['bad key', 'Reference key must use only letters, numbers, or hyphen.'],
+    ['abcdefghijklmnop', `Reference key must be at most ${referenceKeyMaxLength} characters.`],
+  ])('rejects invalid reference key value %s', async (referenceKey, message) => {
+    service.list.mockReturnValue(of({ platforms: [] }));
+
+    await createComponent();
+    buttonByText('New Platform').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    await setValue(nameInput(), 'Second channel');
+    await setValue(referenceKeyInput(), referenceKey);
+    await setValue(inputByLabel('Client ID'), 'client-id');
+    await setValue(inputByLabel('Client secret'), 'client-secret');
+    await setValue(inputByLabel('Refresh token'), 'refresh-token');
+
+    await submitEditor();
+
+    expect(service.create).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain(message);
+  });
+
+  it('accepts uppercase letters, digits, and hyphen in the reference key', async () => {
+    service.list.mockReturnValue(of({ platforms: [] }));
+    service.create.mockReturnValue(
+      of({
+        id: 'new-id',
+        name: 'Second channel',
+        referenceKey: 'YT-1',
+        type: 'YouTube',
+        publishSettings: {
+          credentials: {
+            clientId: 'client-id',
+            clientSecretConfigured: true,
+            refreshTokenConfigured: true,
+          },
+          privacyStatus: 'private',
+          selfDeclaredMadeForKids: false,
+        },
+      }),
+    );
+
+    await createComponent();
+    buttonByText('New Platform').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    await setValue(nameInput(), 'Second channel');
+    await setValue(referenceKeyInput(), 'YT-1');
+    await setValue(inputByLabel('Client ID'), 'client-id');
+    await setValue(inputByLabel('Client secret'), 'client-secret');
+    await setValue(inputByLabel('Refresh token'), 'refresh-token');
+
+    await submitEditor();
+
+    expect(service.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceKey: 'YT-1',
+      }),
+    );
+  });
+
+  it('surfaces a friendly message when the reference key is already taken', async () => {
+    service.list.mockReturnValue(of({ platforms: [] }));
+    service.create.mockReturnValue(throwError(() => new PlatformReferenceKeyConflictError()));
+
+    await createComponent();
+    buttonByText('New Platform').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    await setValue(nameInput(), 'Second channel');
+    await setValue(referenceKeyInput(), 'youTube1');
+    await setValue(inputByLabel('Client ID'), 'client-id');
+    await setValue(inputByLabel('Client secret'), 'client-secret');
+    await setValue(inputByLabel('Refresh token'), 'refresh-token');
+
+    await submitEditor();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'A platform with this reference key already exists.',
     );
   });
 

@@ -280,7 +280,7 @@ public class PublishHandlerTests
         string name,
         PlatformType type,
         PublishSettings settings) =>
-        new(PlatformId, name, type, settings);
+        new(PlatformId, name, null, type, settings);
 
     private static PlatformPublication Publication(
         PublishStatus status,

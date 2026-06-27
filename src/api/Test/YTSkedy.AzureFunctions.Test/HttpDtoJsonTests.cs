@@ -47,6 +47,7 @@ public sealed class HttpDtoJsonTests
             {
               "name": "Main YouTube channel",
               "type": "YouTube",
+              "referenceKey": "youTube1",
               "publishSettings": {
                 "credentials": {
                   "clientId": "client-id",
@@ -64,6 +65,7 @@ public sealed class HttpDtoJsonTests
         Assert.NotNull(request);
         Assert.Equal("Main YouTube channel", request.Name);
         Assert.Equal("YouTube", request.Type);
+        Assert.Equal("youTube1", request.ReferenceKey);
         Assert.NotNull(request.PublishSettings);
         Assert.NotNull(request.PublishSettings.Credentials);
         Assert.Equal("client-id", request.PublishSettings.Credentials.ClientId);
@@ -107,6 +109,7 @@ public sealed class HttpDtoJsonTests
         object response = new PlatformResponse(
             "wp-platform",
             "Main WordPress site",
+            "company-blog",
             "WordPress",
             new PublishSettingsResponse(
                 null,
@@ -123,6 +126,7 @@ public sealed class HttpDtoJsonTests
         var settings = document.RootElement.GetProperty("publishSettings");
 
         Assert.Equal("https://example.com", settings.GetProperty("siteUrl").GetString());
+        Assert.Equal("company-blog", document.RootElement.GetProperty("referenceKey").GetString());
         Assert.Equal("editor", settings.GetProperty("username").GetString());
         Assert.Equal("publish", settings.GetProperty("postStatus").GetString());
         Assert.True(settings.GetProperty("applicationPasswordConfigured").GetBoolean());

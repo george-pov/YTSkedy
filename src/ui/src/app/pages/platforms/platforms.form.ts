@@ -18,6 +18,8 @@ import {
 } from 'src/app/shared/api/platforms/platforms-service';
 
 export const nameMaxLength = 50;
+export const referenceKeyMaxLength = 15;
+export const referenceKeyPattern = /^[A-Za-z0-9-]*$/;
 export const youTubeClientIdMaxLength = 256;
 export const youTubeClientSecretMaxLength = 256;
 export const youTubeRefreshTokenMaxLength = 2048;
@@ -34,6 +36,7 @@ export const wordPressApplicationPasswordMaxLength = 512;
 export interface PlatformFormModel {
   type: string;
   name: string;
+  referenceKey: string;
   youTubeClientId: string;
   youTubeClientSecret: string;
   youTubeRefreshToken: string;
@@ -54,6 +57,7 @@ export function createPlatformFormModel(): PlatformFormModel {
   return {
     type: 'YouTube',
     name: '',
+    referenceKey: '',
     youTubeClientId: '',
     youTubeClientSecret: '',
     youTubeRefreshToken: '',
@@ -80,6 +84,19 @@ export function applyPlatformRules(path: SchemaPathTree<PlatformFormModel>): voi
   );
   maxLength(path.name, nameMaxLength, {
     message: `Name must be at most ${nameMaxLength} characters.`,
+  });
+
+  validate(path.referenceKey, ({ value }) => {
+    const referenceKey = value().trim();
+    return referenceKey.length === 0 || referenceKeyPattern.test(referenceKey)
+      ? undefined
+      : {
+          kind: 'pattern',
+          message: 'Reference key must use only letters, numbers, or hyphen.',
+        };
+  });
+  maxLength(path.referenceKey, referenceKeyMaxLength, {
+    message: `Reference key must be at most ${referenceKeyMaxLength} characters.`,
   });
 
   applyWhen(
@@ -202,9 +219,15 @@ function toPublishSettings(model: PlatformFormModel): PlatformPublishSettings | 
   return applicationPassword.length === 0 ? settings : { ...settings, applicationPassword };
 }
 
+function toReferenceKey(value: string): string | null {
+  const referenceKey = value.trim();
+  return referenceKey.length === 0 ? null : referenceKey;
+}
+
 export function toCreatePlatformRequest(model: PlatformFormModel): CreatePlatformRequest {
   return {
     name: model.name.trim(),
+    referenceKey: toReferenceKey(model.referenceKey),
     type: model.type as PlatformType,
     publishSettings: toPublishSettings(model),
   };
@@ -213,6 +236,7 @@ export function toCreatePlatformRequest(model: PlatformFormModel): CreatePlatfor
 export function toUpdatePlatformRequest(model: PlatformFormModel): UpdatePlatformRequest {
   return {
     name: model.name.trim(),
+    referenceKey: toReferenceKey(model.referenceKey),
     publishSettings: toPublishSettings(model),
   };
 }

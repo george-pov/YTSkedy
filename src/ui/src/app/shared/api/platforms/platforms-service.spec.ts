@@ -10,6 +10,7 @@ import {
   CreatePlatformRequest,
   PlatformListResponse,
   PlatformNameConflictError,
+  PlatformReferenceKeyConflictError,
   PlatformsService,
   UpdatePlatformRequest,
 } from './platforms-service';
@@ -52,6 +53,7 @@ describe('PlatformsService', () => {
         {
           platformId: '4fb4a32f3f344de1a7c3a9f4a2f94918',
           name: 'Main YouTube channel',
+          referenceKey: 'youTube1',
           type: 'YouTube',
           publishSettings: {
             credentials: {
@@ -66,6 +68,7 @@ describe('PlatformsService', () => {
         {
           platformId: '5aa4a32f3f344de1a7c3a9f4a2f94918',
           name: 'Company blog',
+          referenceKey: null,
           type: 'WordPress',
           publishSettings: {
             siteUrl: 'https://blog.example.test/',
@@ -83,6 +86,7 @@ describe('PlatformsService', () => {
         {
           id: '4fb4a32f3f344de1a7c3a9f4a2f94918',
           name: 'Main YouTube channel',
+          referenceKey: 'youTube1',
           type: 'YouTube',
           publishSettings: {
             credentials: {
@@ -97,6 +101,7 @@ describe('PlatformsService', () => {
         {
           id: '5aa4a32f3f344de1a7c3a9f4a2f94918',
           name: 'Company blog',
+          referenceKey: null,
           type: 'WordPress',
           publishSettings: {
             siteUrl: 'https://blog.example.test/',
@@ -121,9 +126,37 @@ describe('PlatformsService', () => {
     request.flush({ items: [] });
   });
 
+  it('maps a missing API reference key to null', async () => {
+    const responsePromise = firstValueFrom(service.list());
+
+    const request = http.expectOne('https://api.example.test/api/platforms');
+
+    request.flush({
+      items: [
+        {
+          platformId: '4fb4a32f3f344de1a7c3a9f4a2f94918',
+          name: 'Legacy channel',
+          type: 'YouTube',
+        },
+      ],
+    });
+
+    await expect(responsePromise).resolves.toEqual({
+      platforms: [
+        {
+          id: '4fb4a32f3f344de1a7c3a9f4a2f94918',
+          name: 'Legacy channel',
+          referenceKey: null,
+          type: 'YouTube',
+        },
+      ],
+    });
+  });
+
   it('posts a create request to the platforms endpoint and maps the created platform', async () => {
     const createRequest: CreatePlatformRequest = {
       name: 'Second channel',
+      referenceKey: 'youTube1',
       type: 'YouTube',
       publishSettings: {
         credentials: {
@@ -146,6 +179,7 @@ describe('PlatformsService', () => {
     request.flush({
       platformId: '9f8b1c2d3e4f4a5b6c7d8e9f0a1b2c3d',
       name: 'Second channel',
+      referenceKey: 'youTube1',
       type: 'YouTube',
       publishSettings: {
         credentials: {
@@ -161,6 +195,7 @@ describe('PlatformsService', () => {
     await expect(responsePromise).resolves.toEqual({
       id: '9f8b1c2d3e4f4a5b6c7d8e9f0a1b2c3d',
       name: 'Second channel',
+      referenceKey: 'youTube1',
       type: 'YouTube',
       publishSettings: {
         credentials: {
@@ -177,6 +212,7 @@ describe('PlatformsService', () => {
   it('posts a WordPress create request and maps the redacted created platform', async () => {
     const createRequest: CreatePlatformRequest = {
       name: 'Company blog',
+      referenceKey: 'blog-1',
       type: 'WordPress',
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
@@ -196,6 +232,7 @@ describe('PlatformsService', () => {
     request.flush({
       platformId: '5aa4a32f3f344de1a7c3a9f4a2f94918',
       name: 'Company blog',
+      referenceKey: 'blog-1',
       type: 'WordPress',
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
@@ -208,6 +245,7 @@ describe('PlatformsService', () => {
     await expect(responsePromise).resolves.toEqual({
       id: '5aa4a32f3f344de1a7c3a9f4a2f94918',
       name: 'Company blog',
+      referenceKey: 'blog-1',
       type: 'WordPress',
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
@@ -245,9 +283,38 @@ describe('PlatformsService', () => {
     await expect(responsePromise).rejects.toBeInstanceOf(PlatformNameConflictError);
   });
 
+  it('maps duplicate-reference-key create responses to a typed conflict error', async () => {
+    const responsePromise = firstValueFrom(
+      service.create({
+        name: 'Second channel',
+        referenceKey: 'youTube1',
+        type: 'YouTube',
+        publishSettings: {
+          credentials: {
+            clientId: 'client-id',
+            clientSecret: 'client-secret',
+            refreshToken: 'refresh-token',
+          },
+          privacyStatus: 'private',
+          selfDeclaredMadeForKids: false,
+        },
+      }),
+    );
+
+    const request = http.expectOne('https://api.example.test/api/platforms');
+
+    request.flush("A platform reference key 'youTube1' already exists.", {
+      status: 409,
+      statusText: 'Conflict',
+    });
+
+    await expect(responsePromise).rejects.toBeInstanceOf(PlatformReferenceKeyConflictError);
+  });
+
   it('puts an update request to the by-id route and maps the updated platform', async () => {
     const updateRequest: UpdatePlatformRequest = {
       name: 'Renamed channel',
+      referenceKey: null,
       publishSettings: {
         credentials: {
           clientId: 'renamed-client-id',
@@ -271,6 +338,7 @@ describe('PlatformsService', () => {
     request.flush({
       platformId: '4fb4a32f3f344de1a7c3a9f4a2f94918',
       name: 'Renamed channel',
+      referenceKey: null,
       type: 'YouTube',
       publishSettings: {
         credentials: {
@@ -286,6 +354,7 @@ describe('PlatformsService', () => {
     await expect(responsePromise).resolves.toEqual({
       id: '4fb4a32f3f344de1a7c3a9f4a2f94918',
       name: 'Renamed channel',
+      referenceKey: null,
       type: 'YouTube',
       publishSettings: {
         credentials: {
@@ -302,6 +371,7 @@ describe('PlatformsService', () => {
   it('puts a WordPress update request and maps the redacted updated platform', async () => {
     const updateRequest: UpdatePlatformRequest = {
       name: 'Company blog',
+      referenceKey: 'blog-1',
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
@@ -323,6 +393,7 @@ describe('PlatformsService', () => {
     request.flush({
       platformId: '5aa4a32f3f344de1a7c3a9f4a2f94918',
       name: 'Company blog',
+      referenceKey: 'blog-1',
       type: 'WordPress',
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
@@ -335,6 +406,7 @@ describe('PlatformsService', () => {
     await expect(responsePromise).resolves.toEqual({
       id: '5aa4a32f3f344de1a7c3a9f4a2f94918',
       name: 'Company blog',
+      referenceKey: 'blog-1',
       type: 'WordPress',
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
@@ -369,6 +441,33 @@ describe('PlatformsService', () => {
     });
 
     await expect(responsePromise).rejects.toBeInstanceOf(PlatformNameConflictError);
+  });
+
+  it('maps duplicate-reference-key update responses to a typed conflict error', async () => {
+    const responsePromise = firstValueFrom(
+      service.update('YouTube', '4fb4a32f3f344de1a7c3a9f4a2f94918', {
+        name: 'Main YouTube channel',
+        referenceKey: 'youTube1',
+        publishSettings: {
+          credentials: {
+            clientId: 'client-id',
+          },
+          privacyStatus: 'private',
+          selfDeclaredMadeForKids: false,
+        },
+      }),
+    );
+
+    const request = http.expectOne(
+      'https://api.example.test/api/platforms/4fb4a32f3f344de1a7c3a9f4a2f94918',
+    );
+
+    request.flush("A platform reference key 'youTube1' already exists.", {
+      status: 409,
+      statusText: 'Conflict',
+    });
+
+    await expect(responsePromise).rejects.toBeInstanceOf(PlatformReferenceKeyConflictError);
   });
 
   it('issues a DELETE to the by-id route and completes with no body', async () => {

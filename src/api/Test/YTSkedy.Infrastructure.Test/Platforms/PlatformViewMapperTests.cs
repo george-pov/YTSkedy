@@ -14,8 +14,30 @@ public class PlatformViewMapperTests
 
         Assert.Equal("platform-1", view.PlatformId);
         Assert.Equal("Main YouTube channel", view.Name);
+        Assert.Null(view.ReferenceKey);
         Assert.Equal(PlatformType.YouTube, view.Type);
         Assert.IsType<YouTubeSettings>(view.PublishSettings);
+    }
+
+    [Fact]
+    public void ToView_EntityWithReferenceKey_MapsDisplayValue()
+    {
+        var entity = CreateEntity("YouTube");
+        entity.ReferenceKey = "youTube1";
+
+        var view = PlatformViewMapper.ToView(entity);
+
+        Assert.Equal("youTube1", view.ReferenceKey);
+    }
+
+    [Fact]
+    public void ToView_EntityWithoutReferenceKey_MapsNull()
+    {
+        var entity = CreateEntity("YouTube");
+
+        var view = PlatformViewMapper.ToView(entity);
+
+        Assert.Null(view.ReferenceKey);
     }
 
     [Fact]

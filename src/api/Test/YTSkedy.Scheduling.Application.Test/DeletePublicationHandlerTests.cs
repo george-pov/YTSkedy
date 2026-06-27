@@ -232,7 +232,7 @@ public class DeletePublicationHandlerTests
             [new LocalizedDescription("en", "English title", null)]);
 
     private static PlatformView Platform() =>
-        new(PlatformId, "Main YouTube channel", PlatformType.YouTube, Settings);
+        new(PlatformId, "Main YouTube channel", null, PlatformType.YouTube, Settings);
 
     private static PlatformPublication Publication(
         PublishStatus status,

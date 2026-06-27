@@ -51,6 +51,7 @@ export type PlatformPublishSettings = YouTubePublishSettings | WordPressPublishS
 export interface Platform {
   id: string;
   name: string;
+  referenceKey: string | null;
   type: PlatformType;
   publishSettings?: PlatformPublishSettings;
 }
@@ -61,6 +62,7 @@ export interface PlatformListResponse {
 
 export interface CreatePlatformRequest {
   name: string;
+  referenceKey?: string | null;
   type: PlatformType;
   publishSettings?: PlatformPublishSettings;
 }
@@ -68,6 +70,7 @@ export interface CreatePlatformRequest {
 export interface CreatePlatformResponse {
   id: string;
   name: string;
+  referenceKey: string | null;
   type: PlatformType;
   publishSettings?: PlatformPublishSettings;
 }
@@ -75,12 +78,14 @@ export interface CreatePlatformResponse {
 /** The type is immutable, so only the name and settings travel in an update. */
 export interface UpdatePlatformRequest {
   name: string;
+  referenceKey?: string | null;
   publishSettings?: PlatformPublishSettings;
 }
 
 export interface UpdatePlatformResponse {
   id: string;
   name: string;
+  referenceKey: string | null;
   type: PlatformType;
   publishSettings?: PlatformPublishSettings;
 }
@@ -90,6 +95,14 @@ export class PlatformNameConflictError extends Error {
   constructor() {
     super('A platform with this name already exists.');
     this.name = 'PlatformNameConflictError';
+  }
+}
+
+/** Raised when a create or update would duplicate an existing reference key. */
+export class PlatformReferenceKeyConflictError extends Error {
+  constructor() {
+    super('A platform with this reference key already exists.');
+    this.name = 'PlatformReferenceKeyConflictError';
   }
 }
 
@@ -136,6 +149,7 @@ interface ApiPlatformListResponse {
 interface ApiPlatform {
   platformId: string;
   name: string;
+  referenceKey?: string | null;
   type: PlatformType;
   publishSettings?: PlatformPublishSettings;
 }
@@ -144,6 +158,7 @@ function toPlatform(platform: ApiPlatform): Platform {
   return {
     id: platform.platformId,
     name: platform.name,
+    referenceKey: platform.referenceKey ?? null,
     type: platform.type,
     publishSettings:
       platform.publishSettings === undefined ? undefined : { ...platform.publishSettings },
@@ -152,6 +167,10 @@ function toPlatform(platform: ApiPlatform): Platform {
 
 function mapCreateError(error: unknown): Observable<never> {
   if (error instanceof HttpErrorResponse && error.status === 409) {
+    if (hasConflictBodyText(error, 'reference key')) {
+      return throwError(() => new PlatformReferenceKeyConflictError());
+    }
+
     return throwError(() => new PlatformNameConflictError());
   }
 
@@ -159,14 +178,24 @@ function mapCreateError(error: unknown): Observable<never> {
 }
 
 function mapUpdateError(error: unknown): Observable<never> {
-  if (
-    error instanceof HttpErrorResponse &&
-    error.status === 409 &&
-    typeof error.error === 'string' &&
-    error.error.includes('already exists')
-  ) {
+  if (error instanceof HttpErrorResponse && error.status === 409) {
+    if (hasConflictBodyText(error, 'reference key')) {
+      return throwError(() => new PlatformReferenceKeyConflictError());
+    }
+
+    if (!hasConflictBodyText(error, 'already exists')) {
+      return throwError(() => error);
+    }
+
     return throwError(() => new PlatformNameConflictError());
   }
 
   return throwError(() => error);
+}
+
+function hasConflictBodyText(error: HttpErrorResponse, expected: string): boolean {
+  return (
+    typeof error.error === 'string' &&
+    error.error.toLocaleLowerCase().includes(expected.toLocaleLowerCase())
+  );
 }
