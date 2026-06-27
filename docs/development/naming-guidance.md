@@ -211,6 +211,9 @@ such as `ProcessAsync` or `SubmitAsync`.
   secret-bearing and must be redacted from reads, logs, and snapshots.
 - `platform`: Configured publishing destination such as a YouTube channel or a
   future WordPress site.
+- `reference key`: Optional user-managed lookup key on a configured platform.
+  It is provider-neutral, unique case-insensitively when set, and preserves the
+  entered casing for display.
 - `publish settings`: Provider-specific settings used when publishing through a
   platform. These settings may carry secrets and must be redacted where they
   cross read, logging, or snapshot boundaries.
@@ -259,6 +262,7 @@ Shorter names are acceptable for:
 | `TemplateToken` | Placeholder token available to template content. | `Token` is acceptable inside template-token-specific code. |
 | `TemplateTokenCatalog` | Code-defined source of available template tokens. | `Catalog` is acceptable inside template-token-specific code. |
 | `Platform` | Configured publishing destination. | `Destination` is acceptable only for user-facing copy when it is clearer. |
+| `ReferenceKey` | Optional provider-neutral lookup key on a configured platform. Uniqueness and lookup are case-insensitive while display casing is preserved. | Use `referenceKey` in HTTP and TypeScript shapes. Avoid provider-specific variants such as `YouTubeReferenceKey`. |
 | `PublishSettings` | Provider-specific settings used when publishing through a platform. May be secret-bearing. | Avoid `DefaultPublishingSettings`; create a new platform when settings differ. |
 | `YouTubeSettings` | YouTube-specific publish settings used by a YouTube platform. | `PublishSettings` is acceptable inside YouTube-platform-specific code. |
 | `PlatformPublication` | Publish state for one calendar event on one platform. | `Publication` is acceptable inside platform-specific namespaces, types, or tests. |

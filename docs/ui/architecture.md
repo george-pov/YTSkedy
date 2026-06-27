@@ -28,10 +28,11 @@ The Angular frontend lives under `src/ui/`.
   form. Publishing is platform-scoped and is exposed from the calendar event
   details edit route.
 - The `platforms` page route lists, creates, updates, and deletes configured
-  publishing destinations through the platforms API service. It exposes YouTube
-  and WordPress provider settings. WordPress Application Passwords are accepted
-  on create and optional replacement updates, but existing passwords are never
-  displayed in the browser.
+  publishing destinations through the platforms API service. It shows and edits
+  each platform's optional Reference key, and exposes YouTube and WordPress
+  provider settings. WordPress Application Passwords are accepted on create and
+  optional replacement updates, but existing passwords are never displayed in
+  the browser.
 - Calendar events API service code lives under
   `src/ui/src/app/shared/api/calendar-events/`.
 - The calendar event details edit route consumes the single-event details

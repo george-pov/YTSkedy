@@ -41,6 +41,7 @@ A YouTube platform is returned as:
 {
   "platformId": "4fb4a32f3f344de1a7c3a9f4a2f94918",
   "name": "Main YouTube channel",
+  "referenceKey": "youTube1",
   "type": "YouTube",
   "publishSettings": {
     "credentials": {
@@ -60,6 +61,7 @@ A WordPress platform is returned as:
 {
   "platformId": "5aa4a32f3f344de1a7c3a9f4a2f94918",
   "name": "Company blog",
+  "referenceKey": null,
   "type": "WordPress",
   "publishSettings": {
     "siteUrl": "https://blog.example.test/",
@@ -73,6 +75,11 @@ A WordPress platform is returned as:
 - `platformId` is a server-generated 32-character lowercase hex GUID.
 - `name` is required, trimmed, at most 50 characters, and globally unique across
   all platforms.
+- `referenceKey` is optional. It is returned as `null` when unset. Non-empty
+  keys are trimmed, must be 1 to 15 ASCII letters, digits, or hyphen, and must
+  contain no spaces or underscores. Uniqueness is case-insensitive across all
+  platforms, so `youTube1` and `youtube1` conflict. Responses preserve the
+  stored display casing.
 - `type` is `YouTube` or `WordPress`. It is set on create and is immutable
   because it determines the publish-settings schema and provider adapter.
 - YouTube `publishSettings.credentials.clientId` is the Google OAuth client id.
@@ -111,6 +118,7 @@ Success response (`200 OK`):
     {
       "platformId": "4fb4a32f3f344de1a7c3a9f4a2f94918",
       "name": "Main YouTube channel",
+      "referenceKey": "youTube1",
       "type": "YouTube",
       "publishSettings": {
         "credentials": {
@@ -125,6 +133,7 @@ Success response (`200 OK`):
     {
       "platformId": "5aa4a32f3f344de1a7c3a9f4a2f94918",
       "name": "Company blog",
+      "referenceKey": null,
       "type": "WordPress",
       "publishSettings": {
         "siteUrl": "https://blog.example.test/",
@@ -167,6 +176,7 @@ YouTube request body:
 ```json
 {
   "name": "Main YouTube channel",
+  "referenceKey": "youTube1",
   "type": "YouTube",
   "publishSettings": {
     "credentials": {
@@ -185,6 +195,7 @@ WordPress request body:
 ```json
 {
   "name": "Company blog",
+  "referenceKey": "blog-1",
   "type": "WordPress",
   "publishSettings": {
     "siteUrl": "https://blog.example.test/",
@@ -205,6 +216,9 @@ Status codes:
 - `200 OK` with the created platform.
 - `400 Bad Request` when the body is missing or not valid JSON.
 - `400 Bad Request` when `name` is empty or longer than 50 characters.
+- `400 Bad Request` when `referenceKey` is non-empty and is longer than 15
+  characters or contains any character other than ASCII letters, digits, or
+  hyphen.
 - `400 Bad Request` when `type` is not a recognized platform type.
 - `400 Bad Request` when `publishSettings` is missing.
 - `400 Bad Request` for invalid YouTube settings: missing `credentials`,
@@ -215,6 +229,8 @@ Status codes:
   or insecure `siteUrl`, missing `username`, missing `applicationPassword`, or
   `postStatus` not `draft` or `publish`.
 - `409 Conflict` when another platform already uses the same name.
+- `409 Conflict` when another platform already uses the same non-empty
+  `referenceKey`, compared case-insensitively.
 
 ## Update Platform
 
@@ -231,6 +247,7 @@ YouTube request body:
 ```json
 {
   "name": "Main YouTube channel",
+  "referenceKey": "main-youtube",
   "publishSettings": {
     "credentials": {
       "clientId": "<google-oauth-client-id>"
@@ -241,6 +258,11 @@ YouTube request body:
 }
 ```
 
+`referenceKey` is replace-style on update: omitting it, sending `null`, or
+sending a blank string clears the stored key. Sending a non-empty value replaces
+the stored key after trimming and the same validation and uniqueness rules used
+by create.
+
 Omitting `credentials.clientSecret` or `credentials.refreshToken`, or sending
 either field blank, preserves the stored YouTube secret values. A non-blank
 value replaces the stored value.
@@ -250,6 +272,7 @@ WordPress request body that preserves the stored Application Password:
 ```json
 {
   "name": "Company blog",
+  "referenceKey": "blog-1",
   "publishSettings": {
     "siteUrl": "https://blog.example.test/",
     "username": "publisher",
@@ -263,6 +286,7 @@ WordPress request body that replaces the stored Application Password:
 ```json
 {
   "name": "Company blog",
+  "referenceKey": null,
   "publishSettings": {
     "siteUrl": "https://blog.example.test/",
     "username": "publisher",
@@ -280,14 +304,21 @@ Status codes:
 
 - `200 OK` with the updated platform.
 - `400 Bad Request` for a missing or invalid body, invalid name, or invalid
-  publish settings using the same type-specific rules as create. A YouTube
-  update can omit or blank `credentials.clientSecret` and
+  reference key, or invalid publish settings using the same type-specific rules
+  as create. A YouTube update can omit or blank `credentials.clientSecret` and
   `credentials.refreshToken` to preserve the stored values. A WordPress update
   can omit or blank `applicationPassword` to preserve the stored value.
 - `404 Not Found` when no platform has the id.
 - `409 Conflict` when renaming to a name already used by another platform.
+- `409 Conflict` when changing to a non-empty `referenceKey` already used by
+  another platform, compared case-insensitively.
 - `409 Conflict` when the platform has a publication that is currently
   `Publishing`.
+
+Platform-publication rows, provider publish behavior, and provider publication
+delete behavior are unchanged by `referenceKey`; publication rows continue to
+store provider-neutral `externalResourceId` values, not platform reference
+keys.
 
 ## Delete Platform
 

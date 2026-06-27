@@ -17,6 +17,7 @@ Authorization: Bearer {{accessToken}}
 
 {
   "name": "Main YouTube channel",
+  "referenceKey": "youTube1",
   "type": "YouTube",
   "publishSettings": {
     "credentials": {
@@ -37,6 +38,7 @@ Content-Type: application/json
 
 {
   "name": "Auth-missing probe",
+  "referenceKey": "auth-missing",
   "type": "YouTube",
   "publishSettings": {
     "credentials": {
@@ -60,6 +62,7 @@ Authorization: Bearer {{accessTokenReadOnly}}
 
 {
   "name": "Scope-insufficient probe",
+  "referenceKey": "scope-probe",
   "type": "YouTube",
   "publishSettings": {
     "credentials": {
@@ -82,6 +85,7 @@ Authorization: Bearer {{accessToken}}
 
 {
   "name": "",
+  "referenceKey": "empty-name",
   "type": "YouTube",
   "publishSettings": {
     "credentials": {
@@ -104,6 +108,7 @@ Authorization: Bearer {{accessToken}}
 
 {
   "name": "Unknown type probe",
+  "referenceKey": "unknown-type",
   "type": "Twitch",
   "publishSettings": {
     "credentials": {
@@ -132,6 +137,7 @@ Authorization: Bearer {{accessToken}}
 
 {
   "name": "Company blog",
+  "referenceKey": "blog-1",
   "type": "WordPress",
   "publishSettings": {
     "siteUrl": "{{wordpressSiteUrl}}",
@@ -151,6 +157,7 @@ Authorization: Bearer {{accessToken}}
 
 {
   "name": "Bad privacy probe",
+  "referenceKey": "bad-privacy",
   "type": "YouTube",
   "publishSettings": {
     "credentials": {
@@ -172,6 +179,7 @@ Authorization: Bearer {{accessToken}}
 
 {
   "name": "Missing credentials probe",
+  "referenceKey": "missing-creds",
   "type": "YouTube",
   "publishSettings": {
     "credentials": null,
@@ -190,6 +198,7 @@ Authorization: Bearer {{accessToken}}
 
 {
   "name": "Main YouTube channel",
+  "referenceKey": "main-youtube",
   "type": "YouTube",
   "publishSettings": {
     "credentials": {
@@ -198,6 +207,97 @@ Authorization: Bearer {{accessToken}}
       "refreshToken": "{{youtubeRefreshToken}}"
     },
     "privacyStatus": "unlisted",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with a duplicate reference key
+# Run after the first create above. Expected response: 409 Conflict (a platform
+# reference key 'youtube1' already exists). Reference-key uniqueness is
+# case-insensitive, so `youtube1` conflicts with `youTube1`.
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Duplicate reference key probe",
+  "referenceKey": "youtube1",
+  "type": "YouTube",
+  "publishSettings": {
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
+    "privacyStatus": "unlisted",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with an underscore in referenceKey
+# Expected response: 400 Bad Request.
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Bad reference underscore probe",
+  "referenceKey": "bad_key",
+  "type": "YouTube",
+  "publishSettings": {
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with whitespace in referenceKey
+# Expected response: 400 Bad Request.
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Bad reference whitespace probe",
+  "referenceKey": "bad key",
+  "type": "YouTube",
+  "publishSettings": {
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with a too-long referenceKey
+# Expected response: 400 Bad Request (referenceKey is limited to 15
+# characters).
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Bad reference length probe",
+  "referenceKey": "abcdefghijklmnop",
+  "type": "YouTube",
+  "publishSettings": {
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
+    "privacyStatus": "private",
     "selfDeclaredMadeForKids": false
   }
 }
@@ -253,6 +353,49 @@ Authorization: Bearer {{accessToken}}
 
 {
   "name": "Main YouTube channel",
+  "referenceKey": "main-youtube",
+  "publishSettings": {
+    "credentials": {
+      "clientId": "{{youtubeClientId}}"
+    },
+    "privacyStatus": "unlisted",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Update a platform with a casing-only referenceKey change
+# Replace the id with one returned by the first create above and run after the
+# update above. Expected response: 200 OK with referenceKey `MAIN-YOUTUBE`;
+# changing only casing does not conflict with itself.
+
+PUT {{HostAddress}}/api/platforms/REPLACE_WITH_PLATFORM_ID
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Main YouTube channel",
+  "referenceKey": "MAIN-YOUTUBE",
+  "publishSettings": {
+    "credentials": {
+      "clientId": "{{youtubeClientId}}"
+    },
+    "privacyStatus": "unlisted",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Clear a platform referenceKey
+# Replace the id with one returned by the first create above. Expected response:
+# 200 OK with referenceKey null. Omitted, null, or blank referenceKey clears the
+# stored key; this request uses null explicitly.
+
+PUT {{HostAddress}}/api/platforms/REPLACE_WITH_PLATFORM_ID
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Main YouTube channel",
+  "referenceKey": null,
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}"
@@ -273,6 +416,7 @@ Authorization: Bearer {{accessToken}}
 
 {
   "name": "Company blog",
+  "referenceKey": "blog-1",
   "publishSettings": {
     "siteUrl": "{{wordpressSiteUrl}}",
     "username": "{{wordpressUsername}}",
@@ -292,6 +436,7 @@ Authorization: Bearer {{accessToken}}
 
 {
   "name": "Company blog",
+  "referenceKey": "blog-2",
   "publishSettings": {
     "siteUrl": "{{wordpressSiteUrl}}",
     "username": "{{wordpressUsername}}",
@@ -309,6 +454,7 @@ Authorization: Bearer {{accessToken}}
 
 {
   "name": "Ghost platform",
+  "referenceKey": "ghost",
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}"
@@ -328,6 +474,7 @@ Authorization: Bearer {{accessToken}}
 
 {
   "name": "Main YouTube channel",
+  "referenceKey": "second",
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}"

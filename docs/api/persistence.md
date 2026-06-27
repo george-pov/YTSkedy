@@ -121,6 +121,14 @@ than duplicated in documentation.
   duplicate yields a `NameAlreadyExists` outcome the host maps to `409 Conflict`.
   The expected number of platforms is small, so a dedicated uniqueness index row
   is intentionally out of scope.
+- `ReferenceKey` stores the optional provider-neutral display key for the
+  platform. Null or blank input is stored and read as `null`; non-empty values
+  are stored with the submitted casing after trimming.
+- Non-empty reference keys are unique across all platform types using
+  case-insensitive comparison. Uniqueness uses the same check-then-write scan of
+  active platform rows as platform-name uniqueness. A rare concurrent
+  duplicate-key race is accepted for this slice; no reference-key guard row,
+  partition, or table is written.
 - `type` is immutable after create because it determines the publish-settings
   schema and provider adapter. `UpdateAsync` reads the stored type and reuses it
   to serialize the new settings. Unknown stored type values fail the read.
@@ -169,6 +177,10 @@ one platform.
 - Deleting a platform does not delete `Published` rows. The delete handler
   stamps `PlatformDeletedUtc` to turn them into read-only orphan history, and is
   blocked while any row for the platform is `Publishing`.
+- Platform-publication rows do not store the platform `ReferenceKey`.
+  Reference keys are platform lookup metadata only; publication rows continue to
+  store provider-neutral `ExternalResourceId` values for created provider
+  resources.
 - `PlatformPublications.PublishSettingsJson` is a snapshot, not the live
   platform settings store. Cleanup target snapshots use only non-secret
   provider target data such as the YouTube OAuth client id or the WordPress

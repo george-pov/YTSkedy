@@ -23,7 +23,7 @@ request, response, status-code, and manual-check details belong in
 | --- | --- | --- | --- |
 | HTTP API routes, DTOs, status codes, and auth requirements | Azure Functions API | Angular UI typed services and manual API clients | [`../api/http/`](../api/http/) |
 | Calendar event list, details, create, update, and delete behavior | Azure Functions API | `CalendarEvents` and `CalendarEventDetails` pages | [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
-| Platform CRUD, publish, publication delete, and provider-specific settings | Azure Functions API | `Platforms` and `CalendarEventDetails` pages | [`../api/http/platforms.md`](../api/http/platforms.md) |
+| Platform CRUD, `referenceKey`, publish, publication delete, and provider-specific settings | Azure Functions API | `Platforms` and `CalendarEventDetails` pages | [`../api/http/platforms.md`](../api/http/platforms.md) |
 | Template CRUD and template-token reads | Azure Functions API | `Templates` page and template editor clients | [`../api/http/templates.md`](../api/http/templates.md) |
 | Browser routes, page orchestration, and client interaction state | Angular UI | Browser users and API contract consumers checking UI behavior | [`../ui/routes.md`](../ui/routes.md) |
 | Runtime browser configuration | Deployment environment serving `app-config.json` | Angular config loader and typed API clients | [`../ui/architecture/runtime-configuration.md`](../ui/architecture/runtime-configuration.md) |
@@ -52,6 +52,11 @@ Cross-boundary rules:
   state is exposed through the calendar event details read model.
 - Platform publish and publication cleanup always target an explicit platform.
   There is no calendar-event-level publish route.
+- Platform CRUD exposes the optional provider-neutral `referenceKey` field.
+  The backend owns validation, blank-as-null normalization, case-insensitive
+  uniqueness, and the `409 Conflict` duplicate-key response. The UI consumes it
+  through typed platform models and must not infer provider-specific roles from
+  it.
 - Secret-bearing settings may be accepted by write routes, but read models must
   return redacted configuration flags instead of secrets.
 - Function keys are not part of the frontend-backend contract.
