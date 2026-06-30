@@ -37,6 +37,18 @@ export function deletePlatformPublicationUrl(
   return new URL(path, normalizeApiBaseUrl(api.baseUrl)).toString();
 }
 
+export function publishingContentUrl(
+  api: ApiConfig,
+  calendarEventId: string,
+  platformId: string,
+): string {
+  const path =
+    `${calendarEventsPath}/${encodeURIComponent(calendarEventId)}` +
+    `/platforms/${encodeURIComponent(platformId)}/publishing-content`;
+
+  return new URL(path, normalizeApiBaseUrl(api.baseUrl)).toString();
+}
+
 export function isCalendarEventsUrl(candidate: string, api: ApiConfig): boolean {
   const prefix = calendarEventsUrl(api);
 

@@ -14,6 +14,10 @@ import {
   UpdatePlatformRequest,
   UpdatePlatformResponse,
 } from 'src/app/shared/api/platforms/platforms-service';
+import {
+  TemplateListResponse,
+  TemplatesService,
+} from 'src/app/shared/api/templates/templates-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Platforms } from './platforms';
 import { PlatformFormModel, referenceKeyMaxLength } from './platforms.form';
@@ -32,6 +36,9 @@ describe('Platforms', () => {
     >;
     delete: Mock<(type: Platform['type'], id: string) => Observable<void>>;
   };
+  let templatesService: {
+    list: Mock<(type?: Platform['type']) => Observable<TemplateListResponse>>;
+  };
   let notifications: { showSuccess: Mock<(message: string) => void> };
 
   beforeEach(() => {
@@ -41,6 +48,10 @@ describe('Platforms', () => {
       update: vi.fn(),
       delete: vi.fn(),
     };
+    templatesService = {
+      list: vi.fn<(type?: Platform['type']) => Observable<TemplateListResponse>>(),
+    };
+    templatesService.list.mockReturnValue(of({ templates: [] }));
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
   });
 
@@ -50,6 +61,7 @@ describe('Platforms', () => {
       name: 'Main YouTube channel',
       referenceKey: 'youTube1',
       type: 'YouTube',
+      publishingContent: nonePublishingContent(),
       publishSettings: {
         credentials: {
           clientId: 'client-id',
@@ -69,6 +81,7 @@ describe('Platforms', () => {
       name: 'Company blog',
       referenceKey: 'blog-1',
       type: 'WordPress',
+      publishingContent: nonePublishingContent(),
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
@@ -79,10 +92,46 @@ describe('Platforms', () => {
     };
   }
 
-  function componentModel(): { set: (model: PlatformFormModel) => void } {
-    return (
-      fixture.componentInstance as unknown as { model: { set: (model: PlatformFormModel) => void } }
+  function componentModel(): {
+    set: (model: PlatformFormModel) => void;
+    get: () => PlatformFormModel;
+  } {
+    const model = (
+      fixture.componentInstance as unknown as {
+        model: {
+          set: (model: PlatformFormModel) => void;
+          (): PlatformFormModel;
+        };
+      }
     ).model;
+
+    return {
+      set: (value) => model.set(value),
+      get: () => model(),
+    };
+  }
+
+  function validFormModel(overrides: Partial<PlatformFormModel>): PlatformFormModel {
+    return {
+      type: 'YouTube',
+      name: 'Main YouTube channel',
+      referenceKey: '',
+      titleTemplateId: '',
+      descriptionTemplateId: '',
+      youTubeClientId: 'client-id',
+      youTubeClientSecret: 'client-secret',
+      youTubeRefreshToken: 'refresh-token',
+      youTubeClientSecretConfigured: 'false',
+      youTubeRefreshTokenConfigured: 'false',
+      youTubePrivacyStatus: 'private',
+      youTubeMadeForKids: 'false',
+      wordPressSiteUrl: '',
+      wordPressUsername: '',
+      wordPressApplicationPassword: '',
+      wordPressPostStatus: 'draft',
+      wordPressApplicationPasswordConfigured: 'false',
+      ...overrides,
+    };
   }
 
   function rows(): HTMLElement[] {
@@ -151,6 +200,7 @@ describe('Platforms', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: PlatformsService, useValue: service },
+        { provide: TemplatesService, useValue: templatesService },
         { provide: NotificationService, useValue: notifications },
       ],
     }).compileComponents();
@@ -213,6 +263,91 @@ describe('Platforms', () => {
     expect(inputs.some((input) => input.placeholder.includes('keep existing token'))).toBe(true);
   });
 
+  it('loads templates filtered by the editor platform type', async () => {
+    service.list.mockReturnValue(of({ platforms: [] }));
+
+    await createComponent();
+    buttonByText('New Platform').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(templatesService.list).toHaveBeenCalledWith('YouTube');
+  });
+
+  it('opens a platform edit form with its selected publishing content templates', async () => {
+    service.list.mockReturnValue(
+      of({
+        platforms: [
+          youTubePlatform({
+            publishingContent: {
+              titleTemplateId: 'youtube-title-template',
+              descriptionTemplateId: 'youtube-description-template',
+            },
+          }),
+        ],
+      }),
+    );
+
+    await createComponent();
+    await selectRow(0);
+
+    expect(componentModel().get().titleTemplateId).toBe('youtube-title-template');
+    expect(componentModel().get().descriptionTemplateId).toBe('youtube-description-template');
+  });
+
+  it('resets incompatible create-mode template ids when the platform type changes', async () => {
+    service.list.mockReturnValue(of({ platforms: [] }));
+    templatesService.list.mockImplementation((type) =>
+      of({
+        templates:
+          type === 'WordPress'
+            ? [
+                {
+                  id: 'wordpress-description-template',
+                  name: 'WordPress description',
+                  type: 'WordPress',
+                  content: '{{ title }}',
+                },
+              ]
+            : [
+                {
+                  id: 'youtube-title-template',
+                  name: 'YouTube title',
+                  type: 'YouTube',
+                  content: '{{ title }}',
+                },
+              ],
+      }),
+    );
+
+    await createComponent();
+    buttonByText('New Platform').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    componentModel().set(
+      validFormModel({
+        titleTemplateId: 'youtube-title-template',
+        descriptionTemplateId: 'youtube-description-template',
+      }),
+    );
+    fixture.detectChanges();
+
+    componentModel().set(
+      validFormModel({
+        type: 'WordPress',
+        titleTemplateId: 'youtube-title-template',
+        descriptionTemplateId: 'youtube-description-template',
+      }),
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(componentModel().get().titleTemplateId).toBe('');
+    expect(componentModel().get().descriptionTemplateId).toBe('');
+    expect(templatesService.list).toHaveBeenLastCalledWith('WordPress');
+  });
+
   it('opens a WordPress platform in an edit form with redacted settings', async () => {
     service.list.mockReturnValue(of({ platforms: [wordPressPlatform()] }));
 
@@ -250,6 +385,7 @@ describe('Platforms', () => {
           privacyStatus: 'private',
           selfDeclaredMadeForKids: false,
         },
+        publishingContent: nonePublishingContent(),
       }),
     );
 
@@ -264,6 +400,12 @@ describe('Platforms', () => {
     await setValue(inputByLabel('Client ID'), 'second-client-id');
     await setValue(inputByLabel('Client secret'), 'second-client-secret');
     await setValue(inputByLabel('Refresh token'), 'second-refresh-token');
+    componentModel().set({
+      ...componentModel().get(),
+      titleTemplateId: 'youtube-title-template',
+      descriptionTemplateId: '',
+    });
+    fixture.detectChanges();
 
     await submitEditor();
 
@@ -282,6 +424,10 @@ describe('Platforms', () => {
         privacyStatus: 'private',
         selfDeclaredMadeForKids: false,
       },
+      publishingContent: {
+        titleTemplateId: 'youtube-title-template',
+        descriptionTemplateId: null,
+      },
     });
     expect(rows()).toHaveLength(1);
     expect(notifications.showSuccess).toHaveBeenCalledWith('Platform created.');
@@ -289,6 +435,21 @@ describe('Platforms', () => {
 
   it('creates a WordPress platform with provider settings', async () => {
     service.list.mockReturnValue(of({ platforms: [] }));
+    templatesService.list.mockImplementation((type) =>
+      of({
+        templates:
+          type === 'WordPress'
+            ? [
+                {
+                  id: 'wordpress-description-template',
+                  name: 'WordPress description',
+                  type: 'WordPress',
+                  content: '{{ title }}',
+                },
+              ]
+            : [],
+      }),
+    );
     service.create.mockReturnValue(
       of({
         id: 'new-id',
@@ -301,6 +462,7 @@ describe('Platforms', () => {
           postStatus: 'draft',
           applicationPasswordConfigured: true,
         },
+        publishingContent: nonePublishingContent(),
       }),
     );
 
@@ -314,6 +476,8 @@ describe('Platforms', () => {
       type: 'WordPress',
       name: 'Company blog',
       referenceKey: ' blog-1 ',
+      titleTemplateId: '',
+      descriptionTemplateId: 'wordpress-description-template',
       youTubeClientId: '',
       youTubeClientSecret: '',
       youTubeRefreshToken: '',
@@ -341,6 +505,10 @@ describe('Platforms', () => {
         postStatus: 'draft',
         applicationPassword: 'local-test-password',
       },
+      publishingContent: {
+        titleTemplateId: null,
+        descriptionTemplateId: 'wordpress-description-template',
+      },
     });
     expect(rows()).toHaveLength(1);
   });
@@ -359,6 +527,7 @@ describe('Platforms', () => {
           postStatus: 'draft',
           applicationPasswordConfigured: true,
         },
+        publishingContent: nonePublishingContent(),
       }),
     );
 
@@ -375,6 +544,7 @@ describe('Platforms', () => {
         username: 'publisher',
         postStatus: 'draft',
       },
+      publishingContent: nonePublishingContent(),
     });
   });
 
@@ -392,6 +562,7 @@ describe('Platforms', () => {
           postStatus: 'publish',
           applicationPasswordConfigured: true,
         },
+        publishingContent: nonePublishingContent(),
       }),
     );
 
@@ -402,6 +573,8 @@ describe('Platforms', () => {
       type: 'WordPress',
       name: 'Company blog',
       referenceKey: '',
+      titleTemplateId: '',
+      descriptionTemplateId: '',
       youTubeClientId: '',
       youTubeClientSecret: '',
       youTubeRefreshToken: '',
@@ -428,6 +601,7 @@ describe('Platforms', () => {
         postStatus: 'publish',
         applicationPassword: 'replacement-local-password',
       },
+      publishingContent: nonePublishingContent(),
     });
   });
 
@@ -495,6 +669,7 @@ describe('Platforms', () => {
           privacyStatus: 'private',
           selfDeclaredMadeForKids: false,
         },
+        publishingContent: nonePublishingContent(),
       }),
     );
 
@@ -558,4 +733,11 @@ describe('Platforms', () => {
     expect(rows()).toHaveLength(0);
     expect(notifications.showSuccess).toHaveBeenCalledWith('Platform deleted.');
   });
+
+  function nonePublishingContent() {
+    return {
+      titleTemplateId: null,
+      descriptionTemplateId: null,
+    };
+  }
 });

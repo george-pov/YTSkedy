@@ -73,6 +73,16 @@
             >
               <ng-template appDataTableCell="actions" let-platform>
                 <div class="app-actions">
+                  @if (platform.canPreviewPublishingContent) {
+                    <app-button
+                      class="platform-preview-button"
+                      iconButton
+                      icon="visibility"
+                      [ariaLabel]="'Preview publishing content for ' + platform.platformName"
+                      [disabled]="hasActiveMutation() || previewingPlatformId() !== null"
+                      (click)="previewPublishingContent(platform)"
+                    />
+                  }
                   @if (platform.canPublish) {
                     <app-button
                       class="platform-publish-button"
@@ -96,6 +106,31 @@
                 </div>
               </ng-template>
             </app-data-table>
+
+            @if (previewedPublishingContent(); as content) {
+              <article class="publishing-content-preview" aria-live="polite">
+                <header>
+                  <h3>{{ content.platformName }}</h3>
+                  <span>{{ content.kind }}</span>
+                </header>
+                <dl>
+                  <div>
+                    <dt>Title</dt>
+                    <dd>{{ content.title }}</dd>
+                  </div>
+                  <div>
+                    <dt>Description</dt>
+                    <dd>{{ content.description || 'No description' }}</dd>
+                  </div>
+                </dl>
+              </article>
+            }
+
+            @if (previewErrorMessage(); as message) {
+              <app-alert variant="error">
+                {{ message }}
+              </app-alert>
+            }
 
             @if (publishErrorMessage(); as message) {
               <app-alert variant="error">

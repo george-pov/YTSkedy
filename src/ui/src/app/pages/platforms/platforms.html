@@ -37,6 +37,26 @@
             }
             <app-input [field]="form.name" label="Name" />
             <app-input [field]="form.referenceKey" label="Reference key" />
+            <div class="app-grid app-gap-4">
+              <app-select
+                class="app-col-md-6"
+                [field]="form.titleTemplateId"
+                label="Title template"
+                [options]="templateOptions()"
+              />
+              <app-select
+                class="app-col-md-6"
+                [field]="form.descriptionTemplateId"
+                label="Description template"
+                [options]="templateOptions()"
+              />
+            </div>
+
+            @if (templateLoadFailed()) {
+              <app-alert variant="error">
+                Templates could not be loaded.
+              </app-alert>
+            }
 
             <h2 class="settings-heading">Settings</h2>
 

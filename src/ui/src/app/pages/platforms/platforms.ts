@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   type OnInit,
   signal,
@@ -17,6 +18,10 @@ import {
   YouTubePublishSettings,
   WordPressPublishSettings,
 } from 'src/app/shared/api/platforms/platforms-service';
+import {
+  Template,
+  TemplatesService,
+} from 'src/app/shared/api/templates/templates-service';
 import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from 'src/app/shared/components/button/button';
 import { DataTable } from 'src/app/shared/components/data-table/data-table';
@@ -59,11 +64,16 @@ type EditorMode = 'none' | 'create' | 'edit';
 })
 export class Platforms implements OnInit {
   private readonly platformsService = inject(PlatformsService);
+  private readonly templatesService = inject(TemplatesService);
   private readonly notifications = inject(NotificationService);
+  private latestTemplateLoadId = 0;
+  private loadedTemplateType: Platform['type'] | null = null;
 
   protected readonly platforms = signal<Platform[]>([]);
   protected readonly selected = signal<Platform | null>(null);
   protected readonly editorMode = signal<EditorMode>('none');
+  protected readonly availableTemplates = signal<Template[]>([]);
+  protected readonly templateLoadFailed = signal(false);
 
   protected readonly isLoading = signal(true);
   protected readonly showLoading = delayedLoading(() => this.isLoading());
@@ -94,6 +104,29 @@ export class Platforms implements OnInit {
   // The type currently in the editor. Reactive to the create-mode type select,
   // so the settings section can switch on it.
   protected readonly selectedType = computed(() => this.model().type);
+  protected readonly templateOptions = computed<readonly SelectOption[]>(() => [
+    { value: '', label: '(none)' },
+    ...this.availableTemplates().map((template) => ({
+      value: template.id,
+      label: template.name,
+    })),
+  ]);
+
+  constructor() {
+    effect(() => {
+      const type = this.selectedType();
+      if (this.editorMode() === 'none' || !isPlatformType(type)) {
+        return;
+      }
+
+      if (this.loadedTemplateType === type) {
+        return;
+      }
+
+      this.loadedTemplateType = type;
+      this.loadTemplates(type);
+    });
+  }
 
   ngOnInit(): void {
     this.loadPlatforms();
@@ -108,6 +141,7 @@ export class Platforms implements OnInit {
     this.errorMessage.set(null);
     this.selected.set(platform);
     this.editorMode.set('edit');
+    this.loadedTemplateType = null;
     this.model.set(toFormModel(platform));
   }
 
@@ -115,6 +149,7 @@ export class Platforms implements OnInit {
     this.errorMessage.set(null);
     this.selected.set(null);
     this.editorMode.set('create');
+    this.loadedTemplateType = null;
     this.model.set(createPlatformFormModel());
   }
 
@@ -198,6 +233,7 @@ export class Platforms implements OnInit {
             referenceKey: response.referenceKey,
             type: response.type,
             publishSettings: response.publishSettings,
+            publishingContent: response.publishingContent,
           };
           this.platforms.update((list) => sortPlatforms([created, ...list]));
           this.selected.set(created);
@@ -234,6 +270,7 @@ export class Platforms implements OnInit {
             name: response.name,
             referenceKey: response.referenceKey,
             publishSettings: response.publishSettings,
+            publishingContent: response.publishingContent,
           };
           this.platforms.update((list) =>
             sortPlatforms(list.map((entry) => (entry.id === current.id ? updated : entry))),
@@ -253,6 +290,53 @@ export class Platforms implements OnInit {
     this.selected.set(null);
     this.editorMode.set('none');
   }
+
+  private loadTemplates(type: Platform['type']): void {
+    const loadId = ++this.latestTemplateLoadId;
+    this.templateLoadFailed.set(false);
+
+    this.templatesService.list(type).subscribe({
+      next: (response) => {
+        if (loadId !== this.latestTemplateLoadId) {
+          return;
+        }
+
+        this.availableTemplates.set(sortTemplates(response.templates));
+        this.resetUnavailableTemplateIds(response.templates);
+      },
+      error: () => {
+        if (loadId !== this.latestTemplateLoadId) {
+          return;
+        }
+
+        this.loadedTemplateType = null;
+        this.availableTemplates.set([]);
+        this.templateLoadFailed.set(true);
+      },
+    });
+  }
+
+  private resetUnavailableTemplateIds(templates: readonly Template[]): void {
+    if (this.editorMode() !== 'create') {
+      return;
+    }
+
+    const model = this.model();
+    const availableIds = new Set(templates.map((template) => template.id));
+    const titleTemplateId = availableIds.has(model.titleTemplateId)
+      ? model.titleTemplateId
+      : '';
+    const descriptionTemplateId = availableIds.has(model.descriptionTemplateId)
+      ? model.descriptionTemplateId
+      : '';
+
+    if (
+      titleTemplateId !== model.titleTemplateId ||
+      descriptionTemplateId !== model.descriptionTemplateId
+    ) {
+      this.model.set({ ...model, titleTemplateId, descriptionTemplateId });
+    }
+  }
 }
 
 // Maps a stored platform into the flat editor model. Missing YouTube settings
@@ -270,6 +354,8 @@ function toFormModel(platform: Platform): PlatformFormModel {
     type: platform.type,
     name: platform.name,
     referenceKey: platform.referenceKey ?? defaults.referenceKey,
+    titleTemplateId: platform.publishingContent.titleTemplateId ?? '',
+    descriptionTemplateId: platform.publishingContent.descriptionTemplateId ?? '',
     youTubeClientId: youTubeSettings?.credentials.clientId ?? defaults.youTubeClientId,
     youTubeClientSecret: '',
     youTubeRefreshToken: '',
@@ -312,6 +398,14 @@ function sortPlatforms(platforms: readonly Platform[]): Platform[] {
     const byType = left.type.localeCompare(right.type);
     return byType !== 0 ? byType : left.name.localeCompare(right.name);
   });
+}
+
+function sortTemplates(templates: readonly Template[]): Template[] {
+  return [...templates].sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function isPlatformType(value: string): value is Platform['type'] {
+  return value === 'YouTube' || value === 'WordPress';
 }
 
 function describeSaveError(error: unknown): string {

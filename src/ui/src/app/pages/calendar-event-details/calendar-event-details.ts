@@ -16,6 +16,7 @@ import { finalize, Observable } from 'rxjs';
 import {
   CalendarEventsService,
   type CalendarEventPlatform,
+  type EventPlatformPublishingContent,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Alert } from 'src/app/shared/components/alert/alert';
@@ -41,6 +42,11 @@ import {
   toCreateCalendarEventRequest,
   toUpdateCalendarEventRequest,
 } from './calendar-event-details.form';
+
+interface PublishingContentPreview extends EventPlatformPublishingContent {
+  platformId: string;
+  platformName: string;
+}
 
 @Component({
   selector: 'app-calendar-event-details',
@@ -91,6 +97,9 @@ export class CalendarEventDetails {
   protected readonly publishErrorMessage = signal<string | null>(null);
   protected readonly deletingPublicationPlatformId = signal<string | null>(null);
   protected readonly deletePublicationErrorMessage = signal<string | null>(null);
+  protected readonly previewingPlatformId = signal<string | null>(null);
+  protected readonly previewErrorMessage = signal<string | null>(null);
+  protected readonly previewedPublishingContent = signal<PublishingContentPreview | null>(null);
   protected readonly hasActiveMutation = computed(
     () =>
       this.isSubmitting() ||
@@ -158,11 +167,15 @@ export class CalendarEventDetails {
           patchCalendarEventDetailsModel(this.model, event);
           this.loadedScheduledStartUtc.set(event.scheduledStartUtc);
           this.platforms.set(event.platforms);
+          this.previewErrorMessage.set(null);
+          this.previewedPublishingContent.set(null);
         },
         error: () => {
           this.platforms.set([]);
           this.publishErrorMessage.set(null);
           this.deletePublicationErrorMessage.set(null);
+          this.previewErrorMessage.set(null);
+          this.previewedPublishingContent.set(null);
           this.loadFailed.set(true);
         },
       });
@@ -285,6 +298,7 @@ export class CalendarEventDetails {
               entry.platformId === response.platformId ? response : entry,
             ),
           );
+          this.clearPreview(response.platformId);
           this.notifications.showSuccess('Calendar event published.');
         },
         error: (error: unknown) => {
@@ -327,6 +341,7 @@ export class CalendarEventDetails {
                   entry.platformId === response.platformId ? response : entry,
                 ),
               );
+              this.clearPreview(response.platformId);
               this.notifications.showSuccess('Platform publication deleted.');
             },
             error: (error: unknown) => {
@@ -334,6 +349,43 @@ export class CalendarEventDetails {
             },
           });
       });
+  }
+
+  protected previewPublishingContent(platform: CalendarEventPlatform): void {
+    if (
+      this.editingId === null ||
+      !platform.canPreviewPublishingContent ||
+      this.hasActiveMutation() ||
+      this.previewingPlatformId() !== null
+    ) {
+      return;
+    }
+
+    this.previewErrorMessage.set(null);
+    this.previewedPublishingContent.set(null);
+    this.previewingPlatformId.set(platform.platformId);
+
+    this.calendarEventsService
+      .getPublishingContent(this.editingId, platform.platformId)
+      .pipe(finalize(() => this.previewingPlatformId.set(null)))
+      .subscribe({
+        next: (content) => {
+          this.previewedPublishingContent.set({
+            ...content,
+            platformId: platform.platformId,
+            platformName: platform.platformName,
+          });
+        },
+        error: (error: unknown) => {
+          this.previewErrorMessage.set(describePreviewError(error));
+        },
+      });
+  }
+
+  private clearPreview(platformId: string): void {
+    if (this.previewedPublishingContent()?.platformId === platformId) {
+      this.previewedPublishingContent.set(null);
+    }
   }
 }
 
@@ -372,4 +424,16 @@ function describeDeletePublicationError(error: unknown): string {
   }
 
   return 'The publication could not be deleted. Check your connection and try again.';
+}
+
+function describePreviewError(error: unknown): string {
+  if (error instanceof HttpErrorResponse && error.status === 404) {
+    return 'Publishing content is no longer available. Reload the page and try again.';
+  }
+
+  if (error instanceof HttpErrorResponse && error.status === 409) {
+    return 'Publishing content cannot be previewed. Reload the page and try again.';
+  }
+
+  return 'Publishing content could not be loaded. Check your connection and try again.';
 }

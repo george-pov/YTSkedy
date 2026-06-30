@@ -91,3 +91,55 @@
     color: $app-color-text;
   }
 }
+
+.publishing-content-preview {
+  display: flex;
+  flex-direction: column;
+  gap: $app-space-3;
+  padding: $app-space-4;
+  border: 1px solid $app-color-border;
+  border-radius: 8px;
+  background: $app-color-surface;
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: $app-space-2;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  span {
+    color: $app-color-muted;
+    font-size: 0.9rem;
+  }
+
+  dl {
+    display: flex;
+    flex-direction: column;
+    gap: $app-space-3;
+    margin: 0;
+  }
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: $app-space-1;
+  }
+
+  dt {
+    color: $app-color-muted;
+    font-size: 0.85rem;
+  }
+
+  dd {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}

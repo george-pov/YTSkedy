@@ -43,6 +43,12 @@ export interface WordPressPublishSettings {
 
 export type PlatformPublishSettings = YouTubePublishSettings | WordPressPublishSettings;
 
+/** Platform-owned title and description template selection. */
+export interface PublishingContent {
+  titleTemplateId: string | null;
+  descriptionTemplateId: string | null;
+}
+
 /**
  * A configured publishing platform. Secret-bearing settings are redacted in API
  * responses: YouTube returns configured flags for secret values, and WordPress
@@ -54,6 +60,7 @@ export interface Platform {
   referenceKey: string | null;
   type: PlatformType;
   publishSettings?: PlatformPublishSettings;
+  publishingContent: PublishingContent;
 }
 
 export interface PlatformListResponse {
@@ -65,30 +72,20 @@ export interface CreatePlatformRequest {
   referenceKey?: string | null;
   type: PlatformType;
   publishSettings?: PlatformPublishSettings;
+  publishingContent: PublishingContent;
 }
 
-export interface CreatePlatformResponse {
-  id: string;
-  name: string;
-  referenceKey: string | null;
-  type: PlatformType;
-  publishSettings?: PlatformPublishSettings;
-}
+export type CreatePlatformResponse = Platform;
 
 /** The type is immutable, so only the name and settings travel in an update. */
 export interface UpdatePlatformRequest {
   name: string;
   referenceKey?: string | null;
   publishSettings?: PlatformPublishSettings;
+  publishingContent: PublishingContent;
 }
 
-export interface UpdatePlatformResponse {
-  id: string;
-  name: string;
-  referenceKey: string | null;
-  type: PlatformType;
-  publishSettings?: PlatformPublishSettings;
-}
+export type UpdatePlatformResponse = Platform;
 
 /** Raised when a create or update would duplicate an existing platform name. */
 export class PlatformNameConflictError extends Error {
@@ -152,6 +149,7 @@ interface ApiPlatform {
   referenceKey?: string | null;
   type: PlatformType;
   publishSettings?: PlatformPublishSettings;
+  publishingContent?: PublishingContent | null;
 }
 
 function toPlatform(platform: ApiPlatform): Platform {
@@ -162,6 +160,16 @@ function toPlatform(platform: ApiPlatform): Platform {
     type: platform.type,
     publishSettings:
       platform.publishSettings === undefined ? undefined : { ...platform.publishSettings },
+    publishingContent: normalizePublishingContent(platform.publishingContent),
+  };
+}
+
+function normalizePublishingContent(
+  content: PublishingContent | null | undefined,
+): PublishingContent {
+  return {
+    titleTemplateId: content?.titleTemplateId ?? null,
+    descriptionTemplateId: content?.descriptionTemplateId ?? null,
   };
 }
 

@@ -64,6 +64,10 @@ describe('PlatformsService', () => {
             privacyStatus: 'private',
             selfDeclaredMadeForKids: false,
           },
+          publishingContent: {
+            titleTemplateId: 'youtube-title-template',
+            descriptionTemplateId: 'youtube-description-template',
+          },
         },
         {
           platformId: '5aa4a32f3f344de1a7c3a9f4a2f94918',
@@ -75,6 +79,10 @@ describe('PlatformsService', () => {
             username: 'publisher',
             postStatus: 'draft',
             applicationPasswordConfigured: true,
+          },
+          publishingContent: {
+            titleTemplateId: null,
+            descriptionTemplateId: 'wordpress-description-template',
           },
         },
       ],
@@ -97,6 +105,10 @@ describe('PlatformsService', () => {
             privacyStatus: 'private',
             selfDeclaredMadeForKids: false,
           },
+          publishingContent: {
+            titleTemplateId: 'youtube-title-template',
+            descriptionTemplateId: 'youtube-description-template',
+          },
         },
         {
           id: '5aa4a32f3f344de1a7c3a9f4a2f94918',
@@ -108,6 +120,10 @@ describe('PlatformsService', () => {
             username: 'publisher',
             postStatus: 'draft',
             applicationPasswordConfigured: true,
+          },
+          publishingContent: {
+            titleTemplateId: null,
+            descriptionTemplateId: 'wordpress-description-template',
           },
         },
       ],
@@ -137,6 +153,7 @@ describe('PlatformsService', () => {
           platformId: '4fb4a32f3f344de1a7c3a9f4a2f94918',
           name: 'Legacy channel',
           type: 'YouTube',
+          publishingContent: null,
         },
       ],
     });
@@ -148,6 +165,7 @@ describe('PlatformsService', () => {
           name: 'Legacy channel',
           referenceKey: null,
           type: 'YouTube',
+          publishingContent: nonePublishingContent(),
         },
       ],
     });
@@ -166,6 +184,10 @@ describe('PlatformsService', () => {
         },
         privacyStatus: 'public',
         selfDeclaredMadeForKids: true,
+      },
+      publishingContent: {
+        titleTemplateId: 'youtube-title-template',
+        descriptionTemplateId: null,
       },
     };
 
@@ -190,6 +212,10 @@ describe('PlatformsService', () => {
         privacyStatus: 'public',
         selfDeclaredMadeForKids: true,
       },
+      publishingContent: {
+        titleTemplateId: 'youtube-title-template',
+        descriptionTemplateId: null,
+      },
     });
 
     await expect(responsePromise).resolves.toEqual({
@@ -206,6 +232,10 @@ describe('PlatformsService', () => {
         privacyStatus: 'public',
         selfDeclaredMadeForKids: true,
       },
+      publishingContent: {
+        titleTemplateId: 'youtube-title-template',
+        descriptionTemplateId: null,
+      },
     });
   });
 
@@ -219,6 +249,10 @@ describe('PlatformsService', () => {
         username: 'publisher',
         postStatus: 'draft',
         applicationPassword: 'local-test-password',
+      },
+      publishingContent: {
+        titleTemplateId: null,
+        descriptionTemplateId: 'wordpress-description-template',
       },
     };
 
@@ -240,6 +274,10 @@ describe('PlatformsService', () => {
         postStatus: 'draft',
         applicationPasswordConfigured: true,
       },
+      publishingContent: {
+        titleTemplateId: null,
+        descriptionTemplateId: 'wordpress-description-template',
+      },
     });
 
     await expect(responsePromise).resolves.toEqual({
@@ -252,6 +290,10 @@ describe('PlatformsService', () => {
         username: 'publisher',
         postStatus: 'draft',
         applicationPasswordConfigured: true,
+      },
+      publishingContent: {
+        titleTemplateId: null,
+        descriptionTemplateId: 'wordpress-description-template',
       },
     });
   });
@@ -270,6 +312,7 @@ describe('PlatformsService', () => {
           privacyStatus: 'private',
           selfDeclaredMadeForKids: false,
         },
+        publishingContent: nonePublishingContent(),
       }),
     );
 
@@ -298,6 +341,7 @@ describe('PlatformsService', () => {
           privacyStatus: 'private',
           selfDeclaredMadeForKids: false,
         },
+        publishingContent: nonePublishingContent(),
       }),
     );
 
@@ -321,6 +365,10 @@ describe('PlatformsService', () => {
         },
         privacyStatus: 'unlisted',
         selfDeclaredMadeForKids: false,
+      },
+      publishingContent: {
+        titleTemplateId: null,
+        descriptionTemplateId: 'updated-description-template',
       },
     };
 
@@ -349,6 +397,10 @@ describe('PlatformsService', () => {
         privacyStatus: 'unlisted',
         selfDeclaredMadeForKids: false,
       },
+      publishingContent: {
+        titleTemplateId: null,
+        descriptionTemplateId: 'updated-description-template',
+      },
     });
 
     await expect(responsePromise).resolves.toEqual({
@@ -365,6 +417,10 @@ describe('PlatformsService', () => {
         privacyStatus: 'unlisted',
         selfDeclaredMadeForKids: false,
       },
+      publishingContent: {
+        titleTemplateId: null,
+        descriptionTemplateId: 'updated-description-template',
+      },
     });
   });
 
@@ -377,6 +433,7 @@ describe('PlatformsService', () => {
         username: 'publisher',
         postStatus: 'publish',
       },
+      publishingContent: nonePublishingContent(),
     };
 
     const responsePromise = firstValueFrom(
@@ -401,6 +458,7 @@ describe('PlatformsService', () => {
         postStatus: 'publish',
         applicationPasswordConfigured: true,
       },
+      publishingContent: nonePublishingContent(),
     });
 
     await expect(responsePromise).resolves.toEqual({
@@ -414,6 +472,7 @@ describe('PlatformsService', () => {
         postStatus: 'publish',
         applicationPasswordConfigured: true,
       },
+      publishingContent: nonePublishingContent(),
     });
   });
 
@@ -428,6 +487,7 @@ describe('PlatformsService', () => {
           privacyStatus: 'private',
           selfDeclaredMadeForKids: false,
         },
+        publishingContent: nonePublishingContent(),
       }),
     );
 
@@ -455,6 +515,7 @@ describe('PlatformsService', () => {
           privacyStatus: 'private',
           selfDeclaredMadeForKids: false,
         },
+        publishingContent: nonePublishingContent(),
       }),
     );
 
@@ -485,4 +546,11 @@ describe('PlatformsService', () => {
 
     await expect(responsePromise).resolves.toBeNull();
   });
+
+  function nonePublishingContent() {
+    return {
+      titleTemplateId: null,
+      descriptionTemplateId: null,
+    };
+  }
 });

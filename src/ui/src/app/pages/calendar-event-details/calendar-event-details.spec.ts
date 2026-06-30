@@ -14,6 +14,7 @@ import {
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
+  EventPlatformPublishingContent,
   PublishPlatformResponse,
   UpdateCalendarEventRequest,
   UpdateCalendarEventResponse,
@@ -58,6 +59,12 @@ describe('CalendarEventDetails', () => {
     deletePlatformPublication: Mock<
       (calendarEventId: string, platformId: string) => Observable<CalendarEventPlatform>
     >;
+    getPublishingContent: Mock<
+      (
+        calendarEventId: string,
+        platformId: string,
+      ) => Observable<EventPlatformPublishingContent>
+    >;
   };
   let confirmation: { confirm: Mock<(data: unknown) => Observable<string | undefined>> };
   let notifications: { showSuccess: Mock<(message: string) => void> };
@@ -82,6 +89,13 @@ describe('CalendarEventDetails', () => {
         >(),
       deletePlatformPublication:
         vi.fn<(calendarEventId: string, platformId: string) => Observable<CalendarEventPlatform>>(),
+      getPublishingContent:
+        vi.fn<
+          (
+            calendarEventId: string,
+            platformId: string,
+          ) => Observable<EventPlatformPublishingContent>
+        >(),
     };
     confirmation = { confirm: vi.fn<(data: unknown) => Observable<string | undefined>>() };
     confirmation.confirm.mockReturnValue(of('delete'));
@@ -165,6 +179,16 @@ describe('CalendarEventDetails', () => {
 
   function platformPublishButton(): HTMLButtonElement | null {
     return platformPublishHosts()[0]?.querySelector('button') ?? null;
+  }
+
+  function platformPreviewHosts(): HTMLElement[] {
+    return Array.from(
+      fixture.nativeElement.querySelectorAll('.platform-preview-button'),
+    ) as HTMLElement[];
+  }
+
+  function platformPreviewButton(): HTMLButtonElement | null {
+    return platformPreviewHosts()[0]?.querySelector('button') ?? null;
   }
 
   function platformDeletePublicationHosts(): HTMLElement[] {
@@ -364,6 +388,7 @@ describe('CalendarEventDetails', () => {
                 platformDeletedUtc: null,
                 canPublish: true,
                 canDeletePublication: false,
+                canPreviewPublishingContent: true,
               },
               {
                 platformId: 'platform-2',
@@ -375,6 +400,7 @@ describe('CalendarEventDetails', () => {
                 platformDeletedUtc: null,
                 canPublish: false,
                 canDeletePublication: true,
+                canPreviewPublishingContent: true,
               },
             ],
           }),
@@ -395,6 +421,7 @@ describe('CalendarEventDetails', () => {
       expect(text).toContain('Archive site');
       expect(text).toContain('Published');
       expect(platformPublishHosts()).toHaveLength(1);
+      expect(platformPreviewHosts()).toHaveLength(2);
     });
 
     it('shows an empty platform state when no platforms are returned', () => {
@@ -420,6 +447,7 @@ describe('CalendarEventDetails', () => {
                 platformDeletedUtc: null,
                 canPublish: false,
                 canDeletePublication: false,
+                canPreviewPublishingContent: false,
               },
             ],
           }),
@@ -429,6 +457,101 @@ describe('CalendarEventDetails', () => {
       createEditComponent();
 
       expect(platformPublishHosts()).toHaveLength(0);
+    });
+
+    it('does not show a publishing-content preview action when canPreviewPublishingContent is false', () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            platforms: [
+              {
+                platformId: 'platform-1',
+                platformName: 'Main YouTube channel',
+                platformType: 'YouTube',
+                status: 'Published',
+                externalResourceId: 'broadcast-123',
+                publishedUtc: '2030-07-04T08:45:00+00:00',
+                platformDeletedUtc: null,
+                canPublish: false,
+                canDeletePublication: false,
+                canPreviewPublishingContent: false,
+              },
+            ],
+          }),
+        ),
+      );
+
+      createEditComponent();
+
+      expect(platformPreviewHosts()).toHaveLength(0);
+    });
+
+    it('loads row-level publishing content without overwriting unsaved descriptions', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.getPublishingContent.mockReturnValue(
+        of({
+          kind: 'Preview',
+          title: 'Rendered title',
+          description: 'Rendered description',
+        }),
+      );
+
+      createEditComponent();
+      api().form.descriptions.en.title().value.set('Unsaved English title');
+
+      platformPreviewHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(service.getPublishingContent).toHaveBeenCalledWith(editId, 'platform-1');
+      expect(fixture.nativeElement.textContent).toContain('Main YouTube channel');
+      expect(fixture.nativeElement.textContent).toContain('Preview');
+      expect(fixture.nativeElement.textContent).toContain('Rendered title');
+      expect(fixture.nativeElement.textContent).toContain('Rendered description');
+      expect(api().model().descriptions.en.title).toBe('Unsaved English title');
+    });
+
+    it('shows published snapshot publishing content on demand', async () => {
+      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
+      service.getPublishingContent.mockReturnValue(
+        of({
+          kind: 'Snapshot',
+          title: 'Published title',
+          description: null,
+        }),
+      );
+
+      createEditComponent();
+
+      platformPreviewHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(service.getPublishingContent).toHaveBeenCalledWith(editId, 'platform-1');
+      expect(fixture.nativeElement.textContent).toContain('Snapshot');
+      expect(fixture.nativeElement.textContent).toContain('Published title');
+      expect(fixture.nativeElement.textContent).toContain('No description');
+    });
+
+    it('shows a row preview conflict message when publishing content cannot be loaded', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.getPublishingContent.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 409 })),
+      );
+
+      createEditComponent();
+
+      platformPreviewHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'Publishing content cannot be previewed. Reload the page and try again.',
+      );
+      expect(navigations).toEqual([]);
     });
 
     it('publishes a platform row and updates that row from the response', async () => {
@@ -444,10 +567,12 @@ describe('CalendarEventDetails', () => {
           platformDeletedUtc: null,
           canPublish: false,
           canDeletePublication: true,
+          canPreviewPublishingContent: true,
         }),
       );
 
       createEditComponent();
+      api().form.descriptions.en.title().value.set('Unsaved English title');
 
       platformPublishHosts()[0].dispatchEvent(new Event('click'));
       fixture.detectChanges();
@@ -458,6 +583,7 @@ describe('CalendarEventDetails', () => {
       expect(fixture.nativeElement.textContent).toContain('Published');
       expect(platformPublishHosts()).toHaveLength(0);
       expect(platformDeletePublicationButton()).not.toBeNull();
+      expect(api().model().descriptions.en.title).toBe('Unsaved English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event published.');
     });
 
@@ -476,6 +602,7 @@ describe('CalendarEventDetails', () => {
                 platformDeletedUtc: null,
                 canPublish: true,
                 canDeletePublication: false,
+                canPreviewPublishingContent: true,
               },
             ],
           }),
@@ -492,6 +619,7 @@ describe('CalendarEventDetails', () => {
           platformDeletedUtc: null,
           canPublish: false,
           canDeletePublication: true,
+          canPreviewPublishingContent: true,
         }),
       );
 
@@ -594,6 +722,7 @@ describe('CalendarEventDetails', () => {
           platformDeletedUtc: null,
           canPublish: true,
           canDeletePublication: false,
+          canPreviewPublishingContent: true,
         }),
       );
 
@@ -628,6 +757,7 @@ describe('CalendarEventDetails', () => {
                 platformDeletedUtc: null,
                 canPublish: true,
                 canDeletePublication: false,
+                canPreviewPublishingContent: true,
               },
             ],
           }),
@@ -646,6 +776,7 @@ describe('CalendarEventDetails', () => {
       expect(save.disabled).toBe(true);
       expect(deleteButton()!.disabled).toBe(true);
       expect(cancelButton()!.disabled).toBe(true);
+      expect(platformPreviewButton()!.disabled).toBe(true);
       expect(platformPublishButton()!.disabled).toBe(true);
       expect(platformDeletePublicationButton()!.disabled).toBe(true);
     });
@@ -991,6 +1122,7 @@ describe('CalendarEventDetails', () => {
       platformDeletedUtc: null,
       canPublish: false,
       canDeletePublication: true,
+      canPreviewPublishingContent: true,
       ...overrides,
     };
   }
@@ -1026,6 +1158,7 @@ describe('CalendarEventDetails', () => {
           platformDeletedUtc: null,
           canPublish: true,
           canDeletePublication: false,
+          canPreviewPublishingContent: true,
         },
       ],
       ...overrides,

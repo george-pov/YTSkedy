@@ -13,6 +13,7 @@ import {
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
+  EventPlatformPublishingContent,
   PublishPlatformResponse,
   UpdateCalendarEventRequest,
   UpdateCalendarEventResponse,
@@ -187,6 +188,7 @@ describe('CalendarEventsService', () => {
           platformDeletedUtc: null,
           canPublish: true,
           canDeletePublication: false,
+          canPreviewPublishingContent: true,
         },
       ],
     };
@@ -256,6 +258,7 @@ describe('CalendarEventsService', () => {
       platformDeletedUtc: null,
       canPublish: false,
       canDeletePublication: true,
+      canPreviewPublishingContent: true,
     };
 
     let actualResponse: PublishPlatformResponse | undefined;
@@ -288,6 +291,7 @@ describe('CalendarEventsService', () => {
       platformDeletedUtc: null,
       canPublish: true,
       canDeletePublication: false,
+      canPreviewPublishingContent: true,
     };
 
     let actualResponse: CalendarEventPlatform | undefined;
@@ -302,6 +306,31 @@ describe('CalendarEventsService', () => {
     );
 
     expect(request.request.method).toBe('DELETE');
+
+    request.flush(apiResponse);
+
+    expect(actualResponse).toEqual(apiResponse);
+  });
+
+  it('gets row-level publishing content for an event platform', () => {
+    const apiResponse = {
+      kind: 'Preview' as const,
+      title: 'Rendered title',
+      description: 'Rendered description',
+    };
+
+    let actualResponse: EventPlatformPublishingContent | undefined;
+    service
+      .getPublishingContent('f81d4fae7dec11d0a76500a0c91e6bf6', 'platform-1')
+      .subscribe((response) => {
+        actualResponse = response;
+      });
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/f81d4fae7dec11d0a76500a0c91e6bf6/platforms/platform-1/publishing-content',
+    );
+
+    expect(request.request.method).toBe('GET');
 
     request.flush(apiResponse);
 

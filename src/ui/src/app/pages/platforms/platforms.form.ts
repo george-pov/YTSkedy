@@ -9,6 +9,7 @@ import {
 import {
   CreatePlatformRequest,
   PlatformPublishSettings,
+  PublishingContent,
   PlatformType,
   UpdatePlatformRequest,
   YouTubeCredentials,
@@ -37,6 +38,8 @@ export interface PlatformFormModel {
   type: string;
   name: string;
   referenceKey: string;
+  titleTemplateId: string;
+  descriptionTemplateId: string;
   youTubeClientId: string;
   youTubeClientSecret: string;
   youTubeRefreshToken: string;
@@ -58,6 +61,8 @@ export function createPlatformFormModel(): PlatformFormModel {
     type: 'YouTube',
     name: '',
     referenceKey: '',
+    titleTemplateId: '',
+    descriptionTemplateId: '',
     youTubeClientId: '',
     youTubeClientSecret: '',
     youTubeRefreshToken: '',
@@ -224,12 +229,25 @@ function toReferenceKey(value: string): string | null {
   return referenceKey.length === 0 ? null : referenceKey;
 }
 
+function toTemplateId(value: string): string | null {
+  const templateId = value.trim();
+  return templateId.length === 0 ? null : templateId;
+}
+
+function toPublishingContent(model: PlatformFormModel): PublishingContent {
+  return {
+    titleTemplateId: toTemplateId(model.titleTemplateId),
+    descriptionTemplateId: toTemplateId(model.descriptionTemplateId),
+  };
+}
+
 export function toCreatePlatformRequest(model: PlatformFormModel): CreatePlatformRequest {
   return {
     name: model.name.trim(),
     referenceKey: toReferenceKey(model.referenceKey),
     type: model.type as PlatformType,
     publishSettings: toPublishSettings(model),
+    publishingContent: toPublishingContent(model),
   };
 }
 
@@ -238,5 +256,6 @@ export function toUpdatePlatformRequest(model: PlatformFormModel): UpdatePlatfor
     name: model.name.trim(),
     referenceKey: toReferenceKey(model.referenceKey),
     publishSettings: toPublishSettings(model),
+    publishingContent: toPublishingContent(model),
   };
 }
