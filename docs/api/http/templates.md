@@ -2,8 +2,8 @@
 
 Template endpoints are hosted by `YTSkedy.AzureFunctions` under the Azure
 Functions `/api` prefix. A template is reusable free-text publishing content
-with placeholder tokens (for example `{{ localizedDate }}`) that a later feature
-will render from event data. The `Templates` page in the Angular UI
+with placeholder tokens (for example `{{ longDate }}`) that platform
+publishing content renders from event data. The `Templates` page in the Angular UI
 (`/templates`) consumes the list, create, update, and delete endpoints through a
 typed `TemplatesService`; the `template-tokens` endpoint is available to the
 client but is not yet surfaced in the editor.
@@ -63,7 +63,7 @@ Success response (`200 OK`):
       "id": "9f8b1c2d3e4f4a5b6c7d8e9f0a1b2c3d",
       "name": "Weeknight stream",
       "type": "YouTube",
-      "content": "Live at {{ localizedTime }} on {{ localizedDate }}"
+      "content": "Live on {{ longDate }}: {{ title }}"
     }
   ]
 }
@@ -91,7 +91,7 @@ Request body:
 {
   "name": "Weeknight stream",
   "type": "YouTube",
-  "content": "Live at {{ localizedTime }} on {{ localizedDate }}"
+  "content": "Live on {{ longDate }}: {{ title }}"
 }
 ```
 
@@ -134,7 +134,7 @@ Request body:
 ```json
 {
   "name": "Weeknight stream (edited)",
-  "content": "Live at {{ localizedTime }}"
+  "content": "Live on {{ shortDate }}"
 }
 ```
 
@@ -177,6 +177,8 @@ Current behavior and error mapping:
 - An unknown `{type}/{id}` returns `404 Not Found`
   (`Template '{id}' was not found.`).
 - A `type` outside `YouTube`/`WordPress` returns `400 Bad Request`.
+- A template referenced by an active platform's `publishingContent` returns
+  `409 Conflict` (`Template '{id}' is referenced by an active platform.`).
 - The delete is a hard delete: removed templates are not recoverable. Tombstones,
   recycle-bin behavior, and restore are out of scope.
 
@@ -188,22 +190,42 @@ GET /api/template-tokens
 
 Returns the code-defined placeholder tokens a client can offer for template
 content. Requires the `CalendarEvents.Read` scope. The list is defined in code,
-not stored, and is expected to grow.
+not stored. The approved token catalog is:
+
+- `title`: English calendar event title.
+- `description`: English calendar event description, or an empty string when
+  omitted.
+- `titleRu`: Russian calendar event title.
+- `descriptionRu`: Russian calendar event description, or an empty string when
+  omitted.
+- `longDate`: Event submitted local date formatted with `en-US` as
+  `MMMM d, yyyy`.
+- `longDateRu`: Event submitted local date formatted with `ru-RU` as
+  `d MMMM yyyy`.
+- `shortDate`: Event submitted local date formatted as `yyyy-MM-dd`.
+- `shortDateRu`: Event submitted local date formatted as `dd.MM.yyyy`.
 
 Success response (`200 OK`):
 
 ```json
 {
   "tokens": [
-    { "name": "localizedDate" },
-    { "name": "localizedTime" },
-    { "name": "youTubeBroadcastId" },
-    { "name": "calendarEventTitle" }
+    { "name": "title" },
+    { "name": "description" },
+    { "name": "titleRu" },
+    { "name": "descriptionRu" },
+    { "name": "longDate" },
+    { "name": "longDateRu" },
+    { "name": "shortDate" },
+    { "name": "shortDateRu" }
   ]
 }
 ```
 
 A token `name` is the identifier without the surrounding `{{ }}` braces.
+Template writes store unknown tokens as text; preview leaves unresolved
+well-formed placeholders visible, while publish rejects unresolved well-formed
+placeholders before any provider call.
 
 ## Persistence
 

@@ -105,7 +105,8 @@ export class CalendarEventDetails {
       this.isSubmitting() ||
       this.isDeleting() ||
       this.publishingPlatformId() !== null ||
-      this.deletingPublicationPlatformId() !== null,
+      this.deletingPublicationPlatformId() !== null ||
+      this.previewingPlatformId() !== null,
   );
   protected readonly platformColumns: readonly DataTableColumn<CalendarEventPlatform>[] = [
     { key: 'type', header: 'Type', value: (platform) => platform.platformType },
@@ -228,13 +229,10 @@ export class CalendarEventDetails {
   }
 
   protected deleteEvent(): void {
-    // Page mutations are mutually exclusive: a save in flight blocks delete and
-    // an in-flight delete blocks re-entry. The backend owns final delete eligibility.
+    // Page operations are mutually exclusive here so row preview, save, and row
+    // mutations cannot race event delete. The backend owns final delete eligibility.
     if (
-      this.isDeleting() ||
-      this.isSubmitting() ||
-      this.publishingPlatformId() !== null ||
-      this.deletingPublicationPlatformId() !== null ||
+      this.hasActiveMutation() ||
       !this.canDelete()
     ) {
       return;
@@ -277,10 +275,7 @@ export class CalendarEventDetails {
     if (
       this.editingId === null ||
       !platform.canPublish ||
-      this.publishingPlatformId() !== null ||
-      this.deletingPublicationPlatformId() !== null ||
-      this.isSubmitting() ||
-      this.isDeleting()
+      this.hasActiveMutation()
     ) {
       return;
     }

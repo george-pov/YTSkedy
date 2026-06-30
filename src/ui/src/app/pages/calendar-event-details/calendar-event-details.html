@@ -167,10 +167,7 @@
                 icon="delete"
                 [disabled]="
                   !canDelete() ||
-                  isDeleting() ||
-                  isSubmitting() ||
-                  publishingPlatformId() !== null ||
-                  deletingPublicationPlatformId() !== null
+                  hasActiveMutation()
                 "
                 (click)="deleteEvent()"
               >
@@ -180,23 +177,14 @@
             <app-button
               type="button"
               appearance="outlined"
-              [disabled]="
-                isDeleting() ||
-                publishingPlatformId() !== null ||
-                deletingPublicationPlatformId() !== null
-              "
+              [disabled]="hasActiveMutation()"
               (click)="cancel()"
             >
               Cancel
             </app-button>
             <app-button
               type="submit"
-              [disabled]="
-                isSubmitting() ||
-                isDeleting() ||
-                publishingPlatformId() !== null ||
-                deletingPublicationPlatformId() !== null
-              "
+              [disabled]="hasActiveMutation()"
             >
               {{ isEditMode ? 'Save changes' : 'Save event' }}
             </app-button>

@@ -29,9 +29,9 @@ placeholder.
 | `/` | Public | Renders `Home` with a sign-in button. Auto-redirects signed-in visitors to `/calendar-events`. |
 | `/calendar-events` | Protected | Renders `CalendarEvents` and loads the first page of all events sorted by scheduled start descending. The scheduled start is shown as the UTC instant (`scheduledStartUtc`). Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`. |
 | `/calendar-events/new` | Protected | Renders `CalendarEventDetails`, a Signal Forms form (a typed model plus a `schema()` of validators) that creates an event via `POST /api/calendar-events` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
-| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, repopulates the form, keeps the scheduled start read-only, and shows the response `platforms` array as a Type, Name, Status, and Actions table. Platform rows with `canPublish: true` show a Publish action that calls `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`; rows with `canDeletePublication: true` show a Delete publication action that confirms and calls `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`. Save sends `PUT /api/calendar-events/{calendarEventId}` with the descriptions. A separate Delete action calls `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
+| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, repopulates the form, keeps the scheduled start read-only, and shows the response `platforms` array as a Type, Name, Status, and Actions table. Platform rows with `canPreviewPublishingContent: true` show a Preview action that calls `GET /api/calendar-events/{calendarEventId}/platforms/{platformId}/publishing-content` and displays the returned title and description below the table. Platform rows with `canPublish: true` show a Publish action that calls `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`; rows with `canDeletePublication: true` show a Delete publication action that confirms and calls `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`. Save sends `PUT /api/calendar-events/{calendarEventId}` with the descriptions. A separate Delete action calls `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
 | `/templates` | Protected | Renders `Templates`, a single-page CRUD for reusable social-post templates backed by the `templates` API through a typed `TemplatesService`. On load it lists templates with `GET /api/templates` and shows each template's type (platform) and name. New Template opens an unsaved editor whose type is selectable and creates via `POST /api/templates`. Selecting a row opens the editor with the type read-only (immutable after create) and saves name and content via `PUT /api/templates/{type}/{id}`; Delete calls `DELETE /api/templates/{type}/{id}`. A failed load, save, or delete shows an inline error, and a duplicate name surfaces the `409` conflict. Guarded by `authenticatedGuard`. |
-| `/platforms` | Protected | Renders `Platforms`, a single-page CRUD for configured publishing destinations backed by the `platforms` API through a typed `PlatformsService`. On load it lists platforms with `GET /api/platforms` and shows Type, Name, and Reference key; New Platform creates a YouTube or WordPress platform via `POST /api/platforms`; selecting a row opens an editor that saves via `PUT /api/platforms/{platformId}` or deletes via `DELETE /api/platforms/{platformId}`. Existing WordPress Application Passwords are not displayed; leaving the password field blank on edit preserves the stored password. A failed load, save, or delete shows an inline error, and duplicate names or duplicate reference keys surface the `409` conflict. Guarded by `authenticatedGuard`. |
+| `/platforms` | Protected | Renders `Platforms`, a single-page CRUD for configured publishing destinations backed by the `platforms` API through a typed `PlatformsService`. On load it lists platforms with `GET /api/platforms` and shows Type, Name, and Reference key; New Platform creates a YouTube or WordPress platform via `POST /api/platforms`; selecting a row opens an editor that saves via `PUT /api/platforms/{platformId}` or deletes via `DELETE /api/platforms/{platformId}`. The editor includes title-template and description-template selectors backed by `GET /api/templates?type={type}`; `(none)` maps to `null` template ids in `publishingContent`. Existing WordPress Application Passwords are not displayed; leaving the password field blank on edit preserves the stored password. A failed load, save, or delete shows an inline error, and duplicate names or duplicate reference keys surface the `409` conflict. Guarded by `authenticatedGuard`. |
 | `/signed-out` | Public | Renders post-logout confirmation. Auto-redirects already-authenticated visitors to `/calendar-events`. |
 | `/component-lab` | Public | Renders the minimal component lab page for manually demoing shared UI components. |
 | `**` | Public | Redirects to `/`. |
@@ -62,16 +62,25 @@ from the route, calls `GET /api/calendar-events/{calendarEventId}` through the
 same shared API service, and patches the loaded local start, time zone, and
 descriptions into the form. It also renders the loaded `platforms` array through
 `app-data-table`, showing platform type, name, and publish status from the API
-response. Rows with `canPublish: true` show a Publish action that calls
+response. Rows with `canPreviewPublishingContent: true` show a Preview action
+that calls
+`GET /api/calendar-events/{calendarEventId}/platforms/{platformId}/publishing-content`
+and displays the returned `Preview` or `Snapshot` title and description below
+the table. The preview surface is on demand and does not add title or
+description columns to the table. Rows with `canPublish: true` show a Publish action that calls
 `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`.
 On success, the row is updated from the publish response and the Publish action
-is removed for that row. Rows with `canDeletePublication: true` show an icon
+is removed for that row; any open preview for that platform is cleared. Rows
+with `canDeletePublication: true` show an icon
 button with the accessible label `Delete publication for {platformName}`. That
 action opens a confirmation dialog and, after confirmation, calls
 `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`.
-On success, only the affected platform row is replaced from the API response;
-the page does not reload the event and does not overwrite unsaved description
-edits. A `409` keeps the page open with
+On success, only the affected platform row is replaced from the API response and
+any open preview for that platform is cleared; the page does not reload the
+event and does not overwrite unsaved description edits. A preview `409` keeps
+the page open with
+`Publishing content cannot be previewed. Reload the page and try again.` A
+publication-delete `409` keeps the page open with
 `The publication can no longer be deleted. Reload the page and try again.`; a
 `502` keeps the page open with
 `The provider publication could not be deleted. Try again later.`; other
@@ -95,17 +104,23 @@ other failures show generic delete copy. An update `409` keeps the page
 open with `The event can no longer be updated. Reload the page and try again.`
 Save and Delete are mutually exclusive while either is in flight.
 Save, Delete, Cancel, Publish, and Delete publication are disabled while a
-platform publish or platform-publication delete is in flight.
+publishing-content preview, platform publish, or platform-publication delete is
+in flight.
 
 The `Platforms` page calls `GET /api/platforms` through the shared platforms
 API service and maps the backend `{ items: [...] }` envelope plus `platformId`
 field into the page-facing platform model. The table shows type, name, and the
 optional Reference key. Create sends the selected type, name, reference key,
-and provider-specific publish settings to `POST /api/platforms`; the create
-type select offers YouTube and WordPress. YouTube settings include client ID,
-client secret, refresh token, privacy status, and made-for-kids flag. WordPress
-settings include site URL, username, Application Password, and post status.
-Edit sends name, reference key, and publish settings to
+platform `publishingContent`, and provider-specific publish settings to
+`POST /api/platforms`; the create type select offers YouTube and WordPress.
+The title-template and description-template selectors list templates for the
+selected platform type and include a `(none)` option, which sends `null`
+template ids. In create mode, changing the platform type resets selected
+template ids that are not available for the new type. YouTube settings include
+client ID, client secret, refresh token, privacy status, and made-for-kids flag.
+WordPress settings include site URL, username, Application Password, and post
+status. Edit sends name, reference key, `publishingContent`, and publish
+settings to
 `PUT /api/platforms/{platformId}`. The Reference key field preserves casing for
 display; blank input sends `null` and clears the stored key. For YouTube, the
 client secret and refresh token inputs are intentionally blank on edit; blank

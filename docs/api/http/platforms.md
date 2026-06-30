@@ -43,6 +43,10 @@ A YouTube platform is returned as:
   "name": "Main YouTube channel",
   "referenceKey": "youTube1",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "youtube-title-template-id",
+    "descriptionTemplateId": "youtube-description-template-id"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "google-oauth-client-id",
@@ -63,6 +67,10 @@ A WordPress platform is returned as:
   "name": "Company blog",
   "referenceKey": null,
   "type": "WordPress",
+  "publishingContent": {
+    "titleTemplateId": null,
+    "descriptionTemplateId": null
+  },
   "publishSettings": {
     "siteUrl": "https://blog.example.test/",
     "username": "publisher",
@@ -82,6 +90,14 @@ A WordPress platform is returned as:
   stored display casing.
 - `type` is `YouTube` or `WordPress`. It is set on create and is immutable
   because it determines the publish-settings schema and provider adapter.
+- `publishingContent` is provider-neutral title and description template
+  selection. `titleTemplateId` and `descriptionTemplateId` are template ids or
+  `null`. A `null` id means the backend calculates that field from the calendar
+  event when previewing or publishing. Omitting `publishingContent`, sending a
+  `null` field, or sending a blank template id all mean `(none)`. The selected
+  templates must have the same provider family as the platform type.
+  `publishingContent` stores only template ids; it does not copy template text
+  and it is separate from provider-specific `publishSettings`.
 - YouTube `publishSettings.credentials.clientId` is the Google OAuth client id.
   YouTube create and update requests can include
   `publishSettings.credentials.clientSecret` and
@@ -120,6 +136,10 @@ Success response (`200 OK`):
       "name": "Main YouTube channel",
       "referenceKey": "youTube1",
       "type": "YouTube",
+      "publishingContent": {
+        "titleTemplateId": "youtube-title-template-id",
+        "descriptionTemplateId": "youtube-description-template-id"
+      },
       "publishSettings": {
         "credentials": {
           "clientId": "google-oauth-client-id",
@@ -135,6 +155,10 @@ Success response (`200 OK`):
       "name": "Company blog",
       "referenceKey": null,
       "type": "WordPress",
+      "publishingContent": {
+        "titleTemplateId": null,
+        "descriptionTemplateId": null
+      },
       "publishSettings": {
         "siteUrl": "https://blog.example.test/",
         "username": "publisher",
@@ -178,6 +202,10 @@ YouTube request body:
   "name": "Main YouTube channel",
   "referenceKey": "youTube1",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "youtube-title-template-id",
+    "descriptionTemplateId": "youtube-description-template-id"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "<google-oauth-client-id>",
@@ -197,6 +225,10 @@ WordPress request body:
   "name": "Company blog",
   "referenceKey": "blog-1",
   "type": "WordPress",
+  "publishingContent": {
+    "titleTemplateId": null,
+    "descriptionTemplateId": "wordpress-description-template-id"
+  },
   "publishSettings": {
     "siteUrl": "https://blog.example.test/",
     "username": "publisher",
@@ -209,7 +241,8 @@ WordPress request body:
 Success returns `200 OK` with the created platform, including its generated
 `platformId`. YouTube responses redact `clientSecret` and `refreshToken` and
 return configured flags. WordPress responses redact `applicationPassword` and
-return `applicationPasswordConfigured`.
+return `applicationPasswordConfigured`. If `publishingContent` is omitted, both
+template ids default to `null`.
 
 Status codes:
 
@@ -221,6 +254,8 @@ Status codes:
   hyphen.
 - `400 Bad Request` when `type` is not a recognized platform type.
 - `400 Bad Request` when `publishSettings` is missing.
+- `400 Bad Request` when `publishingContent` references a template that does
+  not exist for the selected platform type.
 - `400 Bad Request` for invalid YouTube settings: missing `credentials`,
   missing `credentials.clientId`, missing `credentials.clientSecret` on create,
   missing `credentials.refreshToken` on create, or `privacyStatus` not
@@ -248,6 +283,10 @@ YouTube request body:
 {
   "name": "Main YouTube channel",
   "referenceKey": "main-youtube",
+  "publishingContent": {
+    "titleTemplateId": null,
+    "descriptionTemplateId": "youtube-description-template-id"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "<google-oauth-client-id>"
@@ -273,6 +312,10 @@ WordPress request body that preserves the stored Application Password:
 {
   "name": "Company blog",
   "referenceKey": "blog-1",
+  "publishingContent": {
+    "titleTemplateId": null,
+    "descriptionTemplateId": null
+  },
   "publishSettings": {
     "siteUrl": "https://blog.example.test/",
     "username": "publisher",
@@ -287,6 +330,10 @@ WordPress request body that replaces the stored Application Password:
 {
   "name": "Company blog",
   "referenceKey": null,
+  "publishingContent": {
+    "titleTemplateId": "wordpress-title-template-id",
+    "descriptionTemplateId": "wordpress-description-template-id"
+  },
   "publishSettings": {
     "siteUrl": "https://blog.example.test/",
     "username": "publisher",
@@ -298,7 +345,9 @@ WordPress request body that replaces the stored Application Password:
 
 For WordPress updates, omitting `applicationPassword` or sending it blank
 preserves the stored Application Password. A non-blank value replaces it.
-Success returns `200 OK` with the updated platform and redacted settings.
+Omitting `publishingContent` sets both template ids to `null`; include the
+current ids in the update body when they should be preserved. Success returns
+`200 OK` with the updated platform and redacted settings.
 
 Status codes:
 
@@ -308,6 +357,8 @@ Status codes:
   as create. A YouTube update can omit or blank `credentials.clientSecret` and
   `credentials.refreshToken` to preserve the stored values. A WordPress update
   can omit or blank `applicationPassword` to preserve the stored value.
+- `400 Bad Request` when `publishingContent` references a template that does
+  not exist for the platform type.
 - `404 Not Found` when no platform has the id.
 - `409 Conflict` when renaming to a name already used by another platform.
 - `409 Conflict` when changing to a non-empty `referenceKey` already used by
@@ -350,8 +401,10 @@ calendar event details endpoint `GET /api/calendar-events/{calendarEventId}` as
 its `platforms` array (see [`calendar-events.md`](calendar-events.md), which
 documents the item fields and the `status` / `canPublish` / orphan-history
 semantics). Each row also carries `canDeletePublication`, the backend-computed
-flag that tells clients whether the platform publication can be deleted. There
-is no separate event-platform listing endpoint.
+flag that tells clients whether the platform publication can be deleted, and
+`canPreviewPublishingContent`, the backend-computed flag that tells clients
+whether row-level publishing content can be read. There is no separate
+event-platform listing endpoint.
 
 ## Publish Calendar Event To Platform
 
@@ -366,15 +419,22 @@ route. The request body is empty:
 {}
 ```
 
+Before provider calls, the backend renders title and description from the
+platform's `publishingContent` and the calendar event. A selected title template
+or description template is rendered with the approved template tokens. A `null`
+template id uses the event's English title or optional English description. The
+rendered title and description are stored as a content snapshot when the
+publication row enters `Publishing`.
+
 For a YouTube platform this creates a scheduled YouTube `liveBroadcast` using
-the event's English title and optional description, the stored UTC scheduled
+the rendered title and optional rendered description, the stored UTC scheduled
 start, and the platform's `privacyStatus` and `selfDeclaredMadeForKids`. The
 created broadcast id is returned as the provider-neutral `externalResourceId`.
 
 For a WordPress platform this creates a post through
 `POST /wp-json/wp/v2/posts` using Basic Auth with the configured WordPress
-username and Application Password. The request maps the event's English title
-to `title`, the optional English description to `content`, and the platform's
+username and Application Password. The request maps the rendered title to
+`title`, the optional rendered description to `content`, and the platform's
 `postStatus` to `status`. The numeric WordPress post id is returned as the
 provider-neutral `externalResourceId`.
 
@@ -390,7 +450,8 @@ YouTube success response (`200 OK`):
   "publishedUtc": "2026-06-22T12:00:00+00:00",
   "platformDeletedUtc": null,
   "canPublish": false,
-  "canDeletePublication": true
+  "canDeletePublication": true,
+  "canPreviewPublishingContent": true
 }
 ```
 
@@ -406,7 +467,8 @@ WordPress success response (`200 OK`):
   "publishedUtc": "2026-06-22T12:00:00+00:00",
   "platformDeletedUtc": null,
   "canPublish": false,
-  "canDeletePublication": true
+  "canDeletePublication": true,
+  "canPreviewPublishingContent": true
 }
 ```
 
@@ -415,9 +477,10 @@ Status codes:
 - `200 OK` when the publish succeeds and the publication row is marked
   `Published`. The response is the computed event-platform row.
 - `400 Bad Request` when the event start is not in the future.
-- `400 Bad Request` when provider-required content is missing. The event must
-  have an English (`en`) description with a non-empty title.
 - `404 Not Found` when the calendar event id or the platform id does not exist.
+- `409 Conflict` when rendered publishing content is invalid. Invalid content
+  includes a missing selected template, an empty rendered title, or an
+  unresolved well-formed placeholder such as `{{ missingToken }}`.
 - `409 Conflict` when the publication is already `Published`.
 - `409 Conflict` when a publish is already in progress (`Publishing`),
   including when a concurrent request wins the start-publishing race.
@@ -478,7 +541,8 @@ same shape as `GET /api/calendar-events/{calendarEventId}`:
   "publishedUtc": null,
   "platformDeletedUtc": null,
   "canPublish": true,
-  "canDeletePublication": false
+  "canDeletePublication": false,
+  "canPreviewPublishingContent": true
 }
 ```
 

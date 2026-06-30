@@ -554,6 +554,39 @@ describe('CalendarEventDetails', () => {
       expect(navigations).toEqual([]);
     });
 
+    it('disables event and platform mutations while publishing content preview is in flight', () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            platforms: [
+              sampleEvent().platforms[0],
+              publishedPlatform({
+                platformId: 'platform-2',
+                platformName: 'Archive site',
+                platformType: 'WordPress',
+              }),
+            ],
+          }),
+        ),
+      );
+      service.getPublishingContent.mockReturnValue(new Subject<EventPlatformPublishingContent>());
+
+      createEditComponent();
+
+      platformPreviewHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+
+      const save = fixture.nativeElement.querySelector(
+        'button[type="submit"]',
+      ) as HTMLButtonElement;
+      expect(save.disabled).toBe(true);
+      expect(deleteButton()!.disabled).toBe(true);
+      expect(cancelButton()!.disabled).toBe(true);
+      expect(platformPreviewButton()!.disabled).toBe(true);
+      expect(platformPublishButton()!.disabled).toBe(true);
+      expect(platformDeletePublicationButton()!.disabled).toBe(true);
+    });
+
     it('publishes a platform row and updates that row from the response', async () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.publishPlatform.mockReturnValue(

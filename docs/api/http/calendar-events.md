@@ -213,7 +213,8 @@ Success response (`200 OK`):
       "publishedUtc": null,
       "platformDeletedUtc": null,
       "canPublish": true,
-      "canDeletePublication": false
+      "canDeletePublication": false,
+      "canPreviewPublishingContent": true
     }
   ]
 }
@@ -236,8 +237,64 @@ Current behavior:
 - `canDeletePublication` is `true` only for an active platform whose
   publication is `Published`, has an `externalResourceId`, and whose calendar
   event start is future by backend UTC time.
+- `canPreviewPublishingContent` is `true` for an active `NotPublished` platform
+  row, for in-progress or published active rows with a stored content snapshot,
+  and for orphan `Published` rows with a stored content snapshot. The details
+  response does not embed rendered title or description content.
 - The `CalendarEventDetails` edit route (`/calendar-events/{calendarEventId}/edit`)
   consumes this endpoint to load an event into the form.
+
+## Get Platform Publishing Content
+
+```text
+GET /api/calendar-events/{calendarEventId}/platforms/{platformId}/publishing-content
+```
+
+Returns row-level publishing content for one calendar event and one platform.
+Requires the `CalendarEvents.Read` scope. Use the `canPreviewPublishingContent`
+flag from the calendar event details row to decide whether to show the action.
+
+For active `NotPublished` rows, the endpoint recalculates current preview
+content from the calendar event, the platform's `publishingContent`, and the
+selected templates. Preview content is not persisted. For `Publishing`,
+`Published`, and orphan `Published` rows with a content snapshot, the endpoint
+returns the stored snapshot.
+
+Success response for a recalculated preview (`200 OK`):
+
+```json
+{
+  "kind": "Preview",
+  "title": "Live on July 4, 2030: English title",
+  "description": "English description"
+}
+```
+
+Success response for a stored snapshot (`200 OK`):
+
+```json
+{
+  "kind": "Snapshot",
+  "title": "Published title",
+  "description": null
+}
+```
+
+Status codes:
+
+- `200 OK` with `kind: "Preview"` for active unpublished rows that can render
+  current content.
+- `200 OK` with `kind: "Snapshot"` for publishing, published, or orphan
+  published rows with stored content snapshots.
+- `404 Not Found` when the calendar event id does not exist.
+- `404 Not Found` when an active platform is required and the platform id does
+  not exist.
+- `409 Conflict` when preview is unavailable for the row state, a selected
+  template is missing, or the rendered title is empty.
+
+Preview leaves unresolved well-formed placeholders visible in the returned
+content. Publish rejects unresolved well-formed placeholders before any provider
+call, as documented in [`platforms.md`](platforms.md).
 
 ## Update Calendar Event
 
@@ -341,6 +398,9 @@ The publication state of an event is part of the calendar event details response
 
 - `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
   publishes the event to one selected platform.
+- `GET /api/calendar-events/{calendarEventId}/platforms/{platformId}/publishing-content`
+  returns a recalculated preview for active unpublished rows or a stored
+  snapshot for rows where publishing has started.
 - `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`
   deletes one completed provider publication and resets the platform row when
   cleanup succeeds.
