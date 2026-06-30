@@ -42,8 +42,8 @@ public sealed class GetPublishingContentApi(GetPublishingContentHandler handler)
         return result.Status switch
         {
             GetPublishingContentStatus.Found => new OkObjectResult(
-                new PublishingContentResponse(
-                    result.Kind!.Value.ToString(),
+                new RenderedPublishingContentResponse(
+                    result.Type!.Value.ToString(),
                     result.Content!.Title,
                     result.Content.Description)),
             GetPublishingContentStatus.CalendarEventNotFound => new NotFoundObjectResult(

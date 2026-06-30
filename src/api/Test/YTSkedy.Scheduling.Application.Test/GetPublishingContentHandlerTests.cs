@@ -20,7 +20,7 @@ public class GetPublishingContentHandlerTests
         var result = await Handle(handler);
 
         Assert.Equal(GetPublishingContentStatus.Found, result.Status);
-        Assert.Equal(PublishingContentKind.Preview, result.Kind);
+        Assert.Equal(PublishingContentType.Preview, result.Type);
         Assert.Equal("English title", result.Content!.Title);
         Assert.Equal("English description", result.Content.Description);
     }
@@ -42,7 +42,7 @@ public class GetPublishingContentHandlerTests
         var result = await Handle(handler);
 
         Assert.Equal(GetPublishingContentStatus.Found, result.Status);
-        Assert.Equal(PublishingContentKind.Preview, result.Kind);
+        Assert.Equal(PublishingContentType.Preview, result.Type);
         Assert.Equal("English title on 2026-06-25", result.Content!.Title);
         Assert.Equal("English description", result.Content.Description);
     }
@@ -58,7 +58,7 @@ public class GetPublishingContentHandlerTests
         var result = await Handle(handler);
 
         Assert.Equal(GetPublishingContentStatus.Found, result.Status);
-        Assert.Equal(PublishingContentKind.Snapshot, result.Kind);
+        Assert.Equal(PublishingContentType.Snapshot, result.Type);
         Assert.Equal("Stored title", result.Content!.Title);
         Assert.Null(result.Content.Description);
     }
@@ -77,7 +77,7 @@ public class GetPublishingContentHandlerTests
         var result = await Handle(handler);
 
         Assert.Equal(GetPublishingContentStatus.Found, result.Status);
-        Assert.Equal(PublishingContentKind.Snapshot, result.Kind);
+        Assert.Equal(PublishingContentType.Snapshot, result.Type);
         Assert.Equal("Stored title", result.Content!.Title);
         Assert.Equal("Stored description", result.Content.Description);
     }
@@ -164,7 +164,7 @@ public class GetPublishingContentHandlerTests
         var result = await Handle(handler);
 
         Assert.Equal(GetPublishingContentStatus.Found, result.Status);
-        Assert.Equal(PublishingContentKind.Preview, result.Kind);
+        Assert.Equal(PublishingContentType.Preview, result.Type);
         Assert.Equal("{{ unknownToken }}", result.Content!.Title);
     }
 

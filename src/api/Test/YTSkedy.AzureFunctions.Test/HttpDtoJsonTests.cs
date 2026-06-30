@@ -126,7 +126,7 @@ public sealed class HttpDtoJsonTests
                 "editor",
                 "publish",
                 true),
-            new YTSkedy.AzureFunctions.Platforms.PublishingContentResponse(
+            new PlatformPublishingContentResponse(
                 "title-template",
                 null));
 
@@ -145,6 +145,25 @@ public sealed class HttpDtoJsonTests
         Assert.True(settings.GetProperty("applicationPasswordConfigured").GetBoolean());
         Assert.DoesNotContain("applicationPassword\":\"", json);
         Assert.DoesNotContain("application-password", json);
+    }
+
+    [Fact]
+    public void RenderedPublishingContentResponse_SerializesTypeWithWebDefaults()
+    {
+        object response = new RenderedPublishingContentResponse(
+            "Preview",
+            "Rendered title",
+            "Rendered description");
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+
+        Assert.Equal("Preview", root.GetProperty("type").GetString());
+        Assert.Equal("Rendered title", root.GetProperty("title").GetString());
+        Assert.Equal("Rendered description", root.GetProperty("description").GetString());
+        Assert.False(root.TryGetProperty("kind", out _));
     }
 
     [Fact]

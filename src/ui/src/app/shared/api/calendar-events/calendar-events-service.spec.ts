@@ -314,7 +314,7 @@ describe('CalendarEventsService', () => {
 
   it('gets row-level publishing content for an event platform', () => {
     const apiResponse = {
-      kind: 'Preview' as const,
+      type: 'Preview' as const,
       title: 'Rendered title',
       description: 'Rendered description',
     };

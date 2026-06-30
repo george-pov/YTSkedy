@@ -5,6 +5,6 @@ namespace YTSkedy.AzureFunctions.Platforms;
 /// reads. Null template ids mean the backend calculates that field from the
 /// calendar event.
 /// </summary>
-internal sealed record PublishingContentResponse(
+internal sealed record PlatformPublishingContentResponse(
     string? TitleTemplateId,
     string? DescriptionTemplateId);

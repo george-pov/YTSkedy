@@ -12,7 +12,7 @@ import {
 } from './calendar-events-endpoint';
 
 export type CalendarEventPlatformStatus = 'NotPublished' | 'Publishing' | 'Published';
-export type PublishingContentKind = 'Preview' | 'Snapshot';
+export type PublishingContentType = 'Preview' | 'Snapshot';
 
 interface CalendarEventFields {
   calendarEventId: string;
@@ -41,7 +41,7 @@ export interface CalendarEventPlatform {
 }
 
 export interface EventPlatformPublishingContent {
-  kind: PublishingContentKind;
+  type: PublishingContentType;
   title: string;
   description: string | null;
 }

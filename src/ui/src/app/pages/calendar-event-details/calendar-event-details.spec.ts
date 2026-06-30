@@ -490,7 +490,7 @@ describe('CalendarEventDetails', () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.getPublishingContent.mockReturnValue(
         of({
-          kind: 'Preview',
+          type: 'Preview',
           title: 'Rendered title',
           description: 'Rendered description',
         }),
@@ -516,7 +516,7 @@ describe('CalendarEventDetails', () => {
       service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
       service.getPublishingContent.mockReturnValue(
         of({
-          kind: 'Snapshot',
+          type: 'Snapshot',
           title: 'Published title',
           description: null,
         }),

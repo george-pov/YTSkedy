@@ -1,6 +1,6 @@
 namespace YTSkedy.Scheduling.Application.Platforms;
 
-public enum PublishingContentKind
+public enum PublishingContentType
 {
     Preview,
     Snapshot

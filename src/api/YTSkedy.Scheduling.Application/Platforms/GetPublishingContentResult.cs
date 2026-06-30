@@ -4,7 +4,7 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 
 public sealed record GetPublishingContentResult(
     GetPublishingContentStatus Status,
-    PublishingContentKind? Kind,
+    PublishingContentType? Type,
     RenderedContent? Content)
 {
     public static GetPublishingContentResult Preview(RenderedContent content)
@@ -13,7 +13,7 @@ public sealed record GetPublishingContentResult(
 
         return new(
             GetPublishingContentStatus.Found,
-            PublishingContentKind.Preview,
+            PublishingContentType.Preview,
             content);
     }
 
@@ -23,7 +23,7 @@ public sealed record GetPublishingContentResult(
 
         return new(
             GetPublishingContentStatus.Found,
-            PublishingContentKind.Snapshot,
+            PublishingContentType.Snapshot,
             new RenderedContent(snapshot.Title, snapshot.Description));
     }
 

@@ -365,9 +365,9 @@ public sealed class PlatformsApi(
             referenceKey,
             type.ToString(),
             PlatformPublishSettingsHttpMapper.ToResponse(publishSettings),
-            ToPublishingContentResponse(publishingContent ?? PublishingContent.None));
+            ToPlatformPublishingContentResponse(publishingContent ?? PublishingContent.None));
 
-    internal static PublishingContentResponse ToPublishingContentResponse(
+    internal static PlatformPublishingContentResponse ToPlatformPublishingContentResponse(
         PublishingContent publishingContent) =>
         new(
             publishingContent.TitleTemplateId,

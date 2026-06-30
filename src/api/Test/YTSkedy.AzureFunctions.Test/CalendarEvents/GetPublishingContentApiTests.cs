@@ -12,11 +12,11 @@ public sealed class GetPublishingContentApiTests
     private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
 
     [Theory]
-    [InlineData(PublishingContentKind.Preview, "Preview")]
-    [InlineData(PublishingContentKind.Snapshot, "Snapshot")]
-    public void ToResult_Found_Returns200WithContent(PublishingContentKind kind, string expectedKind)
+    [InlineData(PublishingContentType.Preview, "Preview")]
+    [InlineData(PublishingContentType.Snapshot, "Snapshot")]
+    public void ToResult_Found_Returns200WithContent(PublishingContentType type, string expectedType)
     {
-        var result = kind == PublishingContentKind.Preview
+        var result = type == PublishingContentType.Preview
             ? GetPublishingContentResult.Preview(
                 new RenderedContent("Rendered title", "Rendered description"))
             : GetPublishingContentResult.Snapshot(
@@ -29,8 +29,8 @@ public sealed class GetPublishingContentApiTests
 
         var ok = Assert.IsType<OkObjectResult>(actionResult);
         Assert.Equal(StatusCodes.Status200OK, ok.StatusCode);
-        var body = Assert.IsType<PublishingContentResponse>(ok.Value);
-        Assert.Equal(expectedKind, body.Kind);
+        var body = Assert.IsType<RenderedPublishingContentResponse>(ok.Value);
+        Assert.Equal(expectedType, body.Type);
         Assert.Equal("Rendered title", body.Title);
         Assert.Equal("Rendered description", body.Description);
     }
