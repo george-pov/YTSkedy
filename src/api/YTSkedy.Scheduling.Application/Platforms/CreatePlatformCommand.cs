@@ -6,4 +6,5 @@ public sealed record CreatePlatformCommand(
     string Name,
     PlatformType Type,
     PublishSettings PublishSettings,
+    PublishingContent PublishingContent,
     string? ReferenceKey = null);

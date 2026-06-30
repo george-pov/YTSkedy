@@ -8,4 +8,5 @@ internal sealed record CreatePlatformRequest(
     string? Name,
     string? Type,
     string? ReferenceKey,
-    PublishSettingsPayload? PublishSettings);
+    PublishSettingsPayload? PublishSettings,
+    PublishingContentPayload? PublishingContent = null);

@@ -4,5 +4,6 @@ public enum CreatePlatformStatus
 {
     Created,
     NameAlreadyExists,
-    ReferenceKeyAlreadyExists
+    ReferenceKeyAlreadyExists,
+    LinkedTemplateNotFound
 }

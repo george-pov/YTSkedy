@@ -1,13 +1,19 @@
+using YTSkedy.Scheduling.Application.Templates;
+using YTSkedy.Scheduling.Domain.Platforms;
+
 namespace YTSkedy.Scheduling.Application.Platforms;
 
 /// <summary>
-/// Creates a configured platform. The handler builds the domain
-/// <see cref="Domain.Platforms.Platform"/>, which re-validates name and settings
-/// as defense in depth behind the API boundary, then delegates to the
-/// repository, which owns name-uniqueness enforcement and id generation. The
-/// repository outcome, including the new id on success, is returned unchanged.
+/// Creates a configured platform. Publishing-content template ids are validated
+/// against the platform type before the handler builds the domain
+/// <see cref="Platform"/>, which re-validates name and settings as defense in
+/// depth behind the API boundary. The repository owns name-uniqueness
+/// enforcement and id generation. The repository outcome, including the new id
+/// on success, is returned unchanged.
 /// </summary>
-public sealed class CreatePlatformHandler(IPlatformModifier platforms)
+public sealed class CreatePlatformHandler(
+    IPlatformModifier platforms,
+    ITemplateReader templates)
 {
     public async Task<CreatePlatformResult> HandleAsync(
         CreatePlatformCommand command,
@@ -15,11 +21,21 @@ public sealed class CreatePlatformHandler(IPlatformModifier platforms)
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var platform = new Domain.Platforms.Platform(
+        if (!await TemplateLinkValidator.TemplatesExistAsync(
+                templates,
+                command.Type,
+                command.PublishingContent,
+                cancellationToken))
+        {
+            return CreatePlatformResult.LinkedTemplateNotFound();
+        }
+
+        var platform = new Platform(
             command.Name,
             command.Type,
             command.PublishSettings,
-            command.ReferenceKey);
+            command.ReferenceKey,
+            command.PublishingContent);
 
         return await platforms.CreateAsync(platform, cancellationToken);
     }

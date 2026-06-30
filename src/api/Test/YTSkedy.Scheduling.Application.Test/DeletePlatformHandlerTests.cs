@@ -173,6 +173,7 @@ public class DeletePlatformHandlerTests
             string name,
             string? referenceKey,
             PublishSettings publishSettings,
+            PublishingContent publishingContent,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

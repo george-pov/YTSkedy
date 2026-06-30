@@ -48,6 +48,10 @@ public sealed class HttpDtoJsonTests
               "name": "Main YouTube channel",
               "type": "YouTube",
               "referenceKey": "youTube1",
+              "publishingContent": {
+                "titleTemplateId": "title-template",
+                "descriptionTemplateId": null
+              },
               "publishSettings": {
                 "credentials": {
                   "clientId": "client-id",
@@ -66,6 +70,9 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("Main YouTube channel", request.Name);
         Assert.Equal("YouTube", request.Type);
         Assert.Equal("youTube1", request.ReferenceKey);
+        Assert.NotNull(request.PublishingContent);
+        Assert.Equal("title-template", request.PublishingContent.TitleTemplateId);
+        Assert.Null(request.PublishingContent.DescriptionTemplateId);
         Assert.NotNull(request.PublishSettings);
         Assert.NotNull(request.PublishSettings.Credentials);
         Assert.Equal("client-id", request.PublishSettings.Credentials.ClientId);
@@ -118,7 +125,8 @@ public sealed class HttpDtoJsonTests
                 "https://example.com",
                 "editor",
                 "publish",
-                true));
+                true),
+            new PublishingContentResponse("title-template", null));
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
 
@@ -127,6 +135,9 @@ public sealed class HttpDtoJsonTests
 
         Assert.Equal("https://example.com", settings.GetProperty("siteUrl").GetString());
         Assert.Equal("company-blog", document.RootElement.GetProperty("referenceKey").GetString());
+        var publishingContent = document.RootElement.GetProperty("publishingContent");
+        Assert.Equal("title-template", publishingContent.GetProperty("titleTemplateId").GetString());
+        Assert.True(publishingContent.GetProperty("descriptionTemplateId").ValueKind == JsonValueKind.Null);
         Assert.Equal("editor", settings.GetProperty("username").GetString());
         Assert.Equal("publish", settings.GetProperty("postStatus").GetString());
         Assert.True(settings.GetProperty("applicationPasswordConfigured").GetBoolean());
@@ -143,7 +154,7 @@ public sealed class HttpDtoJsonTests
                     "9f8b1c2d3e4f",
                     "Weeknight stream",
                     "YouTube",
-                    "Live at {{ localizedTime }}")
+                    "Live on {{ longDate }}")
             ]);
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
@@ -155,6 +166,6 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("9f8b1c2d3e4f", template.GetProperty("id").GetString());
         Assert.Equal("Weeknight stream", template.GetProperty("name").GetString());
         Assert.Equal("YouTube", template.GetProperty("type").GetString());
-        Assert.Equal("Live at {{ localizedTime }}", template.GetProperty("content").GetString());
+        Assert.Equal("Live on {{ longDate }}", template.GetProperty("content").GetString());
     }
 }

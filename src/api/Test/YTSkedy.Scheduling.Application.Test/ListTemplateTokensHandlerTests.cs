@@ -1,5 +1,4 @@
 using YTSkedy.Scheduling.Application.Templates;
-using YTSkedy.Scheduling.Domain.Templates;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
@@ -12,6 +11,17 @@ public class ListTemplateTokensHandlerTests
 
         var tokens = handler.Handle();
 
-        Assert.Equal(TemplateTokenCatalog.All, tokens);
+        Assert.Equal(
+            [
+                "title",
+                "description",
+                "titleRu",
+                "descriptionRu",
+                "longDate",
+                "longDateRu",
+                "shortDate",
+                "shortDateRu"
+            ],
+            tokens.Select(token => token.Name));
     }
 }

@@ -48,6 +48,30 @@ public sealed class AzurePlatformRepositoryTests
     }
 
     [Fact]
+    public async Task CreateAsync_WithPublishingContent_ReadAndListPreserveTemplateIds()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+
+        var result = await repository.CreateAsync(
+            YouTubePlatform(
+                "Main YouTube channel",
+                referenceKey: null,
+                publishingContent: new PublishingContent("title-template", "description-template")),
+            CancellationToken.None);
+
+        var read = await repository.GetAsync(result.PlatformId!, CancellationToken.None);
+        var listed = await repository.ListAsync(null, CancellationToken.None);
+
+        Assert.NotNull(read);
+        Assert.Equal("title-template", read.PublishingContent.TitleTemplateId);
+        Assert.Equal("description-template", read.PublishingContent.DescriptionTemplateId);
+        Assert.Contains(listed, view => view.PlatformId == result.PlatformId &&
+            view.PublishingContent.TitleTemplateId == "title-template" &&
+            view.PublishingContent.DescriptionTemplateId == "description-template");
+    }
+
+    [Fact]
     public async Task CreateAsync_DuplicateReferenceKeyDifferentCasing_ReturnsReferenceKeyAlreadyExists()
     {
         var tableClient = new InMemoryTableClient();
@@ -78,6 +102,7 @@ public sealed class AzurePlatformRepositoryTests
             "Main YouTube channel",
             "WP-1",
             YouTubeSettings(),
+            PublishingContent.None,
             CancellationToken.None);
         var read = await repository.GetAsync(create.PlatformId!, CancellationToken.None);
 
@@ -100,6 +125,7 @@ public sealed class AzurePlatformRepositoryTests
             "Main YouTube channel",
             "wp-1",
             YouTubeSettings(),
+            PublishingContent.None,
             CancellationToken.None);
         var read = await repository.GetAsync(create.PlatformId!, CancellationToken.None);
 
@@ -125,9 +151,37 @@ public sealed class AzurePlatformRepositoryTests
             "Backup YouTube channel",
             "wp-1",
             YouTubeSettings(),
+            PublishingContent.None,
             CancellationToken.None);
 
         Assert.Equal(UpdatePlatformResult.ReferenceKeyAlreadyExists, result);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_PublishingContent_ReplacesTemplateIds()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        var create = await repository.CreateAsync(
+            YouTubePlatform(
+                "Main YouTube channel",
+                referenceKey: null,
+                publishingContent: new PublishingContent("old-title", null)),
+            CancellationToken.None);
+
+        var result = await repository.UpdateAsync(
+            create.PlatformId!,
+            "Main YouTube channel",
+            null,
+            YouTubeSettings(),
+            new PublishingContent(null, "new-description"),
+            CancellationToken.None);
+        var read = await repository.GetAsync(create.PlatformId!, CancellationToken.None);
+
+        Assert.Equal(UpdatePlatformResult.Updated, result);
+        Assert.NotNull(read);
+        Assert.Null(read.PublishingContent.TitleTemplateId);
+        Assert.Equal("new-description", read.PublishingContent.DescriptionTemplateId);
     }
 
     [Fact]
@@ -152,8 +206,11 @@ public sealed class AzurePlatformRepositoryTests
         new(tableClient, new FixedTimeProvider(
             new DateTimeOffset(2026, 06, 27, 12, 00, 00, TimeSpan.Zero)));
 
-    private static Platform YouTubePlatform(string name, string? referenceKey) =>
-        new(name, PlatformType.YouTube, YouTubeSettings(), referenceKey);
+    private static Platform YouTubePlatform(
+        string name,
+        string? referenceKey,
+        PublishingContent? publishingContent = null) =>
+        new(name, PlatformType.YouTube, YouTubeSettings(), referenceKey, publishingContent);
 
     private static YouTubeSettings YouTubeSettings() =>
         new(
@@ -269,6 +326,8 @@ public sealed class AzurePlatformRepositoryTests
                 Name = entity.Name,
                 ReferenceKey = entity.ReferenceKey,
                 Type = entity.Type,
+                TitleTemplateId = entity.TitleTemplateId,
+                DescriptionTemplateId = entity.DescriptionTemplateId,
                 PublishSettingsJson = entity.PublishSettingsJson,
                 CreatedUtc = entity.CreatedUtc,
                 UpdatedUtc = entity.UpdatedUtc

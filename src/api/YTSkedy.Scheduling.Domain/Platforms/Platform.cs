@@ -2,13 +2,14 @@ namespace YTSkedy.Scheduling.Domain.Platforms;
 
 /// <summary>
 /// Create-input for a configured publishing destination. Carries the editable
-/// name, the immutable provider type, and the type-specific publish settings.
-/// Mirrors <see cref="Templates.Template"/>: it holds no persisted id because
-/// the repository generates the id on create. The constructor enforces the same
-/// non-empty name rule and optional reference-key rule the API boundary exposes
-/// through <see cref="IsValidName"/> and <see cref="IsValidReferenceKey"/>, so
-/// the boundary and the domain share one source of truth. The name and
-/// reference key are trimmed so stored and compared values are stable.
+/// name, the immutable provider type, platform-owned publishing content, and
+/// the type-specific publish settings. Mirrors <see cref="Templates.Template"/>:
+/// it holds no persisted id because the repository generates the id on create.
+/// The constructor enforces the same non-empty name rule and optional
+/// reference-key rule the API boundary exposes through <see cref="IsValidName"/>
+/// and <see cref="IsValidReferenceKey"/>, so the boundary and the domain share
+/// one source of truth. The name and reference key are trimmed so stored and
+/// compared values are stable.
 /// </summary>
 public sealed class Platform
 {
@@ -20,7 +21,8 @@ public sealed class Platform
         string name,
         PlatformType type,
         PublishSettings publishSettings,
-        string? referenceKey = null)
+        string? referenceKey = null,
+        PublishingContent? publishingContent = null)
     {
         ArgumentNullException.ThrowIfNull(publishSettings);
 
@@ -42,6 +44,7 @@ public sealed class Platform
         Type = type;
         PublishSettings = publishSettings;
         ReferenceKey = NormalizeReferenceKey(referenceKey);
+        PublishingContent = publishingContent ?? PublishingContent.None;
     }
 
     public string Name { get; }
@@ -51,6 +54,8 @@ public sealed class Platform
     public PublishSettings PublishSettings { get; }
 
     public string? ReferenceKey { get; }
+
+    public PublishingContent PublishingContent { get; }
 
     /// <summary>
     /// True when <paramref name="name"/> is non-empty (ignoring surrounding

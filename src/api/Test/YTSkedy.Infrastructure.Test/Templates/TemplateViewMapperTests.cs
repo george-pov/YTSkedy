@@ -12,14 +12,14 @@ public class TemplateViewMapperTests
             "9f8b1c2d3e4f",
             "Weeknight stream",
             "YouTube",
-            "Live at {{ localizedTime }}");
+            "Live on {{ longDate }}");
 
         var view = TemplateViewMapper.ToView(entity);
 
         Assert.Equal("9f8b1c2d3e4f", view.Id);
         Assert.Equal("Weeknight stream", view.Name);
         Assert.Equal(TemplateType.YouTube, view.Type);
-        Assert.Equal("Live at {{ localizedTime }}", view.Content);
+        Assert.Equal("Live on {{ longDate }}", view.Content);
     }
 
     [Fact]

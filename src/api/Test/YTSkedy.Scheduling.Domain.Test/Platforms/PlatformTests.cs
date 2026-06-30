@@ -23,6 +23,24 @@ public class PlatformTests
         Assert.Equal(PlatformType.YouTube, platform.Type);
         Assert.Same(Settings, platform.PublishSettings);
         Assert.Equal("main-youtube", platform.ReferenceKey);
+        Assert.Same(PublishingContent.None, platform.PublishingContent);
+    }
+
+    [Fact]
+    public void Constructor_PublishingContent_SetsProperty()
+    {
+        var publishingContent = new PublishingContent(
+            "title-template",
+            "description-template");
+
+        var platform = new Platform(
+            "Main YouTube channel",
+            PlatformType.YouTube,
+            Settings,
+            "main-youtube",
+            publishingContent);
+
+        Assert.Same(publishingContent, platform.PublishingContent);
     }
 
     [Fact]

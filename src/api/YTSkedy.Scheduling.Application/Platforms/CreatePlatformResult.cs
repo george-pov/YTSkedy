@@ -9,6 +9,9 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// <see cref="CreatePlatformStatus.ReferenceKeyAlreadyExists"/> maps to 409
 /// because another platform already uses the same non-empty reference key,
 /// compared case-insensitively.
+/// <see cref="CreatePlatformStatus.LinkedTemplateNotFound"/> maps to 400
+/// because a publishing-content template id does not exist for the platform
+/// type.
 /// </summary>
 public sealed record CreatePlatformResult(
     CreatePlatformStatus Status,
@@ -22,4 +25,7 @@ public sealed record CreatePlatformResult(
 
     public static CreatePlatformResult ReferenceKeyAlreadyExists() =>
         new(CreatePlatformStatus.ReferenceKeyAlreadyExists, null);
+
+    public static CreatePlatformResult LinkedTemplateNotFound() =>
+        new(CreatePlatformStatus.LinkedTemplateNotFound, null);
 }

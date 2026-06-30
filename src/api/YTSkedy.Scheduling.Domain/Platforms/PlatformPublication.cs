@@ -20,7 +20,8 @@ public sealed record PlatformPublication(
     DateTimeOffset? PublishedUtc,
     DateTimeOffset? PlatformDeletedUtc,
     DateTimeOffset UpdatedUtc,
-    PublicationTargetSnapshot? TargetSnapshot = null)
+    PublicationTargetSnapshot? TargetSnapshot = null,
+    ContentSnapshot? ContentSnapshot = null)
 {
     /// <summary>
     /// True when the platform this publication targeted has been deleted, so the

@@ -9,4 +9,5 @@ namespace YTSkedy.AzureFunctions.Platforms;
 internal sealed record UpdatePlatformRequest(
     string? Name,
     string? ReferenceKey,
-    PublishSettingsPayload? PublishSettings);
+    PublishSettingsPayload? PublishSettings,
+    PublishingContentPayload? PublishingContent = null);

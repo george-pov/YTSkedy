@@ -200,7 +200,17 @@ such as `ProcessAsync` or `SubmitAsync`.
 - `template type`: Provider family associated with a template, currently
   `YouTube` or `WordPress`.
 - `template token`: Code-defined placeholder token available to template
-  content, such as `localizedDate`.
+  content, such as `longDate`.
+- `publishing content`: Platform-owned title and description template selection
+  used for provider publishing. When no template is selected, the backend
+  calculates the field from the calendar event. It is not provider credentials
+  or provider-specific options.
+- `rendered publishing content`: Title and description text produced by the
+  backend from a calendar event and platform publishing content. It is
+  recalculated for unpublished previews and is transient before publish.
+- `content snapshot`: Rendered title and description stored on a platform
+  publication when publish starts. It records what YTSkedy sent, or attempted
+  to send, to the provider.
 - `broadcast`: YouTube `liveBroadcast` resource metadata, including title,
   description, visibility, made-for-kids state, and scheduled start.
 - `publisher`: Application port (`IPlatformPublisher`) or provider adapter that
@@ -263,6 +273,9 @@ Shorter names are acceptable for:
 | `TemplateTokenCatalog` | Code-defined source of available template tokens. | `Catalog` is acceptable inside template-token-specific code. |
 | `Platform` | Configured publishing destination. | `Destination` is acceptable only for user-facing copy when it is clearer. |
 | `ReferenceKey` | Optional provider-neutral lookup key on a configured platform. Uniqueness and lookup are case-insensitive while display casing is preserved. | Use `referenceKey` in HTTP and TypeScript shapes. Avoid provider-specific variants such as `YouTubeReferenceKey`. |
+| `PublishingContent` | Platform-owned title and description template selection rendered before publishing. | Use `publishingContent` in HTTP and TypeScript shapes. Keep separate from `PublishSettings`. |
+| `RenderedContent` | Title and description text rendered from a calendar event and platform publishing content. | Keep transient for unpublished rows. Persist as a `ContentSnapshot` only when publish starts. |
+| `ContentSnapshot` | Rendered title and description stored on a platform publication. | Use inside platform-publication code where snapshot context is clear. |
 | `PublishSettings` | Provider-specific settings used when publishing through a platform. May be secret-bearing. | Avoid `DefaultPublishingSettings`; create a new platform when settings differ. |
 | `YouTubeSettings` | YouTube-specific publish settings used by a YouTube platform. | `PublishSettings` is acceptable inside YouTube-platform-specific code. |
 | `PlatformPublication` | Publish state for one calendar event on one platform. | `Publication` is acceptable inside platform-specific namespaces, types, or tests. |

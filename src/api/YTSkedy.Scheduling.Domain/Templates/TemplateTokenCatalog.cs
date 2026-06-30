@@ -11,9 +11,13 @@ public static class TemplateTokenCatalog
 {
     public static IReadOnlyList<TemplateToken> All { get; } =
     [
-        new TemplateToken("localizedDate"),
-        new TemplateToken("localizedTime"),
-        new TemplateToken("youTubeBroadcastId"),
-        new TemplateToken("calendarEventTitle")
+        new TemplateToken("title"),
+        new TemplateToken("description"),
+        new TemplateToken("titleRu"),
+        new TemplateToken("descriptionRu"),
+        new TemplateToken("longDate"),
+        new TemplateToken("longDateRu"),
+        new TemplateToken("shortDate"),
+        new TemplateToken("shortDateRu")
     ];
 }

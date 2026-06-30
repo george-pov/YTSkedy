@@ -10,4 +10,5 @@ internal sealed record PlatformResponse(
     string Name,
     string? ReferenceKey,
     string Type,
-    PublishSettingsResponse PublishSettings);
+    PublishSettingsResponse PublishSettings,
+    PublishingContentResponse PublishingContent);

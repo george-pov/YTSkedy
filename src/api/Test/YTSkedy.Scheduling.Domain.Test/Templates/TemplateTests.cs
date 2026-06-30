@@ -10,11 +10,11 @@ public class TemplateTests
         var template = new Template(
             "Weeknight stream",
             TemplateType.YouTube,
-            "Live at {{ localizedTime }}");
+            "Live on {{ longDate }}");
 
         Assert.Equal("Weeknight stream", template.Name);
         Assert.Equal(TemplateType.YouTube, template.Type);
-        Assert.Equal("Live at {{ localizedTime }}", template.Content);
+        Assert.Equal("Live on {{ longDate }}", template.Content);
     }
 
     [Fact]

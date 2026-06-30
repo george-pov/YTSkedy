@@ -18,7 +18,10 @@ internal static class PlatformViewMapper
             entity.Name,
             entity.ReferenceKey,
             type,
-            publishSettings);
+            publishSettings,
+            new PublishingContent(
+                entity.TitleTemplateId,
+                entity.DescriptionTemplateId));
     }
 
     internal static IReadOnlyList<PlatformView> ToViews(IEnumerable<PlatformEntity> entities)

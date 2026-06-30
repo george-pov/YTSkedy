@@ -11,17 +11,21 @@ public class TemplateTokenCatalogTests
 
         Assert.Equal(
             [
-                "localizedDate",
-                "localizedTime",
-                "youTubeBroadcastId",
-                "calendarEventTitle"
+                "title",
+                "description",
+                "titleRu",
+                "descriptionRu",
+                "longDate",
+                "longDateRu",
+                "shortDate",
+                "shortDateRu"
             ],
             names);
     }
 
     [Fact]
-    public void All_HasFourTokens()
+    public void All_HasEightTokens()
     {
-        Assert.Equal(4, TemplateTokenCatalog.All.Count);
+        Assert.Equal(8, TemplateTokenCatalog.All.Count);
     }
 }

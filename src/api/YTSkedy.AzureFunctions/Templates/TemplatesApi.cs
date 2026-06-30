@@ -267,8 +267,8 @@ public sealed class TemplatesApi(
         };
 
     /// <summary>
-    /// Maps a delete outcome to its HTTP result. Deleted is 204; an unknown id is
-    /// 404.
+    /// Maps a delete outcome to its HTTP result. Deleted is 204; an unknown id
+    /// is 404; a referenced template is 409.
     /// </summary>
     internal static IActionResult ToDeleteResult(
         DeleteTemplateResult result,
@@ -278,6 +278,8 @@ public sealed class TemplatesApi(
             DeleteTemplateResult.Deleted => new NoContentResult(),
             DeleteTemplateResult.NotFound => new NotFoundObjectResult(
                 $"Template '{id}' was not found."),
+            DeleteTemplateResult.ReferencedByPlatform => new ConflictObjectResult(
+                $"Template '{id}' is referenced by a platform."),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
 

@@ -17,6 +17,8 @@ public class PlatformViewMapperTests
         Assert.Null(view.ReferenceKey);
         Assert.Equal(PlatformType.YouTube, view.Type);
         Assert.IsType<YouTubeSettings>(view.PublishSettings);
+        Assert.Null(view.PublishingContent.TitleTemplateId);
+        Assert.Null(view.PublishingContent.DescriptionTemplateId);
     }
 
     [Fact]
@@ -38,6 +40,19 @@ public class PlatformViewMapperTests
         var view = PlatformViewMapper.ToView(entity);
 
         Assert.Null(view.ReferenceKey);
+    }
+
+    [Fact]
+    public void ToView_EntityWithPublishingContent_MapsTemplateIds()
+    {
+        var entity = CreateEntity("YouTube");
+        entity.TitleTemplateId = "title-template";
+        entity.DescriptionTemplateId = "description-template";
+
+        var view = PlatformViewMapper.ToView(entity);
+
+        Assert.Equal("title-template", view.PublishingContent.TitleTemplateId);
+        Assert.Equal("description-template", view.PublishingContent.DescriptionTemplateId);
     }
 
     [Fact]

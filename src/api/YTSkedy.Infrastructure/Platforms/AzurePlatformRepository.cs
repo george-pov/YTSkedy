@@ -58,6 +58,8 @@ public sealed class AzurePlatformRepository(
             Name = platform.Name,
             ReferenceKey = platform.ReferenceKey,
             Type = platform.Type.ToString(),
+            TitleTemplateId = platform.PublishingContent.TitleTemplateId,
+            DescriptionTemplateId = platform.PublishingContent.DescriptionTemplateId,
             PublishSettingsJson = PublishSettingsSerializer.Serialize(
                 platform.Type,
                 platform.PublishSettings),
@@ -75,11 +77,13 @@ public sealed class AzurePlatformRepository(
         string name,
         string? referenceKey,
         PublishSettings publishSettings,
+        PublishingContent publishingContent,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(publishSettings);
+        ArgumentNullException.ThrowIfNull(publishingContent);
 
         var rowKey = RowKeyFor(platformId);
 
@@ -115,6 +119,8 @@ public sealed class AzurePlatformRepository(
         var type = PlatformViewMapper.ParseType(entity.Type);
         entity.Name = trimmedName;
         entity.ReferenceKey = normalizedReferenceKey;
+        entity.TitleTemplateId = publishingContent.TitleTemplateId;
+        entity.DescriptionTemplateId = publishingContent.DescriptionTemplateId;
         entity.PublishSettingsJson = PublishSettingsSerializer.Serialize(
             type,
             publishSettings);

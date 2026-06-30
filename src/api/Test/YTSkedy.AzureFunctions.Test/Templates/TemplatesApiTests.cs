@@ -45,14 +45,14 @@ public sealed class TemplatesApiTests
         var request = new CreateTemplateRequest(
             "Weeknight stream",
             "YouTube",
-            "Live at {{ localizedTime }}");
+            "Live on {{ longDate }}");
 
         var built = TemplatesApi.TryBuildCreateCommand(request, out var command, out _);
 
         Assert.True(built);
         Assert.Equal("Weeknight stream", command.Name);
         Assert.Equal(TemplateType.YouTube, command.Type);
-        Assert.Equal("Live at {{ localizedTime }}", command.Content);
+        Assert.Equal("Live on {{ longDate }}", command.Content);
     }
 
     [Fact]
@@ -267,6 +267,17 @@ public sealed class TemplatesApiTests
     }
 
     [Fact]
+    public void ToDeleteResult_ReferencedByPlatform_Returns409()
+    {
+        var actionResult = TemplatesApi.ToDeleteResult(
+            DeleteTemplateResult.ReferencedByPlatform,
+            "9f8b1c2d3e4f");
+
+        var conflict = Assert.IsType<ConflictObjectResult>(actionResult);
+        Assert.Equal(StatusCodes.Status409Conflict, conflict.StatusCode);
+    }
+
+    [Fact]
     public void ToListResponse_Views_MapEveryField()
     {
         var views = new[]
@@ -301,7 +312,16 @@ public sealed class TemplatesApiTests
         var response = TemplatesApi.ToTokenListResponse(TemplateTokenCatalog.All);
 
         Assert.Equal(
-            ["localizedDate", "localizedTime", "youTubeBroadcastId", "calendarEventTitle"],
+            [
+                "title",
+                "description",
+                "titleRu",
+                "descriptionRu",
+                "longDate",
+                "longDateRu",
+                "shortDate",
+                "shortDateRu"
+            ],
             response.Tokens.Select(token => token.Name));
     }
 }

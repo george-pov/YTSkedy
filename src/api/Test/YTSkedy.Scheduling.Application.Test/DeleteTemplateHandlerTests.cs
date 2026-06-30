@@ -1,4 +1,6 @@
+using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Templates;
+using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.Domain.Templates;
 
 namespace YTSkedy.Scheduling.Application.Test;
@@ -12,7 +14,8 @@ public class DeleteTemplateHandlerTests
         {
             DeleteResult = DeleteTemplateResult.Deleted
         };
-        var handler = new DeleteTemplateHandler(modifier);
+        var platforms = new FakePlatformReader([]);
+        var handler = new DeleteTemplateHandler(modifier, platforms);
         var command = new DeleteTemplateCommand(TemplateType.YouTube, "9f8b1c2d3e4f");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -21,6 +24,7 @@ public class DeleteTemplateHandlerTests
         Assert.Equal(1, modifier.DeleteCallCount);
         Assert.Equal(TemplateType.YouTube, modifier.DeletedType);
         Assert.Equal("9f8b1c2d3e4f", modifier.DeletedId);
+        Assert.Equal(PlatformType.YouTube, platforms.RequestedType);
     }
 
     [Theory]
@@ -30,7 +34,7 @@ public class DeleteTemplateHandlerTests
         DeleteTemplateResult modifierResult)
     {
         var modifier = new FakeTemplateModifier { DeleteResult = modifierResult };
-        var handler = new DeleteTemplateHandler(modifier);
+        var handler = new DeleteTemplateHandler(modifier, new FakePlatformReader([]));
         var command = new DeleteTemplateCommand(TemplateType.WordPress, "9f8b1c2d3e4f");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -39,9 +43,35 @@ public class DeleteTemplateHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_TemplateReferencedByPlatform_ReturnsReferencedByPlatform()
+    {
+        var modifier = new FakeTemplateModifier();
+        var handler = new DeleteTemplateHandler(
+            modifier,
+            new FakePlatformReader(
+                [
+                    new PlatformView(
+                        "p1",
+                        "Main channel",
+                        null,
+                        PlatformType.YouTube,
+                        YouTubeSettings(),
+                        new PublishingContent("9f8b1c2d3e4f", null))
+                ]));
+        var command = new DeleteTemplateCommand(TemplateType.YouTube, "9f8b1c2d3e4f");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(DeleteTemplateResult.ReferencedByPlatform, result);
+        Assert.Equal(0, modifier.DeleteCallCount);
+    }
+
+    [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var handler = new DeleteTemplateHandler(new FakeTemplateModifier());
+        var handler = new DeleteTemplateHandler(
+            new FakeTemplateModifier(),
+            new FakePlatformReader([]));
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
@@ -80,4 +110,29 @@ public class DeleteTemplateHandlerTests
             return Task.FromResult(DeleteResult);
         }
     }
+
+    private sealed class FakePlatformReader(IReadOnlyList<PlatformView> platforms) : IPlatformReader
+    {
+        public PlatformType? RequestedType { get; private set; }
+
+        public Task<IReadOnlyList<PlatformView>> ListAsync(
+            PlatformType? type,
+            CancellationToken cancellationToken)
+        {
+            RequestedType = type;
+
+            return Task.FromResult(platforms);
+        }
+
+        public Task<PlatformView?> GetAsync(
+            string platformId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private static YouTubeSettings YouTubeSettings() =>
+        new(
+            new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
+            "private",
+            false);
 }

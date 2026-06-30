@@ -157,6 +157,31 @@ public sealed class AzureTemplateRepository(
         return TemplateViewMapper.ToViews(entities);
     }
 
+    public async Task<TemplateView?> GetAsync(
+        TemplateType type,
+        string templateId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(templateId);
+
+        try
+        {
+            var response = await tableClient.GetEntityIfExistsAsync<TemplateEntity>(
+                TemplatePartitionKey.ForType(type),
+                templateId,
+                cancellationToken: cancellationToken);
+
+            return response.HasValue
+                ? TemplateViewMapper.ToView(response.Value!)
+                : null;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            // The table does not exist yet, so there is no template to return.
+            return null;
+        }
+    }
+
     private async Task<List<TemplateEntity>> QueryEntitiesAsync(
         string? filter,
         CancellationToken cancellationToken)

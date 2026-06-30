@@ -22,9 +22,10 @@ public interface IPlatformModifier
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Replaces the name, optional reference key, and publish settings of an
-    /// existing platform located by <paramref name="platformId"/>. The type is
-    /// immutable, so it is not accepted here. Returns
+    /// Replaces the name, optional reference key, publishing content, and
+    /// publish settings of an existing platform located by
+    /// <paramref name="platformId"/>. The type is immutable, so it is not
+    /// accepted here. Returns
     /// <see cref="UpdatePlatformResult.NotFound"/> when no row has the id,
     /// <see cref="UpdatePlatformResult.NameAlreadyExists"/> when another
     /// platform already uses the new name, and
@@ -37,6 +38,7 @@ public interface IPlatformModifier
         string name,
         string? referenceKey,
         PublishSettings publishSettings,
+        PublishingContent publishingContent,
         CancellationToken cancellationToken);
 
     /// <summary>

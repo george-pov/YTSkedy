@@ -208,6 +208,7 @@ public sealed class PlatformsApi(
             request.Name!.Trim(),
             type,
             publishSettings,
+            ToPublishingContent(request.PublishingContent),
             Platform.NormalizeReferenceKey(request.ReferenceKey));
         return true;
     }
@@ -256,7 +257,8 @@ public sealed class PlatformsApi(
             existingPlatform.PlatformId,
             request.Name!.Trim(),
             Platform.NormalizeReferenceKey(request.ReferenceKey),
-            publishSettings);
+            publishSettings,
+            ToPublishingContent(request.PublishingContent));
         return true;
     }
 
@@ -275,11 +277,14 @@ public sealed class PlatformsApi(
                     command.Name,
                     command.Type,
                     command.ReferenceKey,
-                    command.PublishSettings)),
+                    command.PublishSettings,
+                    command.PublishingContent)),
             CreatePlatformStatus.NameAlreadyExists => new ConflictObjectResult(
                 $"A platform named '{command.Name}' already exists."),
             CreatePlatformStatus.ReferenceKeyAlreadyExists => new ConflictObjectResult(
                 $"A platform reference key '{command.ReferenceKey}' already exists."),
+            CreatePlatformStatus.LinkedTemplateNotFound => new BadRequestObjectResult(
+                $"One or more publishing content templates were not found for platform type '{command.Type}'."),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
 
@@ -299,13 +304,16 @@ public sealed class PlatformsApi(
                     command.Name,
                     PlatformPublishSettingsHttpMapper.TypeOf(command.PublishSettings),
                     command.ReferenceKey,
-                    command.PublishSettings)),
+                    command.PublishSettings,
+                    command.PublishingContent)),
             UpdatePlatformResult.NotFound => new NotFoundObjectResult(
                 $"Platform '{command.PlatformId}' was not found."),
             UpdatePlatformResult.NameAlreadyExists => new ConflictObjectResult(
                 $"A platform named '{command.Name}' already exists."),
             UpdatePlatformResult.ReferenceKeyAlreadyExists => new ConflictObjectResult(
                 $"A platform reference key '{command.ReferenceKey}' already exists."),
+            UpdatePlatformResult.LinkedTemplateNotFound => new BadRequestObjectResult(
+                "One or more publishing content templates were not found for the platform type."),
             UpdatePlatformResult.Conflict => new ConflictObjectResult(
                 $"Platform '{command.PlatformId}' cannot be updated while a publish is in progress."),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
@@ -340,7 +348,8 @@ public sealed class PlatformsApi(
             view.Name,
             view.Type,
             view.ReferenceKey,
-            view.PublishSettings);
+            view.PublishSettings,
+            view.PublishingContent);
     }
 
     internal static PlatformResponse ToPlatformResponse(
@@ -348,13 +357,21 @@ public sealed class PlatformsApi(
         string name,
         PlatformType type,
         string? referenceKey,
-        PublishSettings publishSettings) =>
+        PublishSettings publishSettings,
+        PublishingContent? publishingContent = null) =>
         new(
             platformId,
             name,
             referenceKey,
             type.ToString(),
-            PlatformPublishSettingsHttpMapper.ToResponse(publishSettings));
+            PlatformPublishSettingsHttpMapper.ToResponse(publishSettings),
+            ToPublishingContentResponse(publishingContent ?? PublishingContent.None));
+
+    internal static PublishingContentResponse ToPublishingContentResponse(
+        PublishingContent publishingContent) =>
+        new(
+            publishingContent.TitleTemplateId,
+            publishingContent.DescriptionTemplateId);
 
     private static IActionResult InvalidNameResult() =>
         new BadRequestObjectResult(
@@ -366,5 +383,10 @@ public sealed class PlatformsApi(
     private static IActionResult InvalidReferenceKeyResult() =>
         new BadRequestObjectResult(
             "Reference key must be 1 to 15 characters and contain only letters, numbers, or hyphen.");
+
+    private static PublishingContent ToPublishingContent(PublishingContentPayload? payload) =>
+        payload is null
+            ? PublishingContent.None
+            : new PublishingContent(payload.TitleTemplateId, payload.DescriptionTemplateId);
 
 }

@@ -5,11 +5,12 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// <c>Updated</c> maps to 200, <c>NotFound</c> to 404, and
 /// <c>NameAlreadyExists</c> to 409 because another platform already uses the new
 /// name. <c>ReferenceKeyAlreadyExists</c> maps to 409 because another platform
-/// already uses the same non-empty reference key, compared
-/// case-insensitively. <c>Conflict</c> maps to 409 and is reserved for when the
-/// platform has a publication row that is still <c>Publishing</c>; that guard
-/// is wired once platform publication state exists, so the current handler does
-/// not produce it.
+/// already uses the same non-empty reference key, compared case-insensitively.
+/// <c>LinkedTemplateNotFound</c> maps to 400 because a publishing-content
+/// template id does not exist for the platform type. <c>Conflict</c> maps to
+/// 409 and is reserved for when the platform has a publication row that is
+/// still <c>Publishing</c>; that guard is wired once platform publication state
+/// exists, so the current handler does not produce it.
 /// </summary>
 public enum UpdatePlatformResult
 {
@@ -17,5 +18,6 @@ public enum UpdatePlatformResult
     NotFound,
     NameAlreadyExists,
     ReferenceKeyAlreadyExists,
+    LinkedTemplateNotFound,
     Conflict
 }

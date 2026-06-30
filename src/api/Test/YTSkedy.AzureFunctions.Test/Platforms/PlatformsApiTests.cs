@@ -56,6 +56,8 @@ public sealed class PlatformsApiTests
         Assert.Equal("refresh-token", settings.Credentials.RefreshToken);
         Assert.Equal("private", settings.PrivacyStatus);
         Assert.False(settings.SelfDeclaredMadeForKids);
+        Assert.Null(command.PublishingContent.TitleTemplateId);
+        Assert.Null(command.PublishingContent.DescriptionTemplateId);
     }
 
     [Fact]
@@ -109,6 +111,23 @@ public sealed class PlatformsApiTests
 
         Assert.False(built);
         Assert.Equal("Publish settings site URL is required.", BadRequestMessage(error));
+    }
+
+    [Fact]
+    public void TryBuildCreateCommand_PublishingContentTemplateIds_BuildsCommand()
+    {
+        var request = new CreatePlatformRequest(
+            "Main YouTube channel",
+            "YouTube",
+            null,
+            YouTubePayload(),
+            new PublishingContentPayload("title-template", "description-template"));
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
+
+        Assert.True(built);
+        Assert.Equal("title-template", command.PublishingContent.TitleTemplateId);
+        Assert.Equal("description-template", command.PublishingContent.DescriptionTemplateId);
     }
 
     [Fact]
@@ -246,6 +265,8 @@ public sealed class PlatformsApiTests
         var settings = Assert.IsType<WordPressSettings>(command.PublishSettings);
         Assert.Equal("stored-password", settings.ApplicationPassword);
         Assert.Equal("draft", settings.PostStatus);
+        Assert.Null(command.PublishingContent.TitleTemplateId);
+        Assert.Null(command.PublishingContent.DescriptionTemplateId);
     }
 
     [Fact]
@@ -297,6 +318,23 @@ public sealed class PlatformsApiTests
     }
 
     [Fact]
+    public void TryBuildUpdateCommand_ExplicitNullPublishingContent_SetsNone()
+    {
+        var existing = WordPressPlatform();
+        var request = new UpdatePlatformRequest(
+            "Renamed WordPress site",
+            null,
+            WordPressPayload(applicationPassword: "replacement-password"),
+            new PublishingContentPayload(null, null));
+
+        var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
+
+        Assert.True(built);
+        Assert.Null(command.PublishingContent.TitleTemplateId);
+        Assert.Null(command.PublishingContent.DescriptionTemplateId);
+    }
+
+    [Fact]
     public void TryBuildUpdateCommand_ValidReferenceKey_BuildsCommand()
     {
         var existing = WordPressPlatform();
@@ -322,6 +360,7 @@ public sealed class PlatformsApiTests
                 "editor",
                 "application-password",
                 "publish"),
+            new PublishingContent("title-template", "description-template"),
             "company-blog");
 
         var actionResult = PlatformsApi.ToCreateResult(
@@ -332,6 +371,8 @@ public sealed class PlatformsApiTests
         Assert.Equal("wp-platform", response.PlatformId);
         Assert.Equal("company-blog", response.ReferenceKey);
         Assert.Equal("WordPress", response.Type);
+        Assert.Equal("title-template", response.PublishingContent.TitleTemplateId);
+        Assert.Equal("description-template", response.PublishingContent.DescriptionTemplateId);
         AssertWordPressRedacted(response.PublishSettings);
     }
 
@@ -346,6 +387,7 @@ public sealed class PlatformsApiTests
                 "editor",
                 "application-password",
                 "publish"),
+            PublishingContent.None,
             "company-blog");
 
         var actionResult = PlatformsApi.ToCreateResult(
@@ -354,6 +396,26 @@ public sealed class PlatformsApiTests
 
         var conflict = Assert.IsType<ConflictObjectResult>(actionResult);
         Assert.Equal("A platform reference key 'company-blog' already exists.", conflict.Value);
+    }
+
+    [Fact]
+    public void ToCreateResult_LinkedTemplateNotFound_Returns400()
+    {
+        var command = new CreatePlatformCommand(
+            "Main WordPress site",
+            PlatformType.WordPress,
+            new WordPressSettings(
+                "https://example.com",
+                "editor",
+                "application-password",
+                "publish"),
+            new PublishingContent("missing-template", null));
+
+        var actionResult = PlatformsApi.ToCreateResult(
+            CreatePlatformResult.LinkedTemplateNotFound(),
+            command);
+
+        Assert.IsType<BadRequestObjectResult>(actionResult);
     }
 
     [Fact]
@@ -367,13 +429,16 @@ public sealed class PlatformsApiTests
                 "https://example.com",
                 "editor",
                 "application-password",
-                "draft"));
+                "draft"),
+            new PublishingContent(null, "description-template"));
 
         var actionResult = PlatformsApi.ToUpdateResult(UpdatePlatformResult.Updated, command);
 
         var response = AssertPlatformOk(actionResult);
         Assert.Equal("company-blog", response.ReferenceKey);
         Assert.Equal("WordPress", response.Type);
+        Assert.Null(response.PublishingContent.TitleTemplateId);
+        Assert.Equal("description-template", response.PublishingContent.DescriptionTemplateId);
         AssertWordPressRedacted(response.PublishSettings, "draft");
     }
 
@@ -388,7 +453,8 @@ public sealed class PlatformsApiTests
                 "https://example.com",
                 "editor",
                 "application-password",
-                "draft"));
+                "draft"),
+            PublishingContent.None);
 
         var actionResult = PlatformsApi.ToUpdateResult(
             UpdatePlatformResult.ReferenceKeyAlreadyExists,
@@ -409,11 +475,33 @@ public sealed class PlatformsApiTests
                 "https://example.com",
                 "editor",
                 "application-password",
-                "draft"));
+                "draft"),
+            PublishingContent.None);
 
         var actionResult = PlatformsApi.ToUpdateResult(UpdatePlatformResult.NotFound, command);
 
         Assert.IsType<NotFoundObjectResult>(actionResult);
+    }
+
+    [Fact]
+    public void ToUpdateResult_LinkedTemplateNotFound_Returns400()
+    {
+        var command = new UpdatePlatformCommand(
+            "wp-platform",
+            "Main WordPress site",
+            null,
+            new WordPressSettings(
+                "https://example.com",
+                "editor",
+                "application-password",
+                "draft"),
+            new PublishingContent("missing-template", null));
+
+        var actionResult = PlatformsApi.ToUpdateResult(
+            UpdatePlatformResult.LinkedTemplateNotFound,
+            command);
+
+        Assert.IsType<BadRequestObjectResult>(actionResult);
     }
 
     [Fact]
