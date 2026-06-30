@@ -9,26 +9,43 @@ public class UpdateCalendarEventHandlerTests
     private static readonly DateTimeOffset StartUtc =
         new(2026, 06, 06, 17, 00, 00, TimeSpan.Zero);
 
-    private static readonly LocalizedDescription[] Descriptions =
+    private static readonly EventTextValue[] Texts =
     [
-        new("en", "English title", "English description"),
-        new("ru", "Russian title", "Russian description")
+        new("text1", "Updated title"),
+        new("text2", "Updated description")
     ];
 
     [Fact]
-    public async Task HandleAsync_ExistingEvent_UpdatesDescriptionsAndReturnsUpdated()
+    public async Task HandleAsync_ExistingEvent_UpdatesTextAndReturnsUpdated()
     {
         var modifier = new FakeCalendarEventModifier(updateResult: true);
         var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
         var result = await handler.HandleAsync(
-            new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
+            new UpdateEventTextCommand(CalendarEventId, Texts),
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventResult.Updated, result);
         Assert.Equal(1, modifier.UpdateCallCount);
         Assert.Equal(CalendarEventId, modifier.UpdatedCalendarEventId);
-        Assert.Same(Descriptions, modifier.UpdatedDescriptions);
+        Assert.NotNull(modifier.UpdatedText);
+        Assert.Equal(["Updated title", "Updated description"], modifier.UpdatedText!.Values.Select(value => value.Value));
+    }
+
+    [Fact]
+    public async Task HandleAsync_ExistingEvent_ValidatesAgainstStoredSnapshot()
+    {
+        var modifier = new FakeCalendarEventModifier(updateResult: true);
+        var handler = CreateHandler(CreateCalendarEventView(), modifier);
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => handler.HandleAsync(
+                new UpdateEventTextCommand(
+                    CalendarEventId,
+                    [new EventTextValue("text1", "Updated title")]),
+                CancellationToken.None));
+
+        Assert.Equal(0, modifier.UpdateCallCount);
     }
 
     [Fact]
@@ -38,7 +55,7 @@ public class UpdateCalendarEventHandlerTests
         var handler = CreateHandler(calendarEvent: null, modifier);
 
         var result = await handler.HandleAsync(
-            new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
+            new UpdateEventTextCommand(CalendarEventId, Texts),
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventResult.NotFound, result);
@@ -52,7 +69,7 @@ public class UpdateCalendarEventHandlerTests
         var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
         var result = await handler.HandleAsync(
-            new UpdateDescriptionsCommand(CalendarEventId, Descriptions),
+            new UpdateEventTextCommand(CalendarEventId, Texts),
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventResult.NotFound, result);
@@ -80,7 +97,12 @@ public class UpdateCalendarEventHandlerTests
             CalendarEventId,
             new ScheduledStart(StartUtc.UtcDateTime, "UTC"),
             StartUtc,
-            [new LocalizedDescription("en", "English title", "English description")]);
+            EventTextSnapshot.Create(
+                EventTextFields.Default,
+                [
+                    new EventTextValue("text1", "English title"),
+                    new EventTextValue("text2", "English description")
+                ]));
 
     private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent) : ICalendarEventReader
     {
@@ -101,21 +123,21 @@ public class UpdateCalendarEventHandlerTests
 
         public string? UpdatedCalendarEventId { get; private set; }
 
-        public IReadOnlyList<LocalizedDescription>? UpdatedDescriptions { get; private set; }
+        public EventTextSnapshot? UpdatedText { get; private set; }
 
         public Task<string> CreateAsync(
             CalendarEvent calendarEvent,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<bool> UpdateDescriptionsAsync(
+        public Task<bool> UpdateTextAsync(
             string calendarEventId,
-            IReadOnlyList<LocalizedDescription> descriptions,
+            EventTextSnapshot text,
             CancellationToken cancellationToken)
         {
             UpdateCallCount++;
             UpdatedCalendarEventId = calendarEventId;
-            UpdatedDescriptions = descriptions;
+            UpdatedText = text;
 
             return Task.FromResult(updateResult);
         }

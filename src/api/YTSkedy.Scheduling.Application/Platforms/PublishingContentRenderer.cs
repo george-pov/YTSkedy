@@ -39,12 +39,10 @@ public sealed partial class PublishingContentRenderer
                 "A template reader is required to render platform publishing content.");
         }
 
-        var englishContent = calendarEvent.Descriptions.FirstOrDefault(
-            description => description.IsEnglish);
         var title = await ResolveContentAsync(
             platform.Type,
             platform.PublishingContent.TitleTemplateId,
-            englishContent?.Title ?? string.Empty,
+            DefaultTitle(calendarEvent),
             cancellationToken);
         if (title is null)
         {
@@ -54,7 +52,7 @@ public sealed partial class PublishingContentRenderer
         var description = await ResolveContentAsync(
             platform.Type,
             platform.PublishingContent.DescriptionTemplateId,
-            englishContent?.Description,
+            calendarEvent.Text.ValueFor("text2"),
             cancellationToken);
         if (description is null && platform.PublishingContent.DescriptionTemplateId is not null)
         {
@@ -127,6 +125,16 @@ public sealed partial class PublishingContentRenderer
 
     private static bool HasWellFormedPlaceholder(string? text) =>
         text is not null && Placeholder().IsMatch(text);
+
+    private static string DefaultTitle(CalendarEventView calendarEvent)
+    {
+        var shortText = calendarEvent.Text.Fields
+            .FirstOrDefault(field => field.Type == EventTextType.ShortText);
+
+        return shortText is null
+            ? calendarEvent.Text.Values.FirstOrDefault()?.Value ?? string.Empty
+            : calendarEvent.Text.ValueFor(shortText.FieldKey) ?? string.Empty;
+    }
 
     [GeneratedRegex(@"\{\{\s*(?<token>[^{}\s]+)\s*\}\}", RegexOptions.CultureInvariant)]
     private static partial Regex Placeholder();

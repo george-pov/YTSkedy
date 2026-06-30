@@ -6,14 +6,11 @@ namespace YTSkedy.Scheduling.Application.Test;
 public class CalendarEventTokenValuesTests
 {
     [Fact]
-    public void From_EnglishAndRussianDescriptions_ReturnsTitleAndDescriptionTokens()
+    public void From_TextSnapshot_ReturnsExistingTitleAndDescriptionTokens()
     {
         var calendarEvent = Event(
             new DateTime(2026, 6, 5, 10, 30, 0),
-            [
-                new LocalizedDescription("ru", "Russian title", "Russian description"),
-                new LocalizedDescription("en", "English title", "English description")
-            ]);
+            Text());
 
         var values = CalendarEventTokenValues.From(calendarEvent).Values;
 
@@ -24,14 +21,11 @@ public class CalendarEventTokenValuesTests
     }
 
     [Fact]
-    public void From_MissingOptionalDescriptions_ReturnsEmptyDescriptionTokens()
+    public void From_EmptyTextValues_ReturnsEmptyDescriptionTokens()
     {
         var calendarEvent = Event(
             new DateTime(2026, 6, 5, 10, 30, 0),
-            [
-                new LocalizedDescription("en", "English title", null),
-                new LocalizedDescription("ru", "Russian title", null)
-            ]);
+            Text(description: string.Empty, russianDescription: string.Empty));
 
         var values = CalendarEventTokenValues.From(calendarEvent).Values;
 
@@ -44,7 +38,7 @@ public class CalendarEventTokenValuesTests
     {
         var calendarEvent = Event(
             new DateTime(2026, 6, 5, 10, 30, 0),
-            [new LocalizedDescription("en", "English title", null)]);
+            Text());
 
         var values = CalendarEventTokenValues.From(calendarEvent).Values;
 
@@ -61,7 +55,7 @@ public class CalendarEventTokenValuesTests
             "calendar-event-id",
             new ScheduledStart(new DateTime(2026, 1, 2, 23, 30, 0), "America/Vancouver"),
             new DateTimeOffset(2030, 12, 31, 7, 30, 0, TimeSpan.Zero),
-            [new LocalizedDescription("en", "English title", null)]);
+            Text());
 
         var values = CalendarEventTokenValues.From(calendarEvent).Values;
 
@@ -71,10 +65,29 @@ public class CalendarEventTokenValuesTests
 
     private static CalendarEventView Event(
         DateTime localStart,
-        IReadOnlyList<LocalizedDescription> descriptions) =>
+        EventTextSnapshot text) =>
         new(
             "calendar-event-id",
             new ScheduledStart(localStart, "America/Vancouver"),
             new DateTimeOffset(2026, 6, 5, 17, 30, 0, TimeSpan.Zero),
-            descriptions);
+            text);
+
+    private static EventTextSnapshot Text(
+        string title = "English title",
+        string description = "English description",
+        string russianTitle = "Russian title",
+        string russianDescription = "Russian description") =>
+        new(
+            [
+                new EventTextField("text1", "Title", EventTextType.ShortText, 50),
+                new EventTextField("text2", "Description", EventTextType.LongText, 2500),
+                new EventTextField("text3", "Russian title", EventTextType.ShortText, 50),
+                new EventTextField("text4", "Russian description", EventTextType.LongText, 2500)
+            ],
+            [
+                new EventTextValue("text1", title),
+                new EventTextValue("text2", description),
+                new EventTextValue("text3", russianTitle),
+                new EventTextValue("text4", russianDescription)
+            ]);
 }

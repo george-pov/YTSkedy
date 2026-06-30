@@ -68,24 +68,105 @@ internal static class CalendarEventViewMapper
                 localDateTime,
                 entity.TimeZoneId),
             entity.ScheduledStartUtc,
-            DeserializeDescriptions(entity));
+            DeserializeText(entity));
     }
 
-    private static LocalizedDescription[] DeserializeDescriptions(CalendarEventEntity entity)
+    internal static string SerializeText(EventTextSnapshot text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+
+        var document = new EventTextSnapshotDocument(
+            text.Fields
+                .Select(field => new EventTextFieldDocument(
+                    field.FieldKey,
+                    field.Label,
+                    field.Type.ToString(),
+                    field.MaxLength))
+                .ToArray(),
+            text.Values
+                .Select(value => new EventTextValueDocument(
+                    value.FieldKey,
+                    value.Value))
+                .ToArray());
+
+        return JsonSerializer.Serialize(document, JsonOptions);
+    }
+
+    private static EventTextSnapshot DeserializeText(CalendarEventEntity entity)
     {
         try
         {
-            return JsonSerializer.Deserialize<LocalizedDescription[]>(
-                entity.DescriptionsJson,
+            var document = JsonSerializer.Deserialize<EventTextSnapshotDocument>(
+                entity.TextJson,
                 JsonOptions) ?? throw new InvalidOperationException(
-                $"Calendar event '{entity.CalendarEventId}' has missing descriptions JSON.");
+                $"Calendar event '{entity.CalendarEventId}' has missing text JSON.");
+
+            if (document.Fields is null || document.Values is null)
+            {
+                throw new InvalidOperationException(
+                    $"Calendar event '{entity.CalendarEventId}' has incomplete text JSON.");
+            }
+
+            return new EventTextSnapshot(
+                document.Fields.Select(ToDomainField).ToArray(),
+                document.Values.Select(ToDomainValue).ToArray());
         }
         catch (JsonException exception)
         {
             throw new InvalidOperationException(
-                $"Calendar event '{entity.CalendarEventId}' has malformed descriptions JSON.",
+                $"Calendar event '{entity.CalendarEventId}' has malformed text JSON.",
                 exception);
         }
     }
 
+    private static EventTextField ToDomainField(EventTextFieldDocument field)
+    {
+        if (field is null)
+        {
+            throw new InvalidOperationException(
+                "Stored calendar event text JSON cannot contain null fields.");
+        }
+
+        return new EventTextField(
+            field.FieldKey ?? string.Empty,
+            field.Label ?? string.Empty,
+            ParseType(field.Type),
+            field.MaxLength);
+    }
+
+    private static EventTextValue ToDomainValue(EventTextValueDocument value)
+    {
+        if (value is null)
+        {
+            throw new InvalidOperationException(
+                "Stored calendar event text JSON cannot contain null values.");
+        }
+
+        return new EventTextValue(
+            value.FieldKey ?? string.Empty,
+            value.Value ?? string.Empty);
+    }
+
+    private static EventTextType ParseType(string? type) =>
+        type?.ToLowerInvariant() switch
+        {
+            "shorttext" => EventTextType.ShortText,
+            "longtext" => EventTextType.LongText,
+            _ => throw new InvalidOperationException(
+                $"Stored event text type value '{type ?? "<null>"}' is invalid.")
+        };
+
+    private sealed record EventTextSnapshotDocument(
+        IReadOnlyList<EventTextFieldDocument> Fields,
+        IReadOnlyList<EventTextValueDocument> Values);
+
+    private sealed record EventTextFieldDocument(
+        string? FieldKey,
+        string? Label,
+        string? Type,
+        int MaxLength);
+
+    private sealed record EventTextValueDocument(
+        string? FieldKey,
+        string? Value);
 }

@@ -10,14 +10,16 @@ public class CalendarEventTests
         var start = new ScheduledStart(
             new DateTime(2026, 6, 6, 10, 0, 0),
             "America/Vancouver");
-        LocalizedDescription[] descriptions =
-        [
-            new("en", "English stream", "English description")
-        ];
+        var text = EventTextSnapshot.Create(
+            EventTextFields.Default,
+            [
+                new EventTextValue("text1", "English stream"),
+                new EventTextValue("text2", "English description")
+            ]);
 
-        var calendarEvent = new CalendarEvent(start, descriptions);
+        var calendarEvent = new CalendarEvent(start, text);
 
         Assert.Equal(start, calendarEvent.Start);
-        Assert.Equal(descriptions, calendarEvent.Descriptions);
+        Assert.Equal(text, calendarEvent.Text);
     }
 }

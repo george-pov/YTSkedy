@@ -1,7 +1,6 @@
 using Azure;
 using Azure.Data.Tables;
 using System.Globalization;
-using System.Text.Json;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
@@ -13,8 +12,6 @@ public sealed class AzureCalendarEventRepository(
     ICalendarEventModifier,
     ICalendarEventReader
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     public async Task<string> CreateAsync(
         CalendarEvent calendarEvent,
         CancellationToken cancellationToken)
@@ -32,7 +29,7 @@ public sealed class AzureCalendarEventRepository(
             ScheduledStartUtc = scheduledStartUtc,
             LocalDateTime = FormatLocalDateTime(calendarEvent.Start.LocalDateTime),
             TimeZoneId = calendarEvent.Start.TimeZoneId,
-            DescriptionsJson = JsonSerializer.Serialize(calendarEvent.Descriptions, JsonOptions),
+            TextJson = CalendarEventViewMapper.SerializeText(calendarEvent.Text),
             CreatedUtc = timeProvider.GetUtcNow()
         };
 
@@ -122,13 +119,13 @@ public sealed class AzureCalendarEventRepository(
         return entity is null ? null : CalendarEventViewMapper.ToView(entity);
     }
 
-    public async Task<bool> UpdateDescriptionsAsync(
+    public async Task<bool> UpdateTextAsync(
         string calendarEventId,
-        IReadOnlyList<LocalizedDescription> descriptions,
+        EventTextSnapshot text,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
-        ArgumentNullException.ThrowIfNull(descriptions);
+        ArgumentNullException.ThrowIfNull(text);
 
         var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
 
@@ -137,11 +134,11 @@ public sealed class AzureCalendarEventRepository(
             return false;
         }
 
-        entity.DescriptionsJson = JsonSerializer.Serialize(descriptions, JsonOptions);
+        entity.TextJson = CalendarEventViewMapper.SerializeText(text);
 
         // Conditional on the read ETag so a concurrent change to the same row is
         // not silently overwritten. The start and identity are left untouched;
-        // only the descriptions blob is replaced.
+        // only the event text blob is replaced.
         await tableClient.UpdateEntityAsync(
             entity,
             entity.ETag,

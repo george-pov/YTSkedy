@@ -4,4 +4,4 @@ public sealed record CalendarEventView(
     string CalendarEventId,
     ScheduledStart Start,
     DateTimeOffset ScheduledStartUtc,
-    IReadOnlyList<LocalizedDescription> Descriptions);
+    EventTextSnapshot Text);

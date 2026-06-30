@@ -1,8 +1,11 @@
 using YTSkedy.Scheduling.Domain.CalendarEvents;
+using YTSkedy.Scheduling.Application.Settings;
 
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
-public sealed class CreateCalendarEventHandler(ICalendarEventModifier calendarEvents)
+public sealed class CreateCalendarEventHandler(
+    IEventTextFieldsReader eventTextFields,
+    ICalendarEventModifier calendarEvents)
 {
     public async Task<CreateCalendarEventResult> HandleAsync(
         CreateCalendarEventCommand command,
@@ -10,9 +13,9 @@ public sealed class CreateCalendarEventHandler(ICalendarEventModifier calendarEv
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var calendarEvent = new CalendarEvent(
-            command.Start,
-            command.Descriptions);
+        var fields = await eventTextFields.GetAsync(cancellationToken);
+        var snapshot = EventTextSnapshot.Create(fields, command.Texts);
+        var calendarEvent = new CalendarEvent(command.Start, snapshot);
 
         var calendarEventId = await calendarEvents.CreateAsync(
             calendarEvent,

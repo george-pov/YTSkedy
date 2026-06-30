@@ -56,17 +56,19 @@ public sealed class ListEventsHandler(ICalendarEventReader calendarEvents)
         sort switch
         {
             CalendarEventSortField.TimeZone => item => item.Start.TimeZoneId,
-            CalendarEventSortField.Title => EnglishTitle,
+            CalendarEventSortField.Title => DisplayTitle,
             _ => item => item.CalendarEventId
         };
 
-    // Sort key for the Title column: the English description title. English
-    // matching is case-insensitive (see CalendarEventLanguages), so an entry
-    // tagged "en", "EN", or "En" is used identically. Both languages are
-    // required when an event is created, so the English entry is normally
-    // present; a missing entry sorts as an empty string.
-    private static string EnglishTitle(CalendarEventView item) =>
-        item.Descriptions
-            .FirstOrDefault(description => description.IsEnglish)
-            ?.Title ?? string.Empty;
+    private static string DisplayTitle(CalendarEventView item)
+    {
+        var firstShortText = item.Text.Fields
+            .FirstOrDefault(field => field.Type == EventTextType.ShortText);
+        if (firstShortText is not null)
+        {
+            return item.Text.ValueFor(firstShortText.FieldKey) ?? string.Empty;
+        }
+
+        return item.Text.Values.FirstOrDefault()?.Value ?? string.Empty;
+    }
 }

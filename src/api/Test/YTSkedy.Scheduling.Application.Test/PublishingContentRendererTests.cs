@@ -173,9 +173,21 @@ public class PublishingContentRendererTests
             "calendar-event-id",
             new ScheduledStart(new DateTime(2026, 6, 5, 10, 30, 0), "America/Vancouver"),
             new DateTimeOffset(2026, 6, 5, 17, 30, 0, TimeSpan.Zero),
+            Text(description));
+
+    private static EventTextSnapshot Text(string? description = "English description") =>
+        new(
             [
-                new LocalizedDescription("en", "English title", description),
-                new LocalizedDescription("ru", "Russian title", "Russian description")
+                new EventTextField("text1", "Title", EventTextType.ShortText, 50),
+                new EventTextField("text2", "Description", EventTextType.LongText, 2500),
+                new EventTextField("text3", "Russian title", EventTextType.ShortText, 50),
+                new EventTextField("text4", "Russian description", EventTextType.LongText, 2500)
+            ],
+            [
+                new EventTextValue("text1", "English title"),
+                new EventTextValue("text2", description ?? string.Empty),
+                new EventTextValue("text3", "Russian title"),
+                new EventTextValue("text4", "Russian description")
             ]);
 
     private static PlatformView Platform(PublishingContent publishingContent) =>

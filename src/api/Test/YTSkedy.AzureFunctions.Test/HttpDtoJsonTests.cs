@@ -19,11 +19,14 @@ public sealed class HttpDtoJsonTests
                 "localDateTime": "2026-06-15T10:00:00",
                 "timeZoneId": "America/Vancouver"
               },
-              "descriptions": [
+              "texts": [
                 {
-                  "language": "en",
-                  "title": "English stream",
-                  "description": "Live stream"
+                  "fieldKey": "text1",
+                  "value": "English stream"
+                },
+                {
+                  "fieldKey": "text2",
+                  "value": "Live stream"
                 }
               ]
             }
@@ -35,10 +38,18 @@ public sealed class HttpDtoJsonTests
         Assert.Equal(new DateTime(2026, 6, 15, 10, 0, 0), request.Start.LocalDateTime);
         Assert.Equal("America/Vancouver", request.Start.TimeZoneId);
 
-        var description = Assert.Single(request.Descriptions);
-        Assert.Equal("en", description.Language);
-        Assert.Equal("English stream", description.Title);
-        Assert.Equal("Live stream", description.Description);
+        Assert.Collection(
+            request.Texts,
+            first =>
+            {
+                Assert.Equal("text1", first.FieldKey);
+                Assert.Equal("English stream", first.Value);
+            },
+            second =>
+            {
+                Assert.Equal("text2", second.FieldKey);
+                Assert.Equal("Live stream", second.Value);
+            });
     }
 
     [Fact]

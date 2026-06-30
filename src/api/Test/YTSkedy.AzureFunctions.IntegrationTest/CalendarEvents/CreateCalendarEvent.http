@@ -19,15 +19,14 @@ Authorization: Bearer {{accessToken}}
     "localDateTime": "2026-06-07T10:00:00",
     "timeZoneId": "America/Vancouver"
   },
-  "descriptions": [
+  "texts": [
     {
-      "language": "ru",
-      "title": "Russian stream 1"
+      "fieldKey": "text1",
+      "value": "English stream 1"
     },
     {
-      "language": "en",
-      "title": "English stream 1",
-      "description": "Description for stream 1 in English"
+      "fieldKey": "text2",
+      "value": "Description for stream 1 in English"
     }
   ]
 }
@@ -43,8 +42,9 @@ Content-Type: application/json
     "localDateTime": "2026-06-07T10:00:00",
     "timeZoneId": "America/Vancouver"
   },
-  "descriptions": [
-    { "language": "en", "title": "Auth-missing probe" }
+  "texts": [
+    { "fieldKey": "text1", "value": "Auth-missing probe" },
+    { "fieldKey": "text2", "value": "Probe description" }
   ]
 }
 
@@ -60,8 +60,9 @@ Authorization: Bearer not-a-jwt
     "localDateTime": "2026-06-08T10:00:00",
     "timeZoneId": "America/Vancouver"
   },
-  "descriptions": [
-    { "language": "en", "title": "Auth-invalid probe" }
+  "texts": [
+    { "fieldKey": "text1", "value": "Auth-invalid probe" },
+    { "fieldKey": "text2", "value": "Probe description" }
   ]
 }
 
@@ -81,8 +82,9 @@ Authorization: Bearer {{accessTokenReadOnly}}
     "localDateTime": "2026-06-09T10:00:00",
     "timeZoneId": "America/Vancouver"
   },
-  "descriptions": [
-    { "language": "en", "title": "Scope-insufficient probe" }
+  "texts": [
+    { "fieldKey": "text1", "value": "Scope-insufficient probe" },
+    { "fieldKey": "text2", "value": "Probe description" }
   ]
 }
 
@@ -104,8 +106,8 @@ Authorization: Bearer {{accessTokenReadOnly}}
 GET {{HostAddress}}/api/calendar-events/{{calendarEventId}}
 Authorization: Bearer {{accessToken}}
 
-### Update a calendar event's descriptions
-# Replace the id with one returned by a create above. Only the descriptions
+### Update a calendar event's text values
+# Replace the id with one returned by a create above. Only the text values
 # change; the scheduled start is immutable. Expected response: 200 OK with
 # { calendarEventId }, or 404 Not Found for an unknown id.
 
@@ -114,12 +116,14 @@ Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
 {
-  "descriptions": [
-    { "language": "ru", "title": "Russian stream 1 (edited)" },
+  "texts": [
     {
-      "language": "en",
-      "title": "English stream 1 (edited)",
-      "description": "Updated description for stream 1 in English"
+      "fieldKey": "text1",
+      "value": "English stream 1 (edited)"
+    },
+    {
+      "fieldKey": "text2",
+      "value": "Updated description for stream 1 in English"
     }
   ]
 }
@@ -134,8 +138,9 @@ Content-Type: application/json
 Authorization: Bearer {{accessTokenReadOnly}}
 
 {
-  "descriptions": [
-    { "language": "en", "title": "Scope-insufficient update probe" }
+  "texts": [
+    { "fieldKey": "text1", "value": "Scope-insufficient update probe" },
+    { "fieldKey": "text2", "value": "Probe description" }
   ]
 }
 

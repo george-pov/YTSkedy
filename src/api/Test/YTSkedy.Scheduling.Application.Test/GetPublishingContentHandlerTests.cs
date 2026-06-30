@@ -198,7 +198,18 @@ public class GetPublishingContentHandlerTests
             CalendarEventId,
             new ScheduledStart(new DateTime(2026, 6, 25, 10, 0, 0), "America/Vancouver"),
             new DateTimeOffset(2026, 6, 25, 17, 0, 0, TimeSpan.Zero),
-            [new LocalizedDescription("en", "English title", description)]);
+            Text(description));
+
+    private static EventTextSnapshot Text(string? description = "English description") =>
+        new(
+            [
+                new EventTextField("text1", "Title", EventTextType.ShortText, 50),
+                new EventTextField("text2", "Description", EventTextType.LongText, 2500)
+            ],
+            [
+                new EventTextValue("text1", "English title"),
+                new EventTextValue("text2", description ?? string.Empty)
+            ]);
 
     private static PlatformView Platform(PublishingContent? publishingContent = null) =>
         new(

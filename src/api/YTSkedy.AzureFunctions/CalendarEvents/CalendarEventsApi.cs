@@ -36,16 +36,19 @@ public sealed class CalendarEventsApi(
             new ScheduledStart(
                 createRequest.Start.LocalDateTime,
                 createRequest.Start.TimeZoneId),
-            createRequest.Descriptions
-                .Select(description => new LocalizedDescription(
-                    description.Language,
-                    description.Title,
-                    description.Description))
-                .ToArray());
+            ToEventTextValues(createRequest.Texts));
 
-        var result = await createHandler.HandleAsync(
-            command,
-            cancellationToken);
+        CreateCalendarEventResult result;
+        try
+        {
+            result = await createHandler.HandleAsync(
+                command,
+                cancellationToken);
+        }
+        catch (ArgumentException exception)
+        {
+            return new BadRequestObjectResult(exception.Message);
+        }
 
         return new OkObjectResult(new CreateCalendarEventResponse(result.CalendarEventId));
     }
@@ -118,16 +121,19 @@ public sealed class CalendarEventsApi(
         }
 
         var updateRequest = body.Value!;
-        var command = new UpdateDescriptionsCommand(
+        var command = new UpdateEventTextCommand(
             calendarEventId,
-            updateRequest.Descriptions
-                .Select(description => new LocalizedDescription(
-                    description.Language,
-                    description.Title,
-                    description.Description))
-                .ToArray());
+            ToEventTextValues(updateRequest.Texts));
 
-        var result = await updateHandler.HandleAsync(command, cancellationToken);
+        UpdateCalendarEventResult result;
+        try
+        {
+            result = await updateHandler.HandleAsync(command, cancellationToken);
+        }
+        catch (ArgumentException exception)
+        {
+            return new BadRequestObjectResult(exception.Message);
+        }
 
         return result switch
         {
@@ -341,12 +347,7 @@ public sealed class CalendarEventsApi(
                 calendarEvent.Start.LocalDateTime,
                 calendarEvent.Start.TimeZoneId),
             calendarEvent.ScheduledStartUtc,
-            calendarEvent.Descriptions
-                .Select(description => new LocalizedCalendarEventText(
-                    description.Language,
-                    description.Title,
-                    description.Description))
-                .ToArray());
+            ToTextResponse(calendarEvent.Text));
     }
 
     /// <summary>
@@ -367,12 +368,7 @@ public sealed class CalendarEventsApi(
                 calendarEvent.Start.LocalDateTime,
                 calendarEvent.Start.TimeZoneId),
             calendarEvent.ScheduledStartUtc,
-            calendarEvent.Descriptions
-                .Select(description => new LocalizedCalendarEventText(
-                    description.Language,
-                    description.Title,
-                    description.Description))
-                .ToArray(),
+            ToTextResponse(calendarEvent.Text),
             details.Platforms
                 .Select(ToEventPlatformResponse)
                 .ToArray());
@@ -413,4 +409,41 @@ public sealed class CalendarEventsApi(
     private static string ToDirectionString(SortDirection direction) =>
         direction == SortDirection.Descending ? "desc" : "asc";
 
+    private static EventTextValue[] ToEventTextValues(
+        IReadOnlyList<EventTextPayload> texts)
+    {
+        ArgumentNullException.ThrowIfNull(texts);
+
+        var values = new List<EventTextValue>();
+        foreach (var text in texts)
+        {
+            if (text is null)
+            {
+                throw new ArgumentException("Text entries cannot be null.", nameof(texts));
+            }
+
+            values.Add(new EventTextValue(text.FieldKey, text.Value));
+        }
+
+        return values.ToArray();
+    }
+
+    private static EventTextResponse[] ToTextResponse(EventTextSnapshot text)
+    {
+        var valuesByKey = text.Values.ToDictionary(
+            value => value.FieldKey,
+            value => value.Value,
+            StringComparer.Ordinal);
+
+        return text.Fields
+            .Select(field => new EventTextResponse(
+                field.FieldKey,
+                field.Label,
+                field.Type.ToString(),
+                field.MaxLength,
+                valuesByKey.TryGetValue(field.FieldKey, out var value)
+                    ? value
+                    : string.Empty))
+            .ToArray();
+    }
 }

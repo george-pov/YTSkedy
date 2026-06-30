@@ -22,9 +22,33 @@ public sealed record EventTextSnapshot
         IEnumerable<EventTextValue> values)
     {
         ArgumentNullException.ThrowIfNull(fields);
+
+        return Create(fields.Fields, values);
+    }
+
+    public EventTextSnapshot UpdateValues(IEnumerable<EventTextValue> values) =>
+        Create(Fields, values);
+
+    public string? ValueFor(string fieldKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fieldKey);
+
+        return Values
+            .FirstOrDefault(value => string.Equals(
+                value.FieldKey,
+                fieldKey,
+                StringComparison.Ordinal))
+            ?.Value;
+    }
+
+    private static EventTextSnapshot Create(
+        IReadOnlyList<EventTextField> fields,
+        IEnumerable<EventTextValue> values)
+    {
+        ArgumentNullException.ThrowIfNull(fields);
         ArgumentNullException.ThrowIfNull(values);
 
-        var configuredKeys = fields.Fields
+        var configuredKeys = fields
             .Select(field => field.FieldKey)
             .ToHashSet(StringComparer.Ordinal);
         var valuesByKey = new Dictionary<string, EventTextValue>(StringComparer.Ordinal);
@@ -50,7 +74,7 @@ public sealed record EventTextSnapshot
 
         var orderedValues = new List<EventTextValue>();
 
-        foreach (var field in fields.Fields)
+        foreach (var field in fields)
         {
             if (!valuesByKey.TryGetValue(field.FieldKey, out var value) ||
                 string.IsNullOrWhiteSpace(value.Value))
@@ -70,6 +94,6 @@ public sealed record EventTextSnapshot
             orderedValues.Add(new EventTextValue(field.FieldKey, value.Value));
         }
 
-        return new EventTextSnapshot(fields.Fields, orderedValues);
+        return new EventTextSnapshot(fields, orderedValues);
     }
 }

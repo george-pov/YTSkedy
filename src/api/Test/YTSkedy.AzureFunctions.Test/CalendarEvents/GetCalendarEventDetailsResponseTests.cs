@@ -26,10 +26,24 @@ public sealed class GetCalendarEventDetailsResponseTests
             new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
             response.ScheduledStartUtc);
 
-        var description = Assert.Single(response.Descriptions);
-        Assert.Equal("en", description.Language);
-        Assert.Equal("English stream 1", description.Title);
-        Assert.Null(description.Description);
+        Assert.Collection(
+            response.Texts,
+            first =>
+            {
+                Assert.Equal("text1", first.FieldKey);
+                Assert.Equal("Title", first.Label);
+                Assert.Equal("ShortText", first.Type);
+                Assert.Equal(50, first.MaxLength);
+                Assert.Equal("English stream 1", first.Value);
+            },
+            second =>
+            {
+                Assert.Equal("text2", second.FieldKey);
+                Assert.Equal("Description", second.Label);
+                Assert.Equal("LongText", second.Type);
+                Assert.Equal(2500, second.MaxLength);
+                Assert.Equal("Event description", second.Value);
+            });
 
         Assert.Empty(response.Platforms);
     }
@@ -149,5 +163,10 @@ public sealed class GetCalendarEventDetailsResponseTests
             CalendarEventId,
             new ScheduledStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
             new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
-            [new LocalizedDescription("en", "English stream 1", null)]);
+            EventTextSnapshot.Create(
+                EventTextFields.Default,
+                [
+                    new EventTextValue("text1", "English stream 1"),
+                    new EventTextValue("text2", "Event description")
+                ]));
 }

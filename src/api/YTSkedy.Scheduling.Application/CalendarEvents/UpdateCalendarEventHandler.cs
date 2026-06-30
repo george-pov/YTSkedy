@@ -7,7 +7,7 @@ public sealed class UpdateCalendarEventHandler(
     ICalendarEventModifier calendarEvents)
 {
     public async Task<UpdateCalendarEventResult> HandleAsync(
-        UpdateDescriptionsCommand command,
+        UpdateEventTextCommand command,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -21,9 +21,10 @@ public sealed class UpdateCalendarEventHandler(
             return UpdateCalendarEventResult.NotFound;
         }
 
-        var updated = await calendarEvents.UpdateDescriptionsAsync(
+        var text = calendarEvent.Text.UpdateValues(command.Texts);
+        var updated = await calendarEvents.UpdateTextAsync(
             command.CalendarEventId,
-            command.Descriptions,
+            text,
             cancellationToken);
 
         // The row was read but vanished before the write. Treat the

@@ -71,7 +71,12 @@ public class DeleteCalendarEventHandlerTests
             CalendarEventId,
             new ScheduledStart(StartUtc.UtcDateTime, "UTC"),
             StartUtc,
-            [new LocalizedDescription("en", "English title", "English description")]);
+            EventTextSnapshot.Create(
+                EventTextFields.Default,
+                [
+                    new EventTextValue("text1", "English title"),
+                    new EventTextValue("text2", "English description")
+                ]));
 
     private static PlatformPublication Publication() =>
         new(
@@ -129,9 +134,9 @@ public class DeleteCalendarEventHandlerTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<bool> UpdateDescriptionsAsync(
+        public Task<bool> UpdateTextAsync(
             string calendarEventId,
-            IReadOnlyList<LocalizedDescription> descriptions,
+            EventTextSnapshot text,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

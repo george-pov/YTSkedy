@@ -229,7 +229,12 @@ public class DeletePublicationHandlerTests
             CalendarEventId,
             new ScheduledStart(startUtc.UtcDateTime, "UTC"),
             startUtc,
-            [new LocalizedDescription("en", "English title", null)]);
+            EventTextSnapshot.Create(
+                EventTextFields.Default,
+                [
+                    new EventTextValue("text1", "English title"),
+                    new EventTextValue("text2", "Description")
+                ]));
 
     private static PlatformView Platform() =>
         new(PlatformId, "Main YouTube channel", null, PlatformType.YouTube, Settings);

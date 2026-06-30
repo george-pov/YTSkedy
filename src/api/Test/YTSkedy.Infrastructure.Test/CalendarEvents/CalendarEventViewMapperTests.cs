@@ -7,8 +7,6 @@ namespace YTSkedy.Infrastructure.Test.CalendarEvents;
 
 public class CalendarEventViewMapperTests
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     [Fact]
     public void ToViewsForMonth_IncludedEntity_MapsCalendarEventFields()
     {
@@ -16,7 +14,7 @@ public class CalendarEventViewMapperTests
             "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
             new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
             "2026-06-05T10:00:00",
-            [new LocalizedDescription("en", "English stream 1", null)]);
+            Text("English stream 1", "Event description"));
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
         var result = CalendarEventViewMapper.ToViewsForMonth([entity], criteria);
@@ -25,10 +23,25 @@ public class CalendarEventViewMapperTests
         Assert.Equal("6f9619ff8b864fb5bdfd4f5c2f2f16a1", calendarEvent.CalendarEventId);
         Assert.Equal(new DateTime(2026, 06, 05, 10, 00, 00), calendarEvent.Start.LocalDateTime);
         Assert.Equal("America/Vancouver", calendarEvent.Start.TimeZoneId);
-        var description = Assert.Single(calendarEvent.Descriptions);
-        Assert.Equal("en", description.Language);
-        Assert.Equal("English stream 1", description.Title);
-        Assert.Null(description.Description);
+        Assert.Collection(
+            calendarEvent.Text.Fields,
+            first =>
+            {
+                Assert.Equal("text1", first.FieldKey);
+                Assert.Equal("Title", first.Label);
+                Assert.Equal(EventTextType.ShortText, first.Type);
+                Assert.Equal(50, first.MaxLength);
+            },
+            second =>
+            {
+                Assert.Equal("text2", second.FieldKey);
+                Assert.Equal("Description", second.Label);
+                Assert.Equal(EventTextType.LongText, second.Type);
+                Assert.Equal(2500, second.MaxLength);
+            });
+        Assert.Equal(
+            ["English stream 1", "Event description"],
+            calendarEvent.Text.Values.Select(value => value.Value));
     }
 
     [Fact]
@@ -103,19 +116,19 @@ public class CalendarEventViewMapperTests
     }
 
     [Fact]
-    public void ToViewsForMonth_MalformedDescriptionsJson_ThrowsInvalidOperationException()
+    public void ToViewsForMonth_MalformedTextJson_ThrowsInvalidOperationException()
     {
         var entity = CreateEntity(
             "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
             new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
             "2026-06-05T10:00:00");
-        entity.DescriptionsJson = "{";
+        entity.TextJson = "{";
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
             CalendarEventViewMapper.ToViewsForMonth([entity], criteria));
 
-        Assert.Contains("malformed descriptions JSON", exception.Message);
+        Assert.Contains("malformed text JSON", exception.Message);
     }
 
     [Fact]
@@ -155,7 +168,7 @@ public class CalendarEventViewMapperTests
             "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
             new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
             "2026-06-05T10:00:00",
-            [new LocalizedDescription("en", "English stream 1", null)]);
+            Text("English stream 1", "Event description"));
 
         var result = CalendarEventViewMapper.ToViews([entity]);
 
@@ -163,8 +176,23 @@ public class CalendarEventViewMapperTests
         Assert.Equal("6f9619ff8b864fb5bdfd4f5c2f2f16a1", calendarEvent.CalendarEventId);
         Assert.Equal(new DateTime(2026, 06, 05, 10, 00, 00), calendarEvent.Start.LocalDateTime);
         Assert.Equal("America/Vancouver", calendarEvent.Start.TimeZoneId);
-        var description = Assert.Single(calendarEvent.Descriptions);
-        Assert.Equal("English stream 1", description.Title);
+        Assert.Equal("English stream 1", calendarEvent.Text.ValueFor("text1"));
+    }
+
+    [Fact]
+    public void SerializeText_TextSnapshot_WritesStoredShape()
+    {
+        var json = CalendarEventViewMapper.SerializeText(Text("English stream 1", "Event description"));
+
+        using var document = JsonDocument.Parse(json);
+        var fields = document.RootElement.GetProperty("fields");
+        var values = document.RootElement.GetProperty("values");
+        Assert.Equal("text1", fields[0].GetProperty("fieldKey").GetString());
+        Assert.Equal("Title", fields[0].GetProperty("label").GetString());
+        Assert.Equal("ShortText", fields[0].GetProperty("type").GetString());
+        Assert.Equal(50, fields[0].GetProperty("maxLength").GetInt32());
+        Assert.Equal("text1", values[0].GetProperty("fieldKey").GetString());
+        Assert.Equal("English stream 1", values[0].GetProperty("value").GetString());
     }
 
     private static CalendarEventEntity CreateEntity(
@@ -175,18 +203,13 @@ public class CalendarEventViewMapperTests
             calendarEventId,
             scheduledStartUtc,
             localDateTime,
-            [
-                new LocalizedDescription(
-                    "en",
-                    $"English stream {calendarEventId}",
-                    $"Description for {calendarEventId}")
-            ]);
+            text: null);
 
     private static CalendarEventEntity CreateEntity(
         string calendarEventId,
         DateTimeOffset scheduledStartUtc,
         string localDateTime,
-        IReadOnlyList<LocalizedDescription>? descriptions = null,
+        EventTextSnapshot? text = null,
         string timeZoneId = "America/Vancouver") =>
         new()
         {
@@ -196,15 +219,20 @@ public class CalendarEventViewMapperTests
             ScheduledStartUtc = scheduledStartUtc,
             LocalDateTime = localDateTime,
             TimeZoneId = timeZoneId,
-            DescriptionsJson = JsonSerializer.Serialize(
-                descriptions ??
-                [
-                    new LocalizedDescription(
-                        "en",
-                        $"English stream {calendarEventId}",
-                        $"Description for {calendarEventId}")
-                ],
-                JsonOptions),
+            TextJson = CalendarEventViewMapper.SerializeText(
+                text ?? Text(
+                    $"English stream {calendarEventId}",
+                    $"Description for {calendarEventId}")),
             CreatedUtc = new DateTimeOffset(2026, 01, 01, 00, 00, 00, TimeSpan.Zero)
         };
+
+    private static EventTextSnapshot Text(
+        string title,
+        string description) =>
+        EventTextSnapshot.Create(
+            EventTextFields.Default,
+            [
+                new EventTextValue("text1", title),
+                new EventTextValue("text2", description)
+            ]);
 }

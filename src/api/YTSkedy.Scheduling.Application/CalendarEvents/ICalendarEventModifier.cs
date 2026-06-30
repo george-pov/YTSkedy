@@ -9,13 +9,13 @@ public interface ICalendarEventModifier
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Replaces the localized descriptions of an existing event in place,
+    /// Replaces the stored event text snapshot of an existing event in place,
     /// leaving its scheduled start and identity unchanged. Returns false when
     /// no event has the id.
     /// </summary>
-    Task<bool> UpdateDescriptionsAsync(
+    Task<bool> UpdateTextAsync(
         string calendarEventId,
-        IReadOnlyList<LocalizedDescription> descriptions,
+        EventTextSnapshot text,
         CancellationToken cancellationToken);
 
     /// <summary>

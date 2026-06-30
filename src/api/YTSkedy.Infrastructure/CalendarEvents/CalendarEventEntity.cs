@@ -21,7 +21,7 @@ internal sealed class CalendarEventEntity : ITableEntity
 
     public string TimeZoneId { get; set; } = string.Empty;
 
-    public string DescriptionsJson { get; set; } = string.Empty;
+    public string TextJson { get; set; } = string.Empty;
 
     public DateTimeOffset CreatedUtc { get; set; }
 }

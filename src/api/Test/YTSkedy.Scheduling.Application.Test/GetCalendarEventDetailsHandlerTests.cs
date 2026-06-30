@@ -210,7 +210,12 @@ public class GetCalendarEventDetailsHandlerTests
             CalendarEventId,
             new ScheduledStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
             scheduledStartUtc,
-            [new LocalizedDescription("en", "English stream 1", null)]);
+            EventTextSnapshot.Create(
+                EventTextFields.Default,
+                [
+                    new EventTextValue("text1", "English stream 1"),
+                    new EventTextValue("text2", "Event details")
+                ]));
 
     private static PlatformView CreatePlatform(string platformId, string name) =>
         new(platformId, name, null, PlatformType.YouTube, YouTubeSettings());

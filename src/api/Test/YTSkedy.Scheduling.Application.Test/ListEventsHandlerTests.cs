@@ -66,13 +66,13 @@ public class ListEventsHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_TitleAscending_SortsByEnglishTitleOrdinal()
+    public async Task HandleAsync_TitleAscending_SortsByFirstShortTextOrdinal()
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateView("20260101T000000Z", englishTitle: "Charlie stream"),
-            CreateView("20260102T000000Z", englishTitle: "Alpha stream"),
-            CreateView("20260103T000000Z", englishTitle: "Bravo stream")
+            CreateView("20260101T000000Z", title: "Charlie stream"),
+            CreateView("20260102T000000Z", title: "Alpha stream"),
+            CreateView("20260103T000000Z", title: "Bravo stream")
         ]);
         var handler = new ListEventsHandler(reader);
 
@@ -86,13 +86,13 @@ public class ListEventsHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_TitleAscending_TreatsUppercaseEnglishTagAsTitle()
+    public async Task HandleAsync_TitleAscending_NoShortText_FallsBackToFirstTextValue()
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateView("20260101T000000Z", englishTitle: "Charlie stream", language: "EN"),
-            CreateView("20260102T000000Z", englishTitle: "Alpha stream", language: "EN"),
-            CreateView("20260103T000000Z", englishTitle: "Bravo stream", language: "EN")
+            CreateView("20260101T000000Z", title: "Charlie stream", includeShortText: false),
+            CreateView("20260102T000000Z", title: "Alpha stream", includeShortText: false),
+            CreateView("20260103T000000Z", title: "Bravo stream", includeShortText: false)
         ]);
         var handler = new ListEventsHandler(reader);
 
@@ -259,13 +259,23 @@ public class ListEventsHandlerTests
     private static CalendarEventView CreateView(
         string calendarEventId,
         string timeZoneId = "America/Vancouver",
-        string? englishTitle = null,
-        string language = "en") =>
+        string? title = null,
+        bool includeShortText = true) =>
         new(
             calendarEventId,
             new ScheduledStart(new DateTime(2026, 1, 1, 0, 0, 0), timeZoneId),
             new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            [new LocalizedDescription(language, englishTitle ?? $"Title {calendarEventId}", null)]);
+            includeShortText
+                ? EventTextSnapshot.Create(
+                    EventTextFields.Default,
+                    [
+                        new EventTextValue("text1", title ?? $"Title {calendarEventId}"),
+                        new EventTextValue("text2", "Description")
+                    ])
+                : EventTextSnapshot.Create(
+                    new EventTextFields(
+                        [new EventTextField("ignored", "Body", EventTextType.LongText, 2500)]),
+                    [new EventTextValue("text1", title ?? $"Title {calendarEventId}")]));
 
     private static string[] Ids(CalendarEventListPage page) =>
         page.Items.Select(item => item.CalendarEventId).ToArray();

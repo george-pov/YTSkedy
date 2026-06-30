@@ -21,15 +21,15 @@ GET {{HostAddress}}/api/calendar-events?page=0&pageSize=10&sort=scheduledStart&d
 Authorization: Bearer {{accessToken}}
 
 ### List calendar events sorted by title ascending
-# Expected response: 200 OK ordered by the English title, then calendar event id
-# ascending.
+# Expected response: 200 OK ordered by the first ShortText value, falling back
+# to the first text value, then calendar event id ascending.
 
 GET {{HostAddress}}/api/calendar-events?sort=title&direction=asc
 Authorization: Bearer {{accessToken}}
 
 ### Get a single calendar event by id
 # Replace the id with one returned by a list call. The response item has the
-# same shape as a list item (local start, time zone, descriptions).
+# same shape as a list item (local start, time zone, texts).
 # Expected response: 200 OK, or 404 Not Found for an unknown id.
 
 GET {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID
@@ -59,7 +59,7 @@ Authorization: Bearer {{accessToken}}
 # Expected response: 400 Bad Request (sort must be scheduledStart, timeZone, or
 # title).
 
-GET {{HostAddress}}/api/calendar-events?sort=descriptions
+GET {{HostAddress}}/api/calendar-events?sort=body
 Authorization: Bearer {{accessToken}}
 
 ### Year without month

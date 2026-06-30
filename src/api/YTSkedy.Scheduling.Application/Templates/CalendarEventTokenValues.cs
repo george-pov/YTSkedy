@@ -9,8 +9,6 @@ namespace YTSkedy.Scheduling.Application.Templates;
 /// </summary>
 public sealed class CalendarEventTokenValues
 {
-    private const string Russian = "ru";
-
     private static readonly CultureInfo EnglishCulture = CultureInfo.GetCultureInfo("en-US");
     private static readonly CultureInfo RussianCulture = CultureInfo.GetCultureInfo("ru-RU");
 
@@ -25,24 +23,19 @@ public sealed class CalendarEventTokenValues
     {
         ArgumentNullException.ThrowIfNull(calendarEvent);
 
-        var english = calendarEvent.Descriptions.FirstOrDefault(description => description.IsEnglish);
-        var russian = calendarEvent.Descriptions.FirstOrDefault(IsRussian);
         var localDate = calendarEvent.Start.LocalDateTime;
 
         return new CalendarEventTokenValues(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["title"] = english?.Title ?? string.Empty,
-                ["description"] = english?.Description ?? string.Empty,
-                ["titleRu"] = russian?.Title ?? string.Empty,
-                ["descriptionRu"] = russian?.Description ?? string.Empty,
+                ["title"] = calendarEvent.Text.ValueFor("text1") ?? string.Empty,
+                ["description"] = calendarEvent.Text.ValueFor("text2") ?? string.Empty,
+                ["titleRu"] = calendarEvent.Text.ValueFor("text3") ?? string.Empty,
+                ["descriptionRu"] = calendarEvent.Text.ValueFor("text4") ?? string.Empty,
                 ["longDate"] = localDate.ToString("MMMM d, yyyy", EnglishCulture),
                 ["longDateRu"] = localDate.ToString("d MMMM yyyy", RussianCulture),
                 ["shortDate"] = localDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 ["shortDateRu"] = localDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
             });
     }
-
-    private static bool IsRussian(LocalizedDescription description) =>
-        string.Equals(description.Language, Russian, StringComparison.OrdinalIgnoreCase);
 }

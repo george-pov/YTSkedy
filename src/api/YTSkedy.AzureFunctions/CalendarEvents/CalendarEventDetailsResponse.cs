@@ -12,5 +12,5 @@ internal sealed record CalendarEventDetailsResponse(
     string CalendarEventId,
     CalendarEventStart Start,
     DateTimeOffset ScheduledStartUtc,
-    IReadOnlyList<LocalizedCalendarEventText> Descriptions,
+    IReadOnlyList<EventTextResponse> Texts,
     IReadOnlyList<EventPlatformResponse> Platforms);

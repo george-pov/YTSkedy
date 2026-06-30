@@ -107,12 +107,12 @@ public class PublishHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_NoEnglishTitle_ReturnsInvalidPublishingContent()
+    public async Task HandleAsync_NoTitleText_ReturnsInvalidPublishingContent()
     {
         var repository = new FakePublicationRepository();
         var publisher = new FakePublisher();
         var handler = CreateHandler(
-            Event(FutureStart, [new LocalizedDescription("ru", "Russian title", null)]),
+            Event(FutureStart, Text(title: null)),
             Platform(),
             publisher,
             repository: repository);
@@ -125,12 +125,12 @@ public class PublishHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_BlankEnglishTitle_ReturnsInvalidPublishingContent()
+    public async Task HandleAsync_BlankTitleText_ReturnsInvalidPublishingContent()
     {
         var repository = new FakePublicationRepository();
         var publisher = new FakePublisher();
         var handler = CreateHandler(
-            Event(FutureStart, [new LocalizedDescription("en", "   ", "description")]),
+            Event(FutureStart, Text(title: "   ", description: "description")),
             Platform(),
             publisher,
             repository: repository);
@@ -199,7 +199,7 @@ public class PublishHandlerTests
         var repository = new FakePublicationRepository();
         var publisher = new FakePublisher();
         var handler = CreateHandler(
-            Event(FutureStart, [new LocalizedDescription("en", "English title", null)]),
+            Event(FutureStart, Text(description: string.Empty)),
             Platform(publishingContent: new PublishingContent("title-template", null)),
             publisher,
             repository: repository,
@@ -383,12 +383,32 @@ public class PublishHandlerTests
 
     private static CalendarEventView Event(
         DateTimeOffset startUtc,
-        IReadOnlyList<LocalizedDescription>? descriptions = null) =>
+        EventTextSnapshot? text = null) =>
         new(
             CalendarEventId,
             new ScheduledStart(startUtc.UtcDateTime, "UTC"),
             startUtc,
-            descriptions ?? [new LocalizedDescription("en", "English title", "English description")]);
+            text ?? Text());
+
+    private static EventTextSnapshot Text(
+        string? title = "English title",
+        string? description = "English description")
+    {
+        var values = new List<EventTextValue>();
+        if (title is not null)
+        {
+            values.Add(new EventTextValue("text1", title));
+        }
+
+        values.Add(new EventTextValue("text2", description ?? string.Empty));
+
+        return new EventTextSnapshot(
+            [
+                new EventTextField("text1", "Title", EventTextType.ShortText, 50),
+                new EventTextField("text2", "Description", EventTextType.LongText, 2500)
+            ],
+            values);
+    }
 
     private static PlatformView Platform() =>
         Platform("Main YouTube channel", PlatformType.YouTube, Settings);
