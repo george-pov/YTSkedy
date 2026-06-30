@@ -21,9 +21,9 @@ internal sealed class PlatformEntity : ITableEntity
 
     public string Type { get; set; } = string.Empty;
 
-    public string? TitleTemplateId { get; set; }
+    public string TitleTemplateId { get; set; } = string.Empty;
 
-    public string? DescriptionTemplateId { get; set; }
+    public string DescriptionTemplateId { get; set; } = string.Empty;
 
     public string PublishSettingsJson { get; set; } = string.Empty;
 

@@ -159,12 +159,12 @@ public class PublishHandlerTests
                     "title-template",
                     "Title template",
                     TemplateType.YouTube,
-                    "{{ title }} on {{ shortDate }}"),
+                    "{{ text1 }} on {{ shortDateEn }}"),
                 new TemplateView(
                     "description-template",
                     "Description template",
                     TemplateType.YouTube,
-                    "Details: {{ description }}")));
+                    "Details: {{ text2 }}")));
 
         var result = await Handle(handler);
 
@@ -182,7 +182,7 @@ public class PublishHandlerTests
         var publisher = new FakePublisher();
         var handler = CreateHandler(
             Event(FutureStart),
-            Platform(publishingContent: new PublishingContent("missing-template", null)),
+            Platform(publishingContent: new PublishingContent("missing-template", "description-template")),
             publisher,
             repository: repository);
 
@@ -200,7 +200,7 @@ public class PublishHandlerTests
         var publisher = new FakePublisher();
         var handler = CreateHandler(
             Event(FutureStart, Text(description: string.Empty)),
-            Platform(publishingContent: new PublishingContent("title-template", null)),
+            Platform(),
             publisher,
             repository: repository,
             templates: new FakeTemplateReader(
@@ -208,7 +208,12 @@ public class PublishHandlerTests
                     "title-template",
                     "Title template",
                     TemplateType.YouTube,
-                    "{{ description }}")));
+                    "{{ text2 }}"),
+                new TemplateView(
+                    "description-template",
+                    "Description template",
+                    TemplateType.YouTube,
+                    "Description")));
 
         var result = await Handle(handler);
 
@@ -224,7 +229,7 @@ public class PublishHandlerTests
         var publisher = new FakePublisher();
         var handler = CreateHandler(
             Event(FutureStart),
-            Platform(publishingContent: new PublishingContent("title-template", null)),
+            Platform(),
             publisher,
             repository: repository,
             templates: new FakeTemplateReader(
@@ -232,7 +237,12 @@ public class PublishHandlerTests
                     "title-template",
                     "Title template",
                     TemplateType.YouTube,
-                    "{{ unknownToken }}")));
+                    "{{ unknownToken }}"),
+                new TemplateView(
+                    "description-template",
+                    "Description template",
+                    TemplateType.YouTube,
+                    "Description")));
 
         var result = await Handle(handler);
 
@@ -377,7 +387,7 @@ public class PublishHandlerTests
             new FakePublicationReader(existing),
             repository ?? new FakePublicationRepository(),
             new FakeSelector(publisher),
-            new PublishingContentRenderer(templates ?? new FakeTemplateReader()),
+            new PublishingContentRenderer(templates ?? RequiredTemplates()),
             new FixedTimeProvider(Now),
             NullLogger<PublishHandler>.Instance);
 
@@ -421,7 +431,39 @@ public class PublishHandlerTests
         PlatformType type,
         PublishSettings settings,
         PublishingContent? publishingContent = null) =>
-        new(PlatformId, name, null, type, settings, publishingContent);
+        new(
+            PlatformId,
+            name,
+            null,
+            type,
+            settings,
+            publishingContent ?? RequiredPublishingContent());
+
+    private static PublishingContent RequiredPublishingContent() =>
+        new("title-template", "description-template");
+
+    private static FakeTemplateReader RequiredTemplates() =>
+        new(
+            new TemplateView(
+                "title-template",
+                "Title",
+                TemplateType.YouTube,
+                "{{ text1 }}"),
+            new TemplateView(
+                "description-template",
+                "Description",
+                TemplateType.YouTube,
+                "{{ text2 }}"),
+            new TemplateView(
+                "title-template",
+                "Title",
+                TemplateType.WordPress,
+                "{{ text1 }}"),
+            new TemplateView(
+                "description-template",
+                "Description",
+                TemplateType.WordPress,
+                "{{ text2 }}"));
 
     private static PlatformPublication Publication(
         PublishStatus status,

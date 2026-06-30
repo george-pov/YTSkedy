@@ -237,7 +237,13 @@ public class DeletePublicationHandlerTests
                 ]));
 
     private static PlatformView Platform() =>
-        new(PlatformId, "Main YouTube channel", null, PlatformType.YouTube, Settings);
+        new(
+            PlatformId,
+            "Main YouTube channel",
+            null,
+            PlatformType.YouTube,
+            Settings,
+            new PublishingContent("title-template", "description-template"));
 
     private static PlatformPublication Publication(
         PublishStatus status,

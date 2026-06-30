@@ -30,21 +30,26 @@ public class GetPublishingContentHandlerTests
     {
         var handler = CreateHandler(
             Event(),
-            Platform(new PublishingContent("title-template", null)),
+            Platform(),
             publication: null,
             templates: new FakeTemplateReader(
                 new TemplateView(
                     "title-template",
                     "Title",
                     TemplateType.YouTube,
-                    "{{ title }} on {{ shortDate }}")));
+                    "{{ text1 }} on {{ shortDateEn }}"),
+                new TemplateView(
+                    "description-template",
+                    "Description",
+                    TemplateType.YouTube,
+                    "Details: {{ text2 }}")));
 
         var result = await Handle(handler);
 
         Assert.Equal(GetPublishingContentStatus.Found, result.Status);
         Assert.Equal(PublishingContentType.Preview, result.Type);
         Assert.Equal("English title on 2026-06-25", result.Content!.Title);
-        Assert.Equal("English description", result.Content.Description);
+        Assert.Equal("Details: English description", result.Content.Description);
     }
 
     [Fact]
@@ -120,7 +125,7 @@ public class GetPublishingContentHandlerTests
     {
         var handler = CreateHandler(
             Event(),
-            Platform(new PublishingContent("missing-template", null)),
+            Platform(new PublishingContent("missing-template", "description-template")),
             publication: null);
 
         var result = await Handle(handler);
@@ -133,14 +138,19 @@ public class GetPublishingContentHandlerTests
     {
         var handler = CreateHandler(
             Event(description: null),
-            Platform(new PublishingContent("title-template", null)),
+            Platform(),
             publication: null,
             templates: new FakeTemplateReader(
                 new TemplateView(
                     "title-template",
                     "Title",
                     TemplateType.YouTube,
-                    "{{ description }}")));
+                    "{{ text2 }}"),
+                new TemplateView(
+                    "description-template",
+                    "Description",
+                    TemplateType.YouTube,
+                    "Description")));
 
         var result = await Handle(handler);
 
@@ -152,14 +162,19 @@ public class GetPublishingContentHandlerTests
     {
         var handler = CreateHandler(
             Event(),
-            Platform(new PublishingContent("title-template", null)),
+            Platform(),
             publication: null,
             templates: new FakeTemplateReader(
                 new TemplateView(
                     "title-template",
                     "Title",
                     TemplateType.YouTube,
-                    "{{ unknownToken }}")));
+                    "{{ unknownToken }}"),
+                new TemplateView(
+                    "description-template",
+                    "Description",
+                    TemplateType.YouTube,
+                    "Description")));
 
         var result = await Handle(handler);
 
@@ -191,7 +206,7 @@ public class GetPublishingContentHandlerTests
             new FakeCalendarEventReader(calendarEvent),
             new FakePlatformReader(platform),
             new FakePublicationReader(publication),
-            new PublishingContentRenderer(templates ?? new FakeTemplateReader()));
+            new PublishingContentRenderer(templates ?? RequiredTemplates()));
 
     private static CalendarEventView Event(string? description = "English description") =>
         new(
@@ -221,7 +236,23 @@ public class GetPublishingContentHandlerTests
                 new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
                 "private",
                 false),
-            publishingContent);
+            publishingContent ?? RequiredPublishingContent());
+
+    private static PublishingContent RequiredPublishingContent() =>
+        new("title-template", "description-template");
+
+    private static FakeTemplateReader RequiredTemplates() =>
+        new(
+            new TemplateView(
+                "title-template",
+                "Title",
+                TemplateType.YouTube,
+                "{{ text1 }}"),
+            new TemplateView(
+                "description-template",
+                "Description",
+                TemplateType.YouTube,
+                "{{ text2 }}"));
 
     private static PlatformPublication Publication(
         PublishStatus status,

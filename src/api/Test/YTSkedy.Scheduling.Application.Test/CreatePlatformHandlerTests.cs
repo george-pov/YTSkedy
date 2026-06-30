@@ -57,19 +57,21 @@ public class CreatePlatformHandlerTests
         {
             CreateResult = CreatePlatformResult.NameAlreadyExists()
         };
-        var templates = new FakeTemplateReader();
+        var templates = RequiredTemplates();
         var handler = new CreatePlatformHandler(modifier, templates);
         var command = new CreatePlatformCommand(
             "Main channel",
             PlatformType.YouTube,
             Settings,
-            PublishingContent.None);
+            RequiredPublishingContent());
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(CreatePlatformStatus.NameAlreadyExists, result.Status);
         Assert.Null(result.PlatformId);
-        Assert.Empty(templates.GetCalls);
+        Assert.Equal(
+            [(TemplateType.YouTube, "title-template"), (TemplateType.YouTube, "description-template")],
+            templates.GetCalls);
     }
 
     [Fact]
@@ -79,12 +81,12 @@ public class CreatePlatformHandlerTests
         {
             CreateResult = CreatePlatformResult.ReferenceKeyAlreadyExists()
         };
-        var handler = new CreatePlatformHandler(modifier, new FakeTemplateReader());
+        var handler = new CreatePlatformHandler(modifier, RequiredTemplates());
         var command = new CreatePlatformCommand(
             "Main channel",
             PlatformType.YouTube,
             Settings,
-            PublishingContent.None,
+            RequiredPublishingContent(),
             "main-youtube");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -102,7 +104,7 @@ public class CreatePlatformHandlerTests
             "Main channel",
             PlatformType.YouTube,
             Settings,
-            new PublishingContent("missing-template", null));
+            new PublishingContent("missing-template", "description-template"));
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -152,6 +154,14 @@ public class CreatePlatformHandlerTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
+
+    private static PublishingContent RequiredPublishingContent() =>
+        new("title-template", "description-template");
+
+    private static FakeTemplateReader RequiredTemplates() =>
+        new(
+            (TemplateType.YouTube, "title-template"),
+            (TemplateType.YouTube, "description-template"));
 
     private sealed class FakeTemplateReader(params (TemplateType Type, string Id)[] availableTemplates) :
         ITemplateReader

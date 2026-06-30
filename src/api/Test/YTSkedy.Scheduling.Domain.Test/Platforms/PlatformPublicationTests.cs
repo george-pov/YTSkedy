@@ -5,12 +5,21 @@ namespace YTSkedy.Scheduling.Domain.Test.Platforms;
 public class PlatformPublicationTests
 {
     [Fact]
-    public void PublishingContent_BlankTemplateIds_NormalizesToNull()
+    public void PublishingContent_BlankTitleTemplateId_Throws()
     {
-        var content = new PublishingContent("   ", null);
+        var exception = Assert.Throws<ArgumentException>(
+            () => new PublishingContent("   ", "description-template"));
 
-        Assert.Null(content.TitleTemplateId);
-        Assert.Null(content.DescriptionTemplateId);
+        Assert.Equal("titleTemplateId", exception.ParamName);
+    }
+
+    [Fact]
+    public void PublishingContent_ValidTemplateIds_TrimsValues()
+    {
+        var content = new PublishingContent(" title-template ", " description-template ");
+
+        Assert.Equal("title-template", content.TitleTemplateId);
+        Assert.Equal("description-template", content.DescriptionTemplateId);
     }
 
     [Fact]

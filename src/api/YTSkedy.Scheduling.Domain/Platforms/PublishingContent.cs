@@ -1,31 +1,35 @@
 namespace YTSkedy.Scheduling.Domain.Platforms;
 
 /// <summary>
-/// Platform-owned title and description template selection. Null template ids
-/// mean the publishing flow calculates that field from the calendar event.
+/// Platform-owned title and description template selection.
 /// </summary>
 public sealed record PublishingContent
 {
     public PublishingContent(
-        string? titleTemplateId,
-        string? descriptionTemplateId)
+        string titleTemplateId,
+        string descriptionTemplateId)
     {
-        TitleTemplateId = NormalizeTemplateId(titleTemplateId);
-        DescriptionTemplateId = NormalizeTemplateId(descriptionTemplateId);
+        TitleTemplateId = NormalizeTemplateId(titleTemplateId, nameof(titleTemplateId));
+        DescriptionTemplateId = NormalizeTemplateId(
+            descriptionTemplateId,
+            nameof(descriptionTemplateId));
     }
 
-    public static PublishingContent None { get; } = new(null, null);
+    public string TitleTemplateId { get; }
 
-    public string? TitleTemplateId { get; }
+    public string DescriptionTemplateId { get; }
 
-    public string? DescriptionTemplateId { get; }
-
-    private static string? NormalizeTemplateId(string? templateId)
+    private static string NormalizeTemplateId(string? templateId, string parameterName)
     {
         var trimmed = templateId?.Trim();
 
-        return string.IsNullOrEmpty(trimmed)
-            ? null
-            : trimmed;
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            throw new ArgumentException(
+                "Publishing content template id is required.",
+                parameterName);
+        }
+
+        return trimmed;
     }
 }

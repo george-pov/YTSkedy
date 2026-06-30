@@ -17,8 +17,8 @@ public class PlatformViewMapperTests
         Assert.Null(view.ReferenceKey);
         Assert.Equal(PlatformType.YouTube, view.Type);
         Assert.IsType<YouTubeSettings>(view.PublishSettings);
-        Assert.Null(view.PublishingContent.TitleTemplateId);
-        Assert.Null(view.PublishingContent.DescriptionTemplateId);
+        Assert.Equal("title-template", view.PublishingContent.TitleTemplateId);
+        Assert.Equal("description-template", view.PublishingContent.DescriptionTemplateId);
     }
 
     [Fact]
@@ -53,6 +53,16 @@ public class PlatformViewMapperTests
 
         Assert.Equal("title-template", view.PublishingContent.TitleTemplateId);
         Assert.Equal("description-template", view.PublishingContent.DescriptionTemplateId);
+    }
+
+    [Fact]
+    public void ToView_EntityWithoutPublishingContent_Throws()
+    {
+        var entity = CreateEntity("YouTube");
+        entity.TitleTemplateId = string.Empty;
+        entity.DescriptionTemplateId = string.Empty;
+
+        Assert.Throws<ArgumentException>(() => PlatformViewMapper.ToView(entity));
     }
 
     [Fact]
@@ -104,6 +114,8 @@ public class PlatformViewMapperTests
             PlatformId = "platform-1",
             Name = "Main YouTube channel",
             Type = type,
+            TitleTemplateId = "title-template",
+            DescriptionTemplateId = "description-template",
             PublishSettingsJson = publishSettingsJson ??
                 PublishSettingsSerializer.Serialize(
                     PlatformType.YouTube,

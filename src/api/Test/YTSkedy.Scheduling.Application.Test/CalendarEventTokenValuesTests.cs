@@ -6,7 +6,7 @@ namespace YTSkedy.Scheduling.Application.Test;
 public class CalendarEventTokenValuesTests
 {
     [Fact]
-    public void From_TextSnapshot_ReturnsExistingTitleAndDescriptionTokens()
+    public void From_TextSnapshot_ReturnsEventTextTokens()
     {
         var calendarEvent = Event(
             new DateTime(2026, 6, 5, 10, 30, 0),
@@ -14,14 +14,18 @@ public class CalendarEventTokenValuesTests
 
         var values = CalendarEventTokenValues.From(calendarEvent).Values;
 
-        Assert.Equal("English title", values["title"]);
-        Assert.Equal("English description", values["description"]);
-        Assert.Equal("Russian title", values["titleRu"]);
-        Assert.Equal("Russian description", values["descriptionRu"]);
+        Assert.Equal("English title", values["text1"]);
+        Assert.Equal("English description", values["text2"]);
+        Assert.Equal("Russian title", values["text3"]);
+        Assert.Equal("Russian description", values["text4"]);
+        Assert.False(values.ContainsKey("title"));
+        Assert.False(values.ContainsKey("description"));
+        Assert.False(values.ContainsKey("titleRu"));
+        Assert.False(values.ContainsKey("descriptionRu"));
     }
 
     [Fact]
-    public void From_EmptyTextValues_ReturnsEmptyDescriptionTokens()
+    public void From_EmptyTextValues_ReturnsEmptyTextTokens()
     {
         var calendarEvent = Event(
             new DateTime(2026, 6, 5, 10, 30, 0),
@@ -29,8 +33,8 @@ public class CalendarEventTokenValuesTests
 
         var values = CalendarEventTokenValues.From(calendarEvent).Values;
 
-        Assert.Equal(string.Empty, values["description"]);
-        Assert.Equal(string.Empty, values["descriptionRu"]);
+        Assert.Equal(string.Empty, values["text2"]);
+        Assert.Equal(string.Empty, values["text4"]);
     }
 
     [Fact]
@@ -42,10 +46,14 @@ public class CalendarEventTokenValuesTests
 
         var values = CalendarEventTokenValues.From(calendarEvent).Values;
 
-        Assert.Equal("June 5, 2026", values["longDate"]);
+        Assert.Equal("June 5, 2026", values["longDateEn"]);
+        Assert.Equal("2026-06-05", values["shortDateEn"]);
         Assert.Equal("5 \u0438\u044e\u043d\u044f 2026", values["longDateRu"]);
-        Assert.Equal("2026-06-05", values["shortDate"]);
         Assert.Equal("05.06.2026", values["shortDateRu"]);
+        Assert.Equal("5 juin 2026", values["longDateFr"]);
+        Assert.Equal("05/06/2026", values["shortDateFr"]);
+        Assert.False(values.ContainsKey("longDate"));
+        Assert.False(values.ContainsKey("shortDate"));
     }
 
     [Fact]
@@ -59,8 +67,8 @@ public class CalendarEventTokenValuesTests
 
         var values = CalendarEventTokenValues.From(calendarEvent).Values;
 
-        Assert.Equal("January 2, 2026", values["longDate"]);
-        Assert.Equal("2026-01-02", values["shortDate"]);
+        Assert.Equal("January 2, 2026", values["longDateEn"]);
+        Assert.Equal("2026-01-02", values["shortDateEn"]);
     }
 
     private static CalendarEventView Event(

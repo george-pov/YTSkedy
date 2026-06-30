@@ -56,7 +56,7 @@ public class DeleteTemplateHandlerTests
                         null,
                         PlatformType.YouTube,
                         YouTubeSettings(),
-                        new PublishingContent("9f8b1c2d3e4f", null))
+                        new PublishingContent("9f8b1c2d3e4f", "description-template"))
                 ]));
         var command = new DeleteTemplateCommand(TemplateType.YouTube, "9f8b1c2d3e4f");
 

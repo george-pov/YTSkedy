@@ -20,8 +20,8 @@ public class UpdatePlatformHandlerTests
         {
             UpdateResult = UpdatePlatformResult.Updated
         };
-        var templates = new FakeTemplateReader((TemplateType.YouTube, "title-template"));
-        var publishingContent = new PublishingContent("title-template", null);
+        var templates = RequiredTemplates();
+        var publishingContent = RequiredPublishingContent();
         var handler = new UpdatePlatformHandler(
             new FakePlatformReader(ExistingPlatform()),
             modifier,
@@ -41,7 +41,9 @@ public class UpdatePlatformHandlerTests
         Assert.Equal("main-youtube", modifier.ReferenceKey);
         Assert.Same(Settings, modifier.PublishSettings);
         Assert.Same(publishingContent, modifier.PublishingContent);
-        Assert.Equal([(TemplateType.YouTube, "title-template")], templates.GetCalls);
+        Assert.Equal(
+            [(TemplateType.YouTube, "title-template"), (TemplateType.YouTube, "description-template")],
+            templates.GetCalls);
     }
 
     [Fact]
@@ -57,7 +59,7 @@ public class UpdatePlatformHandlerTests
             "Renamed channel",
             null,
             Settings,
-            PublishingContent.None);
+            RequiredPublishingContent());
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -75,13 +77,13 @@ public class UpdatePlatformHandlerTests
         var handler = new UpdatePlatformHandler(
             new FakePlatformReader(ExistingPlatform()),
             modifier,
-            new FakeTemplateReader());
+            RequiredTemplates());
         var command = new UpdatePlatformCommand(
             "p1",
             "Taken name",
             null,
             Settings,
-            PublishingContent.None);
+            RequiredPublishingContent());
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -98,13 +100,13 @@ public class UpdatePlatformHandlerTests
         var handler = new UpdatePlatformHandler(
             new FakePlatformReader(ExistingPlatform()),
             modifier,
-            new FakeTemplateReader());
+            RequiredTemplates());
         var command = new UpdatePlatformCommand(
             "p1",
             "Main channel",
             "taken-key",
             Settings,
-            PublishingContent.None);
+            RequiredPublishingContent());
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -124,7 +126,7 @@ public class UpdatePlatformHandlerTests
             "Main channel",
             null,
             Settings,
-            new PublishingContent("missing-template", null));
+            new PublishingContent("missing-template", "description-template"));
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -233,5 +235,14 @@ public class UpdatePlatformHandlerTests
             "Main channel",
             "main-youtube",
             PlatformType.YouTube,
-            Settings);
+            Settings,
+            RequiredPublishingContent());
+
+    private static PublishingContent RequiredPublishingContent() =>
+        new("title-template", "description-template");
+
+    private static FakeTemplateReader RequiredTemplates() =>
+        new(
+            (TemplateType.YouTube, "title-template"),
+            (TemplateType.YouTube, "description-template"));
 }

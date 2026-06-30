@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using YTSkedy.AzureFunctions.Templates;
 using YTSkedy.Scheduling.Application.Templates;
+using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Templates;
 
 namespace YTSkedy.AzureFunctions.Test.Templates;
@@ -45,14 +46,14 @@ public sealed class TemplatesApiTests
         var request = new CreateTemplateRequest(
             "Weeknight stream",
             "YouTube",
-            "Live on {{ longDate }}");
+            "Live on {{ longDateEn }}");
 
         var built = TemplatesApi.TryBuildCreateCommand(request, out var command, out _);
 
         Assert.True(built);
         Assert.Equal("Weeknight stream", command.Name);
         Assert.Equal(TemplateType.YouTube, command.Type);
-        Assert.Equal("Live on {{ longDate }}", command.Content);
+        Assert.Equal("Live on {{ longDateEn }}", command.Content);
     }
 
     [Fact]
@@ -309,18 +310,19 @@ public sealed class TemplatesApiTests
     [Fact]
     public void ToTokenListResponse_Catalog_MapsEveryTokenName()
     {
-        var response = TemplatesApi.ToTokenListResponse(TemplateTokenCatalog.All);
+        var response = TemplatesApi.ToTokenListResponse(
+            TemplateTokenCatalog.From(EventTextFields.Default));
 
         Assert.Equal(
             [
-                "title",
-                "description",
-                "titleRu",
-                "descriptionRu",
-                "longDate",
+                "text1",
+                "text2",
+                "longDateEn",
+                "shortDateEn",
                 "longDateRu",
-                "shortDate",
-                "shortDateRu"
+                "shortDateRu",
+                "longDateFr",
+                "shortDateFr"
             ],
             response.Tokens.Select(token => token.Name));
     }

@@ -16,7 +16,7 @@ public class CreateTemplateHandlerTests
         var command = new CreateTemplateCommand(
             "Weeknight stream",
             TemplateType.YouTube,
-            "Live on {{ longDate }}");
+            "Live on {{ longDateEn }}");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -26,7 +26,7 @@ public class CreateTemplateHandlerTests
         Assert.NotNull(modifier.CreatedTemplate);
         Assert.Equal("Weeknight stream", modifier.CreatedTemplate!.Name);
         Assert.Equal(TemplateType.YouTube, modifier.CreatedTemplate.Type);
-        Assert.Equal("Live on {{ longDate }}", modifier.CreatedTemplate.Content);
+        Assert.Equal("Live on {{ longDateEn }}", modifier.CreatedTemplate.Content);
     }
 
     [Fact]

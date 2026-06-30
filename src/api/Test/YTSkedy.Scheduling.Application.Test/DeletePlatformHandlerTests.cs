@@ -15,7 +15,8 @@ public class DeletePlatformHandlerTests
         new YouTubeSettings(
             new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
             "private",
-            false));
+            false),
+        new PublishingContent("title-template", "description-template"));
 
     [Fact]
     public async Task HandleAsync_NoPublishingRows_OrphansThenDeletesAndReturnsDeleted()

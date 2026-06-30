@@ -43,7 +43,8 @@ public sealed class PlatformsApiTests
             "Main YouTube channel",
             "YouTube",
             null,
-            YouTubePayload());
+            YouTubePayload(),
+            PublishingPayload());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
 
@@ -56,8 +57,8 @@ public sealed class PlatformsApiTests
         Assert.Equal("refresh-token", settings.Credentials.RefreshToken);
         Assert.Equal("private", settings.PrivacyStatus);
         Assert.False(settings.SelfDeclaredMadeForKids);
-        Assert.Null(command.PublishingContent.TitleTemplateId);
-        Assert.Null(command.PublishingContent.DescriptionTemplateId);
+        Assert.Equal("title-template", command.PublishingContent.TitleTemplateId);
+        Assert.Equal("description-template", command.PublishingContent.DescriptionTemplateId);
     }
 
     [Fact]
@@ -84,7 +85,8 @@ public sealed class PlatformsApiTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(applicationPassword: "application-password"));
+            WordPressPayload(applicationPassword: "application-password"),
+            PublishingPayload());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
 
@@ -96,6 +98,8 @@ public sealed class PlatformsApiTests
         Assert.Equal("editor", settings.Username);
         Assert.Equal("application-password", settings.ApplicationPassword);
         Assert.Equal("publish", settings.PostStatus);
+        Assert.Equal("title-template", command.PublishingContent.TitleTemplateId);
+        Assert.Equal("description-template", command.PublishingContent.DescriptionTemplateId);
     }
 
     [Fact]
@@ -207,7 +211,8 @@ public sealed class PlatformsApiTests
             "Main YouTube channel",
             "YouTube",
             "youTube1",
-            YouTubePayload());
+            YouTubePayload(),
+            PublishingPayload());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
 
@@ -222,7 +227,8 @@ public sealed class PlatformsApiTests
             "Main YouTube channel",
             "YouTube",
             "   ",
-            YouTubePayload());
+            YouTubePayload(),
+            PublishingPayload());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
 
@@ -254,7 +260,8 @@ public sealed class PlatformsApiTests
         var request = new UpdatePlatformRequest(
             "Renamed WordPress site",
             null,
-            WordPressPayload(applicationPassword: "   ", postStatus: "draft"));
+            WordPressPayload(applicationPassword: "   ", postStatus: "draft"),
+            PublishingPayload());
 
         var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
 
@@ -265,8 +272,8 @@ public sealed class PlatformsApiTests
         var settings = Assert.IsType<WordPressSettings>(command.PublishSettings);
         Assert.Equal("stored-password", settings.ApplicationPassword);
         Assert.Equal("draft", settings.PostStatus);
-        Assert.Null(command.PublishingContent.TitleTemplateId);
-        Assert.Null(command.PublishingContent.DescriptionTemplateId);
+        Assert.Equal("title-template", command.PublishingContent.TitleTemplateId);
+        Assert.Equal("description-template", command.PublishingContent.DescriptionTemplateId);
     }
 
     [Fact]
@@ -276,7 +283,8 @@ public sealed class PlatformsApiTests
         var request = new UpdatePlatformRequest(
             "Renamed WordPress site",
             null,
-            WordPressPayload(applicationPassword: "replacement-password"));
+            WordPressPayload(applicationPassword: "replacement-password"),
+            PublishingPayload());
 
         var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
 
@@ -296,7 +304,8 @@ public sealed class PlatformsApiTests
             YouTubeSettings(
                 clientId: "old-client-id",
                 clientSecret: "stored-client-secret",
-                refreshToken: "stored-refresh-token"));
+                refreshToken: "stored-refresh-token"),
+            RequiredPublishingContent());
         var request = new UpdatePlatformRequest(
             "Renamed YouTube channel",
             null,
@@ -304,7 +313,8 @@ public sealed class PlatformsApiTests
                 clientId: "new-client-id",
                 clientSecret: "",
                 refreshToken: null,
-                privacyStatus: "unlisted"));
+                privacyStatus: "unlisted"),
+            PublishingPayload());
 
         var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
 
@@ -318,20 +328,20 @@ public sealed class PlatformsApiTests
     }
 
     [Fact]
-    public void TryBuildUpdateCommand_ExplicitNullPublishingContent_SetsNone()
+    public void TryBuildUpdateCommand_MissingPublishingContent_ReturnsBadRequest()
     {
         var existing = WordPressPlatform();
         var request = new UpdatePlatformRequest(
             "Renamed WordPress site",
             null,
-            WordPressPayload(applicationPassword: "replacement-password"),
-            new PublishingContentPayload(null, null));
+            WordPressPayload(applicationPassword: "replacement-password"));
 
-        var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
+        var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out _, out var error);
 
-        Assert.True(built);
-        Assert.Null(command.PublishingContent.TitleTemplateId);
-        Assert.Null(command.PublishingContent.DescriptionTemplateId);
+        Assert.False(built);
+        Assert.Equal(
+            "Publishing content titleTemplateId and descriptionTemplateId are required.",
+            BadRequestMessage(error));
     }
 
     [Fact]
@@ -341,7 +351,8 @@ public sealed class PlatformsApiTests
         var request = new UpdatePlatformRequest(
             "Renamed WordPress site",
             "blog-1",
-            WordPressPayload(applicationPassword: "replacement-password"));
+            WordPressPayload(applicationPassword: "replacement-password"),
+            PublishingPayload());
 
         var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
 
@@ -387,7 +398,7 @@ public sealed class PlatformsApiTests
                 "editor",
                 "application-password",
                 "publish"),
-            PublishingContent.None,
+            RequiredPublishingContent(),
             "company-blog");
 
         var actionResult = PlatformsApi.ToCreateResult(
@@ -409,7 +420,7 @@ public sealed class PlatformsApiTests
                 "editor",
                 "application-password",
                 "publish"),
-            new PublishingContent("missing-template", null));
+            new PublishingContent("missing-template", "description-template"));
 
         var actionResult = PlatformsApi.ToCreateResult(
             CreatePlatformResult.LinkedTemplateNotFound(),
@@ -430,14 +441,14 @@ public sealed class PlatformsApiTests
                 "editor",
                 "application-password",
                 "draft"),
-            new PublishingContent(null, "description-template"));
+            new PublishingContent("title-template", "description-template"));
 
         var actionResult = PlatformsApi.ToUpdateResult(UpdatePlatformResult.Updated, command);
 
         var response = AssertPlatformOk(actionResult);
         Assert.Equal("company-blog", response.ReferenceKey);
         Assert.Equal("WordPress", response.Type);
-        Assert.Null(response.PublishingContent.TitleTemplateId);
+        Assert.Equal("title-template", response.PublishingContent.TitleTemplateId);
         Assert.Equal("description-template", response.PublishingContent.DescriptionTemplateId);
         AssertWordPressRedacted(response.PublishSettings, "draft");
     }
@@ -454,7 +465,7 @@ public sealed class PlatformsApiTests
                 "editor",
                 "application-password",
                 "draft"),
-            PublishingContent.None);
+            RequiredPublishingContent());
 
         var actionResult = PlatformsApi.ToUpdateResult(
             UpdatePlatformResult.ReferenceKeyAlreadyExists,
@@ -476,7 +487,7 @@ public sealed class PlatformsApiTests
                 "editor",
                 "application-password",
                 "draft"),
-            PublishingContent.None);
+            RequiredPublishingContent());
 
         var actionResult = PlatformsApi.ToUpdateResult(UpdatePlatformResult.NotFound, command);
 
@@ -495,7 +506,7 @@ public sealed class PlatformsApiTests
                 "editor",
                 "application-password",
                 "draft"),
-            new PublishingContent("missing-template", null));
+            new PublishingContent("missing-template", "description-template"));
 
         var actionResult = PlatformsApi.ToUpdateResult(
             UpdatePlatformResult.LinkedTemplateNotFound,
@@ -516,7 +527,8 @@ public sealed class PlatformsApiTests
                 "https://example.com",
                 "editor",
                 "application-password",
-                "draft"));
+                "draft"),
+            RequiredPublishingContent());
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
 
@@ -604,6 +616,14 @@ public sealed class PlatformsApiTests
             applicationPassword,
             postStatus);
 
+    private static PublishingContentPayload PublishingPayload(
+        string? titleTemplateId = "title-template",
+        string? descriptionTemplateId = "description-template") =>
+        new(titleTemplateId, descriptionTemplateId);
+
+    private static PublishingContent RequiredPublishingContent() =>
+        new("title-template", "description-template");
+
     private static PlatformView WordPressPlatform() =>
         new(
             "wp-platform",
@@ -614,7 +634,8 @@ public sealed class PlatformsApiTests
                 "https://example.com",
                 "editor",
                 "stored-password",
-                "publish"));
+                "publish"),
+            RequiredPublishingContent());
 
     private static YouTubeSettings YouTubeSettings(
         string clientId = "client-id",

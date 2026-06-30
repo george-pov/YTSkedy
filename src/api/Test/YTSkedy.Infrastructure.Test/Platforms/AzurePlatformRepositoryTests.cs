@@ -102,7 +102,7 @@ public sealed class AzurePlatformRepositoryTests
             "Main YouTube channel",
             "WP-1",
             YouTubeSettings(),
-            PublishingContent.None,
+            RequiredPublishingContent(),
             CancellationToken.None);
         var read = await repository.GetAsync(create.PlatformId!, CancellationToken.None);
 
@@ -125,7 +125,7 @@ public sealed class AzurePlatformRepositoryTests
             "Main YouTube channel",
             "wp-1",
             YouTubeSettings(),
-            PublishingContent.None,
+            RequiredPublishingContent(),
             CancellationToken.None);
         var read = await repository.GetAsync(create.PlatformId!, CancellationToken.None);
 
@@ -151,7 +151,7 @@ public sealed class AzurePlatformRepositoryTests
             "Backup YouTube channel",
             "wp-1",
             YouTubeSettings(),
-            PublishingContent.None,
+            RequiredPublishingContent(),
             CancellationToken.None);
 
         Assert.Equal(UpdatePlatformResult.ReferenceKeyAlreadyExists, result);
@@ -166,7 +166,7 @@ public sealed class AzurePlatformRepositoryTests
             YouTubePlatform(
                 "Main YouTube channel",
                 referenceKey: null,
-                publishingContent: new PublishingContent("old-title", null)),
+                publishingContent: new PublishingContent("old-title", "old-description")),
             CancellationToken.None);
 
         var result = await repository.UpdateAsync(
@@ -174,13 +174,13 @@ public sealed class AzurePlatformRepositoryTests
             "Main YouTube channel",
             null,
             YouTubeSettings(),
-            new PublishingContent(null, "new-description"),
+            new PublishingContent("new-title", "new-description"),
             CancellationToken.None);
         var read = await repository.GetAsync(create.PlatformId!, CancellationToken.None);
 
         Assert.Equal(UpdatePlatformResult.Updated, result);
         Assert.NotNull(read);
-        Assert.Null(read.PublishingContent.TitleTemplateId);
+        Assert.Equal("new-title", read.PublishingContent.TitleTemplateId);
         Assert.Equal("new-description", read.PublishingContent.DescriptionTemplateId);
     }
 
@@ -210,13 +210,21 @@ public sealed class AzurePlatformRepositoryTests
         string name,
         string? referenceKey,
         PublishingContent? publishingContent = null) =>
-        new(name, PlatformType.YouTube, YouTubeSettings(), referenceKey, publishingContent);
+        new(
+            name,
+            PlatformType.YouTube,
+            YouTubeSettings(),
+            publishingContent ?? RequiredPublishingContent(),
+            referenceKey);
 
     private static YouTubeSettings YouTubeSettings() =>
         new(
             new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
             "private",
             false);
+
+    private static PublishingContent RequiredPublishingContent() =>
+        new("title-template", "description-template");
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {

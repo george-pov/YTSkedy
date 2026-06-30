@@ -1,14 +1,20 @@
+using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Domain.Templates;
 
 namespace YTSkedy.Scheduling.Application.Templates;
 
 /// <summary>
-/// Returns the code-defined template token catalog. The handler is a thin
-/// pass-through over <see cref="TemplateTokenCatalog.All"/> so the HTTP host has
-/// a single use-case entry point and the token list stays defined in one place
-/// in the domain. It performs no I/O, so it is synchronous.
+/// Returns the template token catalog for the current event text field list.
+/// The handler keeps the HTTP host behind one use-case entry point while the
+/// domain catalog owns token ordering and fixed date tokens.
 /// </summary>
-public sealed class ListTemplateTokensHandler
+public sealed class ListTemplateTokensHandler(IEventTextFieldsReader eventTextFields)
 {
-    public IReadOnlyList<TemplateToken> Handle() => TemplateTokenCatalog.All;
+    public async Task<IReadOnlyList<TemplateToken>> HandleAsync(
+        CancellationToken cancellationToken)
+    {
+        var fields = await eventTextFields.GetAsync(cancellationToken);
+
+        return TemplateTokenCatalog.From(fields);
+    }
 }

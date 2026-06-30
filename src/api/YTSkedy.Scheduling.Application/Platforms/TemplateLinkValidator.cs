@@ -12,6 +12,8 @@ internal static class TemplateLinkValidator
         PublishingContent publishingContent,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(publishingContent);
+
         var templateType = ToTemplateType(platformType);
         foreach (var templateId in TemplateIds(publishingContent).Distinct(StringComparer.Ordinal))
         {
@@ -54,14 +56,7 @@ internal static class TemplateLinkValidator
 
     private static IEnumerable<string> TemplateIds(PublishingContent publishingContent)
     {
-        if (publishingContent.TitleTemplateId is not null)
-        {
-            yield return publishingContent.TitleTemplateId;
-        }
-
-        if (publishingContent.DescriptionTemplateId is not null)
-        {
-            yield return publishingContent.DescriptionTemplateId;
-        }
+        yield return publishingContent.TitleTemplateId;
+        yield return publishingContent.DescriptionTemplateId;
     }
 }

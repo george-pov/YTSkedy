@@ -15,14 +15,16 @@ public sealed class PlatformView
         string? referenceKey,
         PlatformType type,
         PublishSettings publishSettings,
-        PublishingContent? publishingContent = null)
+        PublishingContent publishingContent)
     {
+        ArgumentNullException.ThrowIfNull(publishingContent);
+
         PlatformId = platformId;
         Name = name;
         ReferenceKey = Platform.NormalizeReferenceKey(referenceKey);
         Type = type;
         PublishSettings = publishSettings;
-        PublishingContent = publishingContent ?? PublishingContent.None;
+        PublishingContent = publishingContent;
     }
 
     public string PlatformId { get; }

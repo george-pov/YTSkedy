@@ -14,8 +14,8 @@ public class PublishingContentRendererTests
         var renderer = new PublishingContentRenderer();
 
         var result = renderer.Render(
-            "{{ title }} on {{ shortDate }}",
-            "Details: {{ description }}",
+            "{{ text1 }} on {{ shortDateEn }}",
+            "Details: {{ text2 }}",
             Event());
 
         Assert.Equal(RenderContentStatus.Rendered, result.Status);
@@ -31,7 +31,7 @@ public class PublishingContentRendererTests
         var renderer = new PublishingContentRenderer();
 
         var result = renderer.Render(
-            "{{    titleRu    }}",
+            "{{    text3    }}",
             null,
             Event());
 
@@ -44,7 +44,7 @@ public class PublishingContentRendererTests
         var renderer = new PublishingContentRenderer();
 
         var result = renderer.Render(
-            "{{ title }} / {{ title }}",
+            "{{ text1 }} / {{ text1 }}",
             null,
             Event());
 
@@ -73,12 +73,12 @@ public class PublishingContentRendererTests
         var renderer = new PublishingContentRenderer();
 
         var result = renderer.Render(
-            "{ title } and {{ title",
-            "Text {{ title ru }}",
+            "{ text1 } and {{ text1",
+            "Text {{ text 1 }}",
             Event());
 
-        Assert.Equal("{ title } and {{ title", result.Content!.Title);
-        Assert.Equal("Text {{ title ru }}", result.Content.Description);
+        Assert.Equal("{ text1 } and {{ text1", result.Content!.Title);
+        Assert.Equal("Text {{ text 1 }}", result.Content.Description);
         Assert.False(result.HasUnresolvedPlaceholders);
     }
 
@@ -89,7 +89,7 @@ public class PublishingContentRendererTests
         var calendarEvent = Event(description: null);
 
         var result = renderer.Render(
-            "{{ description }}",
+            "{{ text2 }}",
             null,
             calendarEvent);
 
@@ -105,27 +105,12 @@ public class PublishingContentRendererTests
         var calendarEvent = Event(description: null);
 
         var result = renderer.Render(
-            "{{ title }}",
-            "{{ description }}",
+            "{{ text1 }}",
+            "{{ text2 }}",
             calendarEvent);
 
         Assert.Equal(RenderContentStatus.Rendered, result.Status);
         Assert.Null(result.Content!.Description);
-    }
-
-    [Fact]
-    public async Task RenderAsync_NoTemplateIds_UsesEnglishEventContent()
-    {
-        var renderer = new PublishingContentRenderer(new FakeTemplateReader());
-
-        var result = await renderer.RenderAsync(
-            Platform(PublishingContent.None),
-            Event(),
-            CancellationToken.None);
-
-        Assert.Equal(RenderContentStatus.Rendered, result.Status);
-        Assert.Equal("English title", result.Content!.Title);
-        Assert.Equal("English description", result.Content.Description);
     }
 
     [Fact]
@@ -137,12 +122,12 @@ public class PublishingContentRendererTests
                     "title-template",
                     "Title",
                     TemplateType.YouTube,
-                    "{{ title }} on {{ shortDate }}"),
+                    "{{ text1 }} on {{ shortDateEn }}"),
                 new TemplateView(
                     "description-template",
                     "Description",
                     TemplateType.YouTube,
-                    "Details: {{ description }}")));
+                    "Details: {{ text2 }}")));
 
         var result = await renderer.RenderAsync(
             Platform(new PublishingContent("title-template", "description-template")),
@@ -160,7 +145,7 @@ public class PublishingContentRendererTests
         var renderer = new PublishingContentRenderer(new FakeTemplateReader());
 
         var result = await renderer.RenderAsync(
-            Platform(new PublishingContent("missing-template", null)),
+            Platform(new PublishingContent("missing-template", "description-template")),
             Event(),
             CancellationToken.None);
 

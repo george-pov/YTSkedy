@@ -34,8 +34,8 @@ public sealed class CreatePlatformHandler(
             command.Name,
             command.Type,
             command.PublishSettings,
-            command.ReferenceKey,
-            command.PublishingContent);
+            command.PublishingContent,
+            command.ReferenceKey);
 
         return await platforms.CreateAsync(platform, cancellationToken);
     }

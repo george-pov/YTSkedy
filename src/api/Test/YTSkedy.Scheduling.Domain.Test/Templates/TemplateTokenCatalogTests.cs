@@ -1,3 +1,4 @@
+using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Templates;
 
 namespace YTSkedy.Scheduling.Domain.Test.Templates;
@@ -5,27 +6,35 @@ namespace YTSkedy.Scheduling.Domain.Test.Templates;
 public class TemplateTokenCatalogTests
 {
     [Fact]
-    public void All_ReturnsTheCodeDefinedTokenNamesInOrder()
+    public void From_EventTextFields_ReturnsTextAndDateTokenNamesInOrder()
     {
-        var names = TemplateTokenCatalog.All.Select(token => token.Name).ToArray();
+        var fields = new EventTextFields(
+            [
+                new EventTextField(string.Empty, "Episode title", EventTextType.ShortText, 80),
+                new EventTextField(string.Empty, "Details", EventTextType.LongText, 2500),
+                new EventTextField(string.Empty, "Social copy", EventTextType.ShortText, 140)
+            ]);
+
+        var names = TemplateTokenCatalog.From(fields).Select(token => token.Name).ToArray();
 
         Assert.Equal(
             [
-                "title",
-                "description",
-                "titleRu",
-                "descriptionRu",
-                "longDate",
+                "text1",
+                "text2",
+                "text3",
+                "longDateEn",
+                "shortDateEn",
                 "longDateRu",
-                "shortDate",
-                "shortDateRu"
+                "shortDateRu",
+                "longDateFr",
+                "shortDateFr"
             ],
             names);
     }
 
     [Fact]
-    public void All_HasEightTokens()
+    public void DateTokens_HasSixTokens()
     {
-        Assert.Equal(8, TemplateTokenCatalog.All.Count);
+        Assert.Equal(6, TemplateTokenCatalog.DateTokens.Count);
     }
 }

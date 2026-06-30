@@ -2,8 +2,7 @@ namespace YTSkedy.AzureFunctions.Platforms;
 
 /// <summary>
 /// Platform-owned title and description template selection carried by platform
-/// create and update requests. Null template ids mean the backend calculates
-/// that field from the calendar event.
+/// create and update requests. Both template ids are required.
 /// </summary>
 internal sealed record PublishingContentPayload(
     string? TitleTemplateId,

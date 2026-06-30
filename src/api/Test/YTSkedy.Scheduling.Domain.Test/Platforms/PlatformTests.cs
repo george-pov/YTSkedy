@@ -13,17 +13,19 @@ public class PlatformTests
     [Fact]
     public void Constructor_ValidInput_SetsProperties()
     {
+        var publishingContent = RequiredPublishingContent();
         var platform = new Platform(
             "Main YouTube channel",
             PlatformType.YouTube,
             Settings,
+            publishingContent,
             "main-youtube");
 
         Assert.Equal("Main YouTube channel", platform.Name);
         Assert.Equal(PlatformType.YouTube, platform.Type);
         Assert.Same(Settings, platform.PublishSettings);
         Assert.Equal("main-youtube", platform.ReferenceKey);
-        Assert.Same(PublishingContent.None, platform.PublishingContent);
+        Assert.Same(publishingContent, platform.PublishingContent);
     }
 
     [Fact]
@@ -37,8 +39,8 @@ public class PlatformTests
             "Main YouTube channel",
             PlatformType.YouTube,
             Settings,
-            "main-youtube",
-            publishingContent);
+            publishingContent,
+            "main-youtube");
 
         Assert.Same(publishingContent, platform.PublishingContent);
     }
@@ -46,7 +48,11 @@ public class PlatformTests
     [Fact]
     public void Constructor_NameWithSurroundingWhitespace_IsTrimmed()
     {
-        var platform = new Platform("  Main channel  ", PlatformType.YouTube, Settings);
+        var platform = new Platform(
+            "  Main channel  ",
+            PlatformType.YouTube,
+            Settings,
+            publishingContent: RequiredPublishingContent());
 
         Assert.Equal("Main channel", platform.Name);
     }
@@ -56,7 +62,11 @@ public class PlatformTests
     {
         var name = new string('n', Platform.MaxNameLength);
 
-        var platform = new Platform(name, PlatformType.YouTube, Settings);
+        var platform = new Platform(
+            name,
+            PlatformType.YouTube,
+            Settings,
+            publishingContent: RequiredPublishingContent());
 
         Assert.Equal(name, platform.Name);
     }
@@ -68,7 +78,11 @@ public class PlatformTests
     public void Constructor_EmptyName_Throws(string? name)
     {
         Assert.Throws<ArgumentException>(
-            () => new Platform(name!, PlatformType.YouTube, Settings));
+            () => new Platform(
+                name!,
+                PlatformType.YouTube,
+                Settings,
+                publishingContent: RequiredPublishingContent()));
     }
 
     [Fact]
@@ -77,20 +91,40 @@ public class PlatformTests
         var name = new string('n', Platform.MaxNameLength + 1);
 
         Assert.Throws<ArgumentException>(
-            () => new Platform(name, PlatformType.YouTube, Settings));
+            () => new Platform(
+                name,
+                PlatformType.YouTube,
+                Settings,
+                publishingContent: RequiredPublishingContent()));
     }
 
     [Fact]
     public void Constructor_NullPublishSettings_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => new Platform("Main channel", PlatformType.YouTube, null!));
+            () => new Platform(
+                "Main channel",
+                PlatformType.YouTube,
+                null!,
+                publishingContent: RequiredPublishingContent()));
+    }
+
+    [Fact]
+    public void Constructor_NullPublishingContent_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(
+            () => new Platform("Main channel", PlatformType.YouTube, Settings, null!));
     }
 
     [Fact]
     public void Constructor_BlankReferenceKey_SetsNull()
     {
-        var platform = new Platform("Main channel", PlatformType.YouTube, Settings, "   ");
+        var platform = new Platform(
+            "Main channel",
+            PlatformType.YouTube,
+            Settings,
+            RequiredPublishingContent(),
+            "   ");
 
         Assert.Null(platform.ReferenceKey);
     }
@@ -98,7 +132,12 @@ public class PlatformTests
     [Fact]
     public void Constructor_ReferenceKeyWithSurroundingWhitespace_IsTrimmed()
     {
-        var platform = new Platform("Main channel", PlatformType.YouTube, Settings, "  youTube1  ");
+        var platform = new Platform(
+            "Main channel",
+            PlatformType.YouTube,
+            Settings,
+            RequiredPublishingContent(),
+            "  youTube1  ");
 
         Assert.Equal("youTube1", platform.ReferenceKey);
     }
@@ -108,7 +147,12 @@ public class PlatformTests
     {
         var referenceKey = new string('a', Platform.MaxReferenceKeyLength);
 
-        var platform = new Platform("Main channel", PlatformType.YouTube, Settings, referenceKey);
+        var platform = new Platform(
+            "Main channel",
+            PlatformType.YouTube,
+            Settings,
+            RequiredPublishingContent(),
+            referenceKey);
 
         Assert.Equal(referenceKey, platform.ReferenceKey);
     }
@@ -122,7 +166,12 @@ public class PlatformTests
     public void Constructor_InvalidReferenceKey_Throws(string referenceKey)
     {
         var exception = Assert.Throws<ArgumentException>(
-            () => new Platform("Main channel", PlatformType.YouTube, Settings, referenceKey));
+            () => new Platform(
+                "Main channel",
+                PlatformType.YouTube,
+                Settings,
+                RequiredPublishingContent(),
+                referenceKey));
 
         Assert.Equal("referenceKey", exception.ParamName);
     }
@@ -183,4 +232,7 @@ public class PlatformTests
     {
         Assert.Equal("youtube1", Platform.ToReferenceKeyLookupValue("  youTube1  "));
     }
+
+    private static PublishingContent RequiredPublishingContent() =>
+        new("title-template", "description-template");
 }

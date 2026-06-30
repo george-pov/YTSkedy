@@ -62,7 +62,7 @@ public sealed class HttpDtoJsonTests
               "referenceKey": "youTube1",
               "publishingContent": {
                 "titleTemplateId": "title-template",
-                "descriptionTemplateId": null
+                "descriptionTemplateId": "description-template"
               },
               "publishSettings": {
                 "credentials": {
@@ -84,7 +84,7 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("youTube1", request.ReferenceKey);
         Assert.NotNull(request.PublishingContent);
         Assert.Equal("title-template", request.PublishingContent.TitleTemplateId);
-        Assert.Null(request.PublishingContent.DescriptionTemplateId);
+        Assert.Equal("description-template", request.PublishingContent.DescriptionTemplateId);
         Assert.NotNull(request.PublishSettings);
         Assert.NotNull(request.PublishSettings.Credentials);
         Assert.Equal("client-id", request.PublishSettings.Credentials.ClientId);
@@ -101,6 +101,10 @@ public sealed class HttpDtoJsonTests
             {
               "name": "Main WordPress site",
               "type": "WordPress",
+              "publishingContent": {
+                "titleTemplateId": "title-template",
+                "descriptionTemplateId": "description-template"
+              },
               "publishSettings": {
                 "siteUrl": "https://example.com",
                 "username": "editor",
@@ -115,6 +119,9 @@ public sealed class HttpDtoJsonTests
         Assert.NotNull(request);
         Assert.Equal("Main WordPress site", request.Name);
         Assert.Equal("WordPress", request.Type);
+        Assert.NotNull(request.PublishingContent);
+        Assert.Equal("title-template", request.PublishingContent.TitleTemplateId);
+        Assert.Equal("description-template", request.PublishingContent.DescriptionTemplateId);
         Assert.NotNull(request.PublishSettings);
         Assert.Equal("https://example.com", request.PublishSettings.SiteUrl);
         Assert.Equal("editor", request.PublishSettings.Username);
@@ -167,7 +174,7 @@ public sealed class HttpDtoJsonTests
                 true),
             new PlatformPublishingContentResponse(
                 "title-template",
-                null));
+                "description-template"));
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
 
@@ -178,7 +185,9 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("company-blog", document.RootElement.GetProperty("referenceKey").GetString());
         var publishingContent = document.RootElement.GetProperty("publishingContent");
         Assert.Equal("title-template", publishingContent.GetProperty("titleTemplateId").GetString());
-        Assert.True(publishingContent.GetProperty("descriptionTemplateId").ValueKind == JsonValueKind.Null);
+        Assert.Equal(
+            "description-template",
+            publishingContent.GetProperty("descriptionTemplateId").GetString());
         Assert.Equal("editor", settings.GetProperty("username").GetString());
         Assert.Equal("publish", settings.GetProperty("postStatus").GetString());
         Assert.True(settings.GetProperty("applicationPasswordConfigured").GetBoolean());
@@ -236,7 +245,7 @@ public sealed class HttpDtoJsonTests
                     "9f8b1c2d3e4f",
                     "Weeknight stream",
                     "YouTube",
-                    "Live on {{ longDate }}")
+                    "Live on {{ longDateEn }}")
             ]);
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
@@ -248,6 +257,6 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("9f8b1c2d3e4f", template.GetProperty("id").GetString());
         Assert.Equal("Weeknight stream", template.GetProperty("name").GetString());
         Assert.Equal("YouTube", template.GetProperty("type").GetString());
-        Assert.Equal("Live on {{ longDate }}", template.GetProperty("content").GetString());
+        Assert.Equal("Live on {{ longDateEn }}", template.GetProperty("content").GetString());
     }
 }

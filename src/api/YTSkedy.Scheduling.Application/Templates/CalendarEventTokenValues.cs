@@ -11,6 +11,7 @@ public sealed class CalendarEventTokenValues
 {
     private static readonly CultureInfo EnglishCulture = CultureInfo.GetCultureInfo("en-US");
     private static readonly CultureInfo RussianCulture = CultureInfo.GetCultureInfo("ru-RU");
+    private static readonly CultureInfo FrenchCulture = CultureInfo.GetCultureInfo("fr-FR");
 
     private CalendarEventTokenValues(IReadOnlyDictionary<string, string> values)
     {
@@ -24,18 +25,20 @@ public sealed class CalendarEventTokenValues
         ArgumentNullException.ThrowIfNull(calendarEvent);
 
         var localDate = calendarEvent.Start.LocalDateTime;
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        return new CalendarEventTokenValues(
-            new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["title"] = calendarEvent.Text.ValueFor("text1") ?? string.Empty,
-                ["description"] = calendarEvent.Text.ValueFor("text2") ?? string.Empty,
-                ["titleRu"] = calendarEvent.Text.ValueFor("text3") ?? string.Empty,
-                ["descriptionRu"] = calendarEvent.Text.ValueFor("text4") ?? string.Empty,
-                ["longDate"] = localDate.ToString("MMMM d, yyyy", EnglishCulture),
-                ["longDateRu"] = localDate.ToString("d MMMM yyyy", RussianCulture),
-                ["shortDate"] = localDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                ["shortDateRu"] = localDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
-            });
+        foreach (var field in calendarEvent.Text.Fields)
+        {
+            values[field.FieldKey] = calendarEvent.Text.ValueFor(field.FieldKey) ?? string.Empty;
+        }
+
+        values["longDateEn"] = localDate.ToString("MMMM d, yyyy", EnglishCulture);
+        values["shortDateEn"] = localDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        values["longDateRu"] = localDate.ToString("d MMMM yyyy", RussianCulture);
+        values["shortDateRu"] = localDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+        values["longDateFr"] = localDate.ToString("d MMMM yyyy", FrenchCulture);
+        values["shortDateFr"] = localDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+
+        return new CalendarEventTokenValues(values);
     }
 }

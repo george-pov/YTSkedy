@@ -218,10 +218,19 @@ public class GetCalendarEventDetailsHandlerTests
                 ]));
 
     private static PlatformView CreatePlatform(string platformId, string name) =>
-        new(platformId, name, null, PlatformType.YouTube, YouTubeSettings());
+        new(
+            platformId,
+            name,
+            null,
+            PlatformType.YouTube,
+            YouTubeSettings(),
+            RequiredPublishingContent());
 
     private static YouTubeSettings YouTubeSettings() =>
         new(new YouTubeCredentials("client-id", "client-secret", "refresh-token"), "private", false);
+
+    private static PublishingContent RequiredPublishingContent() =>
+        new("title-template", "description-template");
 
     private static PlatformPublication CreatePublication(
         string platformId,

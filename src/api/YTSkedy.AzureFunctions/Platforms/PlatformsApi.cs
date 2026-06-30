@@ -204,11 +204,19 @@ public sealed class PlatformsApi(
             return false;
         }
 
+        if (!TryBuildPublishingContent(
+                request.PublishingContent,
+                out var publishingContent,
+                out error))
+        {
+            return false;
+        }
+
         command = new CreatePlatformCommand(
             request.Name!.Trim(),
             type,
             publishSettings,
-            ToPublishingContent(request.PublishingContent),
+            publishingContent,
             Platform.NormalizeReferenceKey(request.ReferenceKey));
         return true;
     }
@@ -253,12 +261,20 @@ public sealed class PlatformsApi(
             return false;
         }
 
+        if (!TryBuildPublishingContent(
+                request.PublishingContent,
+                out var publishingContent,
+                out error))
+        {
+            return false;
+        }
+
         command = new UpdatePlatformCommand(
             existingPlatform.PlatformId,
             request.Name!.Trim(),
             Platform.NormalizeReferenceKey(request.ReferenceKey),
             publishSettings,
-            ToPublishingContent(request.PublishingContent));
+            publishingContent);
         return true;
     }
 
@@ -358,14 +374,14 @@ public sealed class PlatformsApi(
         PlatformType type,
         string? referenceKey,
         PublishSettings publishSettings,
-        PublishingContent? publishingContent = null) =>
+        PublishingContent publishingContent) =>
         new(
             platformId,
             name,
             referenceKey,
             type.ToString(),
             PlatformPublishSettingsHttpMapper.ToResponse(publishSettings),
-            ToPlatformPublishingContentResponse(publishingContent ?? PublishingContent.None));
+            ToPlatformPublishingContentResponse(publishingContent));
 
     internal static PlatformPublishingContentResponse ToPlatformPublishingContentResponse(
         PublishingContent publishingContent) =>
@@ -384,9 +400,36 @@ public sealed class PlatformsApi(
         new BadRequestObjectResult(
             "Reference key must be 1 to 15 characters and contain only letters, numbers, or hyphen.");
 
-    private static PublishingContent ToPublishingContent(PublishingContentPayload? payload) =>
-        payload is null
-            ? PublishingContent.None
-            : new PublishingContent(payload.TitleTemplateId, payload.DescriptionTemplateId);
+    private static IActionResult InvalidPublishingContentResult() =>
+        new BadRequestObjectResult(
+            "Publishing content titleTemplateId and descriptionTemplateId are required.");
+
+    private static bool TryBuildPublishingContent(
+        PublishingContentPayload? payload,
+        out PublishingContent publishingContent,
+        out IActionResult error)
+    {
+        publishingContent = default!;
+        error = new EmptyResult();
+
+        if (payload is null)
+        {
+            error = InvalidPublishingContentResult();
+            return false;
+        }
+
+        try
+        {
+            publishingContent = new PublishingContent(
+                payload.TitleTemplateId!,
+                payload.DescriptionTemplateId!);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            error = InvalidPublishingContentResult();
+            return false;
+        }
+    }
 
 }

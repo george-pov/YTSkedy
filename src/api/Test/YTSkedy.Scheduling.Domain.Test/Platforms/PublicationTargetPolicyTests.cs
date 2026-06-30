@@ -40,7 +40,8 @@ public class PublicationTargetPolicyTests
                 "https://example.com/",
                 "editor",
                 "application-password",
-                "publish"));
+                "publish"),
+            RequiredPublishingContent());
         var snapshot = new PublicationTargetSnapshot(
             PlatformType.WordPress,
             WordPressSiteUrl: "https://example.com",
@@ -70,5 +71,9 @@ public class PublicationTargetPolicyTests
             new YouTubeSettings(
                 new YouTubeCredentials(clientId, "client-secret", "refresh-token"),
                 "private",
-                false));
+                false),
+            RequiredPublishingContent());
+
+    private static PublishingContent RequiredPublishingContent() =>
+        new("title-template", "description-template");
 }

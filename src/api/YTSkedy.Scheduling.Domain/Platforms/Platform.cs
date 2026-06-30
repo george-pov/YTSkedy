@@ -21,10 +21,11 @@ public sealed class Platform
         string name,
         PlatformType type,
         PublishSettings publishSettings,
-        string? referenceKey = null,
-        PublishingContent? publishingContent = null)
+        PublishingContent publishingContent,
+        string? referenceKey = null)
     {
         ArgumentNullException.ThrowIfNull(publishSettings);
+        ArgumentNullException.ThrowIfNull(publishingContent);
 
         if (!IsValidName(name))
         {
@@ -44,7 +45,7 @@ public sealed class Platform
         Type = type;
         PublishSettings = publishSettings;
         ReferenceKey = NormalizeReferenceKey(referenceKey);
-        PublishingContent = publishingContent ?? PublishingContent.None;
+        PublishingContent = publishingContent;
     }
 
     public string Name { get; }

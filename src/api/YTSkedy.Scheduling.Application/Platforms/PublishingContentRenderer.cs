@@ -39,22 +39,20 @@ public sealed partial class PublishingContentRenderer
                 "A template reader is required to render platform publishing content.");
         }
 
-        var title = await ResolveContentAsync(
+        var title = await ReadTemplateContentAsync(
             platform.Type,
             platform.PublishingContent.TitleTemplateId,
-            DefaultTitle(calendarEvent),
             cancellationToken);
         if (title is null)
         {
             return RenderContentResult.TemplateNotFound();
         }
 
-        var description = await ResolveContentAsync(
+        var description = await ReadTemplateContentAsync(
             platform.Type,
             platform.PublishingContent.DescriptionTemplateId,
-            calendarEvent.Text.ValueFor("text2"),
             cancellationToken);
-        if (description is null && platform.PublishingContent.DescriptionTemplateId is not null)
+        if (description is null)
         {
             return RenderContentResult.TemplateNotFound();
         }
@@ -104,17 +102,11 @@ public sealed partial class PublishingContentRenderer
                     : match.Value;
             });
 
-    private async Task<string?> ResolveContentAsync(
+    private async Task<string?> ReadTemplateContentAsync(
         PlatformType platformType,
-        string? templateId,
-        string? defaultContent,
+        string templateId,
         CancellationToken cancellationToken)
     {
-        if (templateId is null)
-        {
-            return defaultContent;
-        }
-
         var template = await templates!.GetAsync(
             TemplateLinkValidator.ToTemplateType(platformType),
             templateId,
@@ -125,16 +117,6 @@ public sealed partial class PublishingContentRenderer
 
     private static bool HasWellFormedPlaceholder(string? text) =>
         text is not null && Placeholder().IsMatch(text);
-
-    private static string DefaultTitle(CalendarEventView calendarEvent)
-    {
-        var shortText = calendarEvent.Text.Fields
-            .FirstOrDefault(field => field.Type == EventTextType.ShortText);
-
-        return shortText is null
-            ? calendarEvent.Text.Values.FirstOrDefault()?.Value ?? string.Empty
-            : calendarEvent.Text.ValueFor(shortText.FieldKey) ?? string.Empty;
-    }
 
     [GeneratedRegex(@"\{\{\s*(?<token>[^{}\s]+)\s*\}\}", RegexOptions.CultureInvariant)]
     private static partial Regex Placeholder();

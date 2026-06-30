@@ -122,14 +122,14 @@ public sealed class TemplatesApi(
 
     [Function("ListTemplateTokens")]
     [RequiredScope("CalendarEvents.Read")]
-    public Task<IActionResult> ListTemplateTokensAsync(
+    public async Task<IActionResult> ListTemplateTokensAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "template-tokens")]
-        HttpRequest request)
+        HttpRequest request,
+        CancellationToken cancellationToken)
     {
-        var tokens = tokensHandler.Handle();
+        var tokens = await tokensHandler.HandleAsync(cancellationToken);
 
-        return Task.FromResult<IActionResult>(
-            new OkObjectResult(ToTokenListResponse(tokens)));
+        return new OkObjectResult(ToTokenListResponse(tokens));
     }
 
     /// <summary>

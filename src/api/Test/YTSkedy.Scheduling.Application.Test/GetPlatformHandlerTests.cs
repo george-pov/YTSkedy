@@ -13,7 +13,8 @@ public class GetPlatformHandlerTests
             "Main channel",
             "main-youtube",
             PlatformType.YouTube,
-            YouTubeSettings());
+            YouTubeSettings(),
+            RequiredPublishingContent());
         var reader = new FakePlatformReader { View = view };
         var handler = new GetPlatformHandler(reader);
 
@@ -69,4 +70,7 @@ public class GetPlatformHandlerTests
 
     private static YouTubeSettings YouTubeSettings() =>
         new(new YouTubeCredentials("client-id", "client-secret", "refresh-token"), "private", false);
+
+    private static PublishingContent RequiredPublishingContent() =>
+        new("title-template", "description-template");
 }
