@@ -9,11 +9,13 @@ using Microsoft.IdentityModel.Logging;
 using YTSkedy.AzureFunctions.Auth;
 using YTSkedy.Infrastructure.CalendarEvents;
 using YTSkedy.Infrastructure.Platforms;
+using YTSkedy.Infrastructure.Settings;
 using YTSkedy.Infrastructure.Templates;
 using YTSkedy.Infrastructure.WordPress;
 using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Application.Templates;
 
 var builder = FunctionsApplication.CreateBuilder(args);
@@ -145,6 +147,40 @@ builder.Services.AddScoped<ITemplateModifier>(
     serviceProvider => serviceProvider.GetRequiredService<AzureTemplateRepository>());
 builder.Services.AddScoped<ITemplateReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzureTemplateRepository>());
+
+// Application-owned settings persist in one generic settings table. Individual
+// settings are rows inside that table, so adding event text fields does not add
+// a dedicated EventTextFields table.
+builder.Services.AddKeyedSingleton<TableClient>("applicationSettings", (_, _) =>
+{
+    var connectionString =
+        builder.Configuration["AzureStorage:ConnectionString"] ??
+        builder.Configuration["AzureWebJobsStorage"];
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "Azure Table Storage connection string is not configured.");
+    }
+
+    var tableName = builder.Configuration["AzureStorage:ApplicationSettingsTableName"];
+    if (string.IsNullOrWhiteSpace(tableName))
+    {
+        tableName = "ApplicationSettings";
+    }
+
+    return new TableClient(connectionString, tableName);
+});
+
+builder.Services.AddScoped<GetEventTextFieldsHandler>();
+builder.Services.AddScoped<UpdateEventTextFieldsHandler>();
+builder.Services.AddScoped(serviceProvider =>
+    new AzureEventTextFieldsRepository(
+        serviceProvider.GetRequiredKeyedService<TableClient>("applicationSettings")));
+builder.Services.AddScoped<IEventTextFieldsReader>(
+    serviceProvider => serviceProvider.GetRequiredService<AzureEventTextFieldsRepository>());
+builder.Services.AddScoped<IEventTextFieldsModifier>(
+    serviceProvider => serviceProvider.GetRequiredService<AzureEventTextFieldsRepository>());
 
 // Platforms persist in their own table bound through a keyed TableClient so the
 // calendar-event and templates TableClient registrations above are untouched.

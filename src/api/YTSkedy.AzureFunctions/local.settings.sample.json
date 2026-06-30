@@ -6,6 +6,7 @@
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "AzureStorage:CalendarEventsTableName": "CalendarEvents",
     "AzureStorage:TemplatesTableName": "Templates",
+    "AzureStorage:ApplicationSettingsTableName": "ApplicationSettings",
     "AzureStorage:PlatformsTableName": "Platforms",
     "AzureStorage:PlatformPublicationsTableName": "PlatformPublications",
     "Auth:Instance": "https://<tenantSubdomain>.ciamlogin.com/",

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using YTSkedy.AzureFunctions.CalendarEvents;
 using YTSkedy.AzureFunctions.Platforms;
+using YTSkedy.AzureFunctions.Settings;
 using YTSkedy.AzureFunctions.Templates;
 
 namespace YTSkedy.AzureFunctions.Test;
@@ -111,6 +112,33 @@ public sealed class HttpDtoJsonTests
     }
 
     [Fact]
+    public void UpdateEventTextFieldsRequest_InternalDto_DeserializesWithWebDefaults()
+    {
+        const string json = """
+            {
+              "fields": [
+                {
+                  "fieldKey": "text1",
+                  "label": "Episode title",
+                  "type": "ShortText",
+                  "maxLength": 80
+                }
+              ]
+            }
+            """;
+
+        var request = JsonSerializer.Deserialize<UpdateEventTextFieldsRequest>(json, JsonOptions);
+
+        Assert.NotNull(request);
+        Assert.NotNull(request.Fields);
+        var field = Assert.Single(request.Fields);
+        Assert.Equal("text1", field.FieldKey);
+        Assert.Equal("Episode title", field.Label);
+        Assert.Equal("ShortText", field.Type);
+        Assert.Equal(80, field.MaxLength);
+    }
+
+    [Fact]
     public void PlatformResponse_WordPressSettings_SerializesRedactedSettings()
     {
         object response = new PlatformResponse(
@@ -164,6 +192,28 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("Rendered title", root.GetProperty("title").GetString());
         Assert.Equal("Rendered description", root.GetProperty("description").GetString());
         Assert.False(root.TryGetProperty("kind", out _));
+    }
+
+    [Fact]
+    public void EventTextFieldsResponse_SerializesWithWebDefaults()
+    {
+        object response = new EventTextFieldsResponse(
+            [
+                new EventTextFieldResponse(
+                    "text1",
+                    "Episode title",
+                    "ShortText",
+                    80)
+            ]);
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+
+        using var document = JsonDocument.Parse(json);
+        var field = document.RootElement.GetProperty("fields")[0];
+        Assert.Equal("text1", field.GetProperty("fieldKey").GetString());
+        Assert.Equal("Episode title", field.GetProperty("label").GetString());
+        Assert.Equal("ShortText", field.GetProperty("type").GetString());
+        Assert.Equal(80, field.GetProperty("maxLength").GetInt32());
     }
 
     [Fact]
