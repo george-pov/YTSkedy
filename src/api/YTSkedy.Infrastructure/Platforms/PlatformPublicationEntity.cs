@@ -34,6 +34,10 @@ internal sealed class PlatformPublicationEntity : ITableEntity
 
     public string? ExternalResourceId { get; set; }
 
+    public string? ContentSnapshotTitle { get; set; }
+
+    public string? ContentSnapshotDescription { get; set; }
+
     public string PublishSettingsJson { get; set; } = string.Empty;
 
     public DateTimeOffset? PublishedUtc { get; set; }

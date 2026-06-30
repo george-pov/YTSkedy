@@ -1,8 +1,10 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.Scheduling.Domain.Templates;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
@@ -105,29 +107,138 @@ public class PublishHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_NoEnglishTitle_ReturnsMissingEnglishTitle()
+    public async Task HandleAsync_NoEnglishTitle_ReturnsInvalidPublishingContent()
     {
+        var repository = new FakePublicationRepository();
+        var publisher = new FakePublisher();
         var handler = CreateHandler(
             Event(FutureStart, [new LocalizedDescription("ru", "Russian title", null)]),
             Platform(),
-            new FakePublisher());
+            publisher,
+            repository: repository);
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishResultStatus.MissingEnglishTitle, result.Status);
+        Assert.Equal(PublishResultStatus.InvalidPublishingContent, result.Status);
+        Assert.False(repository.Started);
+        Assert.Null(publisher.Request);
     }
 
     [Fact]
-    public async Task HandleAsync_BlankEnglishTitle_ReturnsMissingEnglishTitle()
+    public async Task HandleAsync_BlankEnglishTitle_ReturnsInvalidPublishingContent()
     {
+        var repository = new FakePublicationRepository();
+        var publisher = new FakePublisher();
         var handler = CreateHandler(
             Event(FutureStart, [new LocalizedDescription("en", "   ", "description")]),
             Platform(),
-            new FakePublisher());
+            publisher,
+            repository: repository);
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishResultStatus.MissingEnglishTitle, result.Status);
+        Assert.Equal(PublishResultStatus.InvalidPublishingContent, result.Status);
+        Assert.False(repository.Started);
+        Assert.Null(publisher.Request);
+    }
+
+    [Fact]
+    public async Task HandleAsync_TemplateContent_RendersBeforePublishing()
+    {
+        var repository = new FakePublicationRepository();
+        var publisher = new FakePublisher { Result = new PlatformPublishResult("yt-broadcast-id") };
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(publishingContent: new PublishingContent(
+                "title-template",
+                "description-template")),
+            publisher,
+            repository: repository,
+            templates: new FakeTemplateReader(
+                new TemplateView(
+                    "title-template",
+                    "Title template",
+                    TemplateType.YouTube,
+                    "{{ title }} on {{ shortDate }}"),
+                new TemplateView(
+                    "description-template",
+                    "Description template",
+                    TemplateType.YouTube,
+                    "Details: {{ description }}")));
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.Equal("English title on 2026-06-25", publisher.Request!.Title);
+        Assert.Equal("Details: English description", publisher.Request.Description);
+        Assert.Equal("English title on 2026-06-25", repository.StartedAttempt!.ContentSnapshot.Title);
+        Assert.Equal("Details: English description", repository.StartedAttempt.ContentSnapshot.Description);
+    }
+
+    [Fact]
+    public async Task HandleAsync_MissingTemplate_ReturnsInvalidPublishingContent()
+    {
+        var repository = new FakePublicationRepository();
+        var publisher = new FakePublisher();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(publishingContent: new PublishingContent("missing-template", null)),
+            publisher,
+            repository: repository);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.InvalidPublishingContent, result.Status);
+        Assert.False(repository.Started);
+        Assert.Null(publisher.Request);
+    }
+
+    [Fact]
+    public async Task HandleAsync_EmptyRenderedTitle_ReturnsInvalidPublishingContent()
+    {
+        var repository = new FakePublicationRepository();
+        var publisher = new FakePublisher();
+        var handler = CreateHandler(
+            Event(FutureStart, [new LocalizedDescription("en", "English title", null)]),
+            Platform(publishingContent: new PublishingContent("title-template", null)),
+            publisher,
+            repository: repository,
+            templates: new FakeTemplateReader(
+                new TemplateView(
+                    "title-template",
+                    "Title template",
+                    TemplateType.YouTube,
+                    "{{ description }}")));
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.InvalidPublishingContent, result.Status);
+        Assert.False(repository.Started);
+        Assert.Null(publisher.Request);
+    }
+
+    [Fact]
+    public async Task HandleAsync_UnresolvedToken_ReturnsInvalidPublishingContent()
+    {
+        var repository = new FakePublicationRepository();
+        var publisher = new FakePublisher();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(publishingContent: new PublishingContent("title-template", null)),
+            publisher,
+            repository: repository,
+            templates: new FakeTemplateReader(
+                new TemplateView(
+                    "title-template",
+                    "Title template",
+                    TemplateType.YouTube,
+                    "{{ unknownToken }}")));
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.InvalidPublishingContent, result.Status);
+        Assert.False(repository.Started);
+        Assert.Null(publisher.Request);
     }
 
     [Fact]
@@ -193,10 +304,13 @@ public class PublishHandlerTests
         Assert.Null(result.Platform.PlatformDeletedUtc);
         Assert.False(result.Platform.CanPublish);
         Assert.True(result.Platform.CanDeletePublication);
+        Assert.True(result.Platform.CanPreviewPublishingContent);
 
         Assert.True(repository.Started);
         Assert.Equal("yt-broadcast-id", repository.MarkedExternalResourceId);
         Assert.False(repository.ReleaseCalled);
+        Assert.Equal("English title", repository.StartedAttempt!.ContentSnapshot.Title);
+        Assert.Equal("English description", repository.StartedAttempt.ContentSnapshot.Description);
 
         // The provider receives the English content and the stored future start.
         Assert.Equal("English title", publisher.Request!.Title);
@@ -232,6 +346,7 @@ public class PublishHandlerTests
         Assert.Equal("123", result.Platform.ExternalResourceId);
         Assert.False(result.Platform.CanPublish);
         Assert.True(result.Platform.CanDeletePublication);
+        Assert.True(result.Platform.CanPreviewPublishingContent);
 
         Assert.Equal("123", repository.MarkedExternalResourceId);
         Assert.Same(WordPressSettings, publisher.Request!.PublishSettings);
@@ -254,13 +369,15 @@ public class PublishHandlerTests
         PlatformView? platform,
         IPlatformPublisher? publisher,
         PlatformPublication? existing = null,
-        FakePublicationRepository? repository = null) =>
+        FakePublicationRepository? repository = null,
+        ITemplateReader? templates = null) =>
         new(
             new FakeCalendarEventReader(calendarEvent),
             new FakePlatformReader(platform),
             new FakePublicationReader(existing),
             repository ?? new FakePublicationRepository(),
             new FakeSelector(publisher),
+            new PublishingContentRenderer(templates ?? new FakeTemplateReader()),
             new FixedTimeProvider(Now),
             NullLogger<PublishHandler>.Instance);
 
@@ -276,11 +393,15 @@ public class PublishHandlerTests
     private static PlatformView Platform() =>
         Platform("Main YouTube channel", PlatformType.YouTube, Settings);
 
+    private static PlatformView Platform(PublishingContent publishingContent) =>
+        Platform("Main YouTube channel", PlatformType.YouTube, Settings, publishingContent);
+
     private static PlatformView Platform(
         string name,
         PlatformType type,
-        PublishSettings settings) =>
-        new(PlatformId, name, null, type, settings);
+        PublishSettings settings,
+        PublishingContent? publishingContent = null) =>
+        new(PlatformId, name, null, type, settings, publishingContent);
 
     private static PlatformPublication Publication(
         PublishStatus status,
@@ -361,11 +482,14 @@ public class PublishHandlerTests
 
         public string? MarkedExternalResourceId { get; private set; }
 
+        public PlatformPublicationAttempt? StartedAttempt { get; private set; }
+
         public Task<StartPublicationResult> StartPublishingAsync(
             PlatformPublicationAttempt attempt,
             CancellationToken cancellationToken)
         {
             Started = StartResult == StartPublicationResult.Started;
+            StartedAttempt = attempt;
 
             return Task.FromResult(StartResult);
         }
@@ -408,6 +532,26 @@ public class PublishHandlerTests
     private sealed class FakeSelector(IPlatformPublisher? publisher) : IPlatformPublisherSelector
     {
         public IPlatformPublisher? Find(PlatformType type) => publisher;
+    }
+
+    private sealed class FakeTemplateReader(params TemplateView[] templates) : ITemplateReader
+    {
+        public Task<TemplateView?> GetAsync(
+            TemplateType type,
+            string templateId,
+            CancellationToken cancellationToken)
+        {
+            var template = templates.FirstOrDefault(candidate =>
+                candidate.Type == type &&
+                string.Equals(candidate.Id, templateId, StringComparison.Ordinal));
+
+            return Task.FromResult(template);
+        }
+
+        public Task<IReadOnlyList<TemplateView>> ListAsync(
+            TemplateType? type,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakePublisher : IPlatformPublisher

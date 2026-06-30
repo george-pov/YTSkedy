@@ -31,7 +31,8 @@ internal static class PlatformPublicationMapper
             entity.UpdatedUtc,
             PublishSettingsSerializer.DeserializeSnapshot(
                 platformType,
-                entity.PublishSettingsJson));
+                entity.PublishSettingsJson),
+            ToContentSnapshot(entity));
     }
 
     internal static IReadOnlyList<PlatformPublication> ToPublications(
@@ -66,6 +67,8 @@ internal static class PlatformPublicationMapper
             PlatformType = attempt.PlatformType.ToString(),
             Status = PublishStatus.Publishing.ToString(),
             ExternalResourceId = null,
+            ContentSnapshotTitle = attempt.ContentSnapshot.Title,
+            ContentSnapshotDescription = attempt.ContentSnapshot.Description,
             PublishSettingsJson = PublishSettingsSerializer.SerializeSnapshot(
                 attempt.PlatformType,
                 attempt.PublishSettings),
@@ -84,6 +87,13 @@ internal static class PlatformPublicationMapper
             "published" => PublishStatus.Published,
             _ => throw InvalidStoredValue(nameof(PublishStatus), status)
         };
+
+    private static ContentSnapshot? ToContentSnapshot(PlatformPublicationEntity entity) =>
+        entity.ContentSnapshotTitle is null
+            ? null
+            : new ContentSnapshot(
+                entity.ContentSnapshotTitle,
+                entity.ContentSnapshotDescription);
 
     private static InvalidOperationException InvalidStoredValue(string fieldName, string? value) =>
         new($"Stored {fieldName} value '{value ?? "<null>"}' is invalid.");

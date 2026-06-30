@@ -15,4 +15,5 @@ internal sealed record EventPlatformResponse(
     DateTimeOffset? PublishedUtc,
     DateTimeOffset? PlatformDeletedUtc,
     bool CanPublish,
-    bool CanDeletePublication);
+    bool CanDeletePublication,
+    bool CanPreviewPublishingContent);

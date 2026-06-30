@@ -1,5 +1,8 @@
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
+using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.Scheduling.Domain.Templates;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
@@ -110,6 +113,61 @@ public class PublishingContentRendererTests
         Assert.Null(result.Content!.Description);
     }
 
+    [Fact]
+    public async Task RenderAsync_NoTemplateIds_UsesEnglishEventContent()
+    {
+        var renderer = new PublishingContentRenderer(new FakeTemplateReader());
+
+        var result = await renderer.RenderAsync(
+            Platform(PublishingContent.None),
+            Event(),
+            CancellationToken.None);
+
+        Assert.Equal(RenderContentStatus.Rendered, result.Status);
+        Assert.Equal("English title", result.Content!.Title);
+        Assert.Equal("English description", result.Content.Description);
+    }
+
+    [Fact]
+    public async Task RenderAsync_TemplateIds_RendersTemplateContent()
+    {
+        var renderer = new PublishingContentRenderer(
+            new FakeTemplateReader(
+                new TemplateView(
+                    "title-template",
+                    "Title",
+                    TemplateType.YouTube,
+                    "{{ title }} on {{ shortDate }}"),
+                new TemplateView(
+                    "description-template",
+                    "Description",
+                    TemplateType.YouTube,
+                    "Details: {{ description }}")));
+
+        var result = await renderer.RenderAsync(
+            Platform(new PublishingContent("title-template", "description-template")),
+            Event(),
+            CancellationToken.None);
+
+        Assert.Equal(RenderContentStatus.Rendered, result.Status);
+        Assert.Equal("English title on 2026-06-05", result.Content!.Title);
+        Assert.Equal("Details: English description", result.Content.Description);
+    }
+
+    [Fact]
+    public async Task RenderAsync_MissingTemplate_ReturnsTemplateNotFound()
+    {
+        var renderer = new PublishingContentRenderer(new FakeTemplateReader());
+
+        var result = await renderer.RenderAsync(
+            Platform(new PublishingContent("missing-template", null)),
+            Event(),
+            CancellationToken.None);
+
+        Assert.Equal(RenderContentStatus.TemplateNotFound, result.Status);
+        Assert.Null(result.Content);
+    }
+
     private static CalendarEventView Event(string? description = "English description") =>
         new(
             "calendar-event-id",
@@ -119,4 +177,36 @@ public class PublishingContentRendererTests
                 new LocalizedDescription("en", "English title", description),
                 new LocalizedDescription("ru", "Russian title", "Russian description")
             ]);
+
+    private static PlatformView Platform(PublishingContent publishingContent) =>
+        new(
+            "platform-id",
+            "Main channel",
+            null,
+            PlatformType.YouTube,
+            new YouTubeSettings(
+                new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
+                "private",
+                false),
+            publishingContent);
+
+    private sealed class FakeTemplateReader(params TemplateView[] templates) : ITemplateReader
+    {
+        public Task<TemplateView?> GetAsync(
+            TemplateType type,
+            string templateId,
+            CancellationToken cancellationToken)
+        {
+            var template = templates.FirstOrDefault(candidate =>
+                candidate.Type == type &&
+                string.Equals(candidate.Id, templateId, StringComparison.Ordinal));
+
+            return Task.FromResult(template);
+        }
+
+        public Task<IReadOnlyList<TemplateView>> ListAsync(
+            TemplateType? type,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
 }

@@ -21,4 +21,7 @@ public sealed record RenderContentResult(
 
     public static RenderContentResult EmptyTitle(bool hasUnresolvedPlaceholders) =>
         new(RenderContentStatus.EmptyTitle, null, hasUnresolvedPlaceholders);
+
+    public static RenderContentResult TemplateNotFound() =>
+        new(RenderContentStatus.TemplateNotFound, null, HasUnresolvedPlaceholders: false);
 }

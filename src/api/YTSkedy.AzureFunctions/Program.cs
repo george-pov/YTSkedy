@@ -174,6 +174,8 @@ builder.Services.AddScoped<GetPlatformHandler>();
 builder.Services.AddScoped<CreatePlatformHandler>();
 builder.Services.AddScoped<UpdatePlatformHandler>();
 builder.Services.AddScoped<DeletePlatformHandler>();
+builder.Services.AddScoped<PublishingContentRenderer>();
+builder.Services.AddScoped<GetPublishingContentHandler>();
 builder.Services.AddScoped(serviceProvider =>
     new AzurePlatformRepository(
         serviceProvider.GetRequiredKeyedService<TableClient>("platforms"),

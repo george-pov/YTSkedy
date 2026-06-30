@@ -7,11 +7,13 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// platform. The platform name, type, and publish settings are copied onto the
 /// <c>Publishing</c> row so the attempt is described by the settings in effect
 /// when it started and remains readable after the platform record changes or is
-/// deleted.
+/// deleted. The content snapshot records the resolved title and description at
+/// the moment the publish attempt starts.
 /// </summary>
 public sealed record PlatformPublicationAttempt(
     string CalendarEventId,
     string PlatformId,
     string PlatformName,
     PlatformType PlatformType,
-    PublishSettings PublishSettings);
+    PublishSettings PublishSettings,
+    ContentSnapshot ContentSnapshot);

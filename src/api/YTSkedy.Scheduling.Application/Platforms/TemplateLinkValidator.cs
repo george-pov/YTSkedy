@@ -44,7 +44,7 @@ internal static class TemplateLinkValidator
             _ => throw new ArgumentOutOfRangeException(nameof(templateType), templateType, null)
         };
 
-    private static TemplateType ToTemplateType(PlatformType platformType) =>
+    internal static TemplateType ToTemplateType(PlatformType platformType) =>
         platformType switch
         {
             PlatformType.YouTube => TemplateType.YouTube,

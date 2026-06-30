@@ -8,8 +8,9 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// Publishes one calendar event to one selected platform. The flow loads the
 /// event, the platform, and the selected provider, then guards state and content:
 /// an existing row that is orphaned, published, or publishing is a conflict; the
-/// start must be in the future; and publishing requires an English title.
-/// It then starts the publication row (a conditional write, so a concurrent
+/// start must be in the future; and publishing content must render to a valid
+/// title without unresolved placeholders. It then starts the publication row
+/// with a content snapshot (a conditional write, so a concurrent
 /// publish yields a conflict), calls the provider, and finalizes the row with the
 /// external resource id. A provider failure releases the attempt and surfaces
 /// an upstream failure; a finalize failure after the external resource was
@@ -21,6 +22,7 @@ public sealed class PublishHandler(
     IPlatformPublicationReader publications,
     IPlatformPublicationRepository publicationRepository,
     IPlatformPublisherSelector publishers,
+    PublishingContentRenderer contentRenderer,
     TimeProvider timeProvider,
     ILogger<PublishHandler> logger)
 {
@@ -80,19 +82,28 @@ public sealed class PublishHandler(
             return PublishResult.ForStatus(PublishResultStatus.PastStart);
         }
 
-        var englishContent = calendarEvent.Descriptions.FirstOrDefault(
-            description => description.IsEnglish && !string.IsNullOrWhiteSpace(description.Title));
-        if (englishContent is null)
+        var renderResult = await contentRenderer.RenderAsync(
+            platform,
+            calendarEvent,
+            cancellationToken);
+        if (renderResult.Status != RenderContentStatus.Rendered ||
+            renderResult.HasUnresolvedPlaceholders)
         {
-            return PublishResult.ForStatus(PublishResultStatus.MissingEnglishTitle);
+            return PublishResult.ForStatus(PublishResultStatus.InvalidPublishingContent);
         }
+
+        var renderedContent = renderResult.Content!;
+        var contentSnapshot = new ContentSnapshot(
+            renderedContent.Title,
+            renderedContent.Description);
 
         var attempt = new PlatformPublicationAttempt(
             command.CalendarEventId,
             command.PlatformId,
             platform.Name,
             platform.Type,
-            platform.PublishSettings);
+            platform.PublishSettings,
+            contentSnapshot);
 
         var startResult = await publicationRepository.StartPublishingAsync(
             attempt,
@@ -111,8 +122,8 @@ public sealed class PublishHandler(
                     command.CalendarEventId,
                     command.PlatformId,
                     platform.PublishSettings,
-                    englishContent.Title,
-                    englishContent.Description,
+                    renderedContent.Title,
+                    renderedContent.Description,
                     calendarEvent.ScheduledStartUtc),
                 cancellationToken);
         }
@@ -170,6 +181,10 @@ public sealed class PublishHandler(
                     publishedStatus,
                     isOrphaned: false,
                     hasExternalResourceId: true,
-                    isFuture)));
+                    isFuture),
+                PlatformActionPolicy.CanPreviewPublishingContent(
+                    publishedStatus,
+                    isOrphaned: false,
+                    hasContentSnapshot: true)));
     }
 }

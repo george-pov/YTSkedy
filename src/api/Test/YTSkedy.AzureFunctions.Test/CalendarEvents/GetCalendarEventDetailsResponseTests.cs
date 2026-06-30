@@ -50,7 +50,8 @@ public sealed class GetCalendarEventDetailsResponseTests
                 null,
                 null,
                 CanPublish: true,
-                CanDeletePublication: false),
+                CanDeletePublication: false,
+                CanPreviewPublishingContent: true),
             new EventPlatformView(
                 OrphanPlatformId,
                 "Old channel",
@@ -60,7 +61,8 @@ public sealed class GetCalendarEventDetailsResponseTests
                 publishedUtc,
                 deletedUtc,
                 CanPublish: false,
-                CanDeletePublication: false)
+                CanDeletePublication: false,
+                CanPreviewPublishingContent: true)
         };
         var details = new CalendarEventDetailsView(CreateEvent(), views);
 
@@ -78,6 +80,7 @@ public sealed class GetCalendarEventDetailsResponseTests
         Assert.Null(active.PlatformDeletedUtc);
         Assert.True(active.CanPublish);
         Assert.False(active.CanDeletePublication);
+        Assert.True(active.CanPreviewPublishingContent);
 
         var orphan = response.Platforms[1];
         Assert.Equal(OrphanPlatformId, orphan.PlatformId);
@@ -87,6 +90,7 @@ public sealed class GetCalendarEventDetailsResponseTests
         Assert.Equal(deletedUtc, orphan.PlatformDeletedUtc);
         Assert.False(orphan.CanPublish);
         Assert.False(orphan.CanDeletePublication);
+        Assert.True(orphan.CanPreviewPublishingContent);
     }
 
     [Fact]
@@ -102,7 +106,8 @@ public sealed class GetCalendarEventDetailsResponseTests
             publishedUtc,
             null,
             CanPublish: false,
-            CanDeletePublication: true);
+            CanDeletePublication: true,
+            CanPreviewPublishingContent: true);
 
         var response = CalendarEventsApi.ToEventPlatformResponse(view);
 
@@ -112,6 +117,7 @@ public sealed class GetCalendarEventDetailsResponseTests
         Assert.Null(response.PlatformDeletedUtc);
         Assert.False(response.CanPublish);
         Assert.True(response.CanDeletePublication);
+        Assert.True(response.CanPreviewPublishingContent);
     }
 
     [Fact]
@@ -127,13 +133,15 @@ public sealed class GetCalendarEventDetailsResponseTests
             new DateTimeOffset(2026, 6, 20, 8, 0, 0, TimeSpan.Zero),
             deletedUtc,
             CanPublish: false,
-            CanDeletePublication: false);
+            CanDeletePublication: false,
+            CanPreviewPublishingContent: true);
 
         var response = CalendarEventsApi.ToEventPlatformResponse(view);
 
         Assert.Equal(deletedUtc, response.PlatformDeletedUtc);
         Assert.False(response.CanPublish);
         Assert.False(response.CanDeletePublication);
+        Assert.True(response.CanPreviewPublishingContent);
     }
 
     private static CalendarEventView CreateEvent() =>

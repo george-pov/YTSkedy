@@ -126,7 +126,9 @@ public sealed class HttpDtoJsonTests
                 "editor",
                 "publish",
                 true),
-            new PublishingContentResponse("title-template", null));
+            new YTSkedy.AzureFunctions.Platforms.PublishingContentResponse(
+                "title-template",
+                null));
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
 

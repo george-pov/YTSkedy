@@ -398,7 +398,8 @@ public sealed class CalendarEventsApi(
             view.PublishedUtc,
             view.PlatformDeletedUtc,
             view.CanPublish,
-            view.CanDeletePublication);
+            view.CanDeletePublication,
+            view.CanPreviewPublishingContent);
     }
 
     private static string ToSortString(CalendarEventSortField sort) =>

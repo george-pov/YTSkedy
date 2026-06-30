@@ -35,6 +35,25 @@ public static class PlatformActionPolicy
         status == PublishStatus.Published;
 
     /// <summary>
+    /// True when row-level publishing content can be read. Active
+    /// <see cref="PublishStatus.NotPublished"/> rows can render a current
+    /// preview. In-progress and completed rows can read the stored content
+    /// snapshot. Orphaned history can read a completed snapshot but cannot
+    /// render a current preview.
+    /// </summary>
+    public static bool CanPreviewPublishingContent(
+        PublishStatus status,
+        bool isOrphaned,
+        bool hasContentSnapshot) =>
+        status switch
+        {
+            PublishStatus.NotPublished => !isOrphaned,
+            PublishStatus.Publishing => !isOrphaned && hasContentSnapshot,
+            PublishStatus.Published => hasContentSnapshot,
+            _ => false
+        };
+
+    /// <summary>
     /// True when a publication blocks deleting its platform. Deletion is blocked
     /// while a publish is in progress so a provider call cannot race a delete;
     /// published rows do not block because they are preserved as orphan history.

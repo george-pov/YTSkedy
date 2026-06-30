@@ -41,6 +41,7 @@ internal static class EventPlatformProjection
             var status = publication?.Status ?? PublishStatus.NotPublished;
             var isOrphaned = publication?.IsOrphaned ?? false;
             var hasExternalResourceId = !string.IsNullOrWhiteSpace(publication?.ExternalResourceId);
+            var hasContentSnapshot = publication?.ContentSnapshot is not null;
 
             items.Add(new EventPlatformView(
                 platform.PlatformId,
@@ -55,7 +56,11 @@ internal static class EventPlatformProjection
                     status,
                     isOrphaned,
                     hasExternalResourceId,
-                    isFuture)));
+                    isFuture),
+                PlatformActionPolicy.CanPreviewPublishingContent(
+                    status,
+                    isOrphaned,
+                    hasContentSnapshot)));
         }
 
         var activePlatformIds = activePlatforms
@@ -88,7 +93,11 @@ internal static class EventPlatformProjection
                     publication.Status,
                     publication.IsOrphaned,
                     !string.IsNullOrWhiteSpace(publication.ExternalResourceId),
-                    isFuture)));
+                    isFuture),
+                PlatformActionPolicy.CanPreviewPublishingContent(
+                    publication.Status,
+                    publication.IsOrphaned,
+                    publication.ContentSnapshot is not null)));
         }
 
         return items;

@@ -18,6 +18,8 @@ public class PlatformPublicationMapperTests
         entity.ExternalResourceId = "abc123youtubeid";
         entity.PublishedUtc = publishedUtc;
         entity.UpdatedUtc = updatedUtc;
+        entity.ContentSnapshotTitle = "Rendered title";
+        entity.ContentSnapshotDescription = "Rendered description";
 
         var publication = PlatformPublicationMapper.ToPublication(entity);
 
@@ -33,6 +35,9 @@ public class PlatformPublicationMapperTests
         Assert.NotNull(publication.TargetSnapshot);
         Assert.Equal(PlatformType.YouTube, publication.TargetSnapshot!.PlatformType);
         Assert.Equal("client-id", publication.TargetSnapshot.YouTubeClientId);
+        Assert.NotNull(publication.ContentSnapshot);
+        Assert.Equal("Rendered title", publication.ContentSnapshot!.Title);
+        Assert.Equal("Rendered description", publication.ContentSnapshot.Description);
         Assert.False(publication.IsOrphaned);
     }
 
@@ -83,7 +88,8 @@ public class PlatformPublicationMapperTests
             PlatformId,
             "Main YouTube channel",
             PlatformType.YouTube,
-            new YouTubeSettings(Credentials(), "private", false));
+            new YouTubeSettings(Credentials(), "private", false),
+            new ContentSnapshot("Rendered title", "Rendered description"));
 
         var entity = PlatformPublicationMapper.ToPublishingEntity(attempt, now);
 
@@ -95,6 +101,8 @@ public class PlatformPublicationMapperTests
         Assert.Equal("YouTube", entity.PlatformType);
         Assert.Equal("Publishing", entity.Status);
         Assert.Null(entity.ExternalResourceId);
+        Assert.Equal("Rendered title", entity.ContentSnapshotTitle);
+        Assert.Equal("Rendered description", entity.ContentSnapshotDescription);
         Assert.Null(entity.PublishedUtc);
         Assert.Null(entity.PlatformDeletedUtc);
         Assert.Equal(now, entity.CreatedUtc);
@@ -109,7 +117,8 @@ public class PlatformPublicationMapperTests
             PlatformId,
             "Main YouTube channel",
             PlatformType.YouTube,
-            new YouTubeSettings(Credentials(), "unlisted", true));
+            new YouTubeSettings(Credentials(), "unlisted", true),
+            new ContentSnapshot("Rendered title", null));
 
         var entity = PlatformPublicationMapper.ToPublishingEntity(
             attempt,
@@ -138,7 +147,8 @@ public class PlatformPublicationMapperTests
                 "https://example.com",
                 "editor",
                 "application-password",
-                "publish"));
+                "publish"),
+            new ContentSnapshot("Rendered title", null));
 
         var entity = PlatformPublicationMapper.ToPublishingEntity(
             attempt,

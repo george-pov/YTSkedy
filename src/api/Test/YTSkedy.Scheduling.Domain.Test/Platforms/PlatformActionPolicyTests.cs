@@ -119,4 +119,40 @@ public class PlatformActionPolicyTests
     {
         Assert.False(PlatformActionPolicy.BlocksPlatformDelete(status));
     }
+
+    [Fact]
+    public void CanPreviewPublishingContent_NotPublishedActive_ReturnsTrue()
+    {
+        Assert.True(PlatformActionPolicy.CanPreviewPublishingContent(
+            PublishStatus.NotPublished,
+            isOrphaned: false,
+            hasContentSnapshot: false));
+    }
+
+    [Fact]
+    public void CanPreviewPublishingContent_PublishingWithSnapshot_ReturnsTrue()
+    {
+        Assert.True(PlatformActionPolicy.CanPreviewPublishingContent(
+            PublishStatus.Publishing,
+            isOrphaned: false,
+            hasContentSnapshot: true));
+    }
+
+    [Fact]
+    public void CanPreviewPublishingContent_OrphanedPublishedWithSnapshot_ReturnsTrue()
+    {
+        Assert.True(PlatformActionPolicy.CanPreviewPublishingContent(
+            PublishStatus.Published,
+            isOrphaned: true,
+            hasContentSnapshot: true));
+    }
+
+    [Fact]
+    public void CanPreviewPublishingContent_PublishedWithoutSnapshot_ReturnsFalse()
+    {
+        Assert.False(PlatformActionPolicy.CanPreviewPublishingContent(
+            PublishStatus.Published,
+            isOrphaned: false,
+            hasContentSnapshot: false));
+    }
 }

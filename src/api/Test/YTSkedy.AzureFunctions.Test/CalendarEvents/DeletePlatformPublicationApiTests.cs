@@ -27,6 +27,7 @@ public sealed class DeletePlatformPublicationApiTests
         Assert.Equal("NotPublished", body.Status);
         Assert.True(body.CanPublish);
         Assert.False(body.CanDeletePublication);
+        Assert.True(body.CanPreviewPublishingContent);
     }
 
     [Theory]
@@ -70,5 +71,6 @@ public sealed class DeletePlatformPublicationApiTests
             null,
             null,
             CanPublish: true,
-            CanDeletePublication: false);
+            CanDeletePublication: false,
+            CanPreviewPublishingContent: true);
 }

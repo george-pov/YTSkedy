@@ -35,6 +35,7 @@ public sealed class PublishEventPlatformApiTests
         Assert.Null(body.PlatformDeletedUtc);
         Assert.False(body.CanPublish);
         Assert.True(body.CanDeletePublication);
+        Assert.True(body.CanPreviewPublishingContent);
     }
 
     [Fact]
@@ -59,13 +60,14 @@ public sealed class PublishEventPlatformApiTests
         Assert.Null(body.PlatformDeletedUtc);
         Assert.False(body.CanPublish);
         Assert.True(body.CanDeletePublication);
+        Assert.True(body.CanPreviewPublishingContent);
     }
 
     [Theory]
     [InlineData(PublishResultStatus.EventNotFound, StatusCodes.Status404NotFound)]
     [InlineData(PublishResultStatus.PlatformNotFound, StatusCodes.Status404NotFound)]
     [InlineData(PublishResultStatus.PastStart, StatusCodes.Status400BadRequest)]
-    [InlineData(PublishResultStatus.MissingEnglishTitle, StatusCodes.Status400BadRequest)]
+    [InlineData(PublishResultStatus.InvalidPublishingContent, StatusCodes.Status409Conflict)]
     [InlineData(PublishResultStatus.AlreadyPublished, StatusCodes.Status409Conflict)]
     [InlineData(PublishResultStatus.PublishInProgress, StatusCodes.Status409Conflict)]
     [InlineData(PublishResultStatus.PlatformDeleted, StatusCodes.Status409Conflict)]
@@ -106,5 +108,6 @@ public sealed class PublishEventPlatformApiTests
                 publishedUtc,
                 null,
                 CanPublish: false,
-                CanDeletePublication: true));
+                CanDeletePublication: true,
+                CanPreviewPublishingContent: true));
 }

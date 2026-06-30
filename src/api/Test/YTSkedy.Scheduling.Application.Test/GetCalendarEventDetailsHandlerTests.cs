@@ -78,6 +78,7 @@ public class GetCalendarEventDetailsHandlerTests
         Assert.Null(item.PlatformDeletedUtc);
         Assert.True(item.CanPublish);
         Assert.False(item.CanDeletePublication);
+        Assert.True(item.CanPreviewPublishingContent);
     }
 
     [Fact]
@@ -89,7 +90,8 @@ public class GetCalendarEventDetailsHandlerTests
             "Main channel",
             PublishStatus.Published,
             externalResourceId: "abc123youtubeid",
-            publishedUtc: publishedUtc);
+            publishedUtc: publishedUtc,
+            contentSnapshot: new ContentSnapshot("Rendered title", "Rendered description"));
         var handler = new GetCalendarEventDetailsHandler(
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
@@ -105,6 +107,7 @@ public class GetCalendarEventDetailsHandlerTests
         Assert.Null(item.PlatformDeletedUtc);
         Assert.False(item.CanPublish);
         Assert.True(item.CanDeletePublication);
+        Assert.True(item.CanPreviewPublishingContent);
     }
 
     [Fact]
@@ -128,6 +131,7 @@ public class GetCalendarEventDetailsHandlerTests
         var item = Assert.Single(result!.Platforms);
         Assert.False(item.CanPublish);
         Assert.False(item.CanDeletePublication);
+        Assert.False(item.CanPreviewPublishingContent);
     }
 
     [Fact]
@@ -140,7 +144,8 @@ public class GetCalendarEventDetailsHandlerTests
             PublishStatus.Published,
             externalResourceId: "oldyoutubeid",
             publishedUtc: new DateTimeOffset(2026, 6, 20, 8, 0, 0, TimeSpan.Zero),
-            platformDeletedUtc: deletedUtc);
+            platformDeletedUtc: deletedUtc,
+            contentSnapshot: new ContentSnapshot("Rendered title", null));
         var handler = new GetCalendarEventDetailsHandler(
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
@@ -155,6 +160,7 @@ public class GetCalendarEventDetailsHandlerTests
         Assert.Equal(PublishStatus.NotPublished, active.Status);
         Assert.True(active.CanPublish);
         Assert.False(active.CanDeletePublication);
+        Assert.True(active.CanPreviewPublishingContent);
 
         var history = result.Platforms.Single(item => item.PlatformId == OtherPlatformId);
         Assert.Equal("Old channel", history.PlatformName);
@@ -163,6 +169,7 @@ public class GetCalendarEventDetailsHandlerTests
         Assert.Equal(deletedUtc, history.PlatformDeletedUtc);
         Assert.False(history.CanPublish);
         Assert.False(history.CanDeletePublication);
+        Assert.True(history.CanPreviewPublishingContent);
     }
 
     [Fact]
@@ -217,7 +224,8 @@ public class GetCalendarEventDetailsHandlerTests
         PublishStatus status,
         string? externalResourceId = null,
         DateTimeOffset? publishedUtc = null,
-        DateTimeOffset? platformDeletedUtc = null) =>
+        DateTimeOffset? platformDeletedUtc = null,
+        ContentSnapshot? contentSnapshot = null) =>
         new(
             CalendarEventId,
             platformId,
@@ -227,7 +235,9 @@ public class GetCalendarEventDetailsHandlerTests
             externalResourceId,
             publishedUtc,
             platformDeletedUtc,
-            new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero));
+            new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
+            TargetSnapshot: null,
+            ContentSnapshot: contentSnapshot);
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
