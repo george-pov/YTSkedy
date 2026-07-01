@@ -19,6 +19,10 @@ import {
   UpdateCalendarEventRequest,
   UpdateCalendarEventResponse,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import {
+  EventTextFieldsResponse,
+  EventTextFieldsService,
+} from 'src/app/shared/api/settings/event-text-fields-service';
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { CalendarEventDetails } from './calendar-event-details';
@@ -66,6 +70,9 @@ describe('CalendarEventDetails', () => {
       ) => Observable<EventPlatformPublishingContent>
     >;
   };
+  let eventTextFieldsService: {
+    get: Mock<() => Observable<EventTextFieldsResponse>>;
+  };
   let confirmation: { confirm: Mock<(data: unknown) => Observable<string | undefined>> };
   let notifications: { showSuccess: Mock<(message: string) => void> };
   let navigations: string[];
@@ -97,6 +104,10 @@ describe('CalendarEventDetails', () => {
           ) => Observable<EventPlatformPublishingContent>
         >(),
     };
+    eventTextFieldsService = {
+      get: vi.fn<() => Observable<EventTextFieldsResponse>>(),
+    };
+    eventTextFieldsService.get.mockReturnValue(of(defaultEventTextFields()));
     confirmation = { confirm: vi.fn<(data: unknown) => Observable<string | undefined>>() };
     confirmation.confirm.mockReturnValue(of('delete'));
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
@@ -108,6 +119,7 @@ describe('CalendarEventDetails', () => {
         provideRouter([]),
         provideLuxonDateAdapter(testDateFormats),
         { provide: CalendarEventsService, useValue: service },
+        { provide: EventTextFieldsService, useValue: eventTextFieldsService },
         { provide: ConfirmationDialogService, useValue: confirmation },
         { provide: NotificationService, useValue: notifications },
         { provide: ActivatedRoute, useValue: routeWithId(null) },
@@ -138,10 +150,22 @@ describe('CalendarEventDetails', () => {
   function fillValidForm(): void {
     api().model.set({
       start: { date: '2999-01-01', time: '10:00', timeZoneId: 'UTC' },
-      descriptions: {
-        en: { title: 'English title', description: 'English description' },
-        ru: { title: 'Russian title', description: 'Russian description' },
-      },
+      texts: [
+        {
+          fieldKey: 'text1',
+          label: 'Title',
+          type: 'ShortText',
+          maxLength: 50,
+          value: 'English title',
+        },
+        {
+          fieldKey: 'text2',
+          label: 'Description',
+          type: 'LongText',
+          maxLength: 2500,
+          value: 'English description',
+        },
+      ],
     });
   }
 
@@ -206,18 +230,26 @@ describe('CalendarEventDetails', () => {
 
     expect(service.create).not.toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Start date is required.');
-    expect(fixture.nativeElement.textContent).toContain('English title is required.');
+    expect(fixture.nativeElement.textContent).toContain('Title is required.');
     expect(navigations).toEqual([]);
   });
 
-  it('blocks submit when a title exceeds the max length', async () => {
+  it('loads current event text fields in create mode before rendering text controls', () => {
+    expect(eventTextFieldsService.get).toHaveBeenCalledTimes(1);
+    expect(service.getById).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Title');
+    expect(fixture.nativeElement.textContent).toContain('Description');
+    expect(fixture.nativeElement.querySelector('textarea')).not.toBeNull();
+  });
+
+  it('blocks submit when a text field exceeds its max length', async () => {
     fillValidForm();
-    api().form.descriptions.en.title().value.set('a'.repeat(101));
+    api().form.texts[0].value().value.set('a'.repeat(51));
 
     await submitForm();
 
     expect(service.create).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.textContent).toContain('English title is too long.');
+    expect(fixture.nativeElement.textContent).toContain('Title is too long.');
   });
 
   it('blocks submit when the scheduled start is in the past', async () => {
@@ -233,23 +265,21 @@ describe('CalendarEventDetails', () => {
   it('posts a contract-correct request and navigates to the list on success', async () => {
     service.create.mockReturnValue(of({ calendarEventId: '20990101T100000Z' }));
     fillValidForm();
-    api().form.descriptions.en.title().value.set('  English title  ');
+    api().form.texts[0].value().value.set('  English title  ');
 
     await submitForm();
 
     expect(service.create).toHaveBeenCalledTimes(1);
     expect(service.create).toHaveBeenCalledWith({
       start: { localDateTime: '2999-01-01T10:00:00', timeZoneId: 'UTC' },
-      descriptions: [
+      texts: [
         {
-          language: 'en',
-          title: 'English title',
-          description: 'English description',
+          fieldKey: 'text1',
+          value: 'English title',
         },
         {
-          language: 'ru',
-          title: 'Russian title',
-          description: 'Russian description',
+          fieldKey: 'text2',
+          value: 'English description',
         },
       ],
     });
@@ -309,6 +339,7 @@ describe('CalendarEventDetails', () => {
     const editId = calendarEventId;
 
     function createEditComponent(): void {
+      eventTextFieldsService.get.mockClear();
       TestBed.resetTestingModule();
       TestBed.configureTestingModule({
         providers: [
@@ -316,6 +347,7 @@ describe('CalendarEventDetails', () => {
           provideRouter([]),
           provideLuxonDateAdapter(testDateFormats),
           { provide: CalendarEventsService, useValue: service },
+          { provide: EventTextFieldsService, useValue: eventTextFieldsService },
           { provide: ConfirmationDialogService, useValue: confirmation },
           { provide: NotificationService, useValue: notifications },
           { provide: ActivatedRoute, useValue: routeWithId(editId) },
@@ -339,17 +371,40 @@ describe('CalendarEventDetails', () => {
       createEditComponent();
 
       expect(service.getById).toHaveBeenCalledWith(editId);
-      expect(api().model()).toEqual({
+      const model = api().model();
+      expect({
+        start: model.start,
+        texts: model.texts.map(({ fieldKey, label, type, maxLength, value }) => ({
+          fieldKey,
+          label,
+          type,
+          maxLength,
+          value,
+        })),
+      }).toEqual({
         start: {
           date: '2030-07-04',
           time: '09:30',
           timeZoneId: 'Europe/London',
         },
-        descriptions: {
-          en: { title: 'English title', description: 'English description' },
-          ru: { title: 'Russian title', description: 'Russian description' },
-        },
+        texts: [
+          {
+            fieldKey: 'text1',
+            label: 'Title',
+            type: 'ShortText',
+            maxLength: 50,
+            value: 'English title',
+          },
+          {
+            fieldKey: 'text2',
+            label: 'Description',
+            type: 'LongText',
+            maxLength: 2500,
+            value: 'English description',
+          },
+        ],
       });
+      expect(eventTextFieldsService.get).not.toHaveBeenCalled();
     });
 
     it('shows the edit heading', () => {
@@ -486,7 +541,7 @@ describe('CalendarEventDetails', () => {
       expect(platformPreviewHosts()).toHaveLength(0);
     });
 
-    it('loads row-level publishing content without overwriting unsaved descriptions', async () => {
+    it('loads row-level publishing content without overwriting unsaved text values', async () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.getPublishingContent.mockReturnValue(
         of({
@@ -497,7 +552,7 @@ describe('CalendarEventDetails', () => {
       );
 
       createEditComponent();
-      api().form.descriptions.en.title().value.set('Unsaved English title');
+      api().form.texts[0].value().value.set('Unsaved English title');
 
       platformPreviewHosts()[0].dispatchEvent(new Event('click'));
       fixture.detectChanges();
@@ -509,7 +564,7 @@ describe('CalendarEventDetails', () => {
       expect(fixture.nativeElement.textContent).toContain('Preview');
       expect(fixture.nativeElement.textContent).toContain('Rendered title');
       expect(fixture.nativeElement.textContent).toContain('Rendered description');
-      expect(api().model().descriptions.en.title).toBe('Unsaved English title');
+      expect(api().model().texts[0].value).toBe('Unsaved English title');
     });
 
     it('shows published snapshot publishing content on demand', async () => {
@@ -605,7 +660,7 @@ describe('CalendarEventDetails', () => {
       );
 
       createEditComponent();
-      api().form.descriptions.en.title().value.set('Unsaved English title');
+      api().form.texts[0].value().value.set('Unsaved English title');
 
       platformPublishHosts()[0].dispatchEvent(new Event('click'));
       fixture.detectChanges();
@@ -616,7 +671,7 @@ describe('CalendarEventDetails', () => {
       expect(fixture.nativeElement.textContent).toContain('Published');
       expect(platformPublishHosts()).toHaveLength(0);
       expect(platformDeletePublicationButton()).not.toBeNull();
-      expect(api().model().descriptions.en.title).toBe('Unsaved English title');
+      expect(api().model().texts[0].value).toBe('Unsaved English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event published.');
     });
 
@@ -760,7 +815,7 @@ describe('CalendarEventDetails', () => {
       );
 
       createEditComponent();
-      api().form.descriptions.en.title().value.set('Unsaved English title');
+      api().form.texts[0].value().value.set('Unsaved English title');
 
       platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
       fixture.detectChanges();
@@ -770,7 +825,7 @@ describe('CalendarEventDetails', () => {
       expect(fixture.nativeElement.textContent).toContain('NotPublished');
       expect(platformDeletePublicationHosts()).toHaveLength(0);
       expect(platformPublishHosts()).toHaveLength(1);
-      expect(api().model().descriptions.en.title).toBe('Unsaved English title');
+      expect(api().model().texts[0].value).toBe('Unsaved English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Platform publication deleted.');
     });
 
@@ -877,7 +932,7 @@ describe('CalendarEventDetails', () => {
       expect(api().form.start().disabled()).toBe(true);
     });
 
-    it('keeps Save enabled and updates descriptions on submit', async () => {
+    it('keeps Save enabled and updates text values on submit', async () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.update.mockReturnValue(of({ calendarEventId: editId }));
 
@@ -888,7 +943,7 @@ describe('CalendarEventDetails', () => {
       ) as HTMLButtonElement;
       expect(save.disabled).toBe(false);
 
-      api().form.descriptions.en.title().value.set('  Updated English title  ');
+      api().form.texts[0].value().value.set('  Updated English title  ');
 
       fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
       fixture.detectChanges();
@@ -897,16 +952,14 @@ describe('CalendarEventDetails', () => {
       expect(service.create).not.toHaveBeenCalled();
       expect(service.update).toHaveBeenCalledTimes(1);
       expect(service.update).toHaveBeenCalledWith(editId, {
-        descriptions: [
+        texts: [
           {
-            language: 'en',
-            title: 'Updated English title',
-            description: 'English description',
+            fieldKey: 'text1',
+            value: 'Updated English title',
           },
           {
-            language: 'ru',
-            title: 'Russian title',
-            description: 'Russian description',
+            fieldKey: 'text2',
+            value: 'English description',
           },
         ],
       });
@@ -1160,7 +1213,9 @@ describe('CalendarEventDetails', () => {
     };
   }
 
-  function sampleEvent(overrides: Partial<CalendarEventDetailsResponse> = {}): CalendarEventDetailsResponse {
+  function sampleEvent(
+    overrides: Partial<CalendarEventDetailsResponse> = {},
+  ): CalendarEventDetailsResponse {
     return {
       calendarEventId,
       start: {
@@ -1168,16 +1223,20 @@ describe('CalendarEventDetails', () => {
         timeZoneId: 'Europe/London',
       },
       scheduledStartUtc: '2030-07-04T08:30:00+00:00',
-      descriptions: [
+      texts: [
         {
-          language: 'en',
-          title: 'English title',
-          description: 'English description',
+          fieldKey: 'text1',
+          label: 'Title',
+          type: 'ShortText',
+          maxLength: 50,
+          value: 'English title',
         },
         {
-          language: 'ru',
-          title: 'Russian title',
-          description: 'Russian description',
+          fieldKey: 'text2',
+          label: 'Description',
+          type: 'LongText',
+          maxLength: 2500,
+          value: 'English description',
         },
       ],
       platforms: [
@@ -1195,6 +1254,25 @@ describe('CalendarEventDetails', () => {
         },
       ],
       ...overrides,
+    };
+  }
+
+  function defaultEventTextFields(): EventTextFieldsResponse {
+    return {
+      fields: [
+        {
+          fieldKey: 'text1',
+          label: 'Title',
+          type: 'ShortText',
+          maxLength: 50,
+        },
+        {
+          fieldKey: 'text2',
+          label: 'Description',
+          type: 'LongText',
+          maxLength: 2500,
+        },
+      ],
     };
   }
 });

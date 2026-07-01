@@ -18,6 +18,7 @@ import {
   type CalendarEventPlatform,
   type EventPlatformPublishingContent,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import { EventTextFieldsService } from 'src/app/shared/api/settings/event-text-fields-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from 'src/app/shared/components/button/button';
@@ -35,6 +36,7 @@ import {
   applyCalendarEventDetailsRules,
   CalendarEventDetailsModel,
   createCalendarEventDetailsModel,
+  eventTextFieldsToModel,
   formatScheduledStartUtcIso,
   patchCalendarEventDetailsModel,
   scheduledStartUtcPreview,
@@ -69,12 +71,13 @@ export class CalendarEventDetails {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly calendarEventsService = inject(CalendarEventsService);
+  private readonly eventTextFieldsService = inject(EventTextFieldsService);
   private readonly confirmation = inject(ConfirmationDialogService);
   private readonly notifications = inject(NotificationService);
 
   // The edit route carries the calendar event id; the create route does not. A
-  // non-null id puts the page in edit mode: it loads the event and repopulates
-  // the form. Saving an edit is not implemented yet.
+  // non-null id puts the page in edit mode: it loads the stored event snapshot
+  // and repopulates the form. Create mode loads the current text-field setting.
   private readonly editingId = this.route.snapshot.paramMap.get('calendarEventId');
   protected readonly isEditMode = this.editingId !== null;
 
@@ -153,7 +156,31 @@ export class CalendarEventDetails {
 
     if (this.editingId !== null) {
       this.loadEvent(this.editingId);
+    } else {
+      this.loadCurrentFields();
     }
+  }
+
+  private loadCurrentFields(): void {
+    this.isLoading.set(true);
+    this.loadFailed.set(false);
+
+    this.eventTextFieldsService
+      .get()
+      .pipe(finalize(() => this.isLoading.set(false)))
+      .subscribe({
+        next: (response) => {
+          this.model.set(
+            createCalendarEventDetailsModel(
+              this.model().start.timeZoneId,
+              eventTextFieldsToModel(response.fields),
+            ),
+          );
+        },
+        error: () => {
+          this.loadFailed.set(true);
+        },
+      });
   }
 
   private loadEvent(calendarEventId: string): void {
@@ -201,7 +228,7 @@ export class CalendarEventDetails {
 
     this.isSubmitting.set(true);
 
-    // Edit updates descriptions in place; create posts a new event. Both
+    // Edit updates text values in place; create posts a new event. Both
     // responses are ignored, so the union is typed as the wider observable.
     const request$: Observable<unknown> =
       this.editingId === null

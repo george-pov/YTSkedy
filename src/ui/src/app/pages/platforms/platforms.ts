@@ -104,13 +104,12 @@ export class Platforms implements OnInit {
   // The type currently in the editor. Reactive to the create-mode type select,
   // so the settings section can switch on it.
   protected readonly selectedType = computed(() => this.model().type);
-  protected readonly templateOptions = computed<readonly SelectOption[]>(() => [
-    { value: '', label: '(none)' },
-    ...this.availableTemplates().map((template) => ({
+  protected readonly templateOptions = computed<readonly SelectOption[]>(() =>
+    this.availableTemplates().map((template) => ({
       value: template.id,
       label: template.name,
     })),
-  ]);
+  );
 
   constructor() {
     effect(() => {
@@ -354,8 +353,8 @@ function toFormModel(platform: Platform): PlatformFormModel {
     type: platform.type,
     name: platform.name,
     referenceKey: platform.referenceKey ?? defaults.referenceKey,
-    titleTemplateId: platform.publishingContent.titleTemplateId ?? '',
-    descriptionTemplateId: platform.publishingContent.descriptionTemplateId ?? '',
+    titleTemplateId: platform.publishingContent.titleTemplateId,
+    descriptionTemplateId: platform.publishingContent.descriptionTemplateId,
     youTubeClientId: youTubeSettings?.credentials.clientId ?? defaults.youTubeClientId,
     youTubeClientSecret: '',
     youTubeRefreshToken: '',

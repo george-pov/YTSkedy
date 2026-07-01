@@ -1,5 +1,6 @@
 import { WritableSignal } from '@angular/core';
 import {
+  applyEach,
   disabled,
   maxLength,
   required,
@@ -10,17 +11,22 @@ import {
 
 import {
   CalendarEvent,
+  CalendarEventText,
   CreateCalendarEventRequest,
   UpdateCalendarEventRequest,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import {
+  EventTextField,
+  EventTextType,
+} from 'src/app/shared/api/settings/event-text-fields-service';
 import { SelectOption } from 'src/app/shared/components/select/select';
 
-export const titleMaxLength = 100;
-export const descriptionMaxLength = 5000;
-
-export interface LanguageDescription {
-  title: string;
-  description: string;
+export interface EventTextFieldModel {
+  fieldKey: string;
+  label: string;
+  type: EventTextType;
+  maxLength: number;
+  value: string;
 }
 
 export interface CalendarEventDetailsModel {
@@ -29,10 +35,7 @@ export interface CalendarEventDetailsModel {
     time: string;
     timeZoneId: string;
   };
-  descriptions: {
-    en: LanguageDescription;
-    ru: LanguageDescription;
-  };
+  texts: EventTextFieldModel[];
 }
 
 // Curated short list of supported time zones. Not the full IANA set. The
@@ -58,19 +61,17 @@ export function detectPreselectedTimeZone(
 
 export function createCalendarEventDetailsModel(
   preselectedTimeZone: string = detectPreselectedTimeZone(),
+  texts: readonly EventTextFieldModel[] = [],
 ): CalendarEventDetailsModel {
   return {
     start: { date: '', time: '', timeZoneId: preselectedTimeZone },
-    descriptions: {
-      en: { title: '', description: '' },
-      ru: { title: '', description: '' },
-    },
+    texts: [...texts],
   };
 }
 
 // Signal Forms validation rules. Defined as a function so the page can close
 // over its edit-mode signal: in edit mode the `start` group is disabled, which
-// excludes it from validation (descriptions-only edit).
+// excludes it from validation (text-values-only edit).
 export function applyCalendarEventDetailsRules(
   path: SchemaPathTree<CalendarEventDetailsModel>,
   isEditMode: () => boolean,
@@ -98,39 +99,22 @@ export function applyCalendarEventDetailsRules(
     return { kind: 'startInPast', message: 'Start must be in the future.' };
   });
 
-  // Required-trimmed (reject whitespace-only) reuses the `required` error kind.
-  validate(path.descriptions.en.title, ({ value }) =>
-    value().trim().length === 0
-      ? { kind: 'required', message: 'English title is required.' }
+  validate(path.texts, ({ value }) =>
+    value().length === 0
+      ? { kind: 'required', message: 'At least one event text field is required.' }
       : undefined,
   );
-  maxLength(path.descriptions.en.title, titleMaxLength, {
-    message: 'English title is too long.',
-  });
-  validate(path.descriptions.en.description, ({ value }) =>
-    value().trim().length === 0
-      ? { kind: 'required', message: 'English description is required.' }
-      : undefined,
-  );
-  maxLength(path.descriptions.en.description, descriptionMaxLength, {
-    message: 'English description is too long.',
-  });
 
-  validate(path.descriptions.ru.title, ({ value }) =>
-    value().trim().length === 0
-      ? { kind: 'required', message: 'Russian title is required.' }
-      : undefined,
-  );
-  maxLength(path.descriptions.ru.title, titleMaxLength, {
-    message: 'Russian title is too long.',
-  });
-  validate(path.descriptions.ru.description, ({ value }) =>
-    value().trim().length === 0
-      ? { kind: 'required', message: 'Russian description is required.' }
-      : undefined,
-  );
-  maxLength(path.descriptions.ru.description, descriptionMaxLength, {
-    message: 'Russian description is too long.',
+  applyEach(path.texts, (text) => {
+    // Required-trimmed (reject whitespace-only) reuses the `required` error kind.
+    validate(text.value, ({ value, valueOf }) =>
+      value().trim().length === 0
+        ? { kind: 'required', message: `${valueOf(text.label)} is required.` }
+        : undefined,
+    );
+    maxLength(text.value, ({ valueOf }) => valueOf(text.maxLength), {
+      message: ({ valueOf }) => `${valueOf(text.label)} is too long.`,
+    });
   });
 }
 
@@ -188,7 +172,7 @@ function timeZoneOffsetMs(timeZoneId: string, instant: number): number | null {
 
 // Pure mapping from the model to the create request. Combines the native date
 // and time into `YYYY-MM-DDTHH:mm:ss` (explicit `:00` seconds), trims text
-// values, and orders descriptions `en` then `ru`.
+// values, and preserves the configured field order.
 export function toCreateCalendarEventRequest(
   model: CalendarEventDetailsModel,
 ): CreateCalendarEventRequest {
@@ -197,25 +181,14 @@ export function toCreateCalendarEventRequest(
       localDateTime: `${model.start.date}T${model.start.time}:00`,
       timeZoneId: model.start.timeZoneId,
     },
-    descriptions: [
-      {
-        language: 'en',
-        title: model.descriptions.en.title.trim(),
-        description: model.descriptions.en.description.trim(),
-      },
-      {
-        language: 'ru',
-        title: model.descriptions.ru.title.trim(),
-        description: model.descriptions.ru.description.trim(),
-      },
-    ],
+    texts: toEventTextValues(model),
   };
 }
 
 // Reverse mapping used by edit mode. Splits the stored wall-clock
 // `YYYY-MM-DDTHH:mm:ss` into the native date (`YYYY-MM-DD`) and time (`HH:mm`)
-// the model holds, selects the stored time zone, and fills each language from
-// its description (a missing language or null description becomes empty).
+// the model holds, selects the stored time zone, and uses the stored event text
+// snapshot exactly as returned by the API.
 export function patchCalendarEventDetailsModel(
   model: WritableSignal<CalendarEventDetailsModel>,
   event: CalendarEvent,
@@ -224,50 +197,49 @@ export function patchCalendarEventDetailsModel(
   const date = match === null ? '' : match[1];
   const time = match === null ? '' : match[2];
 
-  const descriptionFor = (language: string) =>
-    event.descriptions.find((entry) => entry.language === language);
-  const en = descriptionFor('en');
-  const ru = descriptionFor('ru');
-
   model.set({
     start: {
       date,
       time,
       timeZoneId: event.start.timeZoneId,
     },
-    descriptions: {
-      en: {
-        title: en?.title ?? '',
-        description: en?.description ?? '',
-      },
-      ru: {
-        title: ru?.title ?? '',
-        description: ru?.description ?? '',
-      },
-    },
+    texts: event.texts.map(toEventTextFieldModel),
   });
 }
 
 // Pure mapping from the model to the update request. Edit changes only the
-// descriptions (the start is immutable), so it carries no start. Trims text and
-// orders descriptions `en` then `ru`, mirroring the create request.
+// text values (the start is immutable), so it carries no start. Trims text and
+// preserves the stored field order.
 export function toUpdateCalendarEventRequest(
   model: CalendarEventDetailsModel,
 ): UpdateCalendarEventRequest {
   return {
-    descriptions: [
-      {
-        language: 'en',
-        title: model.descriptions.en.title.trim(),
-        description: model.descriptions.en.description.trim(),
-      },
-      {
-        language: 'ru',
-        title: model.descriptions.ru.title.trim(),
-        description: model.descriptions.ru.description.trim(),
-      },
-    ],
+    texts: toEventTextValues(model),
   };
+}
+
+export function eventTextFieldsToModel(fields: readonly EventTextField[]): EventTextFieldModel[] {
+  return fields.map((field) => ({
+    ...field,
+    value: '',
+  }));
+}
+
+function toEventTextFieldModel(text: CalendarEventText): EventTextFieldModel {
+  return {
+    fieldKey: text.fieldKey,
+    label: text.label,
+    type: text.type,
+    maxLength: text.maxLength,
+    value: text.value,
+  };
+}
+
+function toEventTextValues(model: CalendarEventDetailsModel) {
+  return model.texts.map((text) => ({
+    fieldKey: text.fieldKey,
+    value: text.value.trim(),
+  }));
 }
 
 // Formats an epoch-milliseconds instant as `YYYY-MM-DD HH:mm` in UTC, matching

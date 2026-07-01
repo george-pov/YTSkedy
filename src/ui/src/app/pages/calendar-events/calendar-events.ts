@@ -55,7 +55,7 @@ export class CalendarEvents implements OnInit {
     {
       key: 'title',
       header: 'Title',
-      value: (event) => englishTitle(event),
+      value: (event) => displayTitle(event),
       sortable: true,
       truncate: true,
     },
@@ -142,14 +142,13 @@ function formatScheduledStartUtc(scheduledStartUtc: string): string {
   );
 }
 
-// Presentation-only English title for the list column. Returns the title of the
-// English (`en`) localized description; both languages are required when an
-// event is created, so a missing English entry renders as an empty cell rather
-// than falling back to another language.
-function englishTitle(event: CalendarEvent): string {
-  const english = event.descriptions.find((description) => description.language === 'en');
+// Presentation-only title for the list column. The backend sorts by the first
+// short text field and falls back to the first text value; mirror that display
+// rule so the visible title matches the sorted source.
+function displayTitle(event: CalendarEvent): string {
+  const shortText = event.texts.find((text) => text.type === 'ShortText');
 
-  return english?.title ?? '';
+  return shortText?.value ?? event.texts[0]?.value ?? '';
 }
 
 // Maps a table column key to its API sort field. Only the sortable columns are

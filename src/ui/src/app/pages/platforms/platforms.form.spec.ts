@@ -8,29 +8,21 @@ import {
 } from './platforms.form';
 
 describe('platforms form request mapping', () => {
-  it.each([
-    ['', '', null, null],
-    ['title-template', '', 'title-template', null],
-    ['', 'description-template', null, 'description-template'],
-    [' title-template ', ' description-template ', 'title-template', 'description-template'],
-  ])(
-    'maps title template %s and description template %s to request publishing content',
-    (titleTemplateId, descriptionTemplateId, expectedTitleTemplateId, expectedDescriptionTemplateId) => {
-      const model = validModel({
-        titleTemplateId,
-        descriptionTemplateId,
-      });
+  it('maps selected title and description templates to request publishing content', () => {
+    const model = validModel({
+      titleTemplateId: ' title-template ',
+      descriptionTemplateId: ' description-template ',
+    });
 
-      expect(toCreatePlatformRequest(model).publishingContent).toEqual({
-        titleTemplateId: expectedTitleTemplateId,
-        descriptionTemplateId: expectedDescriptionTemplateId,
-      });
-      expect(toUpdatePlatformRequest(model).publishingContent).toEqual({
-        titleTemplateId: expectedTitleTemplateId,
-        descriptionTemplateId: expectedDescriptionTemplateId,
-      });
-    },
-  );
+    expect(toCreatePlatformRequest(model).publishingContent).toEqual({
+      titleTemplateId: 'title-template',
+      descriptionTemplateId: 'description-template',
+    });
+    expect(toUpdatePlatformRequest(model).publishingContent).toEqual({
+      titleTemplateId: 'title-template',
+      descriptionTemplateId: 'description-template',
+    });
+  });
 
   function validModel(overrides: Partial<PlatformFormModel>): PlatformFormModel {
     return {

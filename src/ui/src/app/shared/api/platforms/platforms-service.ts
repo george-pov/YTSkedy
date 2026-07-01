@@ -45,8 +45,8 @@ export type PlatformPublishSettings = YouTubePublishSettings | WordPressPublishS
 
 /** Platform-owned title and description template selection. */
 export interface PublishingContent {
-  titleTemplateId: string | null;
-  descriptionTemplateId: string | null;
+  titleTemplateId: string;
+  descriptionTemplateId: string;
 }
 
 /**
@@ -149,7 +149,7 @@ interface ApiPlatform {
   referenceKey?: string | null;
   type: PlatformType;
   publishSettings?: PlatformPublishSettings;
-  publishingContent?: PublishingContent | null;
+  publishingContent: PublishingContent;
 }
 
 function toPlatform(platform: ApiPlatform): Platform {
@@ -160,16 +160,7 @@ function toPlatform(platform: ApiPlatform): Platform {
     type: platform.type,
     publishSettings:
       platform.publishSettings === undefined ? undefined : { ...platform.publishSettings },
-    publishingContent: normalizePublishingContent(platform.publishingContent),
-  };
-}
-
-function normalizePublishingContent(
-  content: PublishingContent | null | undefined,
-): PublishingContent {
-  return {
-    titleTemplateId: content?.titleTemplateId ?? null,
-    descriptionTemplateId: content?.descriptionTemplateId ?? null,
+    publishingContent: { ...platform.publishingContent },
   };
 }
 

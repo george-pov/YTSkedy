@@ -64,6 +64,29 @@ describe('resolveProtectedScopes', () => {
     expect(scopes).not.toBeNull();
   });
 
+  it('returns the scopes for event text fields settings API calls', () => {
+    const scopes = getRequiredScopes(
+      'https://api.example.test/api/settings/event-text-fields',
+      api,
+      auth,
+    );
+
+    expect(scopes).toEqual([
+      auth.calendarEventsReadScope,
+      auth.calendarEventsWriteScope,
+    ]);
+  });
+
+  it('does not match a path that merely starts with the event text fields prefix string', () => {
+    const scopes = getRequiredScopes(
+      'https://api.example.test/api/settings/event-text-fields-other',
+      api,
+      auth,
+    );
+
+    expect(scopes).toBeNull();
+  });
+
   it('returns null for URLs outside the API base', () => {
     const scopes = getRequiredScopes(
       'https://other.example.test/api/calendar-events',

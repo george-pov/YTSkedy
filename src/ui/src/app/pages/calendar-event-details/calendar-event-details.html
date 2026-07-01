@@ -4,8 +4,8 @@
     <p>
       {{
         isEditMode
-          ? 'Update this stream and its descriptions.'
-          : 'Schedule a new stream and its descriptions.'
+          ? 'Update this stream and its text fields.'
+          : 'Schedule a new stream and its text fields.'
       }}
     </p>
   </header>
@@ -41,23 +41,30 @@
         </fieldset>
 
         <fieldset class="section">
-          <legend>Descriptions</legend>
-          <p class="section-hint">
-            English and Russian are both required, each with a title and a description.
-          </p>
+          <legend>Event text</legend>
 
-          <div class="app-grid app-gap-6">
-            <div class="description-item app-col-md-6">
-              <h2 class="description-language">English</h2>
-              <app-input [field]="form.descriptions.en.title" label="Title" />
-              <app-input [field]="form.descriptions.en.description" label="Description" />
-            </div>
+          @if (form.texts().errors().length > 0 && form.texts().touched()) {
+            <app-alert variant="error">
+              {{ form.texts().errors()[0].message }}
+            </app-alert>
+          }
 
-            <div class="description-item app-col-md-6">
-              <h2 class="description-language">Russian</h2>
-              <app-input [field]="form.descriptions.ru.title" label="Title" />
-              <app-input [field]="form.descriptions.ru.description" label="Description" />
-            </div>
+          <div class="text-list">
+            @for (text of model().texts; track text.fieldKey; let index = $index) {
+              <section class="text-item" [attr.aria-labelledby]="'event-text-' + text.fieldKey">
+                <header>
+                  <h2 [id]="'event-text-' + text.fieldKey">{{ text.label }}</h2>
+                  <span>{{ text.fieldKey }} / {{ text.type }}</span>
+                </header>
+                <app-input
+                  [field]="form.texts[index].value"
+                  [label]="text.label"
+                  [multiline]="text.type === 'LongText'"
+                  [rows]="6"
+                  showCharacterCount
+                />
+              </section>
+            }
           </div>
         </fieldset>
 

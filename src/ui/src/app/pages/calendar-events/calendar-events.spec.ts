@@ -60,8 +60,32 @@ describe('CalendarEvents', () => {
     expect(text).toContain('Title');
     expect(text).toContain('2026-06-06 17:00');
     expect(text).not.toContain('Time Zone');
-    expect(text).toContain('English stream 1');
-    expect(text).not.toContain('Description for stream 1 in English');
+    expect(text).toContain('Stream title 1');
+    expect(text).not.toContain('Description for stream 1');
+  });
+
+  it('falls back to the first text value when no short text field is returned', async () => {
+    service.list.mockReturnValue(
+      of(
+        pageOf([
+          draftEvent(calendarEventId, {
+            texts: [
+              {
+                fieldKey: 'text1',
+                label: 'Description',
+                type: 'LongText',
+                maxLength: 2500,
+                value: 'First available text',
+              },
+            ],
+          }),
+        ]),
+      ),
+    );
+
+    await createComponent();
+
+    expect(fixture.nativeElement.textContent).toContain('First available text');
   });
 
   it('renders an empty state when the page has no items', async () => {
@@ -258,23 +282,32 @@ describe('CalendarEvents', () => {
 
   function draftEvent(
     calendarEventId: string,
-    localDateTime = '2026-06-06T10:00:00',
-    scheduledStartUtc = '2026-06-06T17:00:00+00:00',
+    overrides: Partial<CalendarEvent> = {},
   ): CalendarEvent {
     return {
       calendarEventId,
       start: {
-        localDateTime,
+        localDateTime: '2026-06-06T10:00:00',
         timeZoneId: 'America/Vancouver',
       },
-      scheduledStartUtc,
-      descriptions: [
+      scheduledStartUtc: '2026-06-06T17:00:00+00:00',
+      texts: [
         {
-          language: 'en',
-          title: 'English stream 1',
-          description: 'Description for stream 1 in English',
+          fieldKey: 'text1',
+          label: 'Title',
+          type: 'ShortText',
+          maxLength: 50,
+          value: 'Stream title 1',
+        },
+        {
+          fieldKey: 'text2',
+          label: 'Description',
+          type: 'LongText',
+          maxLength: 2500,
+          value: 'Description for stream 1',
         },
       ],
+      ...overrides,
     };
   }
 

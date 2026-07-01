@@ -104,6 +104,18 @@ export function applyPlatformRules(path: SchemaPathTree<PlatformFormModel>): voi
     message: `Reference key must be at most ${referenceKeyMaxLength} characters.`,
   });
 
+  validate(path.titleTemplateId, ({ value }) =>
+    value().trim().length === 0
+      ? { kind: 'required', message: 'Title template is required.' }
+      : undefined,
+  );
+
+  validate(path.descriptionTemplateId, ({ value }) =>
+    value().trim().length === 0
+      ? { kind: 'required', message: 'Description template is required.' }
+      : undefined,
+  );
+
   applyWhen(
     path,
     ({ value }) => value().type === 'YouTube',
@@ -229,15 +241,10 @@ function toReferenceKey(value: string): string | null {
   return referenceKey.length === 0 ? null : referenceKey;
 }
 
-function toTemplateId(value: string): string | null {
-  const templateId = value.trim();
-  return templateId.length === 0 ? null : templateId;
-}
-
 function toPublishingContent(model: PlatformFormModel): PublishingContent {
   return {
-    titleTemplateId: toTemplateId(model.titleTemplateId),
-    descriptionTemplateId: toTemplateId(model.descriptionTemplateId),
+    titleTemplateId: model.titleTemplateId.trim(),
+    descriptionTemplateId: model.descriptionTemplateId.trim(),
   };
 }
 

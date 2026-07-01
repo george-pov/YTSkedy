@@ -55,11 +55,13 @@ describe('CalendarEventsService', () => {
             timeZoneId: 'Etc/UTC',
           },
           scheduledStartUtc: '2026-01-15T09:30:00+00:00',
-          descriptions: [
+          texts: [
             {
-              language: 'en',
-              title: 'Test stream',
-              description: 'Synthetic API response fixture.',
+              fieldKey: 'text1',
+              label: 'Title',
+              type: 'ShortText',
+              maxLength: 50,
+              value: 'Test stream',
             },
           ],
         },
@@ -130,16 +132,14 @@ describe('CalendarEventsService', () => {
         localDateTime: '2026-06-06T10:00:00',
         timeZoneId: 'America/Vancouver',
       },
-      descriptions: [
+      texts: [
         {
-          language: 'en',
-          title: 'English stream 1',
-          description: 'Description for stream 1 in English',
+          fieldKey: 'text1',
+          value: 'English stream 1',
         },
         {
-          language: 'ru',
-          title: 'Russian stream 1',
-          description: 'Description for stream 1 in Russian',
+          fieldKey: 'text2',
+          value: 'Description for stream 1',
         },
       ],
     };
@@ -170,11 +170,13 @@ describe('CalendarEventsService', () => {
         timeZoneId: 'America/Vancouver',
       },
       scheduledStartUtc: '2026-06-06T17:00:00+00:00',
-      descriptions: [
+      texts: [
         {
-          language: 'en',
-          title: 'English stream 1',
-          description: 'Description for stream 1 in English',
+          fieldKey: 'text1',
+          label: 'Title',
+          type: 'ShortText',
+          maxLength: 50,
+          value: 'English stream 1',
         },
       ],
       platforms: [
@@ -211,16 +213,14 @@ describe('CalendarEventsService', () => {
 
   it('puts an update request to the by-id endpoint and returns the API response', () => {
     const updateRequest: UpdateCalendarEventRequest = {
-      descriptions: [
+      texts: [
         {
-          language: 'en',
-          title: 'Updated English title',
-          description: 'Updated English description',
+          fieldKey: 'text1',
+          value: 'Updated English title',
         },
         {
-          language: 'ru',
-          title: 'Updated Russian title',
-          description: 'Updated Russian description',
+          fieldKey: 'text2',
+          value: 'Updated description',
         },
       ],
     };

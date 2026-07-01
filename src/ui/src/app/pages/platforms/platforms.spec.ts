@@ -61,7 +61,7 @@ describe('Platforms', () => {
       name: 'Main YouTube channel',
       referenceKey: 'youTube1',
       type: 'YouTube',
-      publishingContent: nonePublishingContent(),
+      publishingContent: publishingContent(),
       publishSettings: {
         credentials: {
           clientId: 'client-id',
@@ -81,7 +81,10 @@ describe('Platforms', () => {
       name: 'Company blog',
       referenceKey: 'blog-1',
       type: 'WordPress',
-      publishingContent: nonePublishingContent(),
+      publishingContent: publishingContent({
+        titleTemplateId: 'wordpress-title-template',
+        descriptionTemplateId: 'wordpress-description-template',
+      }),
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
@@ -116,8 +119,8 @@ describe('Platforms', () => {
       type: 'YouTube',
       name: 'Main YouTube channel',
       referenceKey: '',
-      titleTemplateId: '',
-      descriptionTemplateId: '',
+      titleTemplateId: 'youtube-title-template',
+      descriptionTemplateId: 'youtube-description-template',
       youTubeClientId: 'client-id',
       youTubeClientSecret: 'client-secret',
       youTubeRefreshToken: 'refresh-token',
@@ -177,6 +180,18 @@ describe('Platforms', () => {
     element.value = value;
     element.dispatchEvent(new Event('input'));
     await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  function setRequiredTemplateIds(
+    titleTemplateId = 'youtube-title-template',
+    descriptionTemplateId = 'youtube-description-template',
+  ): void {
+    componentModel().set({
+      ...componentModel().get(),
+      titleTemplateId,
+      descriptionTemplateId,
+    });
     fixture.detectChanges();
   }
 
@@ -385,7 +400,10 @@ describe('Platforms', () => {
           privacyStatus: 'private',
           selfDeclaredMadeForKids: false,
         },
-        publishingContent: nonePublishingContent(),
+        publishingContent: publishingContent({
+          titleTemplateId: 'youtube-title-template',
+          descriptionTemplateId: 'youtube-description-template',
+        }),
       }),
     );
 
@@ -403,7 +421,7 @@ describe('Platforms', () => {
     componentModel().set({
       ...componentModel().get(),
       titleTemplateId: 'youtube-title-template',
-      descriptionTemplateId: '',
+      descriptionTemplateId: 'youtube-description-template',
     });
     fixture.detectChanges();
 
@@ -426,7 +444,7 @@ describe('Platforms', () => {
       },
       publishingContent: {
         titleTemplateId: 'youtube-title-template',
-        descriptionTemplateId: null,
+        descriptionTemplateId: 'youtube-description-template',
       },
     });
     expect(rows()).toHaveLength(1);
@@ -446,6 +464,12 @@ describe('Platforms', () => {
                   type: 'WordPress',
                   content: '{{ title }}',
                 },
+                {
+                  id: 'wordpress-title-template',
+                  name: 'WordPress title',
+                  type: 'WordPress',
+                  content: '{{ title }}',
+                },
               ]
             : [],
       }),
@@ -462,7 +486,10 @@ describe('Platforms', () => {
           postStatus: 'draft',
           applicationPasswordConfigured: true,
         },
-        publishingContent: nonePublishingContent(),
+        publishingContent: publishingContent({
+          titleTemplateId: 'wordpress-title-template',
+          descriptionTemplateId: 'wordpress-description-template',
+        }),
       }),
     );
 
@@ -476,7 +503,7 @@ describe('Platforms', () => {
       type: 'WordPress',
       name: 'Company blog',
       referenceKey: ' blog-1 ',
-      titleTemplateId: '',
+      titleTemplateId: 'wordpress-title-template',
       descriptionTemplateId: 'wordpress-description-template',
       youTubeClientId: '',
       youTubeClientSecret: '',
@@ -506,7 +533,7 @@ describe('Platforms', () => {
         applicationPassword: 'local-test-password',
       },
       publishingContent: {
-        titleTemplateId: null,
+        titleTemplateId: 'wordpress-title-template',
         descriptionTemplateId: 'wordpress-description-template',
       },
     });
@@ -527,7 +554,10 @@ describe('Platforms', () => {
           postStatus: 'draft',
           applicationPasswordConfigured: true,
         },
-        publishingContent: nonePublishingContent(),
+        publishingContent: publishingContent({
+          titleTemplateId: 'wordpress-title-template',
+          descriptionTemplateId: 'wordpress-description-template',
+        }),
       }),
     );
 
@@ -544,7 +574,10 @@ describe('Platforms', () => {
         username: 'publisher',
         postStatus: 'draft',
       },
-      publishingContent: nonePublishingContent(),
+      publishingContent: publishingContent({
+        titleTemplateId: 'wordpress-title-template',
+        descriptionTemplateId: 'wordpress-description-template',
+      }),
     });
   });
 
@@ -562,7 +595,10 @@ describe('Platforms', () => {
           postStatus: 'publish',
           applicationPasswordConfigured: true,
         },
-        publishingContent: nonePublishingContent(),
+        publishingContent: publishingContent({
+          titleTemplateId: 'wordpress-title-template',
+          descriptionTemplateId: 'wordpress-description-template',
+        }),
       }),
     );
 
@@ -573,8 +609,8 @@ describe('Platforms', () => {
       type: 'WordPress',
       name: 'Company blog',
       referenceKey: '',
-      titleTemplateId: '',
-      descriptionTemplateId: '',
+      titleTemplateId: 'wordpress-title-template',
+      descriptionTemplateId: 'wordpress-description-template',
       youTubeClientId: '',
       youTubeClientSecret: '',
       youTubeRefreshToken: '',
@@ -601,7 +637,10 @@ describe('Platforms', () => {
         postStatus: 'publish',
         applicationPassword: 'replacement-local-password',
       },
-      publishingContent: nonePublishingContent(),
+      publishingContent: publishingContent({
+        titleTemplateId: 'wordpress-title-template',
+        descriptionTemplateId: 'wordpress-description-template',
+      }),
     });
   });
 
@@ -619,12 +658,34 @@ describe('Platforms', () => {
     await setValue(inputByLabel('Client ID'), 'client-id');
     await setValue(inputByLabel('Client secret'), 'client-secret');
     await setValue(inputByLabel('Refresh token'), 'refresh-token');
+    setRequiredTemplateIds();
 
     await submitEditor();
 
     expect(fixture.nativeElement.textContent).toContain(
       'A platform with this name already exists.',
     );
+  });
+
+  it('requires both publishing content templates before saving', async () => {
+    service.list.mockReturnValue(of({ platforms: [] }));
+
+    await createComponent();
+    buttonByText('New Platform').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    await setValue(nameInput(), 'Second channel');
+    await setValue(inputByLabel('Client ID'), 'client-id');
+    await setValue(inputByLabel('Client secret'), 'client-secret');
+    await setValue(inputByLabel('Refresh token'), 'refresh-token');
+
+    await submitEditor();
+
+    expect(service.create).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Title template is required.');
+    expect(fixture.nativeElement.textContent).toContain('Description template is required.');
   });
 
   it.each([
@@ -669,7 +730,7 @@ describe('Platforms', () => {
           privacyStatus: 'private',
           selfDeclaredMadeForKids: false,
         },
-        publishingContent: nonePublishingContent(),
+        publishingContent: publishingContent(),
       }),
     );
 
@@ -684,6 +745,7 @@ describe('Platforms', () => {
     await setValue(inputByLabel('Client ID'), 'client-id');
     await setValue(inputByLabel('Client secret'), 'client-secret');
     await setValue(inputByLabel('Refresh token'), 'refresh-token');
+    setRequiredTemplateIds();
 
     await submitEditor();
 
@@ -709,6 +771,7 @@ describe('Platforms', () => {
     await setValue(inputByLabel('Client ID'), 'client-id');
     await setValue(inputByLabel('Client secret'), 'client-secret');
     await setValue(inputByLabel('Refresh token'), 'refresh-token');
+    setRequiredTemplateIds();
 
     await submitEditor();
 
@@ -734,10 +797,13 @@ describe('Platforms', () => {
     expect(notifications.showSuccess).toHaveBeenCalledWith('Platform deleted.');
   });
 
-  function nonePublishingContent() {
+  function publishingContent(
+    overrides: Partial<{ titleTemplateId: string; descriptionTemplateId: string }> = {},
+  ) {
     return {
-      titleTemplateId: null,
-      descriptionTemplateId: null,
+      titleTemplateId: 'title-template',
+      descriptionTemplateId: 'description-template',
+      ...overrides,
     };
   }
 });

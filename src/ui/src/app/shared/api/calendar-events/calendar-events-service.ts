@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { APP_CONFIG } from 'src/app/shared/config/app-config';
+import { EventTextType } from 'src/app/shared/api/settings/event-text-fields-service';
 import {
   calendarEventByIdUrl,
   calendarEventsUrl,
@@ -18,7 +19,7 @@ interface CalendarEventFields {
   calendarEventId: string;
   start: CalendarEventStart;
   scheduledStartUtc: string;
-  descriptions: CalendarEventDescription[];
+  texts: CalendarEventText[];
 }
 
 export interface CalendarEvent extends CalendarEventFields {}
@@ -51,10 +52,12 @@ export interface CalendarEventStart {
   timeZoneId: string;
 }
 
-export interface CalendarEventDescription {
-  language: string;
-  title: string;
-  description: string | null;
+export interface CalendarEventText {
+  fieldKey: string;
+  label: string;
+  type: EventTextType;
+  maxLength: number;
+  value: string;
 }
 
 export type CalendarEventSortField = 'scheduledStart' | 'timeZone' | 'title';
@@ -87,7 +90,7 @@ export interface CalendarEventListPage {
 
 export interface CreateCalendarEventRequest {
   start: ScheduledStart;
-  descriptions: LocalizedDescription[];
+  texts: EventTextValue[];
 }
 
 export interface ScheduledStart {
@@ -95,10 +98,9 @@ export interface ScheduledStart {
   timeZoneId: string;
 }
 
-export interface LocalizedDescription {
-  language: string;
-  title: string;
-  description?: string;
+export interface EventTextValue {
+  fieldKey: string;
+  value: string;
 }
 
 export interface CreateCalendarEventResponse {
@@ -106,7 +108,7 @@ export interface CreateCalendarEventResponse {
 }
 
 export interface UpdateCalendarEventRequest {
-  descriptions: LocalizedDescription[];
+  texts: EventTextValue[];
 }
 
 export interface UpdateCalendarEventResponse {

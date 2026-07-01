@@ -1,1 +1,60 @@
-<p>settings works!</p>
+<section class="settings">
+  <header class="header">
+    <div>
+      <h1>Settings</h1>
+      <p>Configure the event text fields used for newly created calendar events.</p>
+    </div>
+    <app-button icon="add" [disabled]="isLoading() || isSaving()" (click)="addField()">
+      Add field
+    </app-button>
+  </header>
+
+  @if (showLoading()) {
+    <app-progress-bar label="Loading event text fields" />
+  } @else {
+    @if (loadFailed()) {
+      <app-alert variant="error">
+        Event text fields could not be loaded. Check your connection and try again.
+      </app-alert>
+    } @else {
+      <form class="editor" (submit)="onSubmit($event)">
+        @if (form.fields().errors().length > 0 && form.fields().touched()) {
+          <app-alert variant="error">
+            {{ form.fields().errors()[0].message }}
+          </app-alert>
+        }
+
+        <div class="field-list">
+          @for (field of model().fields; track field.fieldKey; let index = $index) {
+            <section class="field-row" [attr.aria-labelledby]="'field-' + field.fieldKey">
+              <div class="field-key">
+                <span [id]="'field-' + field.fieldKey">{{ field.fieldKey }}</span>
+              </div>
+              <app-input [field]="form.fields[index].label" label="Label" />
+              <app-select [field]="form.fields[index].type" label="Type" [options]="typeOptions" />
+              <app-input [field]="form.fields[index].maxLength" label="Max length" />
+              <app-button
+                class="delete-field-button"
+                iconButton
+                icon="delete"
+                [ariaLabel]="'Delete ' + field.fieldKey"
+                [disabled]="model().fields.length <= 1 || isSaving()"
+                (click)="deleteField(index)"
+              />
+            </section>
+          }
+        </div>
+
+        @if (saveErrorMessage(); as message) {
+          <app-alert variant="error">{{ message }}</app-alert>
+        }
+
+        <div class="app-actions app-actions-end">
+          <app-button type="submit" [disabled]="isSaving()">
+            {{ isSaving() ? 'Saving...' : 'Save settings' }}
+          </app-button>
+        </div>
+      </form>
+    }
+  }
+</section>
