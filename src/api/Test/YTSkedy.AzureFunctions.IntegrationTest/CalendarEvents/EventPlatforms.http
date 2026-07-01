@@ -8,7 +8,9 @@
 # - The YouTube platform was created with OAuth values minted for the target
 #   channel. See
 #   docs/api/operations/youtube-publish-setup.md.
-# - The calendar event has a FUTURE start and an English (en) title.
+# - The platform references title and description templates that render from
+#   event text tokens such as {{ text1 }} and {{ text2 }}.
+# - The calendar event has a FUTURE start and required event text values.
 # Replace both ids. The request body is empty.
 # Expected response: 200 OK with the event-platform row: { platformId,
 # platformName, platformType, status: "Published", externalResourceId,
@@ -27,7 +29,9 @@ Authorization: Bearer {{accessToken}}
 #   Application Password in `http-client.env.json.user`.
 # - The platform site URL points at a WordPress site whose
 #   `/wp-json/wp/v2/posts` endpoint returns JSON.
-# - The calendar event has a FUTURE start and an English (en) title.
+# - The platform references title and description templates that render from
+#   event text tokens such as {{ text1 }} and {{ text2 }}.
+# - The calendar event has a FUTURE start and required event text values.
 # Replace both ids. Expected response: 200 OK with platformType "WordPress",
 # status "Published", and externalResourceId set to the WordPress post id.
 
@@ -59,11 +63,14 @@ Authorization: Bearer {{accessToken}}
 
 {}
 
-### Publish an event with no English title
-# Use a future calendar event that has no English (en) description.
-# Expected response: 400 Bad Request (requires an English title to publish).
+### Publish with unresolved template placeholder
+# Use a future calendar event and a platform whose selected title or description
+# template contains an unresolved well-formed placeholder, for example
+# {{ missingToken }}.
+# Expected response: 409 Conflict (invalid publishing content). No provider
+# resource is created.
 
-POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_NON_ENGLISH_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_PLATFORM_ID/publish
+POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_UNRESOLVED_TEMPLATE_PLATFORM_ID/publish
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 

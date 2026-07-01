@@ -23,23 +23,31 @@ The Angular frontend lives under `src/ui/`.
   shared `app-data-table` component in server mode. It defaults to the first
   page sorted by scheduled start descending, re-fetches on each sort, page, or
   page-size change. The Scheduled Start (UTC) and Title columns are sortable,
-  and the Actions column projects the Edit button. The scheduled start is
-  rendered as the UTC instant; local time and zone are shown on the create/edit
-  form. Publishing is platform-scoped and is exposed from the calendar event
-  details edit route.
+  and the Actions column projects the Edit button. The title display comes from
+  the first `ShortText` field in each event's stored `texts` snapshot, falling
+  back to the first text value. The scheduled start is rendered as the UTC
+  instant; local time and zone are shown on the create/edit form. Publishing is
+  platform-scoped and is exposed from the calendar event details edit route.
 - The `platforms` page route lists, creates, updates, and deletes configured
   publishing destinations through the platforms API service. It shows and edits
   each platform's optional Reference key, and exposes YouTube and WordPress
-  provider settings. WordPress Application Passwords are accepted on create and
-  optional replacement updates, but existing passwords are never displayed in
-  the browser.
+  provider settings. Title and description template selections are required
+  publishing-content fields. WordPress Application Passwords are accepted on
+  create and optional replacement updates, but existing passwords are never
+  displayed in the browser.
+- The `settings` page route reads, edits, renumbers, and saves the current
+  event text fields list through the settings API service. Add and delete
+  derive local `textN` keys immediately, and save replaces local state with the
+  backend-normalized response.
 - Calendar events API service code lives under
   `src/ui/src/app/shared/api/calendar-events/`.
 - The calendar event details edit route consumes the single-event details
   response and renders its embedded platform publication rows through the
   shared `app-data-table` component as a Type, Name, Status, and Actions list.
-  Rows with `canPublish: true` call the platform-scoped publish endpoint and
-  update the row from the publish response.
+  Create mode loads current event text fields from settings. Edit mode renders
+  the event's stored `texts` snapshot and does not reshape it from the current
+  setting. Rows with `canPublish: true` call the platform-scoped publish
+  endpoint and update only that row from the publish response.
 - Platforms API service code lives under
   `src/ui/src/app/shared/api/platforms/`.
 
@@ -57,9 +65,14 @@ Current route and page files:
 src/ui/src/app/app.routes.ts
 src/ui/src/app/layout/app-layout/
 src/ui/src/app/pages/calendar-events/
+src/ui/src/app/pages/calendar-event-details/
+src/ui/src/app/pages/settings/
+src/ui/src/app/pages/templates/
 src/ui/src/app/pages/platforms/
 src/ui/src/app/shared/api/calendar-events/
 src/ui/src/app/shared/api/platforms/
+src/ui/src/app/shared/api/settings/
+src/ui/src/app/shared/api/templates/
 src/ui/src/app/shared/config/
 src/ui/src/app/shared/components/button/
 src/ui/src/app/shared/components/data-table/
@@ -157,3 +170,5 @@ Templates API access lives in
 `src/ui/src/app/shared/api/templates/templates-service.ts`.
 Platforms API access lives in
 `src/ui/src/app/shared/api/platforms/platforms-service.ts`.
+Settings API access for event text fields lives in
+`src/ui/src/app/shared/api/settings/event-text-fields-service.ts`.

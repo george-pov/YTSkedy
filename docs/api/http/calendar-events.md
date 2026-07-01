@@ -24,11 +24,86 @@ Every call must:
 checks acquire a bearer token via the `az`-based recipe documented in
 `docs/api/development/build-and-test.md`.
 
+## Event Text Fields Setting
+
+```text
+GET /api/settings/event-text-fields
+PUT /api/settings/event-text-fields
+```
+
+`GET` requires `CalendarEvents.Read`; `PUT` requires `CalendarEvents.Write`.
+The setting defines the current text fields used by newly created calendar
+events. Existing new-shape calendar events keep the field snapshot stored on
+the event and are not reshaped when this setting changes.
+
+When no settings row exists, `GET` returns the backend default list:
+
+```json
+{
+  "fields": [
+    {
+      "fieldKey": "text1",
+      "label": "Title",
+      "type": "ShortText",
+      "maxLength": 50
+    },
+    {
+      "fieldKey": "text2",
+      "label": "Description",
+      "type": "LongText",
+      "maxLength": 2500
+    }
+  ]
+}
+```
+
+`PUT` accepts the same ordered `fields` array. The backend derives `fieldKey`
+values from order as `text1`, `text2`, `text3`, and so on. Clients may send
+existing keys, but the response contains the normalized keys.
+
+```json
+{
+  "fields": [
+    {
+      "fieldKey": "text1",
+      "label": "Title",
+      "type": "ShortText",
+      "maxLength": 50
+    },
+    {
+      "fieldKey": "text2",
+      "label": "Summary",
+      "type": "ShortText",
+      "maxLength": 100
+    },
+    {
+      "fieldKey": "text3",
+      "label": "Description",
+      "type": "LongText",
+      "maxLength": 2500
+    }
+  ]
+}
+```
+
+Current behavior:
+
+- `type` is `ShortText` or `LongText`.
+- `label` is required.
+- `maxLength` must be a positive whole number.
+- At least one field is required.
+- Invalid JSON, a missing body, or an invalid field list returns
+  `400 Bad Request`.
+
 ## Create Calendar Event
 
 ```text
 POST /api/calendar-events
 ```
+
+Create reads the current event text fields setting, validates the submitted
+values against it, and stores a complete text snapshot on the calendar event.
+All configured fields are required.
 
 Request body:
 
@@ -38,15 +113,14 @@ Request body:
     "localDateTime": "2026-06-06T10:00:00",
     "timeZoneId": "America/Vancouver"
   },
-  "descriptions": [
+  "texts": [
     {
-      "language": "ru",
-      "title": "Russian stream 1"
+      "fieldKey": "text1",
+      "value": "Saturday stream"
     },
     {
-      "language": "en",
-      "title": "English stream 1",
-      "description": "Description for stream 1 in English"
+      "fieldKey": "text2",
+      "value": "Description for Saturday stream"
     }
   ]
 }
@@ -64,6 +138,8 @@ Current error behavior:
 
 - Invalid JSON returns `400 Bad Request` with a plain string message.
 - Missing request body returns `400 Bad Request` with a plain string message.
+- Missing, unknown, duplicate, blank, or over-length text values return
+  `400 Bad Request`.
 
 Production release requirements:
 
@@ -87,7 +163,9 @@ Query parameters (all optional):
 - `pageSize`: page size from `1` through `100`. Default `10`.
 - `sort`: sort field, one of `scheduledStart`, `timeZone`, or `title`
   (case-insensitive). Default `scheduledStart`. `scheduledStart` orders by the
-  UTC start instant. `title` orders by the English (`en`) description title.
+  UTC start instant. `title` orders by the first `ShortText` value in the
+  stored event snapshot, falling back to the first text value when the snapshot
+  has no short text field.
 - `direction`: `asc` or `desc` (case-insensitive). Default `desc`.
 - `year` and `month`: optional local-calendar-month filter. When supplied they
   must be supplied together; `year` is `1000` through `9999` and `month` is `1`
@@ -112,16 +190,20 @@ Success response (`200 OK`) is a paged envelope:
         "timeZoneId": "America/Vancouver"
       },
       "scheduledStartUtc": "2026-06-06T17:00:00+00:00",
-      "descriptions": [
+      "texts": [
         {
-          "language": "ru",
-          "title": "Russian stream 1",
-          "description": null
+          "fieldKey": "text1",
+          "label": "Title",
+          "type": "ShortText",
+          "maxLength": 50,
+          "value": "Saturday stream"
         },
         {
-          "language": "en",
-          "title": "English stream 1",
-          "description": "Description for stream 1 in English"
+          "fieldKey": "text2",
+          "label": "Description",
+          "type": "LongText",
+          "maxLength": 2500,
+          "value": "Description for Saturday stream"
         }
       ]
     }
@@ -141,6 +223,8 @@ Success response (`200 OK`) is a paged envelope:
   `timeZoneId`) and `scheduledStartUtc`, the same instant as a UTC ISO-8601
   offset string. The UI list renders `scheduledStartUtc`; the create/edit form
   works in local time and zone.
+- `texts` is the event's stored snapshot. It carries enough field metadata for
+  clients to display or edit the event without consulting the current setting.
 - A page past the end returns `200 OK` with `items` as `[]` and the real
   `totalCount`. No stored events returns `items` as `[]` with `totalCount` `0`.
 
@@ -152,8 +236,8 @@ Current invalid query behavior:
 - `sort` outside `scheduledStart`, `timeZone`, `title` returns
   `400 Bad Request`.
 - `direction` outside `asc`, `desc` returns `400 Bad Request`.
-- Supplying only one of `year`/`month` returns `400 Bad Request`; an out-of-range
-  `year` or `month` returns `400 Bad Request`.
+- Supplying only one of `year`/`month` returns `400 Bad Request`; an
+  out-of-range `year` or `month` returns `400 Bad Request`.
 - A repeated query parameter (more than one value) or an empty value returns
   `400 Bad Request`.
 - Error responses currently use specific plain string messages.
@@ -172,14 +256,15 @@ local time. It also carries `scheduledStartUtc`, the same instant as a UTC
 ISO-8601 string, which the edit form shows as a read-only translation of the
 local start.
 
-Unlike a list item, the details response also carries `platforms`: one entry per
-active registered platform with its publish status, plus orphan history rows for
-platforms deleted after publishing this event, so a client can render the event
-details and its publish state from one read. This is the only endpoint that
-exposes per-event publication state; there is no separate event-platform listing
-route. The calendar event itself stays provider-neutral; the publish state is
-composed at read time and is not stored on the event. The calendar event list
-endpoint stays provider-neutral and does not carry `platforms`.
+Unlike a list item, the details response also carries `platforms`: one entry
+per active registered platform with its publish status, plus orphan history
+rows for platforms deleted after publishing this event, so a client can render
+the event details and its publish state from one read. This is the only
+endpoint that exposes per-event publication state; there is no separate
+event-platform listing route. The calendar event itself stays
+provider-neutral; the publish state is composed at read time and is not stored
+on the event. The calendar event list endpoint stays provider-neutral and does
+not carry `platforms`.
 
 Success response (`200 OK`):
 
@@ -191,16 +276,20 @@ Success response (`200 OK`):
     "timeZoneId": "America/Vancouver"
   },
   "scheduledStartUtc": "2026-06-06T17:00:00+00:00",
-  "descriptions": [
+  "texts": [
     {
-      "language": "ru",
-      "title": "Russian stream 1",
-      "description": null
+      "fieldKey": "text1",
+      "label": "Title",
+      "type": "ShortText",
+      "maxLength": 50,
+      "value": "Saturday stream"
     },
     {
-      "language": "en",
-      "title": "English stream 1",
-      "description": "Description for stream 1 in English"
+      "fieldKey": "text2",
+      "label": "Description",
+      "type": "LongText",
+      "maxLength": 2500,
+      "value": "Description for Saturday stream"
     }
   ],
   "platforms": [
@@ -241,8 +330,10 @@ Current behavior:
   row, for in-progress or published active rows with a stored content snapshot,
   and for orphan `Published` rows with a stored content snapshot. The details
   response does not embed rendered title or description content.
-- The `CalendarEventDetails` edit route (`/calendar-events/{calendarEventId}/edit`)
-  consumes this endpoint to load an event into the form.
+- The `CalendarEventDetails` edit route
+  (`/calendar-events/{calendarEventId}/edit`) consumes this endpoint to load an
+  event into the form. Edit mode uses the returned `texts` snapshot and does
+  not reshape the event from the current settings row.
 
 ## Get Platform Publishing Content
 
@@ -255,18 +346,18 @@ Requires the `CalendarEvents.Read` scope. Use the `canPreviewPublishingContent`
 flag from the calendar event details row to decide whether to show the action.
 
 For active `NotPublished` rows, the endpoint recalculates current preview
-content from the calendar event, the platform's `publishingContent`, and the
-selected templates. Preview content is not persisted. For `Publishing`,
-`Published`, and orphan `Published` rows with a content snapshot, the endpoint
-returns the stored snapshot.
+content from the calendar event's stored text snapshot, the platform's
+`publishingContent`, and the selected templates. Preview content is not
+persisted. For `Publishing`, `Published`, and orphan `Published` rows with a
+content snapshot, the endpoint returns the stored snapshot.
 
 Success response for a recalculated preview (`200 OK`):
 
 ```json
 {
   "kind": "Preview",
-  "title": "Live on July 4, 2030: English title",
-  "description": "English description"
+  "title": "Live on July 4, 2030: Saturday stream",
+  "description": "Description for Saturday stream"
 }
 ```
 
@@ -293,8 +384,8 @@ Status codes:
   template is missing, or the rendered title is empty.
 
 Preview leaves unresolved well-formed placeholders visible in the returned
-content. Publish rejects unresolved well-formed placeholders before any provider
-call, as documented in [`platforms.md`](platforms.md).
+content. Publish rejects unresolved well-formed placeholders before any
+provider call, as documented in [`platforms.md`](platforms.md).
 
 ## Update Calendar Event
 
@@ -302,25 +393,26 @@ call, as documented in [`platforms.md`](platforms.md).
 PUT /api/calendar-events/{calendarEventId}
 ```
 
-Replaces the localized descriptions of an existing calendar event in place.
-Requires the `CalendarEvents.Write` scope. Only the descriptions can change: the
-scheduled start is immutable because changing it would move the event's
-scheduling identity and active-start uniqueness key, so the request body carries
-no start.
+Replaces the text values of an existing calendar event in place. Requires the
+`CalendarEvents.Write` scope. Only text values can change: the scheduled start
+is immutable because changing it would move the event's scheduling identity and
+active-start uniqueness key, so the request body carries no start.
+
+Update validates submitted values against the event's stored text snapshot, not
+against the current event text fields setting.
 
 Request body:
 
 ```json
 {
-  "descriptions": [
+  "texts": [
     {
-      "language": "ru",
-      "title": "Russian stream 1 (edited)"
+      "fieldKey": "text1",
+      "value": "Saturday stream edited"
     },
     {
-      "language": "en",
-      "title": "English stream 1 (edited)",
-      "description": "Updated description for stream 1 in English"
+      "fieldKey": "text2",
+      "value": "Updated description for Saturday stream"
     }
   ]
 }
@@ -334,18 +426,21 @@ Success response (`200 OK`):
 }
 ```
 
-The update is an in-place write of the descriptions blob; the event identity and
-scheduled start are left unchanged. The list page re-fetches its current page
-after a successful edit, so the new descriptions appear in the active sort
-order.
+The update is an in-place write of the event text snapshot values; the event
+identity, stored field definitions, and scheduled start are left unchanged. The
+list page re-fetches its current page after a successful edit, so the new text
+values appear in the active sort order.
 
 Current behavior and error mapping:
 
 - Unknown `calendarEventId` returns `404 Not Found`.
 - Invalid JSON returns `400 Bad Request` with a plain string message.
 - Missing request body returns `400 Bad Request` with a plain string message.
-- The `CalendarEventDetails` edit route (`/calendar-events/{calendarEventId}/edit`)
-  consumes this endpoint on save, sending the English and Russian descriptions.
+- Missing, unknown, duplicate, blank, or over-length text values return
+  `400 Bad Request`.
+- The `CalendarEventDetails` edit route
+  (`/calendar-events/{calendarEventId}/edit`) consumes this endpoint on save,
+  sending the event's text values.
 
 Production release requirements:
 
@@ -388,13 +483,13 @@ Scope and proof-of-concept limitations:
 
 A calendar event is a provider-neutral scheduling record and carries no publish
 status of its own. There is no calendar-event-level publish route. Publishing
-state lives in platform publications, and publishing always targets an explicit
-platform id.
+state lives in platform publications, and publishing always targets an
+explicit platform id.
 
-The publication state of an event is part of the calendar event details response
-(`GET /api/calendar-events/{calendarEventId}`; see the `platforms` array in
-[Get Calendar Event](#get-calendar-event)). The publish action is documented in
-[`platforms.md`](platforms.md):
+The publication state of an event is part of the calendar event details
+response (`GET /api/calendar-events/{calendarEventId}`; see the `platforms`
+array in [Get Calendar Event](#get-calendar-event)). The publish action is
+documented in [`platforms.md`](platforms.md):
 
 - `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
   publishes the event to one selected platform.

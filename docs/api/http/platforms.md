@@ -68,8 +68,8 @@ A WordPress platform is returned as:
   "referenceKey": null,
   "type": "WordPress",
   "publishingContent": {
-    "titleTemplateId": null,
-    "descriptionTemplateId": null
+    "titleTemplateId": "wordpress-title-template-id",
+    "descriptionTemplateId": "wordpress-description-template-id"
   },
   "publishSettings": {
     "siteUrl": "https://blog.example.test/",
@@ -81,8 +81,8 @@ A WordPress platform is returned as:
 ```
 
 - `platformId` is a server-generated 32-character lowercase hex GUID.
-- `name` is required, trimmed, at most 50 characters, and globally unique across
-  all platforms.
+- `name` is required, trimmed, at most 50 characters, and globally unique
+  across all platforms.
 - `referenceKey` is optional. It is returned as `null` when unset. Non-empty
   keys are trimmed, must be 1 to 15 ASCII letters, digits, or hyphen, and must
   contain no spaces or underscores. Uniqueness is case-insensitive across all
@@ -91,23 +91,23 @@ A WordPress platform is returned as:
 - `type` is `YouTube` or `WordPress`. It is set on create and is immutable
   because it determines the publish-settings schema and provider adapter.
 - `publishingContent` is provider-neutral title and description template
-  selection. `titleTemplateId` and `descriptionTemplateId` are template ids or
-  `null`. A `null` id means the backend calculates that field from the calendar
-  event when previewing or publishing. Omitting `publishingContent`, sending a
-  `null` field, or sending a blank template id all mean `(none)`. The selected
-  templates must have the same provider family as the platform type.
+  selection. It is required on create and update. Both `titleTemplateId` and
+  `descriptionTemplateId` are required, non-blank template ids, and the
+  selected templates must have the same provider family as the platform type.
+  There is no `(none)` option and no direct fallback from event text fields.
   `publishingContent` stores only template ids; it does not copy template text
   and it is separate from provider-specific `publishSettings`.
 - YouTube `publishSettings.credentials.clientId` is the Google OAuth client id.
   YouTube create and update requests can include
   `publishSettings.credentials.clientSecret` and
   `publishSettings.credentials.refreshToken`, but responses never return them.
-  Responses return `clientSecretConfigured` and `refreshTokenConfigured`
-  instead. `privacyStatus` is `private`, `public`, or `unlisted`;
-  `selfDeclaredMadeForKids` defaults to `false` on create when omitted.
-- WordPress `publishSettings.siteUrl` is the WordPress site root.
-  Non-local site URLs must use HTTPS. `http://localhost` and
-  `http://127.0.0.1` are allowed for local development only.
+  Responses return `clientSecretConfigured` and
+  `refreshTokenConfigured` instead. `privacyStatus` is `private`, `public`, or
+  `unlisted`; `selfDeclaredMadeForKids` defaults to `false` on create when
+  omitted.
+- WordPress `publishSettings.siteUrl` is the WordPress site root. Non-local
+  site URLs must use HTTPS. `http://localhost` and `http://127.0.0.1` are
+  allowed for local development only.
 - WordPress `publishSettings.username` is the WordPress username used with an
   Application Password.
 - WordPress `publishSettings.postStatus` is `draft` or `publish`.
@@ -148,22 +148,6 @@ Success response (`200 OK`):
         },
         "privacyStatus": "private",
         "selfDeclaredMadeForKids": false
-      }
-    },
-    {
-      "platformId": "5aa4a32f3f344de1a7c3a9f4a2f94918",
-      "name": "Company blog",
-      "referenceKey": null,
-      "type": "WordPress",
-      "publishingContent": {
-        "titleTemplateId": null,
-        "descriptionTemplateId": null
-      },
-      "publishSettings": {
-        "siteUrl": "https://blog.example.test/",
-        "username": "publisher",
-        "postStatus": "draft",
-        "applicationPasswordConfigured": true
       }
     }
   ]
@@ -226,7 +210,7 @@ WordPress request body:
   "referenceKey": "blog-1",
   "type": "WordPress",
   "publishingContent": {
-    "titleTemplateId": null,
+    "titleTemplateId": "wordpress-title-template-id",
     "descriptionTemplateId": "wordpress-description-template-id"
   },
   "publishSettings": {
@@ -241,8 +225,7 @@ WordPress request body:
 Success returns `200 OK` with the created platform, including its generated
 `platformId`. YouTube responses redact `clientSecret` and `refreshToken` and
 return configured flags. WordPress responses redact `applicationPassword` and
-return `applicationPasswordConfigured`. If `publishingContent` is omitted, both
-template ids default to `null`.
+return `applicationPasswordConfigured`.
 
 Status codes:
 
@@ -253,9 +236,10 @@ Status codes:
   characters or contains any character other than ASCII letters, digits, or
   hyphen.
 - `400 Bad Request` when `type` is not a recognized platform type.
+- `400 Bad Request` when `publishingContent` is missing, either template id is
+  missing or blank, or a referenced template does not exist for the selected
+  platform type.
 - `400 Bad Request` when `publishSettings` is missing.
-- `400 Bad Request` when `publishingContent` references a template that does
-  not exist for the selected platform type.
 - `400 Bad Request` for invalid YouTube settings: missing `credentials`,
   missing `credentials.clientId`, missing `credentials.clientSecret` on create,
   missing `credentials.refreshToken` on create, or `privacyStatus` not
@@ -273,9 +257,9 @@ Status codes:
 PUT /api/platforms/{platformId}
 ```
 
-Replaces the name and publish settings of an existing platform. `type` is
-immutable and is not accepted in the update body. The existing platform type
-selects the expected settings schema.
+Replaces the name, reference key, publishing content, and publish settings of
+an existing platform. `type` is immutable and is not accepted in the update
+body. The existing platform type selects the expected settings schema.
 
 YouTube request body:
 
@@ -284,7 +268,7 @@ YouTube request body:
   "name": "Main YouTube channel",
   "referenceKey": "main-youtube",
   "publishingContent": {
-    "titleTemplateId": null,
+    "titleTemplateId": "youtube-title-template-id",
     "descriptionTemplateId": "youtube-description-template-id"
   },
   "publishSettings": {
@@ -298,9 +282,9 @@ YouTube request body:
 ```
 
 `referenceKey` is replace-style on update: omitting it, sending `null`, or
-sending a blank string clears the stored key. Sending a non-empty value replaces
-the stored key after trimming and the same validation and uniqueness rules used
-by create.
+sending a blank string clears the stored key. Sending a non-empty value
+replaces the stored key after trimming and the same validation and uniqueness
+rules used by create.
 
 Omitting `credentials.clientSecret` or `credentials.refreshToken`, or sending
 either field blank, preserves the stored YouTube secret values. A non-blank
@@ -313,8 +297,8 @@ WordPress request body that preserves the stored Application Password:
   "name": "Company blog",
   "referenceKey": "blog-1",
   "publishingContent": {
-    "titleTemplateId": null,
-    "descriptionTemplateId": null
+    "titleTemplateId": "wordpress-title-template-id",
+    "descriptionTemplateId": "wordpress-description-template-id"
   },
   "publishSettings": {
     "siteUrl": "https://blog.example.test/",
@@ -345,18 +329,19 @@ WordPress request body that replaces the stored Application Password:
 
 For WordPress updates, omitting `applicationPassword` or sending it blank
 preserves the stored Application Password. A non-blank value replaces it.
-Omitting `publishingContent` sets both template ids to `null`; include the
-current ids in the update body when they should be preserved. Success returns
-`200 OK` with the updated platform and redacted settings.
+Include the current `publishingContent` ids in every update body when they
+should be preserved. Success returns `200 OK` with the updated platform and
+redacted settings.
 
 Status codes:
 
 - `200 OK` with the updated platform.
-- `400 Bad Request` for a missing or invalid body, invalid name, or invalid
-  reference key, or invalid publish settings using the same type-specific rules
-  as create. A YouTube update can omit or blank `credentials.clientSecret` and
-  `credentials.refreshToken` to preserve the stored values. A WordPress update
-  can omit or blank `applicationPassword` to preserve the stored value.
+- `400 Bad Request` for a missing or invalid body, invalid name, invalid
+  reference key, missing or invalid `publishingContent`, or invalid publish
+  settings using the same type-specific rules as create. A YouTube update can
+  omit or blank `credentials.clientSecret` and `credentials.refreshToken` to
+  preserve the stored values. A WordPress update can omit or blank
+  `applicationPassword` to preserve the stored value.
 - `400 Bad Request` when `publishingContent` references a template that does
   not exist for the platform type.
 - `404 Not Found` when no platform has the id.
@@ -420,11 +405,10 @@ route. The request body is empty:
 ```
 
 Before provider calls, the backend renders title and description from the
-platform's `publishingContent` and the calendar event. A selected title template
-or description template is rendered with the approved template tokens. A `null`
-template id uses the event's English title or optional English description. The
-rendered title and description are stored as a content snapshot when the
-publication row enters `Publishing`.
+platform's selected title and description templates using token values from the
+calendar event's stored text snapshot. The rendered title and description are
+stored as a content snapshot when the publication row enters `Publishing`.
+There is no fallback that renders directly from event text fields.
 
 For a YouTube platform this creates a scheduled YouTube `liveBroadcast` using
 the rendered title and optional rendered description, the stored UTC scheduled
@@ -512,14 +496,14 @@ row only when it is still a non-orphan `Published` row with the same
 The route is allowed only for a future calendar event by backend UTC time, an
 active platform, a `Published` publication with an `externalResourceId`, and a
 secret-free target snapshot that still matches the active platform. The browser
-must use the `canDeletePublication` flag from the calendar event details row and
-must not re-derive eligibility from local time, status, or provider ids.
+must use the `canDeletePublication` flag from the calendar event details row
+and must not re-derive eligibility from local time, status, or provider ids.
 
 For a YouTube platform, the provider cleanup deletes the stored
-`externalResourceId` as a YouTube `liveBroadcast` id. A YouTube not-found result
-is success-equivalent because the requested provider state already holds. A
-YouTube state conflict, such as a broadcast that cannot be deleted in its
-current provider status, maps to `409 Conflict`.
+`externalResourceId` as a YouTube `liveBroadcast` id. A YouTube not-found
+result is success-equivalent because the requested provider state already
+holds. A YouTube state conflict, such as a broadcast that cannot be deleted in
+its current provider status, maps to `409 Conflict`.
 
 For a WordPress platform, the provider cleanup treats `externalResourceId` as
 the numeric WordPress post id and calls
@@ -576,8 +560,8 @@ src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/CalendarEvents/
 ```
 
 Platform CRUD and platform delete checks are in the `Platforms/` folder. Event
-platform listing, platform-aware publish checks, and platform-publication delete
-checks are in the `CalendarEvents/` folder because they hang off the
+platform listing, platform-aware publish checks, and platform-publication
+delete checks are in the `CalendarEvents/` folder because they hang off the
 calendar-event route.
 
 Before sending local requests:

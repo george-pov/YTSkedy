@@ -16,6 +16,10 @@ persists in a `PlatformPublications` table through the
 implemented by `AzurePlatformPublicationRepository`. Calendar event rows are
 provider-neutral and store no publish state of their own.
 
+Application-owned settings persist in a generic `ApplicationSettings` table.
+The current event text fields setting is one row in that table, read and
+written through the event-text-fields settings ports.
+
 ## Configuration
 
 The Azure Functions host creates one `TableClient` for calendar events.
@@ -48,8 +52,12 @@ publishing, each with its own table name lookup:
 1. `AzureStorage:PlatformsTableName`, default `Platforms`.
 2. `AzureStorage:PlatformPublicationsTableName`, default `PlatformPublications`.
 
-The templates, platforms, and platform-publications clients reuse the same
-connection string lookup above.
+The host registers one keyed `TableClient` for application-owned settings:
+
+1. `AzureStorage:ApplicationSettingsTableName`, default `ApplicationSettings`.
+
+The templates, platforms, platform-publications, and application-settings
+clients reuse the same connection string lookup above.
 
 For local development, use Azurite with `AzureWebJobsStorage` set to
 `UseDevelopmentStorage=true` in the ignored Azure Functions
@@ -80,6 +88,14 @@ supplied it scopes the read to that month; when none is supplied it reads all
 stored events. Sorting, paging, and the total count are applied by the
 application handler, so the returned candidate order is not significant.
 
+Calendar event rows store `TextJson`, a complete event text snapshot containing
+the ordered field definitions and submitted values. Create builds this snapshot
+from the current event text fields setting. Update changes values against the
+stored snapshot and does not consult the current setting, so existing
+new-shape events keep their field list, labels, max lengths, keys, and values
+after later settings edits. There is no compatibility reader for old
+localized-description rows.
+
 ## Template Rows
 
 `AzureTemplateRepository` implements the `ITemplateModifier` write port and the
@@ -103,6 +119,27 @@ does not exist, then inserts one template row.
   `DeleteAsync` removes the row by `(type, id)` and maps a storage not-found to
   `NotFound`. `ListAsync` returns rows for one type or, when no type is given,
   all template rows.
+
+Entity fields, table keys, and formatting details are defined in code rather
+than duplicated in documentation.
+
+## Application Settings Rows
+
+`AzureEventTextFieldsRepository` implements the current event text fields
+setting against the generic `ApplicationSettings` table.
+
+- The partition key is `application-settings`.
+- The row key for the current event text fields setting is
+  `event-text-fields`.
+- `ValueJson` stores the ordered current field definitions. Field keys are
+  normalized from order as `text1`, `text2`, `text3`, and so on before save and
+  after read.
+- When the row is missing, the repository returns the domain default field
+  list: `text1` `ShortText` max length 50 and `text2` `LongText` max length
+  2500.
+- This table stores application-owned settings only. It is separate from Azure
+  Functions host settings and must not store provider secrets or local
+  user-specific configuration.
 
 Entity fields, table keys, and formatting details are defined in code rather
 than duplicated in documentation.
@@ -142,6 +179,10 @@ than duplicated in documentation.
   - HTTP responses must project platform settings through redacted response
     DTOs. WordPress responses return `applicationPasswordConfigured`, not
     `applicationPassword`.
+- `TitleTemplateId` and `DescriptionTemplateId` store the required
+  provider-neutral publishing-content template ids. Old rows missing either id
+  are unsupported by the current contract; local test data should be recreated
+  after the shape change.
 
 Entity fields, table keys, and formatting details are defined in code rather
 than duplicated in documentation.

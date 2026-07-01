@@ -115,8 +115,8 @@ public sealed class AzureTableStorageCalendarEventRepositoryImplementation
 - Name methods with verbs or verb phrases.
 - Name properties with nouns, noun phrases, or affirmative booleans such as
   `IsEnglish`, `CanPublish`, `CanUpdate`, or `CanDelete`.
-- Name collection properties with plural nouns such as `Descriptions`, not
-  `DescriptionList`.
+- Name collection properties with plural nouns such as `Texts`, not
+  `TextList`.
 - Async methods that return `Task`, `Task<T>`, `ValueTask`, or `ValueTask<T>`
   must end with `Async`.
 - Methods that accept cancellation should name the parameter
@@ -191,8 +191,16 @@ such as `ProcessAsync` or `SubmitAsync`.
 - `scheduled start`: Submitted local date-time plus explicit time-zone id.
 - `scheduled start UTC`: UTC instant derived from a scheduled start and used for
   ordering and active calendar-event duplicate detection.
-- `localized description`: Calendar event title and optional description for one
-  language code.
+- `event text fields`: The current application setting that defines the ordered
+  text fields used by newly created calendar events.
+- `event text field`: A configured field definition with a derived `fieldKey`,
+  label, type, and max length.
+- `event text value`: One submitted value for an event text field.
+- `event text snapshot`: The field definitions and values stored on a calendar
+  event when it is created. Existing new-shape events keep this snapshot after
+  later settings edits.
+- `field key`: Backend-derived `textN` key for an event text field, such as
+  `text1` or `text2`. Use `fieldKey` in HTTP and TypeScript shapes.
 - `publish status`: Platform-publication state such as `NotPublished`,
   `Publishing`, or `Published`.
 - `action policy`: Pure domain rule object that computes write eligibility.
@@ -200,11 +208,10 @@ such as `ProcessAsync` or `SubmitAsync`.
 - `template type`: Provider family associated with a template, currently
   `YouTube` or `WordPress`.
 - `template token`: Code-defined placeholder token available to template
-  content, such as `longDate`.
+  content, such as `text1` or `longDateEn`.
 - `publishing content`: Platform-owned title and description template selection
-  used for provider publishing. When no template is selected, the backend
-  calculates the field from the calendar event. It is not provider credentials
-  or provider-specific options.
+  used for provider publishing. Both template ids are required. It is not
+  provider credentials or provider-specific options.
 - `rendered publishing content`: Title and description text produced by the
   backend from a calendar event and platform publishing content. It is
   recalculated for unpublished previews and is transient before publish.
@@ -265,7 +272,11 @@ Shorter names are acceptable for:
 | --- | --- | --- |
 | `CalendarEvent` | Application-owned calendar input or persisted scheduling row. | `Event` is acceptable inside calendar-event-specific code when it cannot be confused with a YouTube broadcast or .NET event. |
 | `CalendarEventView` | Read model returned by calendar event query use cases. | `View` is acceptable inside calendar-event-specific mapping code. |
-| `LocalizedDescription` | Calendar event title and optional description for one language. | `Description` is acceptable inside calendar-event-specific code when the language context is clear. |
+| `EventTextFields` | Current application setting containing ordered event text field definitions. | `Fields` is acceptable inside settings-specific code. |
+| `EventTextField` | One configured event text field definition with `FieldKey`, `Label`, `Type`, and `MaxLength`. | `Field` is acceptable inside event-text-specific code. |
+| `EventTextValue` | Submitted value for one event text field. | `Value` is acceptable inside snapshot-specific code. |
+| `EventTextSnapshot` | Stored calendar-event field definitions and values. | `Text` is acceptable as a property name on calendar-event types when the containing type supplies the event context. |
+| `FieldKey` | Derived `textN` identifier for an event text field. | Use `fieldKey` in HTTP and TypeScript shapes. Do not use `referenceKey` for event text fields. |
 | `Template` | Reusable free-text publishing content with placeholder tokens. | Use `Template` directly. |
 | `TemplateType` | Provider family associated with a template. | `Type` is acceptable inside template-specific code. |
 | `TemplateView` | Read model for a stored template. | `View` is acceptable inside template-specific mapping code. |
@@ -273,7 +284,7 @@ Shorter names are acceptable for:
 | `TemplateTokenCatalog` | Code-defined source of available template tokens. | `Catalog` is acceptable inside template-token-specific code. |
 | `Platform` | Configured publishing destination. | `Destination` is acceptable only for user-facing copy when it is clearer. |
 | `ReferenceKey` | Optional provider-neutral lookup key on a configured platform. Uniqueness and lookup are case-insensitive while display casing is preserved. | Use `referenceKey` in HTTP and TypeScript shapes. Avoid provider-specific variants such as `YouTubeReferenceKey`. |
-| `PublishingContent` | Platform-owned title and description template selection rendered before publishing. | Use `publishingContent` in HTTP and TypeScript shapes. Keep separate from `PublishSettings`. |
+| `PublishingContent` | Platform-owned title and description template selection rendered before publishing. Both template ids are required. | Use `publishingContent` in HTTP and TypeScript shapes. Keep separate from `PublishSettings`. |
 | `RenderedContent` | Title and description text rendered from a calendar event and platform publishing content. | Keep transient for unpublished rows. Persist as a `ContentSnapshot` only when publish starts. |
 | `ContentSnapshot` | Rendered title and description stored on a platform publication. | Use inside platform-publication code where snapshot context is clear. |
 | `PublishSettings` | Provider-specific settings used when publishing through a platform. May be secret-bearing. | Avoid `DefaultPublishingSettings`; create a new platform when settings differ. |
@@ -384,7 +395,7 @@ public void TryParseTemplateType_KnownType_ReturnsTrue()
 }
 
 [Fact]
-public async Task Publish_FutureEventWithEnglishTitle_PublishesAndMarksPublished()
+public async Task Publish_FutureEventWithRequiredTextValues_PublishesAndMarksPublished()
 {
 }
 ```

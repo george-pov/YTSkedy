@@ -129,13 +129,20 @@ production hardening item.
 1. Start Azurite, or provide an Azure Storage connection string.
 2. Start the Azure Functions host. The local default port is
    `http://localhost:7087`.
-3. Create a YouTube platform with the OAuth values from Part C, for example
-   with `POST /api/platforms`:
+3. Create YouTube title and description templates with `POST /api/templates`.
+   A minimal title template can use `{{ text1 }}` and a minimal description
+   template can use `{{ text2 }}`. Copy the returned template ids.
+4. Create a YouTube platform with the OAuth values from Part C and the two
+   template ids, for example with `POST /api/platforms`:
 
    ```json
    {
      "name": "Main YouTube channel",
      "type": "YouTube",
+     "publishingContent": {
+       "titleTemplateId": "youtube-title-template-id",
+       "descriptionTemplateId": "youtube-description-template-id"
+     },
      "publishSettings": {
        "credentials": {
          "clientId": "your-google-oauth-client-id",
@@ -148,14 +155,14 @@ production hardening item.
    }
    ```
 
-4. Create a calendar event with a future start time and an English (`en`) title.
-5. Publish the event to the platform with
+5. Create a calendar event with a future start time and required text values.
+6. Publish the event to the platform with
    `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
    and an empty body `{}`. On success the response carries
    `status: "Published"`, an `externalResourceId`, and `publishedUtc`.
-6. Confirm in YouTube Studio under Content, then Live: a private scheduled
-   broadcast appears with the English title at the scheduled time.
-7. To delete that created broadcast through YTSkedy, call
+7. Confirm in YouTube Studio under Content, then Live: a private scheduled
+   broadcast appears with the rendered template title at the scheduled time.
+8. To delete that created broadcast through YTSkedy, call
    `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`
    before the event start time. On success the platform row returns to
    `NotPublished` and can be published again.
@@ -193,12 +200,13 @@ the Functions host console for the underlying Google error:
 A platform with invalid, expired, or revoked stored YouTube credential values
 also returns `502`; the host must not log the client secret or refresh token.
 
-Other publish responses are unrelated to Google: `400` means a past start time
-or a missing English title, `409` means the publication is already `Published`,
-already in progress, or orphaned because the platform was deleted, `404` means
-the calendar event or platform id is unknown, `501` means no provider serves the
-platform type, and `401` or `403` are the Entra sign-in, write-scope, or
-operator-role checks. See [`../http/platforms.md`](../http/platforms.md).
+Other publish responses are unrelated to Google: `400` means a past start time,
+`409` means invalid rendered publishing content, the publication is already
+`Published`, already in progress, or orphaned because the platform was deleted,
+`404` means the calendar event or platform id is unknown, `501` means no
+provider serves the platform type, and `401` or `403` are the Entra sign-in,
+write-scope, or operator-role checks. See
+[`../http/platforms.md`](../http/platforms.md).
 
 Publication delete uses the same stored YouTube credentials to call
 `liveBroadcasts.delete`. A YouTube not-found result is success-equivalent.

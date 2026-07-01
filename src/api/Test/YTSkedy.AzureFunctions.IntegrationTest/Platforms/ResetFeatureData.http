@@ -6,11 +6,13 @@
 #
 # Tables in the reset scope:
 #   - CalendarEvents
+#   - Templates
 #   - Platforms
 #   - PlatformPublications
+#   - ApplicationSettings
 #
 # Do NOT reset credential stores, OAuth tokens, or other secret material. The
-# Templates table is outside this reset scope.
+# rows above are application-owned data tables only.
 #
 # Reset with the Azure CLI (delete the three tables; the API recreates them on
 # first write). Replace <connection-string> with your storage connection
@@ -19,8 +21,10 @@
 # emulator account key is the public documented default, not a secret.
 #
 #   az storage table delete --name CalendarEvents --connection-string "<connection-string>"
-#   az storage table delete --name Platforms --connection-string "<connection-string>"
 #   az storage table delete --name PlatformPublications --connection-string "<connection-string>"
+#   az storage table delete --name Platforms --connection-string "<connection-string>"
+#   az storage table delete --name Templates --connection-string "<connection-string>"
+#   az storage table delete --name ApplicationSettings --connection-string "<connection-string>"
 #
 # Azure Table delete is asynchronous: a table name can be briefly unavailable
 # for recreation after a delete. Wait a few seconds before the first write if a
@@ -39,4 +43,17 @@ Authorization: Bearer {{accessToken}}
 # Expected response: 200 OK with an empty page: items [] and totalCount 0.
 
 GET {{HostAddress}}/api/calendar-events
+Authorization: Bearer {{accessToken}}
+
+### Verify templates are empty after reset
+# Expected response: 200 OK with { "templates": [] }.
+
+GET {{HostAddress}}/api/templates
+Authorization: Bearer {{accessToken}}
+
+### Verify event text fields fall back to defaults after reset
+# Expected response: 200 OK with text1 ShortText maxLength 50 and text2
+# LongText maxLength 2500.
+
+GET {{HostAddress}}/api/settings/event-text-fields
 Authorization: Bearer {{accessToken}}

@@ -90,9 +90,9 @@ This is a proof-of-concept integration with deliberate limitations:
 - The YouTube client secret and refresh token are stored in the platform row's
   `PublishSettingsJson` so the provider can publish later. Moving provider
   secrets to an app-managed secret store remains a production hardening item.
-- Only the English title, optional description, scheduled start, privacy, and
-  made-for-kids state are sent. Thumbnails, categories, and stream binding are
-  out of scope for this slice.
+- Only the rendered title, optional rendered description, scheduled start,
+  privacy, and made-for-kids state are sent. Thumbnails, categories, and stream
+  binding are out of scope for this slice.
 
 ## WordPress Publish Settings
 
@@ -127,9 +127,9 @@ This is a first-slice integration with deliberate limitations:
 - The WordPress Application Password is stored in the platform row's
   `PublishSettingsJson` so the provider can publish later. Moving provider
   secrets to an app-managed secret store remains a production hardening item.
-- Only the English title and optional description are sent. Categories, tags,
-  excerpts, slugs, featured media, and scheduling a future WordPress post are
-  out of scope for this slice.
+- Only the rendered title and optional rendered description are sent.
+  Categories, tags, excerpts, slugs, featured media, and scheduling a future
+  WordPress post are out of scope for this slice.
 
 ## CORS
 
@@ -202,13 +202,19 @@ Calendar event table name lookup:
 1. `AzureStorage:CalendarEventsTableName`
 2. Default: `CalendarEvents`
 
-The host registers separate keyed table clients for templates, platforms, and
-platform publications, each with its own table name lookup and the same
-connection string lookup above:
+The host registers separate keyed table clients for templates, platforms,
+platform publications, and application settings, each with its own table name
+lookup and the same connection string lookup above:
 
 1. `AzureStorage:TemplatesTableName`, default `Templates`.
 2. `AzureStorage:PlatformsTableName`, default `Platforms`.
 3. `AzureStorage:PlatformPublicationsTableName`, default `PlatformPublications`.
+4. `AzureStorage:ApplicationSettingsTableName`, default `ApplicationSettings`.
+
+The `ApplicationSettings` table stores application-owned settings such as the
+current event text fields list. It is not an Azure Functions host settings
+table and must not contain OAuth secrets, access tokens, refresh tokens, API
+keys, or user-specific local configuration.
 
 ## Function Authorization
 

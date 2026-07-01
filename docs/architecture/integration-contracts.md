@@ -23,6 +23,7 @@ request, response, status-code, and manual-check details belong in
 | --- | --- | --- | --- |
 | HTTP API routes, DTOs, status codes, and auth requirements | Azure Functions API | Angular UI typed services and manual API clients | [`../api/http/`](../api/http/) |
 | Calendar event list, details, create, update, and delete behavior | Azure Functions API | `CalendarEvents` and `CalendarEventDetails` pages | [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
+| Event text fields settings reads and writes | Azure Functions API | `Settings` and `CalendarEventDetails` pages | [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
 | Platform CRUD, `referenceKey`, publish, publication delete, and provider-specific settings | Azure Functions API | `Platforms` and `CalendarEventDetails` pages | [`../api/http/platforms.md`](../api/http/platforms.md) |
 | Template CRUD and template-token reads | Azure Functions API | `Templates` page and template editor clients | [`../api/http/templates.md`](../api/http/templates.md) |
 | Browser routes, page orchestration, and client interaction state | Angular UI | Browser users and API contract consumers checking UI behavior | [`../ui/routes.md`](../ui/routes.md) |
@@ -48,8 +49,17 @@ Cross-boundary rules:
 - Clients must use backend-computed action flags, such as `canPublish` and
   `canDeletePublication`, rather than re-deriving eligibility from browser time,
   provider ids, or local status checks.
+- Calendar event create uses the current event text fields setting, while
+  calendar event list and details expose each event's stored text snapshot.
+  Clients must not reshape edit forms from the current setting.
 - Calendar event list responses are provider-neutral. Per-platform publication
   state is exposed through the calendar event details read model.
+- The Settings page consumes `GET /api/settings/event-text-fields` and
+  `PUT /api/settings/event-text-fields` through a typed settings service. The
+  backend owns `fieldKey` derivation and normalizes keys from field order.
+- Template-token reads expose current `textN` fields plus fixed date tokens for
+  template authoring. Preview and publish render from the selected calendar
+  event's stored text snapshot.
 - Platform publish and publication cleanup always target an explicit platform.
   There is no calendar-event-level publish route.
 - Platform CRUD exposes the optional provider-neutral `referenceKey` field.
@@ -57,6 +67,9 @@ Cross-boundary rules:
   uniqueness, and the `409 Conflict` duplicate-key response. The UI consumes it
   through typed platform models and must not infer provider-specific roles from
   it.
+- Platform CRUD requires both `publishingContent.titleTemplateId` and
+  `publishingContent.descriptionTemplateId`. There is no `(none)` option and no
+  direct text-field fallback during preview or publish.
 - Secret-bearing settings may be accepted by write routes, but read models must
   return redacted configuration flags instead of secrets.
 - Function keys are not part of the frontend-backend contract.
@@ -122,8 +135,8 @@ Scheduling behavior must use explicit date, time, and time-zone context.
 ## Persistence
 
 Azure Table Storage is the current persistence technology for
-application-owned calendar event, template, platform, and platform-publication
-rows. API persistence behavior is documented in
+application-owned calendar event, template, platform, platform-publication, and
+application-settings rows. API persistence behavior is documented in
 [`../api/persistence.md`](../api/persistence.md).
 
 Persistence contracts are internal to the API boundary unless a feature

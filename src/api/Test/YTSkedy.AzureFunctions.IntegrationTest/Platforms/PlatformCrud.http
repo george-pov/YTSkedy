@@ -5,11 +5,14 @@
 # - `accessToken` is set in `http-client.env.json.user` (not committed).
 #   See docs/api/development/build-and-test.md, "Acquiring a development
 #   access token".
+# - Create YouTube title and description templates first. Store their ids as
+#   `youtubeTitleTemplateId` and `youtubeDescriptionTemplateId` in
+#   `http-client.env.json.user`, or replace those variables inline.
+# - `youtubeClientId`, `youtubeClientSecret`, and `youtubeRefreshToken` are set
+#   in `http-client.env.json.user` (not committed).
 # Expected response: 200 OK with the created platform, including a generated
 # 32-character lowercase hex `platformId`. Copy that id into the requests below
 # and into EventPlatforms.http for publish checks.
-# - `youtubeClientId`, `youtubeClientSecret`, and `youtubeRefreshToken` are set
-#   in `http-client.env.json.user` (not committed).
 
 POST {{HostAddress}}/api/platforms
 Content-Type: application/json
@@ -19,6 +22,10 @@ Authorization: Bearer {{accessToken}}
   "name": "Main YouTube channel",
   "referenceKey": "youTube1",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}",
@@ -40,6 +47,10 @@ Content-Type: application/json
   "name": "Auth-missing probe",
   "referenceKey": "auth-missing",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}",
@@ -64,6 +75,10 @@ Authorization: Bearer {{accessTokenReadOnly}}
   "name": "Scope-insufficient probe",
   "referenceKey": "scope-probe",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}",
@@ -87,6 +102,60 @@ Authorization: Bearer {{accessToken}}
   "name": "",
   "referenceKey": "empty-name",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
+  "publishSettings": {
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with missing publishing content
+# Expected response: 400 Bad Request (titleTemplateId and
+# descriptionTemplateId are required).
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Missing publishing content probe",
+  "referenceKey": "missing-content",
+  "type": "YouTube",
+  "publishSettings": {
+    "credentials": {
+      "clientId": "{{youtubeClientId}}",
+      "clientSecret": "{{youtubeClientSecret}}",
+      "refreshToken": "{{youtubeRefreshToken}}"
+    },
+    "privacyStatus": "private",
+    "selfDeclaredMadeForKids": false
+  }
+}
+
+### Create a platform with an unknown title template
+# Expected response: 400 Bad Request (publishingContent references a template
+# that does not exist for the selected platform type).
+
+POST {{HostAddress}}/api/platforms
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Unknown template probe",
+  "referenceKey": "missing-tpl",
+  "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "00000000000000000000000000000000",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}",
@@ -110,6 +179,10 @@ Authorization: Bearer {{accessToken}}
   "name": "Unknown type probe",
   "referenceKey": "unknown-type",
   "type": "Twitch",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}",
@@ -123,6 +196,9 @@ Authorization: Bearer {{accessToken}}
 
 ### Create a WordPress platform
 # Prereqs:
+# - Create WordPress title and description templates first. Store their ids as
+#   `wordpressTitleTemplateId` and `wordpressDescriptionTemplateId` in
+#   `http-client.env.json.user`, or replace those variables inline.
 # - `wordpressSiteUrl`, `wordpressUsername`, and
 #   `wordpressApplicationPassword` are set in `http-client.env.json.user` (not
 #   committed).
@@ -139,6 +215,10 @@ Authorization: Bearer {{accessToken}}
   "name": "Company blog",
   "referenceKey": "blog-1",
   "type": "WordPress",
+  "publishingContent": {
+    "titleTemplateId": "{{wordpressTitleTemplateId}}",
+    "descriptionTemplateId": "{{wordpressDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "siteUrl": "{{wordpressSiteUrl}}",
     "username": "{{wordpressUsername}}",
@@ -159,6 +239,10 @@ Authorization: Bearer {{accessToken}}
   "name": "Bad privacy probe",
   "referenceKey": "bad-privacy",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}",
@@ -181,6 +265,10 @@ Authorization: Bearer {{accessToken}}
   "name": "Missing credentials probe",
   "referenceKey": "missing-creds",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": null,
     "privacyStatus": "private",
@@ -200,6 +288,10 @@ Authorization: Bearer {{accessToken}}
   "name": "Main YouTube channel",
   "referenceKey": "main-youtube",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}",
@@ -224,6 +316,10 @@ Authorization: Bearer {{accessToken}}
   "name": "Duplicate reference key probe",
   "referenceKey": "youtube1",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}",
@@ -246,6 +342,10 @@ Authorization: Bearer {{accessToken}}
   "name": "Bad reference underscore probe",
   "referenceKey": "bad_key",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}",
@@ -268,6 +368,10 @@ Authorization: Bearer {{accessToken}}
   "name": "Bad reference whitespace probe",
   "referenceKey": "bad key",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}",
@@ -291,6 +395,10 @@ Authorization: Bearer {{accessToken}}
   "name": "Bad reference length probe",
   "referenceKey": "abcdefghijklmnop",
   "type": "YouTube",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}",
@@ -354,6 +462,10 @@ Authorization: Bearer {{accessToken}}
 {
   "name": "Main YouTube channel",
   "referenceKey": "main-youtube",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}"
@@ -375,6 +487,10 @@ Authorization: Bearer {{accessToken}}
 {
   "name": "Main YouTube channel",
   "referenceKey": "MAIN-YOUTUBE",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}"
@@ -396,6 +512,10 @@ Authorization: Bearer {{accessToken}}
 {
   "name": "Main YouTube channel",
   "referenceKey": null,
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}"
@@ -406,7 +526,7 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### Update a WordPress platform and preserve the existing Application Password
-# Replace the id with one returned by the WordPress create above. The blank
+# Replace the id with one returned by the WordPress create above. Omitting
 # applicationPassword intentionally preserves the stored value. Expected
 # response: 200 OK with redacted publishSettings.
 
@@ -417,10 +537,13 @@ Authorization: Bearer {{accessToken}}
 {
   "name": "Company blog",
   "referenceKey": "blog-1",
+  "publishingContent": {
+    "titleTemplateId": "{{wordpressTitleTemplateId}}",
+    "descriptionTemplateId": "{{wordpressDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "siteUrl": "{{wordpressSiteUrl}}",
     "username": "{{wordpressUsername}}",
-    "applicationPassword": "",
     "postStatus": "draft"
   }
 }
@@ -437,6 +560,10 @@ Authorization: Bearer {{accessToken}}
 {
   "name": "Company blog",
   "referenceKey": "blog-2",
+  "publishingContent": {
+    "titleTemplateId": "{{wordpressTitleTemplateId}}",
+    "descriptionTemplateId": "{{wordpressDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "siteUrl": "{{wordpressSiteUrl}}",
     "username": "{{wordpressUsername}}",
@@ -455,6 +582,10 @@ Authorization: Bearer {{accessToken}}
 {
   "name": "Ghost platform",
   "referenceKey": "ghost",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}"
@@ -475,6 +606,10 @@ Authorization: Bearer {{accessToken}}
 {
   "name": "Main YouTube channel",
   "referenceKey": "second",
+  "publishingContent": {
+    "titleTemplateId": "{{youtubeTitleTemplateId}}",
+    "descriptionTemplateId": "{{youtubeDescriptionTemplateId}}"
+  },
   "publishSettings": {
     "credentials": {
       "clientId": "{{youtubeClientId}}"

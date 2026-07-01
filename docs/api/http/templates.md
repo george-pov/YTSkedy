@@ -2,11 +2,11 @@
 
 Template endpoints are hosted by `YTSkedy.AzureFunctions` under the Azure
 Functions `/api` prefix. A template is reusable free-text publishing content
-with placeholder tokens (for example `{{ longDate }}`) that platform
-publishing content renders from event data. The `Templates` page in the Angular UI
-(`/templates`) consumes the list, create, update, and delete endpoints through a
-typed `TemplatesService`; the `template-tokens` endpoint is available to the
-client but is not yet surfaced in the editor.
+with placeholder tokens (for example `{{ longDateEn }}` or `{{ text1 }}`) that
+platform publishing content renders from calendar-event data. The `Templates`
+page in the Angular UI (`/templates`) consumes the list, create, update, and
+delete endpoints through a typed `TemplatesService`; the `template-tokens`
+endpoint is available to the client but is not yet surfaced in the editor.
 
 ## Authorization
 
@@ -32,10 +32,9 @@ Every call must:
   renames and is both `RowKey`-safe and URL-path-safe.
 - `type`: `YouTube` or `WordPress` (case-insensitive on input). The type is
   immutable after create because it drives storage partitioning; changing type
-  is a delete plus create. `WordPress` is accepted now and exercised once
-  WordPress publishing exists.
-- `name`: required, editable label. Non-empty and at most 50 characters. Unique
-  within a type using an ordinal comparison.
+  is a delete plus create.
+- `name`: required, editable label. Non-empty and at most 50 characters.
+  Unique within a type using an ordinal comparison.
 - `content`: required free text. Non-empty and at most 2000 characters. Tokens
   are stored as-is and are not validated against the catalog by template writes.
 
@@ -63,7 +62,7 @@ Success response (`200 OK`):
       "id": "9f8b1c2d3e4f4a5b6c7d8e9f0a1b2c3d",
       "name": "Weeknight stream",
       "type": "YouTube",
-      "content": "Live on {{ longDate }}: {{ title }}"
+      "content": "Live on {{ longDateEn }}: {{ text1 }}"
     }
   ]
 }
@@ -91,7 +90,7 @@ Request body:
 {
   "name": "Weeknight stream",
   "type": "YouTube",
-  "content": "Live on {{ longDate }}: {{ title }}"
+  "content": "Live on {{ longDateEn }}: {{ text1 }}"
 }
 ```
 
@@ -134,7 +133,7 @@ Request body:
 ```json
 {
   "name": "Weeknight stream (edited)",
-  "content": "Live on {{ shortDate }}"
+  "content": "Live on {{ shortDateEn }}: {{ text1 }}"
 }
 ```
 
@@ -153,8 +152,8 @@ Current behavior and error mapping:
 - An unknown `{type}/{id}` returns `404 Not Found`
   (`Template '{id}' was not found.`).
 - A `type` outside `YouTube`/`WordPress` returns `400 Bad Request`.
-- An invalid `name` or `content` returns `400 Bad Request` with the same wording
-  as create.
+- An invalid `name` or `content` returns `400 Bad Request` with the same
+  wording as create.
 - Renaming to a `name` already used by another template in the type returns
   `409 Conflict` (`A {type} template named '{name}' already exists.`).
 - Invalid JSON or a missing body returns `400 Bad Request`.
@@ -179,8 +178,8 @@ Current behavior and error mapping:
 - A `type` outside `YouTube`/`WordPress` returns `400 Bad Request`.
 - A template referenced by an active platform's `publishingContent` returns
   `409 Conflict` (`Template '{id}' is referenced by an active platform.`).
-- The delete is a hard delete: removed templates are not recoverable. Tombstones,
-  recycle-bin behavior, and restore are out of scope.
+- The delete is a hard delete: removed templates are not recoverable.
+  Tombstones, recycle-bin behavior, and restore are out of scope.
 
 ## List Template Tokens
 
@@ -188,36 +187,40 @@ Current behavior and error mapping:
 GET /api/template-tokens
 ```
 
-Returns the code-defined placeholder tokens a client can offer for template
-content. Requires the `CalendarEvents.Read` scope. The list is defined in code,
-not stored. The approved token catalog is:
+Returns the placeholder tokens a client can offer for template content.
+Requires the `CalendarEvents.Read` scope. The catalog combines the current
+event text fields setting with fixed date tokens:
 
-- `title`: English calendar event title.
-- `description`: English calendar event description, or an empty string when
-  omitted.
-- `titleRu`: Russian calendar event title.
-- `descriptionRu`: Russian calendar event description, or an empty string when
-  omitted.
-- `longDate`: Event submitted local date formatted with `en-US` as
+- `text1`, `text2`, `text3`, and so on, derived from the current field list
+  order.
+- `longDateEn`: Event submitted local date formatted with `en-US` as
   `MMMM d, yyyy`.
+- `shortDateEn`: Event submitted local date formatted as `yyyy-MM-dd`.
 - `longDateRu`: Event submitted local date formatted with `ru-RU` as
   `d MMMM yyyy`.
-- `shortDate`: Event submitted local date formatted as `yyyy-MM-dd`.
 - `shortDateRu`: Event submitted local date formatted as `dd.MM.yyyy`.
+- `longDateFr`: Event submitted local date formatted with `fr-FR` as
+  `d MMMM yyyy`.
+- `shortDateFr`: Event submitted local date formatted as `dd/MM/yyyy`.
 
-Success response (`200 OK`):
+The text token list reflects the current field setting for future template
+authoring. During preview and publish, token values come from the selected
+calendar event's stored text snapshot, so later settings edits do not reshape
+existing events.
+
+Success response (`200 OK`) with the default field list:
 
 ```json
 {
   "tokens": [
-    { "name": "title" },
-    { "name": "description" },
-    { "name": "titleRu" },
-    { "name": "descriptionRu" },
-    { "name": "longDate" },
+    { "name": "text1" },
+    { "name": "text2" },
+    { "name": "longDateEn" },
+    { "name": "shortDateEn" },
     { "name": "longDateRu" },
-    { "name": "shortDate" },
-    { "name": "shortDateRu" }
+    { "name": "shortDateRu" },
+    { "name": "longDateFr" },
+    { "name": "shortDateFr" }
   ]
 }
 ```
@@ -241,7 +244,7 @@ These endpoints have no tracked `.http` checks yet. To exercise them locally:
 - Start Azurite or provide an Azure Storage connection string.
 - Start the Azure Functions host.
 - Acquire a bearer token via the `az`-based recipe documented in
-  [`../development/build-and-test.md`](../development/build-and-test.md) and send
-  it as `Authorization: Bearer <token>`.
+  [`../development/build-and-test.md`](../development/build-and-test.md) and
+  send it as `Authorization: Bearer <token>`.
 - Use the host port from the Azure Functions launch profile. The current local
   default is `http://localhost:7087`.
