@@ -347,9 +347,13 @@ flag from the calendar event details row to decide whether to show the action.
 
 For active `NotPublished` rows, the endpoint recalculates current preview
 content from the calendar event's stored text snapshot, the platform's
-`publishingContent`, and the selected templates. Preview content is not
-persisted. For `Publishing`, `Published`, and orphan `Published` rows with a
-content snapshot, the endpoint returns the stored snapshot.
+`publishingContent`, the selected templates, fixed date tokens, and available
+platform reference-key tokens. A placeholder whose name exactly matches an
+active platform's `referenceKey` is replaced with that platform publication's
+`externalResourceId` when the same calendar event already has a `Published`
+row for that platform. Preview content is not persisted. For `Publishing`,
+`Published`, and orphan `Published` rows with a content snapshot, the endpoint
+returns the stored snapshot.
 
 Success response for a recalculated preview (`200 OK`):
 
@@ -385,7 +389,9 @@ Status codes:
 
 Preview leaves unresolved well-formed placeholders visible in the returned
 content. Publish rejects unresolved well-formed placeholders before any
-provider call, as documented in [`platforms.md`](platforms.md).
+provider call, as documented in [`platforms.md`](platforms.md). A reference-key
+placeholder stays unresolved until the matching platform has a published
+external resource id for that same calendar event.
 
 ## Update Calendar Event
 

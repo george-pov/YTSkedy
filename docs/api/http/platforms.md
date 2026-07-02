@@ -87,7 +87,9 @@ A WordPress platform is returned as:
   keys are trimmed, must be 1 to 15 ASCII letters, digits, or hyphen, and must
   contain no spaces or underscores. Uniqueness is case-insensitive across all
   platforms, so `youTube1` and `youtube1` conflict. Responses preserve the
-  stored display casing.
+  stored display casing. A non-empty reference key is also available as a
+  template token name for resolving that platform's published
+  `externalResourceId` on the selected calendar event.
 - `type` is `YouTube` or `WordPress`. It is set on create and is immutable
   because it determines the publish-settings schema and provider adapter.
 - `publishingContent` is provider-neutral title and description template
@@ -351,10 +353,11 @@ Status codes:
 - `409 Conflict` when the platform has a publication that is currently
   `Publishing`.
 
-Platform-publication rows, provider publish behavior, and provider publication
-delete behavior are unchanged by `referenceKey`; publication rows continue to
-store provider-neutral `externalResourceId` values, not platform reference
-keys.
+Platform-publication rows and provider publication delete behavior are
+unchanged by `referenceKey`; publication rows continue to store
+provider-neutral `externalResourceId` values, not platform reference keys.
+During template rendering, an active platform's `referenceKey` can resolve to
+that stored external resource id for the same calendar event.
 
 ## Delete Platform
 
@@ -406,8 +409,13 @@ route. The request body is empty:
 
 Before provider calls, the backend renders title and description from the
 platform's selected title and description templates using token values from the
-calendar event's stored text snapshot. The rendered title and description are
-stored as a content snapshot when the publication row enters `Publishing`.
+calendar event's stored text snapshot, fixed date tokens, and available
+platform reference-key tokens. A placeholder whose name exactly matches an
+active platform's `referenceKey` is replaced with that platform publication's
+`externalResourceId` when the same calendar event already has a `Published`
+row for that platform. If no matching active platform or published external id
+exists, the placeholder remains unchanged. The rendered title and description
+are stored as a content snapshot when the publication row enters `Publishing`.
 There is no fallback that renders directly from event text fields.
 
 For a YouTube platform this creates a scheduled YouTube `liveBroadcast` using
@@ -464,7 +472,9 @@ Status codes:
 - `404 Not Found` when the calendar event id or the platform id does not exist.
 - `409 Conflict` when rendered publishing content is invalid. Invalid content
   includes a missing selected template, an empty rendered title, or an
-  unresolved well-formed placeholder such as `{{ missingToken }}`.
+  unresolved well-formed placeholder such as `{{ missingToken }}` or a
+  reference-key placeholder whose published external resource id is not
+  available yet.
 - `409 Conflict` when the publication is already `Published`.
 - `409 Conflict` when a publish is already in progress (`Publishing`),
   including when a concurrent request wins the start-publishing race.

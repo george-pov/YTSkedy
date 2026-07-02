@@ -68,6 +68,42 @@ public class PublishingContentRendererTests
     }
 
     [Fact]
+    public void Render_RuntimeToken_ReplacesReferenceKeyPlaceholder()
+    {
+        var renderer = new PublishingContentRenderer();
+
+        var result = renderer.Render(
+            "{{ text1 }}",
+            "YouTube BroadcastId: {{ privateYouTube }}",
+            Event(),
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["privateYouTube"] = "yt-broadcast-id"
+            });
+
+        Assert.Equal(RenderContentStatus.Rendered, result.Status);
+        Assert.Equal("YouTube BroadcastId: yt-broadcast-id", result.Content!.Description);
+        Assert.False(result.HasUnresolvedPlaceholders);
+    }
+
+    [Fact]
+    public void Render_RuntimeToken_DoesNotOverrideCalendarEventToken()
+    {
+        var renderer = new PublishingContentRenderer();
+
+        var result = renderer.Render(
+            "{{ text1 }}",
+            null,
+            Event(),
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["text1"] = "yt-broadcast-id"
+            });
+
+        Assert.Equal("English title", result.Content!.Title);
+    }
+
+    [Fact]
     public void Render_MalformedBraces_LeavesTextAndDoesNotReportUnresolved()
     {
         var renderer = new PublishingContentRenderer();

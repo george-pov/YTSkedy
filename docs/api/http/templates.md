@@ -3,10 +3,11 @@
 Template endpoints are hosted by `YTSkedy.AzureFunctions` under the Azure
 Functions `/api` prefix. A template is reusable free-text publishing content
 with placeholder tokens (for example `{{ longDateEn }}` or `{{ text1 }}`) that
-platform publishing content renders from calendar-event data. The `Templates`
-page in the Angular UI (`/templates`) consumes the list, create, update, and
-delete endpoints through a typed `TemplatesService`; the `template-tokens`
-endpoint is available to the client but is not yet surfaced in the editor.
+platform publishing content renders from calendar-event data and platform
+publication state. The `Templates` page in the Angular UI (`/templates`)
+consumes the list, create, update, and delete endpoints through a typed
+`TemplatesService`; the `template-tokens` endpoint is available to the client
+but is not yet surfaced in the editor.
 
 ## Authorization
 
@@ -189,7 +190,8 @@ GET /api/template-tokens
 
 Returns the placeholder tokens a client can offer for template content.
 Requires the `CalendarEvents.Read` scope. The catalog combines the current
-event text fields setting with fixed date tokens:
+event text fields setting, fixed date tokens, and active platform reference
+keys:
 
 - `text1`, `text2`, `text3`, and so on, derived from the current field list
   order.
@@ -202,13 +204,20 @@ event text fields setting with fixed date tokens:
 - `longDateFr`: Event submitted local date formatted with `fr-FR` as
   `d MMMM yyyy`.
 - `shortDateFr`: Event submitted local date formatted as `dd/MM/yyyy`.
+- Active platform `referenceKey` values, such as `privateYouTube`.
 
 The text token list reflects the current field setting for future template
 authoring. During preview and publish, token values come from the selected
 calendar event's stored text snapshot, so later settings edits do not reshape
-existing events.
+existing events. During preview and publish, a platform reference-key token is
+resolved from the selected calendar event's `Published` publication row for
+the active platform with that `referenceKey`; the token value is that row's
+`externalResourceId`. If no active platform has that key, or the matching
+platform has no published external resource id for the selected event, the
+placeholder is left unchanged.
 
-Success response (`200 OK`) with the default field list:
+Success response (`200 OK`) with the default field list and one active
+platform reference key:
 
 ```json
 {
@@ -220,7 +229,8 @@ Success response (`200 OK`) with the default field list:
     { "name": "longDateRu" },
     { "name": "shortDateRu" },
     { "name": "longDateFr" },
-    { "name": "shortDateFr" }
+    { "name": "shortDateFr" },
+    { "name": "privateYouTube" }
   ]
 }
 ```
@@ -228,7 +238,8 @@ Success response (`200 OK`) with the default field list:
 A token `name` is the identifier without the surrounding `{{ }}` braces.
 Template writes store unknown tokens as text; preview leaves unresolved
 well-formed placeholders visible, while publish rejects unresolved well-formed
-placeholders before any provider call.
+placeholders before any provider call. This includes reference-key placeholders
+whose published external resource id is not available yet.
 
 ## Persistence
 

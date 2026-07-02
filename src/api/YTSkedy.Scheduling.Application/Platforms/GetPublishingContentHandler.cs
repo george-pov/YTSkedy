@@ -55,9 +55,18 @@ public sealed class GetPublishingContentHandler(
                 GetPublishingContentStatus.PlatformNotFound);
         }
 
+        var activePlatforms = await platforms.ListAsync(null, cancellationToken);
+        var publicationRows = await publications.ListByEventAsync(
+            query.CalendarEventId,
+            cancellationToken);
+        var runtimeTokenValues = PlatformReferenceTokenValues.From(
+            activePlatforms,
+            publicationRows);
+
         var renderResult = await contentRenderer.RenderAsync(
             platform,
             calendarEvent,
+            runtimeTokenValues,
             cancellationToken);
 
         return renderResult.Status switch

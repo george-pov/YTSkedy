@@ -82,9 +82,18 @@ public sealed class PublishHandler(
             return PublishResult.ForStatus(PublishResultStatus.PastStart);
         }
 
+        var activePlatforms = await platforms.ListAsync(null, cancellationToken);
+        var publicationRows = await publications.ListByEventAsync(
+            command.CalendarEventId,
+            cancellationToken);
+        var runtimeTokenValues = PlatformReferenceTokenValues.From(
+            activePlatforms,
+            publicationRows);
+
         var renderResult = await contentRenderer.RenderAsync(
             platform,
             calendarEvent,
+            runtimeTokenValues,
             cancellationToken);
         if (renderResult.Status != RenderContentStatus.Rendered ||
             renderResult.HasUnresolvedPlaceholders)

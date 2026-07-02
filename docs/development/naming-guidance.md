@@ -207,8 +207,8 @@ such as `ProcessAsync` or `SubmitAsync`.
 - `template`: Reusable free-text publishing content with placeholder tokens.
 - `template type`: Provider family associated with a template, currently
   `YouTube` or `WordPress`.
-- `template token`: Code-defined placeholder token available to template
-  content, such as `text1` or `longDateEn`.
+- `template token`: Placeholder token available to template content, such as
+  `text1`, `longDateEn`, or an active platform `referenceKey`.
 - `publishing content`: Platform-owned title and description template selection
   used for provider publishing. Both template ids are required. It is not
   provider credentials or provider-specific options.
@@ -230,7 +230,9 @@ such as `ProcessAsync` or `SubmitAsync`.
   future WordPress site.
 - `reference key`: Optional user-managed lookup key on a configured platform.
   It is provider-neutral, unique case-insensitively when set, and preserves the
-  entered casing for display.
+  entered casing for display. It can also be used as a template-token name that
+  resolves to that platform publication's `externalResourceId` when the
+  selected calendar event has a published row for the platform.
 - `publish settings`: Provider-specific settings used when publishing through a
   platform. These settings may carry secrets and must be redacted where they
   cross read, logging, or snapshot boundaries.
@@ -281,9 +283,9 @@ Shorter names are acceptable for:
 | `TemplateType` | Provider family associated with a template. | `Type` is acceptable inside template-specific code. |
 | `TemplateView` | Read model for a stored template. | `View` is acceptable inside template-specific mapping code. |
 | `TemplateToken` | Placeholder token available to template content. | `Token` is acceptable inside template-token-specific code. |
-| `TemplateTokenCatalog` | Code-defined source of available template tokens. | `Catalog` is acceptable inside template-token-specific code. |
+| `TemplateTokenCatalog` | Source of available template tokens from event text fields, fixed date tokens, and platform reference keys. | `Catalog` is acceptable inside template-token-specific code. |
 | `Platform` | Configured publishing destination. | `Destination` is acceptable only for user-facing copy when it is clearer. |
-| `ReferenceKey` | Optional provider-neutral lookup key on a configured platform. Uniqueness and lookup are case-insensitive while display casing is preserved. | Use `referenceKey` in HTTP and TypeScript shapes. Avoid provider-specific variants such as `YouTubeReferenceKey`. |
+| `ReferenceKey` | Optional provider-neutral lookup key on a configured platform. Uniqueness and lookup are case-insensitive while display casing is preserved. | Use `referenceKey` in HTTP and TypeScript shapes. Avoid provider-specific variants such as `YouTubeReferenceKey`. A matching template placeholder resolves to the platform publication `externalResourceId` only when that value is available. |
 | `PublishingContent` | Platform-owned title and description template selection rendered before publishing. Both template ids are required. | Use `publishingContent` in HTTP and TypeScript shapes. Keep separate from `PublishSettings`. |
 | `RenderedContent` | Title and description text rendered from a calendar event and platform publishing content. | Keep transient for unpublished rows. Persist as a `ContentSnapshot` only when publish starts. |
 | `ContentSnapshot` | Rendered title and description stored on a platform publication. | Use inside platform-publication code where snapshot context is clear. |

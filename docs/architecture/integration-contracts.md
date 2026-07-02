@@ -57,16 +57,20 @@ Cross-boundary rules:
 - The Settings page consumes `GET /api/settings/event-text-fields` and
   `PUT /api/settings/event-text-fields` through a typed settings service. The
   backend owns `fieldKey` derivation and normalizes keys from field order.
-- Template-token reads expose current `textN` fields plus fixed date tokens for
-  template authoring. Preview and publish render from the selected calendar
-  event's stored text snapshot.
+- Template-token reads expose current `textN` fields, fixed date tokens, and
+  active platform `referenceKey` values for template authoring. Preview and
+  publish render from the selected calendar event's stored text snapshot and
+  already-published platform external resource ids for matching reference-key
+  tokens.
 - Platform publish and publication cleanup always target an explicit platform.
   There is no calendar-event-level publish route.
 - Platform CRUD exposes the optional provider-neutral `referenceKey` field.
   The backend owns validation, blank-as-null normalization, case-insensitive
   uniqueness, and the `409 Conflict` duplicate-key response. The UI consumes it
   through typed platform models and must not infer provider-specific roles from
-  it.
+  it. When used as a template token name, a matching `referenceKey` resolves to
+  that platform publication's `externalResourceId` only after the platform is
+  published for the selected calendar event.
 - Platform CRUD requires both `publishingContent.titleTemplateId` and
   `publishingContent.descriptionTemplateId`. There is no `(none)` option and no
   direct text-field fallback during preview or publish.

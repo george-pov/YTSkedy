@@ -30,6 +30,19 @@ public sealed partial class PublishingContentRenderer
         CalendarEventView calendarEvent,
         CancellationToken cancellationToken)
     {
+        return await RenderAsync(
+            platform,
+            calendarEvent,
+            runtimeTokenValues: null,
+            cancellationToken);
+    }
+
+    public async Task<RenderContentResult> RenderAsync(
+        PlatformView platform,
+        CalendarEventView calendarEvent,
+        IReadOnlyDictionary<string, string>? runtimeTokenValues,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(platform);
         ArgumentNullException.ThrowIfNull(calendarEvent);
 
@@ -57,18 +70,21 @@ public sealed partial class PublishingContentRenderer
             return RenderContentResult.TemplateNotFound();
         }
 
-        return Render(title, description, calendarEvent);
+        return Render(title, description, calendarEvent, runtimeTokenValues);
     }
 
     public RenderContentResult Render(
         string title,
         string? description,
-        CalendarEventView calendarEvent)
+        CalendarEventView calendarEvent,
+        IReadOnlyDictionary<string, string>? runtimeTokenValues = null)
     {
         ArgumentNullException.ThrowIfNull(title);
         ArgumentNullException.ThrowIfNull(calendarEvent);
 
-        var tokenValues = CalendarEventTokenValues.From(calendarEvent).Values;
+        var tokenValues = MergeTokenValues(
+            CalendarEventTokenValues.From(calendarEvent).Values,
+            runtimeTokenValues);
         var renderedTitle = RenderText(title, tokenValues);
         var renderedDescription = description is null
             ? null
@@ -113,6 +129,27 @@ public sealed partial class PublishingContentRenderer
             cancellationToken);
 
         return template?.Content;
+    }
+
+    private static IReadOnlyDictionary<string, string> MergeTokenValues(
+        IReadOnlyDictionary<string, string> calendarEventTokenValues,
+        IReadOnlyDictionary<string, string>? runtimeTokenValues)
+    {
+        if (runtimeTokenValues is null || runtimeTokenValues.Count == 0)
+        {
+            return calendarEventTokenValues;
+        }
+
+        var values = new Dictionary<string, string>(
+            calendarEventTokenValues,
+            StringComparer.Ordinal);
+
+        foreach (var (tokenName, tokenValue) in runtimeTokenValues)
+        {
+            values.TryAdd(tokenName, tokenValue);
+        }
+
+        return values;
     }
 
     private static bool HasWellFormedPlaceholder(string? text) =>

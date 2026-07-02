@@ -11,6 +11,7 @@ public class GetPublishingContentHandlerTests
 {
     private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
     private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
+    private const string YouTubePlatformId = "6ab4a32f3f344de1a7c3a9f4a2f94918";
 
     [Fact]
     public async Task HandleAsync_ActiveNotPublishedRow_ReturnsPreview()
@@ -50,6 +51,54 @@ public class GetPublishingContentHandlerTests
         Assert.Equal(PublishingContentType.Preview, result.Type);
         Assert.Equal("English title on 2026-06-25", result.Content!.Title);
         Assert.Equal("Details: English description", result.Content.Description);
+    }
+
+    [Fact]
+    public async Task HandleAsync_TemplateReferenceKeyToken_ReturnsPreviewWithPublishedExternalResourceId()
+    {
+        var wordpressPlatform = Platform(
+            type: PlatformType.WordPress,
+            settings: new WordPressSettings(
+                "https://blog.example.test/",
+                "publisher",
+                "application-password",
+                "draft"),
+            publishingContent: new PublishingContent(
+                "wordpress-title-template",
+                "wordpress-description-template"));
+        var youtubePlatform = Platform(
+            platformId: YouTubePlatformId,
+            referenceKey: "privateYouTube");
+        var handler = CreateHandler(
+            Event(),
+            wordpressPlatform,
+            publication: null,
+            templates: new FakeTemplateReader(
+                new TemplateView(
+                    "wordpress-title-template",
+                    "WordPress title",
+                    TemplateType.WordPress,
+                    "{{ text1 }}"),
+                new TemplateView(
+                    "wordpress-description-template",
+                    "WordPress description",
+                    TemplateType.WordPress,
+                    "YouTube BroadcastId: {{ privateYouTube }}")),
+            activePlatforms: [wordpressPlatform, youtubePlatform],
+            publicationRows:
+            [
+                Publication(
+                    PublishStatus.Published,
+                    contentSnapshot: null,
+                    platformId: YouTubePlatformId,
+                    externalResourceId: "yt-broadcast-id")
+            ]);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(GetPublishingContentStatus.Found, result.Status);
+        Assert.Equal(PublishingContentType.Preview, result.Type);
+        Assert.Equal("YouTube BroadcastId: yt-broadcast-id", result.Content!.Description);
     }
 
     [Fact]
@@ -201,11 +250,13 @@ public class GetPublishingContentHandlerTests
         CalendarEventView? calendarEvent,
         PlatformView? platform,
         PlatformPublication? publication,
-        ITemplateReader? templates = null) =>
+        ITemplateReader? templates = null,
+        IReadOnlyList<PlatformView>? activePlatforms = null,
+        IReadOnlyList<PlatformPublication>? publicationRows = null) =>
         new(
             new FakeCalendarEventReader(calendarEvent),
-            new FakePlatformReader(platform),
-            new FakePublicationReader(publication),
+            new FakePlatformReader(platform, activePlatforms),
+            new FakePublicationReader(publication, publicationRows),
             new PublishingContentRenderer(templates ?? RequiredTemplates()));
 
     private static CalendarEventView Event(string? description = "English description") =>
@@ -226,13 +277,18 @@ public class GetPublishingContentHandlerTests
                 new EventTextValue("text2", description ?? string.Empty)
             ]);
 
-    private static PlatformView Platform(PublishingContent? publishingContent = null) =>
+    private static PlatformView Platform(
+        PublishingContent? publishingContent = null,
+        string platformId = PlatformId,
+        string? referenceKey = null,
+        PlatformType type = PlatformType.YouTube,
+        PublishSettings? settings = null) =>
         new(
-            PlatformId,
-            "Main YouTube channel",
-            null,
-            PlatformType.YouTube,
-            new YouTubeSettings(
+            platformId,
+            type == PlatformType.YouTube ? "Main YouTube channel" : "Company blog",
+            referenceKey,
+            type,
+            settings ?? new YouTubeSettings(
                 new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
                 "private",
                 false),
@@ -257,14 +313,16 @@ public class GetPublishingContentHandlerTests
     private static PlatformPublication Publication(
         PublishStatus status,
         ContentSnapshot? contentSnapshot,
-        DateTimeOffset? platformDeletedUtc = null) =>
+        DateTimeOffset? platformDeletedUtc = null,
+        string platformId = PlatformId,
+        string? externalResourceId = null) =>
         new(
             CalendarEventId,
-            PlatformId,
+            platformId,
             "Main YouTube channel",
             PlatformType.YouTube,
             status,
-            ExternalResourceId: null,
+            ExternalResourceId: externalResourceId,
             PublishedUtc: null,
             PlatformDeletedUtc: platformDeletedUtc,
             UpdatedUtc: new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
@@ -285,12 +343,19 @@ public class GetPublishingContentHandlerTests
             Task.FromResult(calendarEvent);
     }
 
-    private sealed class FakePlatformReader(PlatformView? platform) : IPlatformReader
+    private sealed class FakePlatformReader(
+        PlatformView? platform,
+        IReadOnlyList<PlatformView>? platforms) : IPlatformReader
     {
         public Task<IReadOnlyList<PlatformView>> ListAsync(
             PlatformType? type,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+            CancellationToken cancellationToken)
+        {
+            IReadOnlyList<PlatformView> result = platforms ??
+                (platform is null ? [] : [platform]);
+
+            return Task.FromResult(result);
+        }
 
         public Task<PlatformView?> GetAsync(
             string platformId,
@@ -298,19 +363,29 @@ public class GetPublishingContentHandlerTests
             Task.FromResult(platform);
     }
 
-    private sealed class FakePublicationReader(PlatformPublication? publication)
+    private sealed class FakePublicationReader(
+        PlatformPublication? publication,
+        IReadOnlyList<PlatformPublication>? publicationRows)
         : IPlatformPublicationReader
     {
+        private readonly IReadOnlyList<PlatformPublication> rows =
+            publicationRows ?? (publication is null ? [] : [publication]);
+
         public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+            Task.FromResult(rows);
 
         public Task<PlatformPublication?> GetAsync(
             string calendarEventId,
             string platformId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(publication);
+            CancellationToken cancellationToken)
+        {
+            var result = rows.FirstOrDefault(candidate =>
+                string.Equals(candidate.PlatformId, platformId, StringComparison.Ordinal));
+
+            return Task.FromResult(result);
+        }
 
         public Task<IReadOnlyList<PlatformPublication>> ListPublishingByPlatformAsync(
             string platformId,
