@@ -9,6 +9,48 @@ namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
 public sealed class CalendarEventsApiTests
 {
     private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
+    private const string InvalidTextsMessage = "Text entries must each have a field key and value.";
+
+    public static TheoryData<object, string> InvalidCreateRequests =>
+        new()
+        {
+            {
+                new CreateCalendarEventRequest(
+                    null!,
+                    [new EventTextPayload("text1", "English stream 1")]),
+                "Start local date-time and time zone id are required."
+            },
+            {
+                new CreateCalendarEventRequest(
+                    new CalendarEventStart(
+                        new DateTime(2026, 6, 15, 10, 0, 0),
+                        "America/Vancouver"),
+                    null!),
+                InvalidTextsMessage
+            },
+            {
+                new CreateCalendarEventRequest(
+                    new CalendarEventStart(
+                        new DateTime(2026, 6, 15, 10, 0, 0),
+                        "America/Vancouver"),
+                    [null!]),
+                InvalidTextsMessage
+            },
+            {
+                new CreateCalendarEventRequest(
+                    new CalendarEventStart(
+                        new DateTime(2026, 6, 15, 10, 0, 0),
+                        "America/Vancouver"),
+                    [new EventTextPayload("   ", "English stream 1")]),
+                InvalidTextsMessage
+            }
+        };
+
+    public static TheoryData<object, string> InvalidUpdateRequests =>
+        new()
+        {
+            { new UpdateCalendarEventRequest(null!), InvalidTextsMessage }
+        };
 
     [Fact]
     public async Task ListAsync_EventPage_MapsDisplayTitle()
@@ -50,56 +92,19 @@ public sealed class CalendarEventsApiTests
             command.Texts.Select(text => text.Value));
     }
 
-    [Fact]
-    public void TryBuildCreateCommand_NullStart_ReturnsBadRequest()
+    [Theory]
+    [MemberData(nameof(InvalidCreateRequests))]
+    public void TryBuildCreateCommand_InvalidRequest_ReturnsBadRequest(
+        object request,
+        string expectedMessage)
     {
-        var request = new CreateCalendarEventRequest(
-            null!,
-            [new EventTextPayload("text1", "English stream 1")]);
-
-        var built = CalendarEventsApi.TryBuildCreateCommand(request, out _, out var error);
+        var built = CalendarEventsApi.TryBuildCreateCommand(
+            (CreateCalendarEventRequest)request,
+            out _,
+            out var error);
 
         Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
-    }
-
-    [Fact]
-    public void TryBuildCreateCommand_NullTexts_ReturnsBadRequest()
-    {
-        var request = new CreateCalendarEventRequest(
-            new CalendarEventStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
-            null!);
-
-        var built = CalendarEventsApi.TryBuildCreateCommand(request, out _, out var error);
-
-        Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
-    }
-
-    [Fact]
-    public void TryBuildCreateCommand_NullTextEntry_ReturnsBadRequest()
-    {
-        var request = new CreateCalendarEventRequest(
-            new CalendarEventStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
-            [null!]);
-
-        var built = CalendarEventsApi.TryBuildCreateCommand(request, out _, out var error);
-
-        Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
-    }
-
-    [Fact]
-    public void TryBuildCreateCommand_BlankFieldKey_ReturnsBadRequest()
-    {
-        var request = new CreateCalendarEventRequest(
-            new CalendarEventStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
-            [new EventTextPayload("   ", "English stream 1")]);
-
-        var built = CalendarEventsApi.TryBuildCreateCommand(request, out _, out var error);
-
-        Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
+        Assert.Equal(expectedMessage, BadRequestMessage(error));
     }
 
     [Fact]
@@ -125,19 +130,26 @@ public sealed class CalendarEventsApiTests
             command.Texts.Select(text => text.Value));
     }
 
-    [Fact]
-    public void TryBuildUpdateCommand_NullTexts_ReturnsBadRequest()
+    [Theory]
+    [MemberData(nameof(InvalidUpdateRequests))]
+    public void TryBuildUpdateCommand_InvalidRequest_ReturnsBadRequest(
+        object request,
+        string expectedMessage)
     {
-        var request = new UpdateCalendarEventRequest(null!);
-
         var built = CalendarEventsApi.TryBuildUpdateCommand(
             CalendarEventId,
-            request,
+            (UpdateCalendarEventRequest)request,
             out _,
             out var error);
 
         Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
+        Assert.Equal(expectedMessage, BadRequestMessage(error));
+    }
+
+    private static string BadRequestMessage(IActionResult actionResult)
+    {
+        var badRequest = Assert.IsType<BadRequestObjectResult>(actionResult);
+        return Assert.IsType<string>(badRequest.Value);
     }
 
     private static CalendarEventView CreateEvent() =>

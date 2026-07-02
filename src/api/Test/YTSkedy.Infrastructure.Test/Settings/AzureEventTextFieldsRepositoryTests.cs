@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Azure;
 using Azure.Core;
 using Azure.Data.Tables;
@@ -39,8 +40,7 @@ public sealed class AzureEventTextFieldsRepositoryTests
         Assert.True(tableClient.CreateIfNotExistsCalled);
         Assert.Equal(ApplicationSettingsKey.PartitionKey, entity.PartitionKey);
         Assert.Equal(ApplicationSettingsKey.EventTextFieldsRowKey, entity.RowKey);
-        Assert.Contains("\"fieldKey\":\"text1\"", entity.ValueJson, StringComparison.Ordinal);
-        Assert.Contains("\"fieldKey\":\"text2\"", entity.ValueJson, StringComparison.Ordinal);
+        Assert.Equal(["text1", "text2"], FieldKeys(entity.ValueJson));
     }
 
     [Fact]
@@ -59,6 +59,17 @@ public sealed class AzureEventTextFieldsRepositoryTests
         Assert.Equal("Episode", field.Label);
         Assert.Equal(EventTextType.ShortText, field.Type);
         Assert.Equal(120, field.MaxLength);
+    }
+
+    private static string[] FieldKeys(string valueJson)
+    {
+        using var document = JsonDocument.Parse(valueJson);
+
+        return document.RootElement
+            .GetProperty("fields")
+            .EnumerateArray()
+            .Select(field => field.GetProperty("fieldKey").GetString() ?? string.Empty)
+            .ToArray();
     }
 
     private sealed class InMemoryTableClient : TableClient

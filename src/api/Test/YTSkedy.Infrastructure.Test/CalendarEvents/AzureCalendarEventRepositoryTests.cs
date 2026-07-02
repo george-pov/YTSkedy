@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Azure;
 using Azure.Core;
 using Azure.Data.Tables;
@@ -23,10 +24,9 @@ public sealed class AzureCalendarEventRepositoryTests
         var entity = Assert.Single(tableClient.Entities.Values);
         Assert.Equal(calendarEventId, entity.CalendarEventId);
         Assert.Equal("2026-06-15T17:00:00", entity.LocalDateTime);
-        Assert.Contains("\"fieldKey\":\"text1\"", entity.TextJson, StringComparison.Ordinal);
-        Assert.Contains("\"value\":\"Original title\"", entity.TextJson, StringComparison.Ordinal);
-        Assert.Contains("\"fieldKey\":\"text2\"", entity.TextJson, StringComparison.Ordinal);
-        Assert.Contains("\"value\":\"Original description\"", entity.TextJson, StringComparison.Ordinal);
+        Assert.Equal(["text1", "text2"], FieldKeys(entity.TextJson));
+        Assert.Equal("Original title", ValueFor(entity.TextJson, "text1"));
+        Assert.Equal("Original description", ValueFor(entity.TextJson, "text2"));
     }
 
     [Fact]
@@ -46,8 +46,8 @@ public sealed class AzureCalendarEventRepositoryTests
 
         var entity = Assert.Single(tableClient.Entities.Values);
         Assert.True(result);
-        Assert.Contains("\"value\":\"Updated title\"", entity.TextJson, StringComparison.Ordinal);
-        Assert.Contains("\"value\":\"Updated description\"", entity.TextJson, StringComparison.Ordinal);
+        Assert.Equal("Updated title", ValueFor(entity.TextJson, "text1"));
+        Assert.Equal("Updated description", ValueFor(entity.TextJson, "text2"));
         Assert.Equal("2026-06-15T17:00:00", entity.LocalDateTime);
     }
 
@@ -75,6 +75,32 @@ public sealed class AzureCalendarEventRepositoryTests
                 new EventTextValue("text1", title),
                 new EventTextValue("text2", description)
             ]);
+
+    private static string[] FieldKeys(string textJson)
+    {
+        using var document = JsonDocument.Parse(textJson);
+
+        return document.RootElement
+            .GetProperty("fields")
+            .EnumerateArray()
+            .Select(field => field.GetProperty("fieldKey").GetString() ?? string.Empty)
+            .ToArray();
+    }
+
+    private static string ValueFor(string textJson, string fieldKey)
+    {
+        using var document = JsonDocument.Parse(textJson);
+
+        var value = document.RootElement
+            .GetProperty("values")
+            .EnumerateArray()
+            .Single(value => string.Equals(
+                value.GetProperty("fieldKey").GetString(),
+                fieldKey,
+                StringComparison.Ordinal));
+
+        return value.GetProperty("value").GetString() ?? string.Empty;
+    }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {

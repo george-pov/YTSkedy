@@ -1,3 +1,4 @@
+using System.Globalization;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
@@ -6,7 +7,7 @@ namespace YTSkedy.Scheduling.Application.Test;
 public class ListEventsHandlerTests
 {
     [Fact]
-    public async Task HandleAsync_DefaultSort_OrdersByScheduledStartDescending()
+    public async Task HandleAsync_DefaultSort_OrdersByCalendarEventIdDescending()
     {
         var reader = new FakeCalendarEventReader(
         [
@@ -260,11 +261,14 @@ public class ListEventsHandlerTests
         string calendarEventId,
         string timeZoneId = "America/Vancouver",
         string? title = null,
-        bool includeShortText = true) =>
-        new(
+        bool includeShortText = true)
+    {
+        var scheduledStartUtc = ParseScheduledStartUtc(calendarEventId);
+
+        return new CalendarEventView(
             calendarEventId,
-            new ScheduledStart(new DateTime(2026, 1, 1, 0, 0, 0), timeZoneId),
-            new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            new ScheduledStart(scheduledStartUtc.UtcDateTime, timeZoneId),
+            scheduledStartUtc,
             includeShortText
                 ? EventTextSnapshot.Create(
                     EventTextFields.Default,
@@ -276,6 +280,16 @@ public class ListEventsHandlerTests
                     new EventTextFields(
                         [new EventTextField("Body", EventTextType.LongText, 2500)]),
                     [new EventTextValue("text1", title ?? $"Title {calendarEventId}")]));
+    }
+
+    private static DateTimeOffset ParseScheduledStartUtc(string calendarEventId) =>
+        new(
+            DateTime.ParseExact(
+                calendarEventId,
+                "yyyyMMdd'T'HHmmss'Z'",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
+            TimeSpan.Zero);
 
     private static string[] Ids(CalendarEventListPage page) =>
         page.Items.Select(item => item.CalendarEventId).ToArray();

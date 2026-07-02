@@ -15,6 +15,57 @@ namespace YTSkedy.AzureFunctions.Test.Templates;
 /// </summary>
 public sealed class TemplatesApiTests
 {
+    public static TheoryData<object, string> InvalidCreateRequests =>
+        new()
+        {
+            {
+                new CreateTemplateRequest("", "YouTube", "content"),
+                $"Name must be non-empty and at most {Template.MaxNameLength} characters."
+            },
+            {
+                new CreateTemplateRequest(
+                    new string('n', Template.MaxNameLength + 1),
+                    "YouTube",
+                    "content"),
+                $"Name must be non-empty and at most {Template.MaxNameLength} characters."
+            },
+            {
+                new CreateTemplateRequest("name", "YouTube", ""),
+                $"Content must be non-empty and at most {Template.MaxContentLength} characters."
+            },
+            {
+                new CreateTemplateRequest(
+                    "name",
+                    "YouTube",
+                    new string('c', Template.MaxContentLength + 1)),
+                $"Content must be non-empty and at most {Template.MaxContentLength} characters."
+            },
+            {
+                new CreateTemplateRequest("name", "bogus", "content"),
+                "Template type must be 'YouTube' or 'WordPress'."
+            }
+        };
+
+    public static TheoryData<string, object, string> InvalidUpdateRequests =>
+        new()
+        {
+            {
+                "bogus",
+                new UpdateTemplateRequest("name", "content"),
+                "Template type must be 'YouTube' or 'WordPress'."
+            },
+            {
+                "YouTube",
+                new UpdateTemplateRequest("", "content"),
+                $"Name must be non-empty and at most {Template.MaxNameLength} characters."
+            },
+            {
+                "YouTube",
+                new UpdateTemplateRequest("name", ""),
+                $"Content must be non-empty and at most {Template.MaxContentLength} characters."
+            }
+        };
+
     [Theory]
     [InlineData("YouTube", TemplateType.YouTube)]
     [InlineData("youtube", TemplateType.YouTube)]
@@ -56,65 +107,19 @@ public sealed class TemplatesApiTests
         Assert.Equal("Live on {{ longDateEn }}", command.Content);
     }
 
-    [Fact]
-    public void TryBuildCreateCommand_EmptyName_ReturnsBadRequest()
+    [Theory]
+    [MemberData(nameof(InvalidCreateRequests))]
+    public void TryBuildCreateCommand_InvalidRequest_ReturnsBadRequest(
+        object request,
+        string expectedMessage)
     {
-        var request = new CreateTemplateRequest("", "YouTube", "content");
-
-        var built = TemplatesApi.TryBuildCreateCommand(request, out _, out var error);
+        var built = TemplatesApi.TryBuildCreateCommand(
+            (CreateTemplateRequest)request,
+            out _,
+            out var error);
 
         Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
-    }
-
-    [Fact]
-    public void TryBuildCreateCommand_NameTooLong_ReturnsBadRequest()
-    {
-        var request = new CreateTemplateRequest(
-            new string('n', Template.MaxNameLength + 1),
-            "YouTube",
-            "content");
-
-        var built = TemplatesApi.TryBuildCreateCommand(request, out _, out var error);
-
-        Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
-    }
-
-    [Fact]
-    public void TryBuildCreateCommand_EmptyContent_ReturnsBadRequest()
-    {
-        var request = new CreateTemplateRequest("name", "YouTube", "");
-
-        var built = TemplatesApi.TryBuildCreateCommand(request, out _, out var error);
-
-        Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
-    }
-
-    [Fact]
-    public void TryBuildCreateCommand_ContentTooLong_ReturnsBadRequest()
-    {
-        var request = new CreateTemplateRequest(
-            "name",
-            "YouTube",
-            new string('c', Template.MaxContentLength + 1));
-
-        var built = TemplatesApi.TryBuildCreateCommand(request, out _, out var error);
-
-        Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
-    }
-
-    [Fact]
-    public void TryBuildCreateCommand_InvalidType_ReturnsBadRequest()
-    {
-        var request = new CreateTemplateRequest("name", "bogus", "content");
-
-        var built = TemplatesApi.TryBuildCreateCommand(request, out _, out var error);
-
-        Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
+        Assert.Equal(expectedMessage, BadRequestMessage(error));
     }
 
     [Fact]
@@ -136,52 +141,22 @@ public sealed class TemplatesApiTests
         Assert.Equal("Updated content", command.Content);
     }
 
-    [Fact]
-    public void TryBuildUpdateCommand_InvalidType_ReturnsBadRequest()
+    [Theory]
+    [MemberData(nameof(InvalidUpdateRequests))]
+    public void TryBuildUpdateCommand_InvalidRequest_ReturnsBadRequest(
+        string type,
+        object request,
+        string expectedMessage)
     {
-        var request = new UpdateTemplateRequest("name", "content");
-
         var built = TemplatesApi.TryBuildUpdateCommand(
-            "bogus",
+            type,
             "9f8b1c2d3e4f",
-            request,
+            (UpdateTemplateRequest)request,
             out _,
             out var error);
 
         Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
-    }
-
-    [Fact]
-    public void TryBuildUpdateCommand_EmptyName_ReturnsBadRequest()
-    {
-        var request = new UpdateTemplateRequest("", "content");
-
-        var built = TemplatesApi.TryBuildUpdateCommand(
-            "YouTube",
-            "9f8b1c2d3e4f",
-            request,
-            out _,
-            out var error);
-
-        Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
-    }
-
-    [Fact]
-    public void TryBuildUpdateCommand_EmptyContent_ReturnsBadRequest()
-    {
-        var request = new UpdateTemplateRequest("name", "");
-
-        var built = TemplatesApi.TryBuildUpdateCommand(
-            "YouTube",
-            "9f8b1c2d3e4f",
-            request,
-            out _,
-            out var error);
-
-        Assert.False(built);
-        Assert.IsType<BadRequestObjectResult>(error);
+        Assert.Equal(expectedMessage, BadRequestMessage(error));
     }
 
     [Fact]
@@ -325,5 +300,11 @@ public sealed class TemplatesApiTests
                 "shortDateFr"
             ],
             response.Tokens.Select(token => token.Name));
+    }
+
+    private static string BadRequestMessage(IActionResult actionResult)
+    {
+        var badRequest = Assert.IsType<BadRequestObjectResult>(actionResult);
+        return Assert.IsType<string>(badRequest.Value);
     }
 }
