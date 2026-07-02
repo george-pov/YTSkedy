@@ -1,4 +1,5 @@
 using System.Text.Json;
+using YTSkedy.Infrastructure.CalendarEvents;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Infrastructure.Settings;
@@ -12,13 +13,9 @@ internal static class EventTextFieldsSerializer
         ArgumentNullException.ThrowIfNull(eventTextFields);
 
         var normalized = EventTextFields.Normalize(eventTextFields.Fields);
-        var document = new EventTextFieldsDocument(
+        var document = new EventTextFieldsJson(
             normalized.Fields
-                .Select(field => new EventTextFieldDocument(
-                    field.FieldKey,
-                    field.Label,
-                    field.Type.ToString(),
-                    field.MaxLength))
+                .Select(EventTextFieldItem.From)
                 .ToArray());
 
         return JsonSerializer.Serialize(document, JsonOptions);
@@ -33,7 +30,7 @@ internal static class EventTextFieldsSerializer
 
         try
         {
-            var document = JsonSerializer.Deserialize<EventTextFieldsDocument>(
+            var document = JsonSerializer.Deserialize<EventTextFieldsJson>(
                 valueJson,
                 JsonOptions);
 
@@ -49,7 +46,7 @@ internal static class EventTextFieldsSerializer
             }
 
             return EventTextFields.Normalize(
-                document.Fields.Select(ToDomainField));
+                document.Fields.Select(EventTextFieldItem.ToDomain));
         }
         catch (JsonException exception)
         {
@@ -65,37 +62,6 @@ internal static class EventTextFieldsSerializer
         }
     }
 
-    private static EventTextType ParseType(string? type) =>
-        type?.ToLowerInvariant() switch
-        {
-            "shorttext" => EventTextType.ShortText,
-            "longtext" => EventTextType.LongText,
-            _ => throw new ArgumentException(
-                $"Event text type '{type ?? "<null>"}' is invalid.",
-                nameof(type))
-        };
-
-    private static EventTextField ToDomainField(EventTextFieldDocument field)
-    {
-        if (field is null)
-        {
-            throw new InvalidOperationException(
-                "Stored event text fields JSON cannot contain null fields.");
-        }
-
-        return new EventTextField(
-            field.FieldKey ?? string.Empty,
-            field.Label ?? string.Empty,
-            ParseType(field.Type),
-            field.MaxLength);
-    }
-
-    private sealed record EventTextFieldsDocument(
-        IReadOnlyList<EventTextFieldDocument> Fields);
-
-    private sealed record EventTextFieldDocument(
-        string? FieldKey,
-        string? Label,
-        string? Type,
-        int MaxLength);
+    private sealed record EventTextFieldsJson(
+        IReadOnlyList<EventTextFieldItem> Fields);
 }

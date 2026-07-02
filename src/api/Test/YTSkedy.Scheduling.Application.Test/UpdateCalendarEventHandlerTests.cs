@@ -25,7 +25,7 @@ public class UpdateCalendarEventHandlerTests
             new UpdateEventTextCommand(CalendarEventId, Texts),
             CancellationToken.None);
 
-        Assert.Equal(UpdateCalendarEventResult.Updated, result);
+        Assert.Equal(UpdateCalendarEventStatus.Updated, result.Status);
         Assert.Equal(1, modifier.UpdateCallCount);
         Assert.Equal(CalendarEventId, modifier.UpdatedCalendarEventId);
         Assert.NotNull(modifier.UpdatedText);
@@ -33,18 +33,19 @@ public class UpdateCalendarEventHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_ExistingEvent_ValidatesAgainstStoredSnapshot()
+    public async Task HandleAsync_ExistingEvent_InvalidText_ReturnsInvalidWithoutUpdating()
     {
         var modifier = new FakeCalendarEventModifier(updateResult: true);
         var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
-        await Assert.ThrowsAsync<ArgumentException>(
-            () => handler.HandleAsync(
-                new UpdateEventTextCommand(
-                    CalendarEventId,
-                    [new EventTextValue("text1", "Updated title")]),
-                CancellationToken.None));
+        var result = await handler.HandleAsync(
+            new UpdateEventTextCommand(
+                CalendarEventId,
+                [new EventTextValue("text1", "Updated title")]),
+            CancellationToken.None);
 
+        Assert.Equal(UpdateCalendarEventStatus.Invalid, result.Status);
+        Assert.False(string.IsNullOrWhiteSpace(result.ValidationError));
         Assert.Equal(0, modifier.UpdateCallCount);
     }
 
@@ -58,7 +59,7 @@ public class UpdateCalendarEventHandlerTests
             new UpdateEventTextCommand(CalendarEventId, Texts),
             CancellationToken.None);
 
-        Assert.Equal(UpdateCalendarEventResult.NotFound, result);
+        Assert.Equal(UpdateCalendarEventStatus.NotFound, result.Status);
         Assert.Equal(0, modifier.UpdateCallCount);
     }
 
@@ -72,7 +73,7 @@ public class UpdateCalendarEventHandlerTests
             new UpdateEventTextCommand(CalendarEventId, Texts),
             CancellationToken.None);
 
-        Assert.Equal(UpdateCalendarEventResult.NotFound, result);
+        Assert.Equal(UpdateCalendarEventStatus.NotFound, result.Status);
         Assert.Equal(1, modifier.UpdateCallCount);
     }
 

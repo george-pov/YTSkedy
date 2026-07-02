@@ -75,16 +75,12 @@ internal static class CalendarEventViewMapper
     {
         ArgumentNullException.ThrowIfNull(text);
 
-        var document = new EventTextSnapshotDocument(
+        var document = new EventTextSnapshotJson(
             text.Fields
-                .Select(field => new EventTextFieldDocument(
-                    field.FieldKey,
-                    field.Label,
-                    field.Type.ToString(),
-                    field.MaxLength))
+                .Select(EventTextFieldItem.From)
                 .ToArray(),
             text.Values
-                .Select(value => new EventTextValueDocument(
+                .Select(value => new EventTextValueItem(
                     value.FieldKey,
                     value.Value))
                 .ToArray());
@@ -96,7 +92,7 @@ internal static class CalendarEventViewMapper
     {
         try
         {
-            var document = JsonSerializer.Deserialize<EventTextSnapshotDocument>(
+            var document = JsonSerializer.Deserialize<EventTextSnapshotJson>(
                 entity.TextJson,
                 JsonOptions) ?? throw new InvalidOperationException(
                 $"Calendar event '{entity.CalendarEventId}' has missing text JSON.");
@@ -108,10 +104,10 @@ internal static class CalendarEventViewMapper
             }
 
             return new EventTextSnapshot(
-                document.Fields.Select(ToDomainField).ToArray(),
+                document.Fields.Select(EventTextFieldItem.ToDomain).ToArray(),
                 document.Values.Select(ToDomainValue).ToArray());
         }
-        catch (JsonException exception)
+        catch (Exception exception) when (exception is JsonException or ArgumentException)
         {
             throw new InvalidOperationException(
                 $"Calendar event '{entity.CalendarEventId}' has malformed text JSON.",
@@ -119,22 +115,7 @@ internal static class CalendarEventViewMapper
         }
     }
 
-    private static EventTextField ToDomainField(EventTextFieldDocument field)
-    {
-        if (field is null)
-        {
-            throw new InvalidOperationException(
-                "Stored calendar event text JSON cannot contain null fields.");
-        }
-
-        return new EventTextField(
-            field.FieldKey ?? string.Empty,
-            field.Label ?? string.Empty,
-            ParseType(field.Type),
-            field.MaxLength);
-    }
-
-    private static EventTextValue ToDomainValue(EventTextValueDocument value)
+    private static EventTextValue ToDomainValue(EventTextValueItem value)
     {
         if (value is null)
         {
@@ -147,26 +128,11 @@ internal static class CalendarEventViewMapper
             value.Value ?? string.Empty);
     }
 
-    private static EventTextType ParseType(string? type) =>
-        type?.ToLowerInvariant() switch
-        {
-            "shorttext" => EventTextType.ShortText,
-            "longtext" => EventTextType.LongText,
-            _ => throw new InvalidOperationException(
-                $"Stored event text type value '{type ?? "<null>"}' is invalid.")
-        };
+    private sealed record EventTextSnapshotJson(
+        IReadOnlyList<EventTextFieldItem> Fields,
+        IReadOnlyList<EventTextValueItem> Values);
 
-    private sealed record EventTextSnapshotDocument(
-        IReadOnlyList<EventTextFieldDocument> Fields,
-        IReadOnlyList<EventTextValueDocument> Values);
-
-    private sealed record EventTextFieldDocument(
-        string? FieldKey,
-        string? Label,
-        string? Type,
-        int MaxLength);
-
-    private sealed record EventTextValueDocument(
+    private sealed record EventTextValueItem(
         string? FieldKey,
         string? Value);
 }

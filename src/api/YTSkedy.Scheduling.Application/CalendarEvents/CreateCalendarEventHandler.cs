@@ -14,13 +14,23 @@ public sealed class CreateCalendarEventHandler(
         ArgumentNullException.ThrowIfNull(command);
 
         var fields = await eventTextFields.GetAsync(cancellationToken);
-        var snapshot = EventTextSnapshot.Create(fields, command.Texts);
+
+        EventTextSnapshot snapshot;
+        try
+        {
+            snapshot = EventTextSnapshot.Create(fields, command.Texts);
+        }
+        catch (ArgumentException exception)
+        {
+            return CreateCalendarEventResult.Invalid(exception.Message);
+        }
+
         var calendarEvent = new CalendarEvent(command.Start, snapshot);
 
         var calendarEventId = await calendarEvents.CreateAsync(
             calendarEvent,
             cancellationToken);
 
-        return new CreateCalendarEventResult(calendarEventId);
+        return CreateCalendarEventResult.Created(calendarEventId);
     }
 }

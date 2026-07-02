@@ -29,6 +29,7 @@ public class CreateCalendarEventHandlerTests
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
+        Assert.Equal(CreateCalendarEventStatus.Created, result.Status);
         Assert.Equal("1001", result.CalendarEventId);
         var createdCalendarEvent = modifier.CreatedCalendarEvent;
         Assert.NotNull(createdCalendarEvent);
@@ -41,7 +42,7 @@ public class CreateCalendarEventHandlerTests
     }
 
     [Fact]
-    public async Task CreateCalendarEvent_MissingRequiredText_Throws()
+    public async Task CreateCalendarEvent_MissingRequiredText_ReturnsInvalidWithoutCreating()
     {
         var modifier = new FakeCalendarEventModifier("1001");
         var handler = new CreateCalendarEventHandler(
@@ -51,9 +52,11 @@ public class CreateCalendarEventHandlerTests
             new ScheduledStart(new DateTime(2026, 06, 05, 10, 00, 00), "America/Vancouver"),
             [new EventTextValue("text1", "English stream 1")]);
 
-        await Assert.ThrowsAsync<ArgumentException>(
-            () => handler.HandleAsync(command, CancellationToken.None));
+        var result = await handler.HandleAsync(command, CancellationToken.None);
 
+        Assert.Equal(CreateCalendarEventStatus.Invalid, result.Status);
+        Assert.False(string.IsNullOrWhiteSpace(result.ValidationError));
+        Assert.Null(result.CalendarEventId);
         Assert.Null(modifier.CreatedCalendarEvent);
     }
 

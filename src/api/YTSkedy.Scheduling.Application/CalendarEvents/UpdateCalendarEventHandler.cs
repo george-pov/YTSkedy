@@ -21,7 +21,16 @@ public sealed class UpdateCalendarEventHandler(
             return UpdateCalendarEventResult.NotFound;
         }
 
-        var text = calendarEvent.Text.UpdateValues(command.Texts);
+        EventTextSnapshot text;
+        try
+        {
+            text = calendarEvent.Text.UpdateValues(command.Texts);
+        }
+        catch (ArgumentException exception)
+        {
+            return UpdateCalendarEventResult.Invalid(exception.Message);
+        }
+
         var updated = await calendarEvents.UpdateTextAsync(
             command.CalendarEventId,
             text,

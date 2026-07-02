@@ -32,25 +32,20 @@ public sealed class CalendarEventsApi(
         }
 
         var createRequest = body.Value!;
-        var command = new CreateCalendarEventCommand(
-            new ScheduledStart(
-                createRequest.Start.LocalDateTime,
-                createRequest.Start.TimeZoneId),
-            ToEventTextValues(createRequest.Texts));
-
-        CreateCalendarEventResult result;
-        try
+        if (!TryBuildCreateCommand(createRequest, out var command, out var error))
         {
-            result = await createHandler.HandleAsync(
-                command,
-                cancellationToken);
-        }
-        catch (ArgumentException exception)
-        {
-            return new BadRequestObjectResult(exception.Message);
+            return error;
         }
 
-        return new OkObjectResult(new CreateCalendarEventResponse(result.CalendarEventId));
+        var result = await createHandler.HandleAsync(command, cancellationToken);
+
+        return result.Status switch
+        {
+            CreateCalendarEventStatus.Created => new OkObjectResult(
+                new CreateCalendarEventResponse(result.CalendarEventId!)),
+            CreateCalendarEventStatus.Invalid => new BadRequestObjectResult(result.ValidationError),
+            _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
+        };
     }
 
     [Function("ListCalendarEvents")]
@@ -121,25 +116,19 @@ public sealed class CalendarEventsApi(
         }
 
         var updateRequest = body.Value!;
-        var command = new UpdateEventTextCommand(
-            calendarEventId,
-            ToEventTextValues(updateRequest.Texts));
-
-        UpdateCalendarEventResult result;
-        try
+        if (!TryBuildUpdateCommand(calendarEventId, updateRequest, out var command, out var error))
         {
-            result = await updateHandler.HandleAsync(command, cancellationToken);
-        }
-        catch (ArgumentException exception)
-        {
-            return new BadRequestObjectResult(exception.Message);
+            return error;
         }
 
-        return result switch
+        var result = await updateHandler.HandleAsync(command, cancellationToken);
+
+        return result.Status switch
         {
-            UpdateCalendarEventResult.Updated => new OkObjectResult(
+            UpdateCalendarEventStatus.Updated => new OkObjectResult(
                 new UpdateCalendarEventResponse(calendarEventId)),
-            UpdateCalendarEventResult.NotFound => new NotFoundResult(),
+            UpdateCalendarEventStatus.NotFound => new NotFoundResult(),
+            UpdateCalendarEventStatus.Invalid => new BadRequestObjectResult(result.ValidationError),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
     }
@@ -409,24 +398,112 @@ public sealed class CalendarEventsApi(
     private static string ToDirectionString(SortDirection direction) =>
         direction == SortDirection.Descending ? "desc" : "asc";
 
-    private static EventTextValue[] ToEventTextValues(
-        IReadOnlyList<EventTextPayload> texts)
+    /// <summary>
+    /// Validates a create request at the API boundary and maps it to a command.
+    /// Structural failures (missing start, malformed text entries) yield a
+    /// <c>400 Bad Request</c> through <paramref name="error"/>. Value validity
+    /// against the configured fields is state-dependent and checked in the handler.
+    /// </summary>
+    internal static bool TryBuildCreateCommand(
+        CreateCalendarEventRequest request,
+        out CreateCalendarEventCommand command,
+        out IActionResult error)
     {
-        ArgumentNullException.ThrowIfNull(texts);
+        ArgumentNullException.ThrowIfNull(request);
 
-        var values = new List<EventTextValue>();
+        command = default!;
+        error = new EmptyResult();
+
+        if (request.Start is null)
+        {
+            error = InvalidStartResult();
+            return false;
+        }
+
+        if (!TryBuildEventTextValues(request.Texts, out var texts, out error))
+        {
+            return false;
+        }
+
+        command = new CreateCalendarEventCommand(
+            new ScheduledStart(
+                request.Start.LocalDateTime,
+                request.Start.TimeZoneId),
+            texts);
+        return true;
+    }
+
+    /// <summary>
+    /// Validates an update request and its route id at the API boundary and maps
+    /// them to a command. The start is immutable and not accepted; only the text
+    /// values change. Structural failures yield a <c>400 Bad Request</c> through
+    /// <paramref name="error"/>.
+    /// </summary>
+    internal static bool TryBuildUpdateCommand(
+        string calendarEventId,
+        UpdateCalendarEventRequest request,
+        out UpdateEventTextCommand command,
+        out IActionResult error)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        command = default!;
+        error = new EmptyResult();
+
+        if (!TryBuildEventTextValues(request.Texts, out var texts, out error))
+        {
+            return false;
+        }
+
+        command = new UpdateEventTextCommand(calendarEventId, texts);
+        return true;
+    }
+
+    private static bool TryBuildEventTextValues(
+        IReadOnlyList<EventTextPayload> texts,
+        out EventTextValue[] values,
+        out IActionResult error)
+    {
+        values = [];
+        error = new EmptyResult();
+
+        if (texts is null)
+        {
+            error = InvalidTextsResult();
+            return false;
+        }
+
+        var built = new List<EventTextValue>();
         foreach (var text in texts)
         {
             if (text is null)
             {
-                throw new ArgumentException("Text entries cannot be null.", nameof(texts));
+                error = InvalidTextsResult();
+                return false;
             }
 
-            values.Add(new EventTextValue(text.FieldKey, text.Value));
+            try
+            {
+                built.Add(new EventTextValue(text.FieldKey, text.Value));
+            }
+            catch (ArgumentException)
+            {
+                error = InvalidTextsResult();
+                return false;
+            }
         }
 
-        return values.ToArray();
+        values = built.ToArray();
+        return true;
     }
+
+    private static IActionResult InvalidStartResult() =>
+        new BadRequestObjectResult(
+            "Start local date-time and time zone id are required.");
+
+    private static IActionResult InvalidTextsResult() =>
+        new BadRequestObjectResult(
+            "Text entries must each have a field key and value.");
 
     private static EventTextResponse[] ToTextResponse(EventTextSnapshot text)
     {

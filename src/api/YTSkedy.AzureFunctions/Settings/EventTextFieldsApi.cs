@@ -72,7 +72,7 @@ public sealed class EventTextFieldsApi(
             if (field is null ||
                 !EventTextField.IsValidLabel(field.Label) ||
                 !EventTextField.IsValidMaxLength(field.MaxLength) ||
-                !TryParseEventTextType(field.Type, out var type))
+                !EventTextTypeParser.TryParse(field.Type, out var type))
             {
                 error = InvalidFieldsResult();
                 return false;
@@ -101,22 +101,6 @@ public sealed class EventTextFieldsApi(
                     field.Type.ToString(),
                     field.MaxLength))
                 .ToArray());
-    }
-
-    private static bool TryParseEventTextType(string? value, out EventTextType type)
-    {
-        switch (value?.ToLowerInvariant())
-        {
-            case "shorttext":
-                type = EventTextType.ShortText;
-                return true;
-            case "longtext":
-                type = EventTextType.LongText;
-                return true;
-            default:
-                type = default;
-                return false;
-        }
     }
 
     private static IActionResult InvalidFieldsResult() =>
