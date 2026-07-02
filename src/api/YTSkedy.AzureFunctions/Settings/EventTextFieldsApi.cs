@@ -79,7 +79,6 @@ public sealed class EventTextFieldsApi(
             }
 
             fields.Add(new EventTextField(
-                field.FieldKey ?? string.Empty,
                 field.Label!,
                 type,
                 field.MaxLength));

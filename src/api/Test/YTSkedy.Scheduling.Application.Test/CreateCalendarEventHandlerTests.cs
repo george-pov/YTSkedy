@@ -12,8 +12,8 @@ public class CreateCalendarEventHandlerTests
         var modifier = new FakeCalendarEventModifier("1001");
         var settings = new EventTextFields(
             [
-                new EventTextField("ignored", "Title", EventTextType.ShortText, 50),
-                new EventTextField("ignored", "Description", EventTextType.LongText, 2500)
+                new EventTextField("Title", EventTextType.ShortText, 50),
+                new EventTextField("Description", EventTextType.LongText, 2500)
             ]);
         var reader = new FakeEventTextFieldsReader(settings);
         var handler = new CreateCalendarEventHandler(reader, modifier);

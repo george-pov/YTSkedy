@@ -29,8 +29,8 @@ public sealed class AzureEventTextFieldsRepositoryTests
         var repository = new AzureEventTextFieldsRepository(tableClient);
         var settings = new EventTextFields(
             [
-                new EventTextField("text9", "Title", EventTextType.ShortText, 80),
-                new EventTextField("text10", "Details", EventTextType.LongText, 3000)
+                new EventTextField("Title", EventTextType.ShortText, 80),
+                new EventTextField("Details", EventTextType.LongText, 3000)
             ]);
 
         await repository.SaveAsync(settings, CancellationToken.None);
@@ -49,7 +49,7 @@ public sealed class AzureEventTextFieldsRepositoryTests
         var tableClient = new InMemoryTableClient();
         var repository = new AzureEventTextFieldsRepository(tableClient);
         var settings = new EventTextFields(
-            [new EventTextField("old", "Episode", EventTextType.ShortText, 120)]);
+            [new EventTextField("Episode", EventTextType.ShortText, 120)]);
 
         await repository.SaveAsync(settings, CancellationToken.None);
         var read = await repository.GetAsync(CancellationToken.None);

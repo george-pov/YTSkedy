@@ -43,9 +43,11 @@ internal sealed record EventTextFieldItem(
         }
 
         return new EventTextField(
-            item.FieldKey ?? string.Empty,
             item.Label ?? string.Empty,
             type,
-            item.MaxLength);
+            item.MaxLength)
+        {
+            FieldKey = item.FieldKey ?? string.Empty
+        };
     }
 }

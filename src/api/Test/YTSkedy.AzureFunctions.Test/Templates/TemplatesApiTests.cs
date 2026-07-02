@@ -311,7 +311,7 @@ public sealed class TemplatesApiTests
     public void ToTokenListResponse_Catalog_MapsEveryTokenName()
     {
         var response = TemplatesApi.ToTokenListResponse(
-            TemplateTokenCatalog.From(EventTextFields.Default));
+            TemplateTokenCatalog.From(EventTextFields.Default, []));
 
         Assert.Equal(
             [

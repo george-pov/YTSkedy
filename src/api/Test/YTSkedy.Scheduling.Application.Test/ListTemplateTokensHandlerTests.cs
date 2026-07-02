@@ -16,12 +16,10 @@ public class ListTemplateTokensHandlerTests
                 new EventTextFields(
                     [
                         new EventTextField(
-                            string.Empty,
                             "Episode title",
                             EventTextType.ShortText,
                             80),
                         new EventTextField(
-                            string.Empty,
                             "Episode details",
                             EventTextType.LongText,
                             2500)

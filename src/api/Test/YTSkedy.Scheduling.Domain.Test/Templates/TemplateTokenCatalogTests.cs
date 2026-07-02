@@ -6,16 +6,16 @@ namespace YTSkedy.Scheduling.Domain.Test.Templates;
 public class TemplateTokenCatalogTests
 {
     [Fact]
-    public void From_EventTextFields_ReturnsTextAndDateTokenNamesInOrder()
+    public void From_NoPlatformReferenceKeys_ReturnsTextAndDateTokenNamesInOrder()
     {
         var fields = new EventTextFields(
             [
-                new EventTextField(string.Empty, "Episode title", EventTextType.ShortText, 80),
-                new EventTextField(string.Empty, "Details", EventTextType.LongText, 2500),
-                new EventTextField(string.Empty, "Social copy", EventTextType.ShortText, 140)
+                new EventTextField("Episode title", EventTextType.ShortText, 80),
+                new EventTextField("Details", EventTextType.LongText, 2500),
+                new EventTextField("Social copy", EventTextType.ShortText, 140)
             ]);
 
-        var names = TemplateTokenCatalog.From(fields).Select(token => token.Name).ToArray();
+        var names = TemplateTokenCatalog.From(fields, []).Select(token => token.Name).ToArray();
 
         Assert.Equal(
             [

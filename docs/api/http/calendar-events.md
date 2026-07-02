@@ -163,9 +163,7 @@ Query parameters (all optional):
 - `pageSize`: page size from `1` through `100`. Default `10`.
 - `sort`: sort field, one of `scheduledStart`, `timeZone`, or `title`
   (case-insensitive). Default `scheduledStart`. `scheduledStart` orders by the
-  UTC start instant. `title` orders by the first `ShortText` value in the
-  stored event snapshot, falling back to the first text value when the snapshot
-  has no short text field.
+  UTC start instant. `title` orders by `displayTitle`.
 - `direction`: `asc` or `desc` (case-insensitive). Default `desc`.
 - `year` and `month`: optional local-calendar-month filter. When supplied they
   must be supplied together; `year` is `1000` through `9999` and `month` is `1`
@@ -190,6 +188,7 @@ Success response (`200 OK`) is a paged envelope:
         "timeZoneId": "America/Vancouver"
       },
       "scheduledStartUtc": "2026-06-06T17:00:00+00:00",
+      "displayTitle": "Saturday stream",
       "texts": [
         {
           "fieldKey": "text1",
@@ -223,6 +222,10 @@ Success response (`200 OK`) is a paged envelope:
   `timeZoneId`) and `scheduledStartUtc`, the same instant as a UTC ISO-8601
   offset string. The UI list renders `scheduledStartUtc`; the create/edit form
   works in local time and zone.
+- `displayTitle` is the backend-defined representative title for list display
+  and `title` sorting. It is the first `ShortText` value in the stored event
+  snapshot, falling back to the first text value when the snapshot has no short
+  text field.
 - `texts` is the event's stored snapshot. It carries enough field metadata for
   clients to display or edit the event without consulting the current setting.
 - A page past the end returns `200 OK` with `items` as `[]` and the real
@@ -276,6 +279,7 @@ Success response (`200 OK`):
     "timeZoneId": "America/Vancouver"
   },
   "scheduledStartUtc": "2026-06-06T17:00:00+00:00",
+  "displayTitle": "Saturday stream",
   "texts": [
     {
       "fieldKey": "text1",

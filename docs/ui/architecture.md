@@ -23,11 +23,11 @@ The Angular frontend lives under `src/ui/`.
   shared `app-data-table` component in server mode. It defaults to the first
   page sorted by scheduled start descending, re-fetches on each sort, page, or
   page-size change. The Scheduled Start (UTC) and Title columns are sortable,
-  and the Actions column projects the Edit button. The title display comes from
-  the first `ShortText` field in each event's stored `texts` snapshot, falling
-  back to the first text value. The scheduled start is rendered as the UTC
-  instant; local time and zone are shown on the create/edit form. Publishing is
-  platform-scoped and is exposed from the calendar event details edit route.
+  and the Actions column projects the Edit button. The title display uses the
+  backend `displayTitle` field, which is also the source for `title` sorting.
+  The scheduled start is rendered as the UTC instant; local time and zone are
+  shown on the create/edit form. Publishing is platform-scoped and is exposed
+  from the calendar event details edit route.
 - The `platforms` page route lists, creates, updates, and deletes configured
   publishing destinations through the platforms API service. It shows and edits
   each platform's optional Reference key, and exposes YouTube and WordPress

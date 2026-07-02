@@ -10,6 +10,24 @@ namespace YTSkedy.Scheduling.Application.Platforms;
 /// </summary>
 internal static class PlatformReferenceTokenValues
 {
+    internal static async Task<IReadOnlyDictionary<string, string>> BuildAsync(
+        IPlatformReader platforms,
+        IPlatformPublicationReader publications,
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(platforms);
+        ArgumentNullException.ThrowIfNull(publications);
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+
+        var activePlatforms = await platforms.ListAsync(null, cancellationToken);
+        var publicationRows = await publications.ListByEventAsync(
+            calendarEventId,
+            cancellationToken);
+
+        return From(activePlatforms, publicationRows);
+    }
+
     internal static IReadOnlyDictionary<string, string> From(
         IReadOnlyList<PlatformView> activePlatforms,
         IReadOnlyList<PlatformPublication> publicationRows)

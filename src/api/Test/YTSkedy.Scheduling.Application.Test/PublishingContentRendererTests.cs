@@ -16,7 +16,8 @@ public class PublishingContentRendererTests
         var result = renderer.Render(
             "{{ text1 }} on {{ shortDateEn }}",
             "Details: {{ text2 }}",
-            Event());
+            Event(),
+            null);
 
         Assert.Equal(RenderContentStatus.Rendered, result.Status);
         Assert.NotNull(result.Content);
@@ -33,7 +34,8 @@ public class PublishingContentRendererTests
         var result = renderer.Render(
             "{{    text3    }}",
             null,
-            Event());
+            Event(),
+            null);
 
         Assert.Equal("Russian title", result.Content!.Title);
     }
@@ -46,7 +48,8 @@ public class PublishingContentRendererTests
         var result = renderer.Render(
             "{{ text1 }} / {{ text1 }}",
             null,
-            Event());
+            Event(),
+            null);
 
         Assert.Equal("English title / English title", result.Content!.Title);
     }
@@ -59,7 +62,8 @@ public class PublishingContentRendererTests
         var result = renderer.Render(
             "{{ tittle }}",
             "Text {{ unknownToken }}",
-            Event());
+            Event(),
+            null);
 
         Assert.Equal(RenderContentStatus.Rendered, result.Status);
         Assert.Equal("{{ tittle }}", result.Content!.Title);
@@ -111,7 +115,8 @@ public class PublishingContentRendererTests
         var result = renderer.Render(
             "{ text1 } and {{ text1",
             "Text {{ text 1 }}",
-            Event());
+            Event(),
+            null);
 
         Assert.Equal("{ text1 } and {{ text1", result.Content!.Title);
         Assert.Equal("Text {{ text 1 }}", result.Content.Description);
@@ -127,7 +132,8 @@ public class PublishingContentRendererTests
         var result = renderer.Render(
             "{{ text2 }}",
             null,
-            calendarEvent);
+            calendarEvent,
+            null);
 
         Assert.Equal(RenderContentStatus.EmptyTitle, result.Status);
         Assert.Null(result.Content);
@@ -143,7 +149,8 @@ public class PublishingContentRendererTests
         var result = renderer.Render(
             "{{ text1 }}",
             "{{ text2 }}",
-            calendarEvent);
+            calendarEvent,
+            null);
 
         Assert.Equal(RenderContentStatus.Rendered, result.Status);
         Assert.Null(result.Content!.Description);
@@ -168,6 +175,7 @@ public class PublishingContentRendererTests
         var result = await renderer.RenderAsync(
             Platform(new PublishingContent("title-template", "description-template")),
             Event(),
+            runtimeTokenValues: null,
             CancellationToken.None);
 
         Assert.Equal(RenderContentStatus.Rendered, result.Status);
@@ -183,6 +191,7 @@ public class PublishingContentRendererTests
         var result = await renderer.RenderAsync(
             Platform(new PublishingContent("missing-template", "description-template")),
             Event(),
+            runtimeTokenValues: null,
             CancellationToken.None);
 
         Assert.Equal(RenderContentStatus.TemplateNotFound, result.Status);
@@ -199,10 +208,10 @@ public class PublishingContentRendererTests
     private static EventTextSnapshot Text(string? description = "English description") =>
         new(
             [
-                new EventTextField("text1", "Title", EventTextType.ShortText, 50),
-                new EventTextField("text2", "Description", EventTextType.LongText, 2500),
-                new EventTextField("text3", "Russian title", EventTextType.ShortText, 50),
-                new EventTextField("text4", "Russian description", EventTextType.LongText, 2500)
+                new EventTextField("Title", EventTextType.ShortText, 50) { FieldKey = "text1" },
+                new EventTextField("Description", EventTextType.LongText, 2500) { FieldKey = "text2" },
+                new EventTextField("Russian title", EventTextType.ShortText, 50) { FieldKey = "text3" },
+                new EventTextField("Russian description", EventTextType.LongText, 2500) { FieldKey = "text4" }
             ],
             [
                 new EventTextValue("text1", "English title"),

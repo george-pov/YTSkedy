@@ -336,6 +336,7 @@ public sealed class CalendarEventsApi(
                 calendarEvent.Start.LocalDateTime,
                 calendarEvent.Start.TimeZoneId),
             calendarEvent.ScheduledStartUtc,
+            calendarEvent.Text.DisplayTitle,
             ToTextResponse(calendarEvent.Text));
     }
 
@@ -357,6 +358,7 @@ public sealed class CalendarEventsApi(
                 calendarEvent.Start.LocalDateTime,
                 calendarEvent.Start.TimeZoneId),
             calendarEvent.ScheduledStartUtc,
+            calendarEvent.Text.DisplayTitle,
             ToTextResponse(calendarEvent.Text),
             details.Platforms
                 .Select(ToEventPlatformResponse)

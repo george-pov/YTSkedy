@@ -10,7 +10,7 @@ public sealed class UpdateEventTextFieldsHandler(IEventTextFieldsModifier eventT
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var normalized = EventTextFields.Normalize(command.Fields);
+        var normalized = new EventTextFields(command.Fields);
 
         await eventTextFields.SaveAsync(normalized, cancellationToken);
 

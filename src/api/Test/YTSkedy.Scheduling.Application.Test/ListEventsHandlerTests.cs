@@ -66,7 +66,7 @@ public class ListEventsHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_TitleAscending_SortsByFirstShortTextOrdinal()
+    public async Task HandleAsync_TitleAscending_SortsByDisplayTitleOrdinal()
     {
         var reader = new FakeCalendarEventReader(
         [
@@ -86,7 +86,7 @@ public class ListEventsHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_TitleAscending_NoShortText_FallsBackToFirstTextValue()
+    public async Task HandleAsync_TitleAscending_SortsByDisplayTitleFallback()
     {
         var reader = new FakeCalendarEventReader(
         [
@@ -274,7 +274,7 @@ public class ListEventsHandlerTests
                     ])
                 : EventTextSnapshot.Create(
                     new EventTextFields(
-                        [new EventTextField("ignored", "Body", EventTextType.LongText, 2500)]),
+                        [new EventTextField("Body", EventTextType.LongText, 2500)]),
                     [new EventTextValue("text1", title ?? $"Title {calendarEventId}")]));
 
     private static string[] Ids(CalendarEventListPage page) =>

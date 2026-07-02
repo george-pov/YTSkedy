@@ -21,8 +21,8 @@ GET {{HostAddress}}/api/calendar-events?page=0&pageSize=10&sort=scheduledStart&d
 Authorization: Bearer {{accessToken}}
 
 ### List calendar events sorted by title ascending
-# Expected response: 200 OK ordered by the first ShortText value, falling back
-# to the first text value, then calendar event id ascending.
+# Expected response: 200 OK ordered by displayTitle, then calendar event id
+# ascending.
 
 GET {{HostAddress}}/api/calendar-events?sort=title&direction=asc
 Authorization: Bearer {{accessToken}}

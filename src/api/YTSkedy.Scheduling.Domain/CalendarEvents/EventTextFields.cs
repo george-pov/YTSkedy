@@ -22,21 +22,16 @@ public sealed record EventTextFields
     public static EventTextFields Default { get; } = new(
         [
             new EventTextField(
-                string.Empty,
                 "Title",
                 EventTextType.ShortText,
                 DefaultShortTextMaxLength),
             new EventTextField(
-                string.Empty,
                 "Description",
                 EventTextType.LongText,
                 DefaultLongTextMaxLength)
         ]);
 
     public IReadOnlyList<EventTextField> Fields { get; }
-
-    public static EventTextFields Normalize(IEnumerable<EventTextField> fields) =>
-        new(fields);
 
     private static IEnumerable<EventTextField> NormalizeFields(
         IEnumerable<EventTextField> fields)
@@ -46,11 +41,7 @@ public sealed record EventTextFields
         {
             ArgumentNullException.ThrowIfNull(field);
 
-            yield return new EventTextField(
-                FieldKeyFor(index),
-                field.Label,
-                field.Type,
-                field.MaxLength);
+            yield return field with { FieldKey = FieldKeyFor(index) };
 
             index++;
         }

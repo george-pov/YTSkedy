@@ -87,10 +87,10 @@ public class CalendarEventTokenValuesTests
         string russianDescription = "Russian description") =>
         new(
             [
-                new EventTextField("text1", "Title", EventTextType.ShortText, 50),
-                new EventTextField("text2", "Description", EventTextType.LongText, 2500),
-                new EventTextField("text3", "Russian title", EventTextType.ShortText, 50),
-                new EventTextField("text4", "Russian description", EventTextType.LongText, 2500)
+                new EventTextField("Title", EventTextType.ShortText, 50) { FieldKey = "text1" },
+                new EventTextField("Description", EventTextType.LongText, 2500) { FieldKey = "text2" },
+                new EventTextField("Russian title", EventTextType.ShortText, 50) { FieldKey = "text3" },
+                new EventTextField("Russian description", EventTextType.LongText, 2500) { FieldKey = "text4" }
             ],
             [
                 new EventTextValue("text1", title),

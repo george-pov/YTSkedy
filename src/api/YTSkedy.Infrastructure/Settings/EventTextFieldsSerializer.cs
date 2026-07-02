@@ -12,9 +12,8 @@ internal static class EventTextFieldsSerializer
     {
         ArgumentNullException.ThrowIfNull(eventTextFields);
 
-        var normalized = EventTextFields.Normalize(eventTextFields.Fields);
         var document = new EventTextFieldsJson(
-            normalized.Fields
+            eventTextFields.Fields
                 .Select(EventTextFieldItem.From)
                 .ToArray());
 
@@ -45,7 +44,7 @@ internal static class EventTextFieldsSerializer
                     "Stored event text fields JSON must contain fields.");
             }
 
-            return EventTextFields.Normalize(
+            return new EventTextFields(
                 document.Fields.Select(EventTextFieldItem.ToDomain));
         }
         catch (JsonException exception)

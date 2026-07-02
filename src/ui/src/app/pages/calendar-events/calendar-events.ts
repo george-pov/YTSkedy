@@ -55,7 +55,7 @@ export class CalendarEvents implements OnInit {
     {
       key: 'title',
       header: 'Title',
-      value: (event) => displayTitle(event),
+      value: (event) => event.displayTitle,
       sortable: true,
       truncate: true,
     },
@@ -140,15 +140,6 @@ function formatScheduledStartUtc(scheduledStartUtc: string): string {
     `${pad(instant.getUTCDate())} ${pad(instant.getUTCHours())}:` +
     `${pad(instant.getUTCMinutes())}`
   );
-}
-
-// Presentation-only title for the list column. The backend sorts by the first
-// short text field and falls back to the first text value; mirror that display
-// rule so the visible title matches the sorted source.
-function displayTitle(event: CalendarEvent): string {
-  const shortText = event.texts.find((text) => text.type === 'ShortText');
-
-  return shortText?.value ?? event.texts[0]?.value ?? '';
 }
 
 // Maps a table column key to its API sort field. Only the sortable columns are

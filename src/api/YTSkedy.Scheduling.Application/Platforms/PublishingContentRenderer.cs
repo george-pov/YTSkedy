@@ -28,18 +28,6 @@ public sealed partial class PublishingContentRenderer
     public async Task<RenderContentResult> RenderAsync(
         PlatformView platform,
         CalendarEventView calendarEvent,
-        CancellationToken cancellationToken)
-    {
-        return await RenderAsync(
-            platform,
-            calendarEvent,
-            runtimeTokenValues: null,
-            cancellationToken);
-    }
-
-    public async Task<RenderContentResult> RenderAsync(
-        PlatformView platform,
-        CalendarEventView calendarEvent,
         IReadOnlyDictionary<string, string>? runtimeTokenValues,
         CancellationToken cancellationToken)
     {
@@ -77,7 +65,7 @@ public sealed partial class PublishingContentRenderer
         string title,
         string? description,
         CalendarEventView calendarEvent,
-        IReadOnlyDictionary<string, string>? runtimeTokenValues = null)
+        IReadOnlyDictionary<string, string>? runtimeTokenValues)
     {
         ArgumentNullException.ThrowIfNull(title);
         ArgumentNullException.ThrowIfNull(calendarEvent);

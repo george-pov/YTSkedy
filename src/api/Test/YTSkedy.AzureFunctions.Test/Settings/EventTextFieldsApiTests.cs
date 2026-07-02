@@ -118,8 +118,8 @@ public sealed class EventTextFieldsApiTests
     {
         var eventTextFields = new EventTextFields(
             [
-                new EventTextField("ignored", "Episode", EventTextType.ShortText, 80),
-                new EventTextField("ignored", "Body", EventTextType.LongText, 1000)
+                new EventTextField("Episode", EventTextType.ShortText, 80),
+                new EventTextField("Body", EventTextType.LongText, 1000)
             ]);
 
         var response = EventTextFieldsApi.ToResponse(eventTextFields);

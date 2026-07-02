@@ -1223,6 +1223,7 @@ describe('CalendarEventDetails', () => {
         timeZoneId: 'Europe/London',
       },
       scheduledStartUtc: '2030-07-04T08:30:00+00:00',
+      displayTitle: 'English title',
       texts: [
         {
           fieldKey: 'text1',

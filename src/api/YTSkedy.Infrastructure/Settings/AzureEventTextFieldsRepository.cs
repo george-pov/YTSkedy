@@ -37,12 +37,11 @@ public sealed class AzureEventTextFieldsRepository(TableClient tableClient) :
 
         await tableClient.CreateIfNotExistsAsync(cancellationToken);
 
-        var normalized = EventTextFields.Normalize(eventTextFields.Fields);
         var entity = new ApplicationSettingsEntity
         {
             PartitionKey = ApplicationSettingsKey.PartitionKey,
             RowKey = ApplicationSettingsKey.EventTextFieldsRowKey,
-            ValueJson = EventTextFieldsSerializer.Serialize(normalized)
+            ValueJson = EventTextFieldsSerializer.Serialize(eventTextFields)
         };
 
         await tableClient.UpsertEntityAsync(

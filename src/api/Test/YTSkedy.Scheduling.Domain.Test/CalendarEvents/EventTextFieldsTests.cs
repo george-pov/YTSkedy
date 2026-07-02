@@ -28,12 +28,12 @@ public sealed class EventTextFieldsTests
     }
 
     [Fact]
-    public void Normalize_ReassignsFieldKeysFromOrderAndTrimsLabels()
+    public void Constructor_ReassignsFieldKeysFromOrderAndTrimsLabels()
     {
-        var fields = EventTextFields.Normalize(
+        var fields = new EventTextFields(
             [
-                new EventTextField("old-text3", " Primary title ", EventTextType.ShortText, 80),
-                new EventTextField("old-text4", " Long body ", EventTextType.LongText, 1000)
+                new EventTextField(" Primary title ", EventTextType.ShortText, 80),
+                new EventTextField(" Long body ", EventTextType.LongText, 1000)
             ]);
 
         Assert.Collection(
@@ -55,15 +55,15 @@ public sealed class EventTextFieldsTests
     }
 
     [Fact]
-    public void Normalize_AfterDelete_RenumbersLaterFields()
+    public void Constructor_RenumbersFieldKeysFromOrder()
     {
         EventTextField[] remaining =
         [
-            new("text1", "Title", EventTextType.ShortText, 50),
-            new("text3", "Details", EventTextType.LongText, 2500)
+            new("Title", EventTextType.ShortText, 50),
+            new("Details", EventTextType.LongText, 2500)
         ];
 
-        var normalized = EventTextFields.Normalize(remaining);
+        var normalized = new EventTextFields(remaining);
 
         Assert.Equal(["text1", "text2"], normalized.Fields.Select(field => field.FieldKey));
     }
@@ -72,7 +72,7 @@ public sealed class EventTextFieldsTests
     public void Constructor_BlankLabel_Throws()
     {
         Assert.Throws<ArgumentException>(
-            () => new EventTextField("text1", " ", EventTextType.ShortText, 50));
+            () => new EventTextField(" ", EventTextType.ShortText, 50));
     }
 
     [Theory]
@@ -81,14 +81,14 @@ public sealed class EventTextFieldsTests
     public void Constructor_InvalidMaxLength_Throws(int maxLength)
     {
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => new EventTextField("text1", "Title", EventTextType.ShortText, maxLength));
+            () => new EventTextField("Title", EventTextType.ShortText, maxLength));
     }
 
     [Fact]
     public void Constructor_InvalidType_Throws()
     {
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => new EventTextField("text1", "Title", (EventTextType)42, 50));
+            () => new EventTextField("Title", (EventTextType)42, 50));
     }
 
     [Fact]
@@ -119,10 +119,72 @@ public sealed class EventTextFieldsTests
     }
 
     [Fact]
+    public void CreateSnapshot_UnknownFieldKey_Throws()
+    {
+        Assert.Throws<ArgumentException>(
+            () => EventTextSnapshot.Create(
+                EventTextFields.Default,
+                [
+                    new EventTextValue("text1", "Stream title"),
+                    new EventTextValue("text2", "Detailed description"),
+                    new EventTextValue("text3", "Unexpected value")
+                ]));
+    }
+
+    [Fact]
+    public void CreateSnapshot_DuplicateFieldKey_Throws()
+    {
+        Assert.Throws<ArgumentException>(
+            () => EventTextSnapshot.Create(
+                EventTextFields.Default,
+                [
+                    new EventTextValue("text1", "Stream title"),
+                    new EventTextValue("text1", "Duplicate title"),
+                    new EventTextValue("text2", "Detailed description")
+                ]));
+    }
+
+    [Fact]
+    public void CreateSnapshot_DisplayTitle_ReturnsFirstShortTextValue()
+    {
+        var fields = new EventTextFields(
+            [
+                new EventTextField("Body", EventTextType.LongText, 2500),
+                new EventTextField("Episode title", EventTextType.ShortText, 80)
+            ]);
+        var snapshot = EventTextSnapshot.Create(
+            fields,
+            [
+                new EventTextValue("text1", "Long body"),
+                new EventTextValue("text2", "Short title")
+            ]);
+
+        Assert.Equal("Short title", snapshot.DisplayTitle);
+    }
+
+    [Fact]
+    public void CreateSnapshot_DisplayTitle_NoShortText_FallsBackToFirstValue()
+    {
+        var fields = new EventTextFields(
+            [
+                new EventTextField("Body", EventTextType.LongText, 2500),
+                new EventTextField("Notes", EventTextType.LongText, 2500)
+            ]);
+        var snapshot = EventTextSnapshot.Create(
+            fields,
+            [
+                new EventTextValue("text1", "Long body"),
+                new EventTextValue("text2", "Notes")
+            ]);
+
+        Assert.Equal("Long body", snapshot.DisplayTitle);
+    }
+
+    [Fact]
     public void CreateSnapshot_ValueTooLong_Throws()
     {
         var fields = new EventTextFields(
-            [new EventTextField("text1", "Title", EventTextType.ShortText, 5)]);
+            [new EventTextField("Title", EventTextType.ShortText, 5)]);
 
         Assert.Throws<ArgumentException>(
             () => EventTextSnapshot.Create(

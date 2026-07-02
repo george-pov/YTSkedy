@@ -55,6 +55,7 @@ describe('CalendarEventsService', () => {
             timeZoneId: 'Etc/UTC',
           },
           scheduledStartUtc: '2026-01-15T09:30:00+00:00',
+          displayTitle: 'Test stream',
           texts: [
             {
               fieldKey: 'text1',
@@ -170,6 +171,7 @@ describe('CalendarEventsService', () => {
         timeZoneId: 'America/Vancouver',
       },
       scheduledStartUtc: '2026-06-06T17:00:00+00:00',
+      displayTitle: 'English stream 1',
       texts: [
         {
           fieldKey: 'text1',

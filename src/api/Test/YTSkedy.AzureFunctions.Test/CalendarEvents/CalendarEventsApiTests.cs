@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using YTSkedy.AzureFunctions.CalendarEvents;
+using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
@@ -7,6 +9,25 @@ namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
 public sealed class CalendarEventsApiTests
 {
     private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
+
+    [Fact]
+    public async Task ListAsync_EventPage_MapsDisplayTitle()
+    {
+        var api = new CalendarEventsApi(
+            null!,
+            new ListEventsHandler(new FakeCalendarEventReader([CreateEvent()])),
+            null!,
+            null!,
+            null!);
+        var request = new DefaultHttpContext().Request;
+
+        var result = await api.ListAsync(request, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<CalendarEventListResponse>(ok.Value);
+        var item = Assert.Single(response.Items);
+        Assert.Equal("English stream 1", item.DisplayTitle);
+    }
 
     [Fact]
     public void TryBuildCreateCommand_ValidRequest_BuildsCommand()
@@ -117,5 +138,31 @@ public sealed class CalendarEventsApiTests
 
         Assert.False(built);
         Assert.IsType<BadRequestObjectResult>(error);
+    }
+
+    private static CalendarEventView CreateEvent() =>
+        new(
+            CalendarEventId,
+            new ScheduledStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            EventTextSnapshot.Create(
+                EventTextFields.Default,
+                [
+                    new EventTextValue("text1", "English stream 1"),
+                    new EventTextValue("text2", "Event description")
+                ]));
+
+    private sealed class FakeCalendarEventReader(
+        IReadOnlyList<CalendarEventView> items) : ICalendarEventReader
+    {
+        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
+            CalendarEventMonthCriteria? criteria,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(items);
+
+        public Task<CalendarEventView?> GetByIdAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }

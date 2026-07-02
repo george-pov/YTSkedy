@@ -2,6 +2,8 @@ namespace YTSkedy.Scheduling.Domain.CalendarEvents;
 
 public sealed record EventTextSnapshot
 {
+    private const string ValuesParameterName = "values";
+
     public EventTextSnapshot(
         IReadOnlyList<EventTextField> fields,
         IReadOnlyList<EventTextValue> values)
@@ -16,6 +18,21 @@ public sealed record EventTextSnapshot
     public IReadOnlyList<EventTextField> Fields { get; }
 
     public IReadOnlyList<EventTextValue> Values { get; }
+
+    public string DisplayTitle
+    {
+        get
+        {
+            var firstShortText = Fields
+                .FirstOrDefault(textField => textField.Type == EventTextType.ShortText);
+            if (firstShortText is not null)
+            {
+                return ValueFor(firstShortText.FieldKey) ?? string.Empty;
+            }
+
+            return Values.FirstOrDefault()?.Value ?? string.Empty;
+        }
+    }
 
     public static EventTextSnapshot Create(
         EventTextFields fields,
@@ -51,6 +68,16 @@ public sealed record EventTextSnapshot
         var configuredKeys = fields
             .Select(field => field.FieldKey)
             .ToHashSet(StringComparer.Ordinal);
+        var valuesByKey = IndexSubmittedValues(values, configuredKeys);
+        var orderedValues = CreateOrderedValues(fields, valuesByKey);
+
+        return new EventTextSnapshot(fields, orderedValues);
+    }
+
+    private static IReadOnlyDictionary<string, EventTextValue> IndexSubmittedValues(
+        IEnumerable<EventTextValue> values,
+        IReadOnlySet<string> configuredKeys)
+    {
         var valuesByKey = new Dictionary<string, EventTextValue>(StringComparer.Ordinal);
 
         foreach (var value in values)
@@ -61,17 +88,24 @@ public sealed record EventTextSnapshot
             {
                 throw new ArgumentException(
                     $"Field key '{value.FieldKey}' is not configured.",
-                    nameof(values));
+                    ValuesParameterName);
             }
 
             if (!valuesByKey.TryAdd(value.FieldKey, value))
             {
                 throw new ArgumentException(
                     $"Field key '{value.FieldKey}' has multiple values.",
-                    nameof(values));
+                    ValuesParameterName);
             }
         }
 
+        return valuesByKey;
+    }
+
+    private static IReadOnlyList<EventTextValue> CreateOrderedValues(
+        IReadOnlyList<EventTextField> fields,
+        IReadOnlyDictionary<string, EventTextValue> valuesByKey)
+    {
         var orderedValues = new List<EventTextValue>();
 
         foreach (var field in fields)
@@ -81,19 +115,19 @@ public sealed record EventTextSnapshot
             {
                 throw new ArgumentException(
                     $"Field key '{field.FieldKey}' requires a value.",
-                    nameof(values));
+                    ValuesParameterName);
             }
 
             if (value.Value.Length > field.MaxLength)
             {
                 throw new ArgumentException(
                     $"Field key '{field.FieldKey}' value must be at most {field.MaxLength} characters.",
-                    nameof(values));
+                    ValuesParameterName);
             }
 
             orderedValues.Add(new EventTextValue(field.FieldKey, value.Value));
         }
 
-        return new EventTextSnapshot(fields, orderedValues);
+        return orderedValues;
     }
 }

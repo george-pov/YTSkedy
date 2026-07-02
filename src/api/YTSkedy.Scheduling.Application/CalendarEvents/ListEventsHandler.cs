@@ -56,19 +56,7 @@ public sealed class ListEventsHandler(ICalendarEventReader calendarEvents)
         sort switch
         {
             CalendarEventSortField.TimeZone => item => item.Start.TimeZoneId,
-            CalendarEventSortField.Title => DisplayTitle,
+            CalendarEventSortField.Title => item => item.Text.DisplayTitle,
             _ => item => item.CalendarEventId
         };
-
-    private static string DisplayTitle(CalendarEventView item)
-    {
-        var firstShortText = item.Text.Fields
-            .FirstOrDefault(field => field.Type == EventTextType.ShortText);
-        if (firstShortText is not null)
-        {
-            return item.Text.ValueFor(firstShortText.FieldKey) ?? string.Empty;
-        }
-
-        return item.Text.Values.FirstOrDefault()?.Value ?? string.Empty;
-    }
 }

@@ -21,23 +21,17 @@ public static class TemplateTokenCatalog
         new TemplateToken("shortDateFr")
     ];
 
-    public static IReadOnlyList<TemplateToken> From(EventTextFields fields)
-    {
-        ArgumentNullException.ThrowIfNull(fields);
-
-        return fields.Fields
-            .Select(field => new TemplateToken(field.FieldKey))
-            .Concat(DateTokens)
-            .ToArray();
-    }
-
     public static IReadOnlyList<TemplateToken> From(
         EventTextFields fields,
         IEnumerable<string?> platformReferenceKeys)
     {
+        ArgumentNullException.ThrowIfNull(fields);
         ArgumentNullException.ThrowIfNull(platformReferenceKeys);
 
-        var tokens = From(fields);
+        var tokens = fields.Fields
+            .Select(field => new TemplateToken(field.FieldKey))
+            .Concat(DateTokens)
+            .ToArray();
         var tokenNames = tokens
             .Select(token => token.Name)
             .ToHashSet(StringComparer.Ordinal);

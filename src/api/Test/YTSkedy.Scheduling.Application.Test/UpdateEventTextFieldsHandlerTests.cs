@@ -12,8 +12,8 @@ public sealed class UpdateEventTextFieldsHandlerTests
         var handler = new UpdateEventTextFieldsHandler(modifier);
         var command = new UpdateEventTextFieldsCommand(
             [
-                new EventTextField("text7", " Title ", EventTextType.ShortText, 80),
-                new EventTextField("text9", " Description ", EventTextType.LongText, 2000)
+                new EventTextField(" Title ", EventTextType.ShortText, 80),
+                new EventTextField(" Description ", EventTextType.LongText, 2000)
             ]);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);

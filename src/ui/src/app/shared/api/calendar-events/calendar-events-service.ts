@@ -19,6 +19,7 @@ interface CalendarEventFields {
   calendarEventId: string;
   start: CalendarEventStart;
   scheduledStartUtc: string;
+  displayTitle: string;
   texts: CalendarEventText[];
 }
 

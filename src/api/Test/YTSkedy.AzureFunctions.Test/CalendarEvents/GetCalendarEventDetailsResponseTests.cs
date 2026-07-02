@@ -25,6 +25,7 @@ public sealed class GetCalendarEventDetailsResponseTests
         Assert.Equal(
             new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
             response.ScheduledStartUtc);
+        Assert.Equal("English stream 1", response.DisplayTitle);
 
         Assert.Collection(
             response.Texts,

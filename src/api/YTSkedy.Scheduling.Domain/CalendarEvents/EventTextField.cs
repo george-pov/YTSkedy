@@ -3,7 +3,6 @@ namespace YTSkedy.Scheduling.Domain.CalendarEvents;
 public sealed record EventTextField
 {
     public EventTextField(
-        string fieldKey,
         string label,
         EventTextType type,
         int maxLength)
@@ -29,13 +28,12 @@ public sealed record EventTextField
                 "Event text type is invalid.");
         }
 
-        FieldKey = NormalizeFieldKey(fieldKey);
         Label = NormalizeLabel(label);
         Type = type;
         MaxLength = maxLength;
     }
 
-    public string FieldKey { get; init; }
+    public string FieldKey { get; init; } = string.Empty;
 
     public string Label { get; init; }
 
@@ -47,9 +45,6 @@ public sealed record EventTextField
         !string.IsNullOrWhiteSpace(label);
 
     public static bool IsValidMaxLength(int maxLength) => maxLength > 0;
-
-    internal static string NormalizeFieldKey(string? fieldKey) =>
-        fieldKey?.Trim() ?? string.Empty;
 
     internal static string NormalizeLabel(string label) => label.Trim();
 }

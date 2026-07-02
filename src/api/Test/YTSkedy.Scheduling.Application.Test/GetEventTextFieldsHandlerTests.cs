@@ -9,7 +9,7 @@ public sealed class GetEventTextFieldsHandlerTests
     public async Task HandleAsync_CurrentSettings_ReturnsReaderValue()
     {
         var settings = new EventTextFields(
-            [new EventTextField("ignored", "Episode title", EventTextType.ShortText, 100)]);
+            [new EventTextField("Episode title", EventTextType.ShortText, 100)]);
         var reader = new FakeEventTextFieldsReader(settings);
         var handler = new GetEventTextFieldsHandler(reader);
 

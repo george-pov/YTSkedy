@@ -515,8 +515,8 @@ public class PublishHandlerTests
 
         return new EventTextSnapshot(
             [
-                new EventTextField("text1", "Title", EventTextType.ShortText, 50),
-                new EventTextField("text2", "Description", EventTextType.LongText, 2500)
+                new EventTextField("Title", EventTextType.ShortText, 50) { FieldKey = "text1" },
+                new EventTextField("Description", EventTextType.LongText, 2500) { FieldKey = "text2" }
             ],
             values);
     }

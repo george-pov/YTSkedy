@@ -11,8 +11,8 @@ public sealed class EventTextFieldsSerializerTests
     {
         var eventTextFields = new EventTextFields(
             [
-                new EventTextField("old1", "Title", EventTextType.ShortText, 80),
-                new EventTextField("old2", "Body", EventTextType.LongText, 3000)
+                new EventTextField("Title", EventTextType.ShortText, 80),
+                new EventTextField("Body", EventTextType.LongText, 3000)
             ]);
 
         var json = EventTextFieldsSerializer.Serialize(eventTextFields);

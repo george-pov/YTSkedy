@@ -64,18 +64,19 @@ describe('CalendarEvents', () => {
     expect(text).not.toContain('Description for stream 1');
   });
 
-  it('falls back to the first text value when no short text field is returned', async () => {
+  it('renders the display title returned by the API', async () => {
     service.list.mockReturnValue(
       of(
         pageOf([
           draftEvent(calendarEventId, {
+            displayTitle: 'Backend display title',
             texts: [
               {
                 fieldKey: 'text1',
                 label: 'Description',
                 type: 'LongText',
                 maxLength: 2500,
-                value: 'First available text',
+                value: 'Text value that should not render',
               },
             ],
           }),
@@ -85,7 +86,9 @@ describe('CalendarEvents', () => {
 
     await createComponent();
 
-    expect(fixture.nativeElement.textContent).toContain('First available text');
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Backend display title');
+    expect(text).not.toContain('Text value that should not render');
   });
 
   it('renders an empty state when the page has no items', async () => {
@@ -291,6 +294,7 @@ describe('CalendarEvents', () => {
         timeZoneId: 'America/Vancouver',
       },
       scheduledStartUtc: '2026-06-06T17:00:00+00:00',
+      displayTitle: 'Stream title 1',
       texts: [
         {
           fieldKey: 'text1',
