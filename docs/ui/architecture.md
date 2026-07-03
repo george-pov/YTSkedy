@@ -35,8 +35,9 @@ The Angular frontend lives under `src/ui/`.
   publishing-content fields. YouTube client secrets, YouTube refresh tokens,
   and WordPress Application Passwords are accepted on create and optional
   replacement updates. In edit mode the replacement inputs stay blank, while
-  backend-computed redacted display values appear as read-only status near the
-  matching inputs. Blank saves preserve stored secrets.
+  backend-computed redacted display strings appear inside the matching blank
+  inputs. The display string hides on focus and returns on blur when no
+  replacement value is entered. Blank saves preserve stored secrets.
 - The `settings` page route reads, edits, renumbers, and saves the current
   event text fields list through the settings API service. Add and delete
   derive local `textN` keys immediately, and save replaces local state with the

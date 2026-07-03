@@ -20,7 +20,6 @@ interface WordPressSettingsModel {
     [username]="form.username"
     [applicationPassword]="form.applicationPassword"
     [postStatus]="form.postStatus"
-    [applicationPasswordConfigured]="true"
     passwordDisplayValue="*******"
   />`,
 })
@@ -52,14 +51,35 @@ describe('WordPressSettings', () => {
     expect(fixture.nativeElement.querySelectorAll('app-select')).toHaveLength(1);
   });
 
-  it('renders read-only password status while the replacement input stays empty', () => {
-    const text = fixture.nativeElement.textContent as string;
+  it('shows the display value inside the replacement input while the value stays empty', () => {
     const inputs = Array.from(
       fixture.nativeElement.querySelectorAll('app-input input'),
     ) as HTMLInputElement[];
 
-    expect(text).toContain('*******');
+    expect(fixture.nativeElement.querySelectorAll('.secret-status')).toHaveLength(0);
+    expect(inputs[2].placeholder).toBe('*******');
     expect(inputs.some((input) => input.value === '*******')).toBe(false);
+    expect(host.model().applicationPassword).toBe('');
+  });
+
+  it('hides the display value while focused and restores it when left blank', () => {
+    const inputs = Array.from(
+      fixture.nativeElement.querySelectorAll('app-input input'),
+    ) as HTMLInputElement[];
+    const applicationPassword = inputs[2];
+
+    applicationPassword.dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+
+    expect(applicationPassword.value).toBe('');
+    expect(applicationPassword.placeholder).toBe('');
+    expect(host.model().applicationPassword).toBe('');
+
+    applicationPassword.dispatchEvent(new Event('blur'));
+    fixture.detectChanges();
+
+    expect(applicationPassword.value).toBe('');
+    expect(applicationPassword.placeholder).toBe('*******');
     expect(host.model().applicationPassword).toBe('');
   });
 });

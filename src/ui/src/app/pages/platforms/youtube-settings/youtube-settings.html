@@ -1,27 +1,19 @@
 <app-input [field]="clientId()" label="Client ID" />
-@if (clientSecretDisplayValue()) {
-  <p class="secret-status">
-    <span>Current client secret</span>
-    <strong>{{ clientSecretDisplayValue() }}</strong>
-  </p>
-}
 <app-input
   [field]="clientSecret()"
   label="Client secret"
   type="password"
-  [placeholder]="clientSecretConfigured() ? 'Leave blank to keep existing secret' : ''"
+  [placeholder]="clientSecretDisplayValue()"
+  [floatLabel]="clientSecretDisplayValue() ? 'always' : 'auto'"
+  [hidePlaceholderOnFocus]="true"
 />
-@if (refreshTokenDisplayValue()) {
-  <p class="secret-status">
-    <span>Current refresh token</span>
-    <strong>{{ refreshTokenDisplayValue() }}</strong>
-  </p>
-}
 <app-input
   [field]="refreshToken()"
   label="Refresh token"
   type="password"
-  [placeholder]="refreshTokenConfigured() ? 'Leave blank to keep existing token' : ''"
+  [placeholder]="refreshTokenDisplayValue()"
+  [floatLabel]="refreshTokenDisplayValue() ? 'always' : 'auto'"
+  [hidePlaceholderOnFocus]="true"
 />
 <app-select
   [field]="privacyStatus()"

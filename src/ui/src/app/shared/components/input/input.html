@@ -1,4 +1,4 @@
-<mat-form-field appearance="outline">
+<mat-form-field appearance="outline" [floatLabel]="floatLabel()">
   @if (label()) {
     <mat-label>{{ label() }}</mat-label>
   }
@@ -7,14 +7,18 @@
       matInput
       [rows]="rows()"
       [formField]="field()"
-      [placeholder]="placeholder()"
+      [placeholder]="visiblePlaceholder()"
+      (focus)="onFocus()"
+      (blur)="onBlur()"
     ></textarea>
   } @else {
     <input
       matInput
       [type]="type()"
       [formField]="field()"
-      [placeholder]="placeholder()">
+      [placeholder]="visiblePlaceholder()"
+      (focus)="onFocus()"
+      (blur)="onBlur()">
   }
   @if (errorMessage(); as message) {
     <mat-error>{{ message }}</mat-error>

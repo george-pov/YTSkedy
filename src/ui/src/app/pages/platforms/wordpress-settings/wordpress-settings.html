@@ -1,14 +1,10 @@
 <app-input [field]="siteUrl()" label="Site URL" placeholder="https://example.com/" />
 <app-input [field]="username()" label="Username" />
-@if (passwordDisplayValue()) {
-  <p class="secret-status">
-    <span>Current Application Password</span>
-    <strong>{{ passwordDisplayValue() }}</strong>
-  </p>
-}
 <app-input
   [field]="applicationPassword()"
   label="Application Password"
-  [placeholder]="applicationPasswordConfigured() ? 'Leave blank to keep existing password' : ''"
+  [placeholder]="passwordDisplayValue()"
+  [floatLabel]="passwordDisplayValue() ? 'always' : 'auto'"
+  [hidePlaceholderOnFocus]="true"
 />
 <app-select [field]="postStatus()" label="Post status" [options]="postStatusOptions" />

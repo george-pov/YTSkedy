@@ -15,6 +15,8 @@ interface TitleModel {
   template: `<app-input
     [field]="form.title"
     label="Title"
+    [placeholder]="placeholder()"
+    [hidePlaceholderOnFocus]="hidePlaceholderOnFocus()"
     [multiline]="multiline()"
     [showCharacterCount]="showCharacterCount()"
   />`,
@@ -22,6 +24,8 @@ interface TitleModel {
 class InputHost {
   readonly multiline = signal(false);
   readonly showCharacterCount = signal(false);
+  readonly placeholder = signal('');
+  readonly hidePlaceholderOnFocus = signal(false);
   readonly model = signal<TitleModel>({ title: '' });
   readonly form = form(this.model, (path) => {
     required(path.title, { message: 'Title is required.' });
@@ -131,5 +135,27 @@ describe('Input (signal forms field)', () => {
     await fixture.whenStable();
 
     expect(counterText()).toBe('8 / 100');
+  });
+
+  it('hides the placeholder while focused when configured', () => {
+    host.placeholder.set('Existing value');
+    host.hidePlaceholderOnFocus.set(true);
+    fixture.detectChanges();
+
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
+
+    expect(input.placeholder).toBe('Existing value');
+
+    input.dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+
+    expect(input.placeholder).toBe('');
+
+    input.dispatchEvent(new Event('blur'));
+    fixture.detectChanges();
+
+    expect(input.placeholder).toBe('Existing value');
   });
 });

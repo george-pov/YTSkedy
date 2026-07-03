@@ -280,10 +280,10 @@ describe('Platforms', () => {
     expect(inputs.some((input) => input.value === 'client-id')).toBe(true);
     expect(inputs.some((input) => input.value === 'client-secret')).toBe(false);
     expect(inputs.some((input) => input.value === 'refresh-token')).toBe(false);
-    expect(fixture.nativeElement.textContent).toContain('*********A3B');
-    expect(fixture.nativeElement.textContent).toContain('*********Z9Y');
-    expect(inputs.some((input) => input.placeholder.includes('keep existing secret'))).toBe(true);
-    expect(inputs.some((input) => input.placeholder.includes('keep existing token'))).toBe(true);
+    expect(fixture.nativeElement.textContent).not.toContain('*********A3B');
+    expect(fixture.nativeElement.textContent).not.toContain('*********Z9Y');
+    expect(inputByLabel('Client secret').placeholder).toBe('*********A3B');
+    expect(inputByLabel('Refresh token').placeholder).toBe('*********Z9Y');
   });
 
   it('loads templates filtered by the editor platform type', async () => {
@@ -388,53 +388,8 @@ describe('Platforms', () => {
     expect(inputs.some((input) => input.value === 'https://blog.example.test/')).toBe(true);
     expect(inputs.some((input) => input.value === 'publisher')).toBe(true);
     expect(inputs.some((input) => input.value === 'application-password')).toBe(false);
-    expect(fixture.nativeElement.textContent).toContain('*******');
-    expect(inputs.some((input) => input.placeholder.includes('keep existing password'))).toBe(true);
-  });
-
-  it('rejects a YouTube client secret that matches the displayed hidden value', async () => {
-    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
-
-    await createComponent();
-    await selectRow(0);
-
-    await setValue(inputByLabel('Client secret'), '*********A3B');
-    await submitEditor();
-
-    expect(service.update).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.textContent).toContain(
-      'Enter the actual secret value, not the displayed hidden value.',
-    );
-  });
-
-  it('rejects a YouTube refresh token that matches the displayed hidden value', async () => {
-    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
-
-    await createComponent();
-    await selectRow(0);
-
-    await setValue(inputByLabel('Refresh token'), '*********Z9Y');
-    await submitEditor();
-
-    expect(service.update).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.textContent).toContain(
-      'Enter the actual secret value, not the displayed hidden value.',
-    );
-  });
-
-  it('rejects a WordPress Application Password that matches the displayed hidden value', async () => {
-    service.list.mockReturnValue(of({ platforms: [wordPressPlatform()] }));
-
-    await createComponent();
-    await selectRow(0);
-
-    await setValue(inputByLabel('Application Password'), '*******');
-    await submitEditor();
-
-    expect(service.update).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.textContent).toContain(
-      'Enter the actual secret value, not the displayed hidden value.',
-    );
+    expect(fixture.nativeElement.textContent).not.toContain('*******');
+    expect(inputByLabel('Application Password').placeholder).toBe('*******');
   });
 
   it('creates a platform and adds it to the list', async () => {
@@ -751,8 +706,8 @@ describe('Platforms', () => {
       },
       publishingContent: publishingContent(),
     });
-    expect(fixture.nativeElement.textContent).toContain('*********N3W');
     expect(inputByLabel('Client secret').value).toBe('');
+    expect(inputByLabel('Client secret').placeholder).toBe('*********N3W');
   });
 
   it('surfaces a friendly message when the name is already taken', async () => {

@@ -31,7 +31,7 @@ placeholder.
 | `/calendar-events/new` | Protected | Renders `CalendarEventDetails` in create mode. Loads current event text fields with `GET /api/settings/event-text-fields`, renders one control per configured field, creates via `POST /api/calendar-events`, and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
 | `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, renders the stored `texts` snapshot, keeps the scheduled start read-only, and shows the response `platforms` array as a Type, Name, Status, and Actions table. Platform preview, publish, and publication-delete actions call the platform-scoped endpoints and replace only the affected platform row. Save sends `PUT /api/calendar-events/{calendarEventId}` with text values. A separate Delete action calls `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
 | `/templates` | Protected | Renders `Templates`, a single-page CRUD for reusable social-post templates backed by the `templates` API through a typed `TemplatesService`. On load it lists templates with `GET /api/templates` and shows each template's type (platform) and name. New Template opens an unsaved editor whose type is selectable and creates via `POST /api/templates`. Selecting a row opens the editor with the type read-only (immutable after create) and saves name and content via `PUT /api/templates/{type}/{id}`; Delete calls `DELETE /api/templates/{type}/{id}`. A failed load, save, or delete shows an inline error, and a duplicate name surfaces the `409` conflict. Guarded by `authenticatedGuard`. |
-| `/platforms` | Protected | Renders `Platforms`, a single-page CRUD for configured publishing destinations backed by the `platforms` API through a typed `PlatformsService`. On load it lists platforms with `GET /api/platforms` and shows Type, Name, and Reference key; New Platform creates a YouTube or WordPress platform via `POST /api/platforms`; selecting a row opens an editor that saves via `PUT /api/platforms/{platformId}` or deletes via `DELETE /api/platforms/{platformId}`. The editor requires title-template and description-template selections backed by `GET /api/templates?type={type}`. In edit mode, backend-provided redacted secret display values appear as read-only status near the replacement inputs; the replacement inputs stay blank and blank saves preserve stored secrets. A failed load, save, or delete shows an inline error, and duplicate names or duplicate reference keys surface the `409` conflict. Guarded by `authenticatedGuard`. |
+| `/platforms` | Protected | Renders `Platforms`, a single-page CRUD for configured publishing destinations backed by the `platforms` API through a typed `PlatformsService`. On load it lists platforms with `GET /api/platforms` and shows Type, Name, and Reference key; New Platform creates a YouTube or WordPress platform via `POST /api/platforms`; selecting a row opens an editor that saves via `PUT /api/platforms/{platformId}` or deletes via `DELETE /api/platforms/{platformId}`. The editor requires title-template and description-template selections backed by `GET /api/templates?type={type}`. In edit mode, backend-provided redacted secret display strings appear inside the blank replacement inputs, hide while the input is focused, and return on blur when no replacement is entered; blank saves preserve stored secrets. A failed load, save, or delete shows an inline error, and duplicate names or duplicate reference keys surface the `409` conflict. Guarded by `authenticatedGuard`. |
 | `/settings` | Protected | Renders `Settings`, an event text field editor backed by `GET /api/settings/event-text-fields` and `PUT /api/settings/event-text-fields`. The page shows the derived `fieldKey`, label, type, max length, and delete action for each field; add and delete renumber local `textN` keys immediately, and save replaces local state with the backend-normalized response. Guarded by `authenticatedGuard`. |
 | `/signed-out` | Public | Renders post-logout confirmation. Auto-redirects already-authenticated visitors to `/calendar-events`. |
 | `/component-lab` | Public | Renders the minimal component lab page for manually demoing shared UI components. |
@@ -128,14 +128,14 @@ reference key, `publishingContent`, and publish settings to
 `PUT /api/platforms/{platformId}`. The Reference key field preserves casing for
 display; blank input sends `null` and clears the stored key. For YouTube, the
 client secret and refresh token replacement inputs are intentionally blank on
-edit. Backend-provided redacted display values appear as read-only status near
-those inputs, and blank values are omitted so the API preserves the stored
+edit. Backend-provided redacted display strings are shown inside those blank
+inputs, hide while the input is focused, and return on blur when no replacement
+value is entered. Blank values are omitted so the API preserves the stored
 values. For WordPress, the Application Password replacement input is
-intentionally blank on edit. The read-only current password status appears near
-the input, a blank save omits the secret from the request so the API preserves
-the stored value, and a non-blank value replaces it. Redacted display values are
-not copied into create or update requests; entering the current displayed hidden
-value is rejected before save. The exact API response fields are documented in
+intentionally blank on edit. The password display string appears inside that
+blank input, hides on focus, returns on blur when left blank, and a non-blank
+value replaces it. Redacted display values are not copied into create or update
+requests. The exact API response fields are documented in
 [`../api/http/platforms.md`](../api/http/platforms.md). Delete calls
 `DELETE /api/platforms/{platformId}` and removes the row after a successful
 `204 No Content`. The HTTP client attaches an Entra External ID access token

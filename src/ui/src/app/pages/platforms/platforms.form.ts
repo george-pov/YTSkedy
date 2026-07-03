@@ -27,8 +27,6 @@ export const youTubeRefreshTokenMaxLength = 2048;
 export const wordPressSiteUrlMaxLength = 2048;
 export const wordPressUsernameMaxLength = 100;
 export const wordPressApplicationPasswordMaxLength = 512;
-export const redactedSecretValueMessage =
-  'Enter the actual secret value, not the displayed hidden value.';
 
 /**
  * Editable fields of the platform editor. YouTube settings are flattened here
@@ -138,11 +136,6 @@ export function applyPlatformRules(path: SchemaPathTree<PlatformFormModel>): voi
       });
 
       validate(youTubePath.youTubeClientSecret, ({ value, valueOf }) => {
-        const displayValue = valueOf(youTubePath.youTubeClientSecretDisplayValue);
-        if (displayValue.length > 0 && value().trim() === displayValue) {
-          return { kind: 'redactedSecretValue', message: redactedSecretValueMessage };
-        }
-
         const configured = valueOf(youTubePath.youTubeClientSecretConfigured);
         if (configured !== 'true' && value().trim().length === 0) {
           return { kind: 'required', message: 'Client secret is required.' };
@@ -155,11 +148,6 @@ export function applyPlatformRules(path: SchemaPathTree<PlatformFormModel>): voi
       });
 
       validate(youTubePath.youTubeRefreshToken, ({ value, valueOf }) => {
-        const displayValue = valueOf(youTubePath.youTubeRefreshTokenDisplayValue);
-        if (displayValue.length > 0 && value().trim() === displayValue) {
-          return { kind: 'redactedSecretValue', message: redactedSecretValueMessage };
-        }
-
         const configured = valueOf(youTubePath.youTubeRefreshTokenConfigured);
         if (configured !== 'true' && value().trim().length === 0) {
           return { kind: 'required', message: 'Refresh token is required.' };
@@ -196,11 +184,6 @@ export function applyPlatformRules(path: SchemaPathTree<PlatformFormModel>): voi
       });
 
       validate(wordPressPath.wordPressApplicationPassword, ({ value, valueOf }) => {
-        const displayValue = valueOf(wordPressPath.wordPressPasswordDisplayValue);
-        if (displayValue.length > 0 && value().trim() === displayValue) {
-          return { kind: 'redactedSecretValue', message: redactedSecretValueMessage };
-        }
-
         const configured = valueOf(wordPressPath.wordPressApplicationPasswordConfigured);
         if (configured !== 'true' && value().trim().length === 0) {
           return { kind: 'required', message: 'Application Password is required.' };

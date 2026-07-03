@@ -19,8 +19,6 @@ export class YouTubeSettings {
   readonly clientId = input.required<Field<string>>();
   readonly clientSecret = input.required<Field<string>>();
   readonly refreshToken = input.required<Field<string>>();
-  readonly clientSecretConfigured = input(false);
-  readonly refreshTokenConfigured = input(false);
   readonly clientSecretDisplayValue = input('');
   readonly refreshTokenDisplayValue = input('');
   /** Broadcast visibility: `private`, `public`, or `unlisted`. */
