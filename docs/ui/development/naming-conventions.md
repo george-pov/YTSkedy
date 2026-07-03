@@ -59,7 +59,7 @@ Current examples:
 pages/calendar-events/
 ```
 
-Target examples as the app grows:
+Allowed examples:
 
 ```text
 layout/app-layout/
@@ -114,7 +114,7 @@ component.
 
 Shared UI names should describe the app contract, not an underlying UI library.
 
-Target shared UI names may include:
+Shared UI names may include:
 
 ```text
 button
@@ -186,8 +186,8 @@ or shared contracts to `shared/` only when they are reused across page flows.
 
 ## Utilities
 
-A `shared/utils/` folder may be introduced for small shared pure functions, but
-file names inside it must describe behavior:
+A `shared/utils/` folder is for small shared pure functions. File names inside
+it must describe behavior:
 
 ```text
 format-scheduled-start.ts

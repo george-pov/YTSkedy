@@ -176,8 +176,8 @@ HTTP routes.
   models, or stored in browser runtime configuration.
 
 Per-user OAuth, credential migration to a dedicated secret store, retry,
-rate-limit handling, reconciliation, and production telemetry remain roadmap
-integration surfaces.
+rate-limit handling, reconciliation, and production telemetry are not part of
+the current integration surface.
 
 ## Contract Change Checklist
 

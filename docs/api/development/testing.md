@@ -24,7 +24,7 @@ framework wiring.
 - Test application handlers with fake repositories and gateways.
 - Verify commands are mapped into domain models correctly.
 - Verify returned results contain the expected identifiers and state.
-- Add validation tests when command validation is introduced.
+- Add validation tests for command validation behavior.
 
 ## Integration Tests
 

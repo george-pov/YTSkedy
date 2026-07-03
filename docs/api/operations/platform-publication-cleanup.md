@@ -61,7 +61,7 @@ Recovery:
 
 - For `409 Conflict`, inspect the broadcast in YouTube Studio. If YouTube no
   longer allows deletion, resolve it in YouTube and leave the YTSkedy row as
-  provider history unless a future reconciliation tool is added.
+  provider history.
 - For `502 Bad Gateway`, fix or refresh the platform's YouTube `clientId`,
   `clientSecret`, or `refreshToken`, then retry while the event is still future.
 - If the event is no longer future, automated cleanup is blocked. Clean up in
@@ -97,7 +97,7 @@ Recovery:
 - For target mismatch, restore the platform's site URL to the site that created
   the post, retry cleanup, then change the platform to the new site if needed.
 - If the event is no longer future, clean up the post in WordPress manually and
-  leave the YTSkedy row as historical state until a reconciliation tool exists.
+  leave the YTSkedy row as historical state.
 
 ## Target Mismatch
 
@@ -118,9 +118,8 @@ Recovery is operational:
 2. Retry publication delete while the calendar event is still future.
 3. Change the platform settings after cleanup succeeds.
 
-If restoring the old target is impossible, clean up the provider resource
-manually and keep the local row as historical state until reconciliation tooling
-is available.
+If restoring the original target is impossible, clean up the provider resource
+manually and keep the local row as historical state.
 
 ## Secret Handling
 

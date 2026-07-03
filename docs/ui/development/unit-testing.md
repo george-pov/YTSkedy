@@ -137,7 +137,7 @@ focused on user interaction and request readiness.
 
 HTTP service tests should assert the app-owned request contract: method, URL,
 query parameters, payload, and relevant response or error behavior. Use
-Angular HTTP testing utilities when `HttpClient` is introduced.
+Angular HTTP testing utilities for `HttpClient` services.
 
 Do not mock the service under test. Mock or fake external, slow, or
 nondeterministic boundaries.

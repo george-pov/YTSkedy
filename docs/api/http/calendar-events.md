@@ -134,8 +134,8 @@ Success response:
 }
 ```
 
-`calendarEventId` is an opaque lowercase `guid:N` string. Legacy
-scheduled-start-derived ids are unsupported and return not found.
+`calendarEventId` is an opaque lowercase `guid:N` string. Other id shapes are
+unsupported and return not found.
 
 Current error behavior:
 
@@ -147,10 +147,11 @@ Current error behavior:
   detection is best-effort for normal sequential writes; concurrent duplicate
   writes are an accepted risk.
 
-Production release requirements:
+Current limitations:
 
-- Broader command validation must return stable client-facing errors.
-- Unexpected storage failures must avoid leaking provider details or secrets.
+- Broader command validation does not return stable structured error bodies.
+- Unexpected storage failures are not normalized beyond the documented endpoint
+  mappings.
 
 ## List Calendar Events
 
@@ -478,11 +479,10 @@ Current behavior and error mapping:
   (`/calendar-events/{calendarEventId}/edit`) consumes this endpoint on save,
   sending the event's scheduled start and text values.
 
-Production release requirements:
+Current limitations:
 
-- Broader command validation must return stable client-facing errors.
-- A concurrent edit that loses the ETag race currently surfaces as `500`; it
-  must map to a stable conflict response.
+- Broader command validation does not return stable structured error bodies.
+- A concurrent edit that loses the ETag race surfaces as `500`.
 
 ## Delete Calendar Event
 

@@ -89,11 +89,11 @@ This is a proof-of-concept integration with deliberate limitations:
 
 - Each channel's credentials are shared. Every publish through a platform acts
   on the single YouTube channel that minted that channel's refresh token,
-  regardless of which user is signed in. A per-user Google OAuth flow is
-  deferred.
+  regardless of which user is signed in. Google OAuth is platform-scoped, not
+  user-scoped.
 - The YouTube client secret and refresh token are stored in the platform row's
-  `PublishSettingsJson` so the provider can publish later. Moving provider
-  secrets to an app-managed secret store remains a production hardening item.
+  `PublishSettingsJson` so the provider can publish at request time. An app-managed
+  secret store is not part of the current implementation.
 - Only the rendered title, optional rendered description, scheduled start,
   privacy, and made-for-kids state are sent. Thumbnails, categories, and stream
   binding are out of scope for this slice.
@@ -132,11 +132,11 @@ must use HTTPS and must not include embedded credentials.
 This is a first-slice integration with deliberate limitations:
 
 - The WordPress Application Password is stored in the platform row's
-  `PublishSettingsJson` so the provider can publish later. Moving provider
-  secrets to an app-managed secret store remains a production hardening item.
+  `PublishSettingsJson` so the provider can publish at request time. An app-managed
+  secret store is not part of the current implementation.
 - Only the rendered title and optional rendered description are sent.
-  Categories, tags, excerpts, slugs, featured media, and scheduling a future
-  WordPress post are out of scope for this slice.
+  Categories, tags, excerpts, slugs, featured media, and WordPress scheduling
+  are out of scope for this slice.
 
 ## CORS
 
@@ -240,23 +240,13 @@ these endpoints; do not pass `x-functions-key`.
 Per-contributor bearer tokens and deployed host URLs belong in
 `http-client.env.json.user`, not in tracked `.http` environment files.
 
-## Production Configuration Requirements
+## Deployment Configuration Documentation
 
-Production configuration must define:
+Document each deployment-required configuration value with:
 
-- YouTube OAuth client callback behavior and operator setup process.
-- Credential store location or provider for provider secrets that are currently
-  stored in platform rows.
-- Platform credential migration and rotation behavior.
-- API base URL behavior for the frontend host.
-- Feature flags for dry-run or preview flows.
-- Telemetry settings that do not expose secrets or personal account data.
-
-Configuration values required for deployment must be documented with:
-
-- setting name
-- owner
-- environment where it is required
-- whether the value is public or secret
-- local-development fallback, when one exists
-- validation behavior when the value is missing or invalid
+- Setting name.
+- Owner.
+- Environment where it is required.
+- Whether the value is public or secret.
+- Local-development fallback, when one exists.
+- Validation behavior when the value is missing or invalid.

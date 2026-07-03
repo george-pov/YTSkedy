@@ -55,7 +55,7 @@ Keep shared partials narrow and semantic. Prefer mixins and tokens that
 describe app-owned styling intent instead of selectors that emit CSS on import.
 
 Use an accessibility partial for primitives such as visually hidden text only
-after those primitives are used in more than one component.
+when those primitives are used in more than one component.
 
 Do not import demo-only or local-experiment partials from product pages or
 shared UI components.
@@ -111,8 +111,7 @@ For local component styles, avoid BEM-like class names such as
 instead.
 
 Application chrome and global layout utilities should also use simple
-app-prefixed names for new styles. Existing BEM-like shell classes may remain
-until the owning component is touched.
+app-prefixed names for new styles.
 
 ```html
 <section class="layout">

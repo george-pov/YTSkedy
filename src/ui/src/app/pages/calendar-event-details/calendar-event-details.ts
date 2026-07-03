@@ -244,8 +244,7 @@ export class CalendarEventDetails {
       next: () => {
         this.notifications.showSuccess(
           this.isEditMode ? 'Calendar event updated.' : 'Calendar event created.',
-        );
-        this.router.navigateByUrl('/calendar-events');
+        );        
       },
       error: (error: unknown) => {
         this.saveErrorMessage.set(describeSaveError(error));

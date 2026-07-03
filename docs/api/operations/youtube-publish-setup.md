@@ -13,10 +13,10 @@ deleting scheduled broadcasts created by this integration.
 
 This is a proof-of-concept integration. The credentials are static and shared:
 every publish through a platform acts on the single YouTube channel that minted
-that channel's refresh token, regardless of which user is signed in to YTSkedy. A
-per-user Google OAuth flow is deferred. You can configure more than one channel
-by repeating this runbook for another YouTube platform. Do not commit any value
-produced here.
+that channel's refresh token, regardless of which user is signed in to YTSkedy.
+Google OAuth is platform-scoped, not user-scoped. You can configure more than
+one channel by repeating this runbook for another YouTube platform. Do not
+commit any value produced here.
 
 ## Prerequisites
 
@@ -48,9 +48,8 @@ produced here.
      `https://www.googleapis.com/auth/youtube` (filter for `youtube` or paste it
      into the manual box), then update and save.
 
-     Some projects still show the older single-page consent screen, where
-     Scopes and Test users are inline sections on one form. The values are the
-     same.
+     If the console shows a single-page consent screen, Scopes and Test users
+     are inline sections on one form. The values are the same.
    - Read the token-lifetime note in Part E before deciding whether to keep the
      publishing status as Testing or move it to In production.
    See the official help article for the consent screen:
@@ -120,9 +119,9 @@ flow.
 Privacy and the made-for-kids flag are not configured here. They are part of each
 platform's publish settings, so keep test platforms at `private` to avoid public
 test broadcasts. YouTube provider credentials are stored in the platform row in
-this local/test slice, matching WordPress Application Password storage. Moving
-provider secrets to an app-managed secret store such as Key Vault remains a
-production hardening item.
+this local/test slice, matching WordPress Application Password storage. An
+app-managed secret store such as Key Vault is not part of the current
+implementation.
 
 ## Part D: Run and verify
 

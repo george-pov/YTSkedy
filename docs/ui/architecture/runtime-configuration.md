@@ -1,8 +1,7 @@
 # UI Runtime Configuration
 
 The YTSkedy UI production approach is build once, configure per deployment.
-Runtime configuration is a required release capability before the browser app
-consumes deployed backend APIs.
+The browser app consumes deployed backend APIs through runtime configuration.
 
 Use runtime config for deploy-specific public settings:
 

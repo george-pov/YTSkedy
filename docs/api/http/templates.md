@@ -6,8 +6,8 @@ with placeholder tokens (for example `{{ longDateEn }}` or `{{ text1 }}`) that
 platform publishing content renders from calendar-event data and platform
 publication state. The `Templates` page in the Angular UI (`/templates`)
 consumes the list, create, update, and delete endpoints through a typed
-`TemplatesService`; the `template-tokens` endpoint is available to the client
-but is not yet surfaced in the editor.
+`TemplatesService`. The template editor does not call the `template-tokens`
+endpoint.
 
 ## Authorization
 
@@ -206,10 +206,10 @@ keys:
 - `shortDateFr`: Event submitted local date formatted as `dd/MM/yyyy`.
 - Active platform `referenceKey` values, such as `privateYouTube`.
 
-The text token list reflects the current field setting for future template
-authoring. During preview and publish, token values come from the selected
-calendar event's stored text snapshot, so later settings edits do not reshape
-existing events. During preview and publish, a platform reference-key token is
+The text token list reflects the current field setting for template authoring.
+During preview and publish, token values come from the selected calendar
+event's stored text snapshot, so settings edits do not reshape existing
+events. During preview and publish, a platform reference-key token is
 resolved from the selected calendar event's `Published` publication row for
 the active platform with that `referenceKey`; the token value is that row's
 `externalResourceId`. If no active platform has that key, or the matching

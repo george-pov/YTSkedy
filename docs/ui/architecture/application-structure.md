@@ -38,7 +38,7 @@ src/ui/src/app/
       toolbar/
 ```
 
-As the UI grows, use this target structure:
+Use this top-level source structure:
 
 ```text
 src/ui/src/app/
@@ -48,7 +48,7 @@ src/ui/src/app/
 ```
 
 Only create folders when code exists. Do not add empty structure only to match
-the target tree.
+this shape.
 
 ## Layout
 
@@ -108,7 +108,7 @@ Current shared UI component folders:
 shared/components/toolbar/
 ```
 
-Target shared UI component folders as repeated controls are introduced:
+Allowed shared UI component folders for repeated controls:
 
 ```text
 shared/components/button/
@@ -134,10 +134,9 @@ Create `shared/utils/` only for small, behavior-specific pure functions. File
 names inside it must describe the behavior they own instead of using generic
 names such as `utils.ts` or `helpers.ts`.
 
-`shared/config/` should own runtime configuration loading and injection when a
-deploy-specific UI setting is introduced. Page-flow services should consume
-runtime settings through that shared config boundary instead of owning
-environment-specific constants.
+`shared/config/` owns runtime configuration loading and injection. Page-flow
+services should consume runtime settings through that shared config boundary
+instead of owning environment-specific constants.
 
 ## Assets
 
@@ -154,7 +153,6 @@ Keep root routes thin:
 - prefer `loadComponent` for route-level standalone pages once page size
   warrants lazy loading
 - keep route guards near the page flow that owns them
-- route `**` to a not-found page after one exists
-- redirect wildcard routes only while no not-found page exists
+- keep wildcard route behavior explicit in `app.routes.ts`
 
 Current routes are documented in [`../routes.md`](../routes.md).

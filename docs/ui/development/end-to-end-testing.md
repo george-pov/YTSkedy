@@ -2,8 +2,7 @@
 
 Browser-level tests are optional verification for the Angular app. They
 complement unit tests, visual review, accessibility review, and manual checks.
-They are not a required release gate, CI gate, or default condition for
-merging changes unless the project later adopts that policy.
+They are optional for merging changes and are not a CI gate.
 
 Playwright is the selected browser-level e2e test runtime for YTSkedy. The
 current setup runs durable specs from `src/ui/tests/e2e/` and writes generated
@@ -121,8 +120,8 @@ Before adding a durable browser test, answer these questions:
 5. Are network calls mocked when API behavior is involved?
 6. Is Chromium coverage enough, or is there a clear reason to run every
    configured browser?
-7. Is the test small enough that future contributors will trust it?
-8. If the test fails later, is the fix, rewrite, or delete decision clear?
+7. Is the test small enough that contributors will trust it?
+8. When the test fails, is the fix, rewrite, or delete decision clear?
 
 If the answers do not identify a stable browser-level contract, keep the check
 manual, temporary, or covered by unit tests.

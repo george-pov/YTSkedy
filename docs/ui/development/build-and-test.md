@@ -98,9 +98,9 @@ Open Playwright UI mode for local debugging:
 npm run test:e2e:ui
 ```
 
-The current frontend has routing and an initial calendar events page. Backend
-API client integration and production deployment workflow are required release
-work.
+The current frontend has protected routes, typed API clients, runtime
+configuration, unit tests, and Playwright e2e commands. Hosted deployments
+provide `config/app-config.json` as deployment configuration.
 
 ## Angular CLI
 

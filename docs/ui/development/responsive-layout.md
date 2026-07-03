@@ -1,14 +1,13 @@
 # UI Responsive Layout
 
-The app should grow a small global layout utility layer only when repeated
-responsive page structure appears. The current UI has only an initial
-calendar-events route component, so this document defines production layout
-rules before adding broad utilities.
+The app uses a small global layout utility layer for repeated responsive page
+structure. This document defines the current production layout rules and the
+approved utility scope.
 
 ## Source Of Truth
 
-If repeated breakpoints, spacing, and container values are introduced, keep
-them in shared SCSS partials under:
+Repeated breakpoints, spacing, and container values live in shared SCSS partials
+under:
 
 ```text
 src/ui/src/styles/
@@ -38,9 +37,9 @@ the shared layout system and this document instead of adding a local component
 media query. The shared layout layer may use media queries internally because it
 is the app-owned breakpoint abstraction.
 
-## Suggested Utility Scope
+## Utility Scope
 
-If a layout layer is added, keep it small and layout-only. Suitable utilities:
+Keep the layout layer small and layout-only. Approved utilities:
 
 - `app-container`
 - `app-grid`
@@ -51,8 +50,8 @@ If a layout layer is added, keep it small and layout-only. Suitable utilities:
 - `app-actions`
 
 Do not add global utilities for colors, typography, visibility, order, offsets,
-display, broad flex behavior, or component appearance unless a later design
-decision approves that expansion.
+display, broad flex behavior, or component appearance. Expand this list only
+through an approved design update.
 
 ## Containers
 

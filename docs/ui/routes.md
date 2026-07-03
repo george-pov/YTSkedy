@@ -50,8 +50,8 @@ client attaches an Entra External ID access token via the YTSkedy-owned
 `AuthFacade` and bearer interceptor (see
 [`development/end-to-end-testing.md`](development/end-to-end-testing.md) and
 [`../architecture/integration-contracts.md`](../architecture/integration-contracts.md)).
-Richer calendar navigation and scheduling workflow behavior remain required
-before the route is product-complete.
+The route is a server-paged event table; it does not provide a calendar grid or
+multi-step scheduling workflow.
 
 The `CalendarEventDetails` page calls `POST /api/calendar-events` through the
 same shared API service and bearer interceptor, then navigates back to
@@ -151,7 +151,7 @@ protected API resources.
 The `Settings` page calls `GET /api/settings/event-text-fields` on load through
 `EventTextFieldsService`. It renders the current ordered field list and keeps
 the derived `fieldKey` read-only in the UI. Add appends a new field and derives
-the next `textN` key immediately. Delete removes the row and renumbers later
+the next `textN` key immediately. Delete removes the row and renumbers following
 fields immediately. Save sends the ordered fields to
 `PUT /api/settings/event-text-fields`; the page replaces its local model with
 the backend response so backend normalization is the final source of truth. A
@@ -174,7 +174,6 @@ the YTSkedy-owned `authenticatedGuard`
 
 - Route configuration belongs in `src/ui/src/app/app.routes.ts`.
 - Route-level page components belong under `src/ui/src/app/pages/`.
-- Reusable display and form components should move under
-  `src/ui/src/app/shared/` when they are introduced.
+- Reusable display and form components belong under `src/ui/src/app/shared/`.
 - API response mapping should live in explicit client or service code, not in
   route configuration.

@@ -85,7 +85,7 @@ src/ui/src/app/shared/components/toolbar/
 
 Use the page-first structure in
 [`architecture/application-structure.md`](architecture/application-structure.md)
-as the UI grows. Keep route-level pages under `pages/`, reusable browser UI
+for source ownership. Keep route-level pages under `pages/`, reusable browser UI
 under `shared/`, and persistent application chrome under `layout/`.
 
 ## Shared Components

@@ -94,9 +94,8 @@ npm run ng -- generate service pages/calendar-events/calendar-events-api
 
 ## Runtime Configuration
 
-Use runtime configuration for deploy-specific public settings when the first
-deploy-specific setting is introduced. The target active file is
-`src/ui/public/config/app-config.json`, and the app should load it as
+Use runtime configuration for deploy-specific public settings. The active file
+is `src/ui/public/config/app-config.json`, and the app loads it as
 `config/app-config.json` before Angular bootstrap.
 
 When adding a setting that changes by environment:
@@ -105,7 +104,7 @@ When adding a setting that changes by environment:
 - Validate required values in the config loader.
 - Consume it through an app-owned injection token or focused config
   abstraction.
-- Update environment templates under `src/ui/config/environments/`.
+- Update `src/ui/public/config/app-config.sample.json`.
 - Document the setting in
   [`../architecture/runtime-configuration.md`](../architecture/runtime-configuration.md).
 
@@ -150,7 +149,7 @@ objects, or signal values in place.
 
 Prefer Angular Signal Forms (`@angular/forms/signals`) for complex validated
 forms: a typed model signal plus a `schema()` of path-bound validators. Reactive
-forms remain acceptable where Signal Forms does not yet fit; avoid
+forms are acceptable for simple or compatibility-bound forms; avoid
 template-driven forms.
 
 For complex forms, keep implementation explicit:
@@ -213,11 +212,9 @@ documented Material APIs, not component-level overrides of private Material or
 MDC selectors.
 
 Use direct Angular Material imports in page or layout components only when no
-app wrapper exists and the usage is page-specific or temporary. Promote the
-usage to a shared wrapper when it repeats, when styling needs to become
-consistent, or when page code starts depending on Material-specific API
-details. Existing direct Material imports can remain until the equivalent
-wrapper is created, then touched code should migrate to the wrapper.
+app wrapper exists and the usage is page-specific. Create a shared wrapper
+when the usage repeats, when styling needs to be consistent, or when page code
+starts depending on Material-specific API details.
 
 Wrapper APIs should describe app intent:
 
@@ -238,14 +235,12 @@ Wrapper APIs should describe app intent:
   transformations out of page components.
 - Put page-flow services under the page flow that owns them. Put reused app
   services under `shared/services/`.
-- Use `provideHttpClient(...)` in `app.config.ts` when the first HTTP client is
-  introduced.
+- Use `provideHttpClient(...)` in `app.config.ts` for HTTP client setup.
 - Prefer functional interceptors with `withInterceptors(...)`.
 - Do not import `HttpClientModule` into page components.
 
-API services should receive base URLs from runtime configuration once runtime
-configuration exists. Do not keep API URLs as private constants inside
-page-flow services.
+API services should receive base URLs from runtime configuration. Do not keep
+API URLs as private constants inside page-flow services.
 
 ## Testing
 

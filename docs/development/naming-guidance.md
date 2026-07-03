@@ -122,8 +122,8 @@ public sealed class AzureTableStorageCalendarEventRepositoryImplementation
 - Methods that accept cancellation should name the parameter
   `cancellationToken`.
 - Options classes should end in `Options`, such as `AuthOptions`.
-- Service registration extension methods should use `Add{Service}` when this
-  project later exposes reusable registration methods.
+- Service registration extension methods should use `Add{Service}` for
+  reusable registration methods.
 
 ## Meaningful Names
 
@@ -197,8 +197,8 @@ such as `ProcessAsync` or `SubmitAsync`.
   label, type, and max length.
 - `event text value`: One submitted value for an event text field.
 - `event text snapshot`: The field definitions and values stored on a calendar
-  event when it is created. Existing new-shape events keep this snapshot after
-  later settings edits.
+  event when it is created. Stored events keep this snapshot after settings
+  edits.
 - `field key`: Backend-derived `textN` key for an event text field, such as
   `text1` or `text2`. Use `fieldKey` in HTTP and TypeScript shapes.
 - `publish status`: Platform-publication state such as `NotPublished`,
@@ -227,7 +227,7 @@ such as `ProcessAsync` or `SubmitAsync`.
 - `credentials`: Provider credential material needed by a platform. It may be
   secret-bearing and must be redacted from reads, logs, and snapshots.
 - `platform`: Configured publishing destination such as a YouTube channel or a
-  future WordPress site.
+  WordPress site.
 - `reference key`: Optional user-managed lookup key on a configured platform.
   It is provider-neutral, unique case-insensitively when set, and preserves the
   entered casing for display. It can also be used as a template-token name that
@@ -299,7 +299,7 @@ Shorter names are acceptable for:
 | `Broadcast` | YouTube live broadcast metadata concept. | Use mainly in YouTube-specific adapters and tests. |
 | `YouTubeBroadcast` | YouTube `liveBroadcast` resource or adapter concept. | `Broadcast` is acceptable inside YouTube-specific adapters when the provider context is already clear. |
 | `YouTubeBroadcastId` | Stored id of a YouTube `liveBroadcast` resource. | `BroadcastId` is acceptable inside YouTube-specific code. |
-| `YouTubeCredentials` | Secret Google OAuth credentials for one YouTube platform. | Stored in the platform row until provider secrets move to the app-managed secret store. Never expose in HTTP reads, logs, or publication snapshots. |
+| `YouTubeCredentials` | Secret Google OAuth credentials for one YouTube platform. | Stored in the platform row. Never expose in HTTP reads, logs, or publication snapshots. |
 | `Visibility` | YouTube visibility or privacy state. | `Privacy` is acceptable when mirroring YouTube field names or user-facing wording. |
 | `AuthOptions` | API bearer-token validation and authorization configuration. | `Options` is acceptable inside auth composition code. |
 | `AuthorizationPolicy` | API authorization rule that evaluates scopes, roles, and endpoints. | `Policy` is acceptable inside auth-specific tests and helpers. |
@@ -418,8 +418,8 @@ and needs a narrower scope.
 Keep static readonly field naming review-only if `.editorconfig` cannot target
 it without also catching excluded private static fields.
 
-Length thresholds, glossary terms, and word choice require code review unless
-the project later adds a custom analyzer.
+Length thresholds, glossary terms, and word choice require code review unless a
+custom analyzer enforces them.
 
 Use `dotnet format` after adding or changing `.editorconfig` naming rules.
 

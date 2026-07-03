@@ -81,9 +81,8 @@ exist, then inserts one calendar event row.
 - The repository resolves by-id operations from the opaque id to
   (`calendar-events`, `event-{CalendarEventId}`) and verifies the stored
   `CalendarEventId` before returning it.
-- Legacy scheduled-start-derived ids, legacy monthly partitions, and legacy row
-  keys are unsupported. Existing local data must be deleted and recreated after
-  this storage shape change.
+- Scheduled-start-derived ids, monthly partitions, and scheduled-start-derived
+  row keys are not supported storage shapes.
 - Publication rows use the opaque id in their partition key, so a recreated
   event cannot inherit publication rows from a deleted event.
 
@@ -98,9 +97,9 @@ Calendar event rows store `TextJson`, a complete event text snapshot containing
 the ordered field definitions and submitted values. Create builds this snapshot
 from the current event text fields setting. Update changes scheduled start
 fields and text values against the stored snapshot and does not consult the
-current setting, so existing new-shape events keep their field list, labels,
-max lengths, keys, and values after later settings edits. There is no
-compatibility reader for old localized-description rows.
+current setting, so stored events keep their field list, labels, max lengths,
+keys, and values after settings edits. Rows without `TextJson` are not a
+supported read shape.
 
 ## Template Rows
 
@@ -178,10 +177,10 @@ than duplicated in documentation.
 - Publish settings are stored as `PublishSettingsJson`.
   - For YouTube rows, `PublishSettingsJson` stores `credentials.clientId`,
     `credentials.clientSecret`, `credentials.refreshToken`, `privacyStatus`,
-    and `selfDeclaredMadeForKids` so the provider can publish later.
+    and `selfDeclaredMadeForKids` so the provider can publish at request time.
   - For WordPress rows, `PublishSettingsJson` is secret-bearing. It stores
     `siteUrl`, `username`, `applicationPassword`, and `postStatus` so the
-    provider can publish later.
+    provider can publish at request time.
   - HTTP responses must project platform settings through redacted response
     DTOs. YouTube responses return configured flags and redacted display values,
     not `clientSecret` or `refreshToken`. WordPress responses return
@@ -192,9 +191,8 @@ than duplicated in documentation.
     response projections. They are not stored fields and are not copied into
     platform-publication snapshots.
 - `TitleTemplateId` and `DescriptionTemplateId` store the required
-  provider-neutral publishing-content template ids. Old rows missing either id
-  are unsupported by the current contract; local test data should be recreated
-  after the shape change.
+  provider-neutral publishing-content template ids. Rows missing either id are
+  not supported by the current contract.
 
 Entity fields, table keys, and formatting details are defined in code rather
 than duplicated in documentation.
@@ -279,16 +277,14 @@ both pass the scan before either row is visible. That residual race is accepted
 for the current expected volume. There is no scheduled-start guard row,
 secondary index, or strict uniqueness mechanism.
 
-## Production Release Requirements
+## Current Persistence Boundaries
 
 - Calendar events can be created, updated, deleted, paged, and listed by local
   calendar month.
-- Schema migration and backfill paths must be defined before storage shape
-  changes are released.
-- Explicit retry and conflict policies must be defined around table reads and
-  writes.
-- Backup and recovery processes must be documented before production use.
+- Schema migration and backfill paths are not implemented.
+- Table read and write retry policy is limited to the Azure SDK behavior and
+  the explicit conflict handling documented in the HTTP contracts.
+- Backup and recovery processes are not documented.
 - Calendar events link to created provider resources through platform
   publication rows, which store the provider `ExternalResourceId`. Reconciliation
-  between stored publications and live provider state remains required release
-  work.
+  between stored publications and live provider state is not implemented.
