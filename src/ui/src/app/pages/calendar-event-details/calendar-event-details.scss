@@ -25,12 +25,6 @@
   }
 }
 
-.event-form {
-  display: flex;
-  flex-direction: column;
-  gap: $app-space-6;
-}
-
 .section {
   display: flex;
   flex-direction: column;
@@ -52,17 +46,6 @@
   font-size: 1rem;
   font-weight: 600;
   color: $app-color-text;
-}
-
-.section-hint {
-  margin: 0;
-  color: $app-color-muted;
-}
-
-.text-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-  gap: $app-space-4;
 }
 
 .text-item {

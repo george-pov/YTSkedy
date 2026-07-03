@@ -18,7 +18,7 @@
         The calendar event could not be loaded. Check your connection and try again.
       </app-alert>
     } @else {
-      <form class="event-form" (submit)="onSubmit($event)">
+      <form class="app-grid app-gap-6" (submit)="onSubmit($event)">
         <fieldset class="section">
           <legend>Scheduled start</legend>
           <div class="app-grid app-gap-4">
@@ -49,9 +49,12 @@
             </app-alert>
           }
 
-          <div class="text-list">
+          <div class="app-grid app-gap-4">
             @for (text of model().texts; track text.fieldKey; let index = $index) {
-              <section class="text-item" [attr.aria-labelledby]="'event-text-' + text.fieldKey">
+              <section
+                class="text-item app-col-md-6"
+                [attr.aria-labelledby]="'event-text-' + text.fieldKey"
+              >
                 <header>
                   <h2 [id]="'event-text-' + text.fieldKey">{{ text.label }}</h2>
                   <span>{{ text.fieldKey }} / {{ text.type }}</span>
