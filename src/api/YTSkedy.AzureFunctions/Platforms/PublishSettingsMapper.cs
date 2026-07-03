@@ -5,6 +5,12 @@ namespace YTSkedy.AzureFunctions.Platforms;
 
 internal static class PublishSettingsMapper
 {
+    private const int YouTubeDisplayLength = 12;
+    private const int YouTubeSuffixLength = 3;
+    private const int WordPressDisplayLength = 7;
+    private const int WordPressSuffixLength = 0;
+    private const char MaskCharacter = '*';
+
     internal static PlatformType TypeOf(PublishSettings publishSettings) =>
         publishSettings switch
         {
@@ -26,6 +32,7 @@ internal static class PublishSettingsMapper
                 null,
                 null,
                 null,
+                null,
                 null),
             WordPressSettings wordPress => new PublishSettingsResponse(
                 null,
@@ -34,12 +41,65 @@ internal static class PublishSettingsMapper
                 wordPress.SiteUrl,
                 wordPress.Username,
                 wordPress.PostStatus,
-                WordPressSettings.IsValidApplicationPassword(wordPress.ApplicationPassword)),
+                WordPressSettings.IsValidApplicationPassword(wordPress.ApplicationPassword),
+                WordPressSettings.IsValidApplicationPassword(wordPress.ApplicationPassword)
+                    ? RedactSecret(
+                        wordPress.ApplicationPassword,
+                        WordPressDisplayLength,
+                        WordPressSuffixLength,
+                        MaskCharacter)
+                    : null),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(publishSettings),
                 publishSettings.GetType().Name,
                 "Unknown publish settings type.")
         };
+
+    internal static string? RedactSecret(
+        string? value,
+        int displayLength,
+        int visibleSuffixLength,
+        char maskCharacter)
+    {
+        if (displayLength <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(displayLength),
+                displayLength,
+                "Display length must be greater than zero.");
+        }
+
+        if (visibleSuffixLength < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(visibleSuffixLength),
+                visibleSuffixLength,
+                "Visible suffix length must be zero or greater.");
+        }
+
+        if (visibleSuffixLength > displayLength)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(visibleSuffixLength),
+                visibleSuffixLength,
+                "Visible suffix length must not exceed display length.");
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var mask = new string(maskCharacter, displayLength);
+        if (visibleSuffixLength <= 0 || value.Length < visibleSuffixLength)
+        {
+            return mask;
+        }
+
+        return string.Concat(
+            mask.AsSpan(0, displayLength - visibleSuffixLength),
+            value.AsSpan(value.Length - visibleSuffixLength));
+    }
 
     internal static bool TryBuild(
         PlatformType type,
@@ -84,11 +144,30 @@ internal static class PublishSettingsMapper
     }
 
     private static YouTubeCredentialsResponse ToYouTubeCredentialsResponse(
-        YouTubeCredentials credentials) =>
-        new(
+        YouTubeCredentials credentials)
+    {
+        var clientSecretConfigured = YouTubeCredentials.IsValidClientSecret(credentials.ClientSecret);
+        var refreshTokenConfigured = YouTubeCredentials.IsValidRefreshToken(credentials.RefreshToken);
+
+        return new(
             credentials.ClientId,
-            YouTubeCredentials.IsValidClientSecret(credentials.ClientSecret),
-            YouTubeCredentials.IsValidRefreshToken(credentials.RefreshToken));
+            clientSecretConfigured,
+            refreshTokenConfigured,
+            clientSecretConfigured
+                ? RedactSecret(
+                    credentials.ClientSecret,
+                    YouTubeDisplayLength,
+                    YouTubeSuffixLength,
+                    MaskCharacter)
+                : null,
+            refreshTokenConfigured
+                ? RedactSecret(
+                    credentials.RefreshToken,
+                    YouTubeDisplayLength,
+                    YouTubeSuffixLength,
+                    MaskCharacter)
+                : null);
+    }
 
     private static bool TryBuildYouTubeSettings(
         PublishSettingsPayload payload,

@@ -67,10 +67,14 @@ YouTube OAuth values through platform create or update requests:
 `clientSecret` and `refreshToken` are accepted on platform create and update but
 are never returned by platform reads. Responses return
 `credentials.clientSecretConfigured` and
-`credentials.refreshTokenConfigured` instead. On update, omitting either secret
-or sending it blank preserves the stored value; sending a non-blank value
-replaces it. `clientId` is returned because it is not secret and is required on
-create and update.
+`credentials.refreshTokenConfigured` plus response-only display values instead.
+`credentials.clientSecretDisplayValue` and
+`credentials.refreshTokenDisplayValue` reveal only the final three stored
+characters behind a fixed 12-character mask and hide the stored secret length.
+On update, omitting either secret or sending it blank preserves the stored
+value; sending a non-blank value replaces it. Redacted display values are not
+accepted in create or update request bodies. `clientId` is returned because it
+is not secret and is required on create and update.
 
 For local manual checks, keep YouTube client secrets and refresh tokens in
 `http-client.env.json.user`, not tracked `.http` environment files or
@@ -110,8 +114,11 @@ update requests:
 
 `applicationPassword` is accepted on platform create and update but is never
 returned by platform reads. Responses return `applicationPasswordConfigured`
-instead. On update, omitting `applicationPassword` or sending it blank preserves
-the stored value; sending a non-blank value replaces it.
+and `passwordDisplayValue` instead. `passwordDisplayValue` is always seven `*`
+characters and reveals no stored characters. On update, omitting
+`applicationPassword` or sending it blank preserves the stored value; sending a
+non-blank value replaces it. Redacted display values are not accepted in create
+or update request bodies.
 
 For local manual checks, keep WordPress site URLs, usernames, and Application
 Passwords in `http-client.env.json.user`, not tracked `.http` environment

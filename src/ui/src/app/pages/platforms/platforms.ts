@@ -364,6 +364,12 @@ function toFormModel(platform: Platform): PlatformFormModel {
     youTubeRefreshTokenConfigured: String(
       youTubeSettings?.credentials.refreshTokenConfigured ?? false,
     ),
+    youTubeClientSecretDisplayValue:
+      youTubeSettings?.credentials.clientSecretDisplayValue ??
+      defaults.youTubeClientSecretDisplayValue,
+    youTubeRefreshTokenDisplayValue:
+      youTubeSettings?.credentials.refreshTokenDisplayValue ??
+      defaults.youTubeRefreshTokenDisplayValue,
     youTubePrivacyStatus: youTubeSettings?.privacyStatus ?? defaults.youTubePrivacyStatus,
     youTubeMadeForKids: String(
       youTubeSettings?.selfDeclaredMadeForKids ?? defaults.youTubeMadeForKids,
@@ -375,6 +381,8 @@ function toFormModel(platform: Platform): PlatformFormModel {
     wordPressApplicationPasswordConfigured: String(
       wordPressSettings?.applicationPasswordConfigured ?? false,
     ),
+    wordPressPasswordDisplayValue:
+      wordPressSettings?.passwordDisplayValue ?? defaults.wordPressPasswordDisplayValue,
   };
 }
 

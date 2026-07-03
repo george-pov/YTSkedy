@@ -1,5 +1,11 @@
 <app-input [field]="siteUrl()" label="Site URL" placeholder="https://example.com/" />
 <app-input [field]="username()" label="Username" />
+@if (passwordDisplayValue()) {
+  <p class="secret-status">
+    <span>Current Application Password</span>
+    <strong>{{ passwordDisplayValue() }}</strong>
+  </p>
+}
 <app-input
   [field]="applicationPassword()"
   label="Application Password"

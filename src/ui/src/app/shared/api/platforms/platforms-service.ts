@@ -21,6 +21,8 @@ export interface YouTubeCredentials {
   refreshToken?: string;
   clientSecretConfigured?: boolean;
   refreshTokenConfigured?: boolean;
+  clientSecretDisplayValue?: string;
+  refreshTokenDisplayValue?: string;
 }
 
 /** Publish settings specific to a YouTube platform. */
@@ -38,6 +40,7 @@ export interface WordPressPublishSettings {
   username: string;
   postStatus: WordPressPostStatus;
   applicationPasswordConfigured?: boolean;
+  passwordDisplayValue?: string;
   applicationPassword?: string;
 }
 
@@ -51,8 +54,9 @@ export interface PublishingContent {
 
 /**
  * A configured publishing platform. Secret-bearing settings are redacted in API
- * responses: YouTube returns configured flags for secret values, and WordPress
- * returns `applicationPasswordConfigured`.
+ * responses: YouTube returns configured flags and backend-computed display
+ * values for secret values, and WordPress returns `applicationPasswordConfigured`
+ * plus a backend-computed display value.
  */
 export interface Platform {
   id: string;

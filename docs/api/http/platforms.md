@@ -51,7 +51,9 @@ A YouTube platform is returned as:
     "credentials": {
       "clientId": "google-oauth-client-id",
       "clientSecretConfigured": true,
-      "refreshTokenConfigured": true
+      "refreshTokenConfigured": true,
+      "clientSecretDisplayValue": "*********A3B",
+      "refreshTokenDisplayValue": "*********Z9Y"
     },
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false
@@ -75,7 +77,8 @@ A WordPress platform is returned as:
     "siteUrl": "https://blog.example.test/",
     "username": "publisher",
     "postStatus": "draft",
-    "applicationPasswordConfigured": true
+    "applicationPasswordConfigured": true,
+    "passwordDisplayValue": "*******"
   }
 }
 ```
@@ -104,9 +107,14 @@ A WordPress platform is returned as:
   `publishSettings.credentials.clientSecret` and
   `publishSettings.credentials.refreshToken`, but responses never return them.
   Responses return `clientSecretConfigured` and
-  `refreshTokenConfigured` instead. `privacyStatus` is `private`, `public`, or
-  `unlisted`; `selfDeclaredMadeForKids` defaults to `false` on create when
-  omitted.
+  `refreshTokenConfigured` plus response-only display values instead.
+  `clientSecretDisplayValue` and `refreshTokenDisplayValue` are exactly 12
+  characters. When the stored value has at least three characters, the display
+  value is nine `*` characters plus the last three stored characters. Shorter
+  stored values display as 12 `*` characters. These display values hide the
+  original length and are not accepted in create or update request bodies.
+  `privacyStatus` is `private`, `public`, or `unlisted`;
+  `selfDeclaredMadeForKids` defaults to `false` on create when omitted.
 - WordPress `publishSettings.siteUrl` is the WordPress site root. Non-local
   site URLs must use HTTPS. `http://localhost` and `http://127.0.0.1` are
   allowed for local development only.
@@ -115,7 +123,10 @@ A WordPress platform is returned as:
 - WordPress `publishSettings.postStatus` is `draft` or `publish`.
 - WordPress create and update requests can include
   `publishSettings.applicationPassword`, but responses never return it.
-  Responses return `applicationPasswordConfigured` instead.
+  Responses return `applicationPasswordConfigured` and `passwordDisplayValue`
+  instead. `passwordDisplayValue` is exactly seven `*` characters and reveals
+  no stored characters. It confirms only that an Application Password is
+  configured and is not accepted in create or update request bodies.
 
 ## List Platforms
 
@@ -146,7 +157,9 @@ Success response (`200 OK`):
         "credentials": {
           "clientId": "google-oauth-client-id",
           "clientSecretConfigured": true,
-          "refreshTokenConfigured": true
+          "refreshTokenConfigured": true,
+          "clientSecretDisplayValue": "*********A3B",
+          "refreshTokenDisplayValue": "*********Z9Y"
         },
         "privacyStatus": "private",
         "selfDeclaredMadeForKids": false
@@ -226,8 +239,13 @@ WordPress request body:
 
 Success returns `200 OK` with the created platform, including its generated
 `platformId`. YouTube responses redact `clientSecret` and `refreshToken` and
-return configured flags. WordPress responses redact `applicationPassword` and
-return `applicationPasswordConfigured`.
+return configured flags plus display values. WordPress responses redact
+`applicationPassword` and return `applicationPasswordConfigured` plus
+`passwordDisplayValue`.
+
+Redacted display values are response-only. Do not send
+`clientSecretDisplayValue`, `refreshTokenDisplayValue`, or
+`passwordDisplayValue` in create request bodies.
 
 Status codes:
 
@@ -334,6 +352,11 @@ preserves the stored Application Password. A non-blank value replaces it.
 Include the current `publishingContent` ids in every update body when they
 should be preserved. Success returns `200 OK` with the updated platform and
 redacted settings.
+
+Redacted display values are response-only. Do not send
+`clientSecretDisplayValue`, `refreshTokenDisplayValue`, or
+`passwordDisplayValue` in update request bodies. Use the actual replacement
+secret value when replacing a stored secret.
 
 Status codes:
 

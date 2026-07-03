@@ -24,6 +24,73 @@ describe('platforms form request mapping', () => {
     });
   });
 
+  it('toUpdatePlatformRequest_YouTubeBlankSecrets_OmitsReplacementSecrets', () => {
+    const request = toUpdatePlatformRequest(
+      validModel({
+        youTubeClientSecret: '   ',
+        youTubeRefreshToken: '',
+        youTubeClientSecretConfigured: 'true',
+        youTubeRefreshTokenConfigured: 'true',
+        youTubeClientSecretDisplayValue: '*********A3B',
+        youTubeRefreshTokenDisplayValue: '*********Z9Y',
+      }),
+    );
+
+    expect(request.publishSettings).toEqual({
+      credentials: {
+        clientId: 'client-id',
+      },
+      privacyStatus: 'private',
+      selfDeclaredMadeForKids: false,
+    });
+  });
+
+  it('toUpdatePlatformRequest_WordPressBlankApplicationPassword_OmitsReplacementSecret', () => {
+    const request = toUpdatePlatformRequest(
+      validModel({
+        type: 'WordPress',
+        youTubeClientId: '',
+        youTubeClientSecret: '',
+        youTubeRefreshToken: '',
+        wordPressSiteUrl: ' https://blog.example.test/ ',
+        wordPressUsername: ' publisher ',
+        wordPressApplicationPassword: '   ',
+        wordPressPostStatus: 'draft',
+        wordPressApplicationPasswordConfigured: 'true',
+        wordPressPasswordDisplayValue: '*******',
+      }),
+    );
+
+    expect(request.publishSettings).toEqual({
+      siteUrl: 'https://blog.example.test/',
+      username: 'publisher',
+      postStatus: 'draft',
+    });
+  });
+
+  it('toUpdatePlatformRequest_DisplayValues_DoesNotCopyDisplayValues', () => {
+    const request = toUpdatePlatformRequest(
+      validModel({
+        youTubeClientSecret: '',
+        youTubeRefreshToken: '',
+        youTubeClientSecretConfigured: 'true',
+        youTubeRefreshTokenConfigured: 'true',
+        youTubeClientSecretDisplayValue: '*********A3B',
+        youTubeRefreshTokenDisplayValue: '*********Z9Y',
+        wordPressPasswordDisplayValue: '*******',
+      }),
+    );
+
+    const json = JSON.stringify(request);
+
+    expect(json).not.toContain('clientSecretDisplayValue');
+    expect(json).not.toContain('refreshTokenDisplayValue');
+    expect(json).not.toContain('passwordDisplayValue');
+    expect(json).not.toContain('*********A3B');
+    expect(json).not.toContain('*********Z9Y');
+    expect(json).not.toContain('*******');
+  });
+
   function validModel(overrides: Partial<PlatformFormModel>): PlatformFormModel {
     return {
       ...createPlatformFormModel(),

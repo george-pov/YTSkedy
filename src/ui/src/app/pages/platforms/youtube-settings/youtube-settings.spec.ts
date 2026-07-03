@@ -22,6 +22,8 @@ interface YouTubeSettingsModel {
     [refreshToken]="form.refreshToken"
     [clientSecretConfigured]="true"
     [refreshTokenConfigured]="true"
+    clientSecretDisplayValue="*********A3B"
+    refreshTokenDisplayValue="*********Z9Y"
     [privacyStatus]="form.privacyStatus"
     [madeForKids]="form.madeForKids"
   />`,
@@ -53,6 +55,20 @@ describe('YouTubeSettings', () => {
   it('renders the credential inputs and the two settings selects', () => {
     expect(fixture.nativeElement.querySelectorAll('app-input input')).toHaveLength(3);
     expect(fixture.nativeElement.querySelectorAll('app-select')).toHaveLength(2);
+  });
+
+  it('renders read-only secret status while replacement inputs stay empty', () => {
+    const text = fixture.nativeElement.textContent as string;
+    const inputs = Array.from(
+      fixture.nativeElement.querySelectorAll('app-input input'),
+    ) as HTMLInputElement[];
+
+    expect(text).toContain('*********A3B');
+    expect(text).toContain('*********Z9Y');
+    expect(inputs.some((input) => input.value === '*********A3B')).toBe(false);
+    expect(inputs.some((input) => input.value === '*********Z9Y')).toBe(false);
+    expect(host.model().clientSecret).toBe('');
+    expect(host.model().refreshToken).toBe('');
   });
 
   it('binds the supplied client ID field to its model value', async () => {

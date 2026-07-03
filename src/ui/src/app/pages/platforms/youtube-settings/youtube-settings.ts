@@ -21,6 +21,8 @@ export class YouTubeSettings {
   readonly refreshToken = input.required<Field<string>>();
   readonly clientSecretConfigured = input(false);
   readonly refreshTokenConfigured = input(false);
+  readonly clientSecretDisplayValue = input('');
+  readonly refreshTokenDisplayValue = input('');
   /** Broadcast visibility: `private`, `public`, or `unlisted`. */
   readonly privacyStatus = input.required<Field<string>>();
   /** Self-declared "made for kids" flag, carried as `'true'`/`'false'`. */

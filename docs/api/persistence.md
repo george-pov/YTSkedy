@@ -170,15 +170,21 @@ than duplicated in documentation.
   schema and provider adapter. `UpdateAsync` reads the stored type and reuses it
   to serialize the new settings. Unknown stored type values fail the read.
 - Publish settings are stored as `PublishSettingsJson`.
-  - For YouTube rows, `PublishSettingsJson` stores the non-secret
-    `credentials` reference, `privacyStatus`, and
-    `selfDeclaredMadeForKids`.
+  - For YouTube rows, `PublishSettingsJson` stores `credentials.clientId`,
+    `credentials.clientSecret`, `credentials.refreshToken`, `privacyStatus`,
+    and `selfDeclaredMadeForKids` so the provider can publish later.
   - For WordPress rows, `PublishSettingsJson` is secret-bearing. It stores
     `siteUrl`, `username`, `applicationPassword`, and `postStatus` so the
     provider can publish later.
   - HTTP responses must project platform settings through redacted response
-    DTOs. WordPress responses return `applicationPasswordConfigured`, not
+    DTOs. YouTube responses return configured flags and redacted display values,
+    not `clientSecret` or `refreshToken`. WordPress responses return
+    `applicationPasswordConfigured` and a redacted display value, not
     `applicationPassword`.
+  - Redacted display values such as `clientSecretDisplayValue`,
+    `refreshTokenDisplayValue`, and `passwordDisplayValue` are computed HTTP
+    response projections. They are not stored fields and are not copied into
+    platform-publication snapshots.
 - `TitleTemplateId` and `DescriptionTemplateId` store the required
   provider-neutral publishing-content template ids. Old rows missing either id
   are unsupported by the current contract; local test data should be recreated

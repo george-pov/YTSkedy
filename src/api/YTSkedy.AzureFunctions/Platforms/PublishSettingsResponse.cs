@@ -20,9 +20,15 @@ internal sealed record PublishSettingsResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? PostStatus,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    bool? ApplicationPasswordConfigured);
+    bool? ApplicationPasswordConfigured,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? PasswordDisplayValue);
 
 internal sealed record YouTubeCredentialsResponse(
     string ClientId,
     bool ClientSecretConfigured,
-    bool RefreshTokenConfigured);
+    bool RefreshTokenConfigured,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? ClientSecretDisplayValue,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? RefreshTokenDisplayValue);

@@ -67,6 +67,8 @@
                 [refreshToken]="form.youTubeRefreshToken"
                 [clientSecretConfigured]="model().youTubeClientSecretConfigured === 'true'"
                 [refreshTokenConfigured]="model().youTubeRefreshTokenConfigured === 'true'"
+                [clientSecretDisplayValue]="model().youTubeClientSecretDisplayValue"
+                [refreshTokenDisplayValue]="model().youTubeRefreshTokenDisplayValue"
                 [privacyStatus]="form.youTubePrivacyStatus"
                 [madeForKids]="form.youTubeMadeForKids"
               />
@@ -79,6 +81,7 @@
                 [applicationPasswordConfigured]="
                   model().wordPressApplicationPasswordConfigured === 'true'
                 "
+                [passwordDisplayValue]="model().wordPressPasswordDisplayValue"
               />
             } @else {
               <app-alert variant="info">

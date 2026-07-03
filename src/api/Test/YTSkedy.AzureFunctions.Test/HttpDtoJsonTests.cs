@@ -3,6 +3,7 @@ using YTSkedy.AzureFunctions.CalendarEvents;
 using YTSkedy.AzureFunctions.Platforms;
 using YTSkedy.AzureFunctions.Settings;
 using YTSkedy.AzureFunctions.Templates;
+using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.AzureFunctions.Test;
 
@@ -130,6 +131,46 @@ public sealed class HttpDtoJsonTests
     }
 
     [Fact]
+    public void UpdatePlatformRequest_InternalNestedDto_DeserializesWithWebDefaults()
+    {
+        const string json = """
+            {
+              "name": "Renamed YouTube channel",
+              "referenceKey": "youTube1",
+              "publishingContent": {
+                "titleTemplateId": "title-template",
+                "descriptionTemplateId": "description-template"
+              },
+              "publishSettings": {
+                "credentials": {
+                  "clientId": "client-id",
+                  "clientSecret": "client-secret",
+                  "refreshToken": "refresh-token"
+                },
+                "privacyStatus": "private",
+                "selfDeclaredMadeForKids": false
+              }
+            }
+            """;
+
+        var request = JsonSerializer.Deserialize<UpdatePlatformRequest>(json, JsonOptions);
+
+        Assert.NotNull(request);
+        Assert.Equal("Renamed YouTube channel", request.Name);
+        Assert.Equal("youTube1", request.ReferenceKey);
+        Assert.NotNull(request.PublishingContent);
+        Assert.Equal("title-template", request.PublishingContent.TitleTemplateId);
+        Assert.Equal("description-template", request.PublishingContent.DescriptionTemplateId);
+        Assert.NotNull(request.PublishSettings);
+        Assert.NotNull(request.PublishSettings.Credentials);
+        Assert.Equal("client-id", request.PublishSettings.Credentials.ClientId);
+        Assert.Equal("client-secret", request.PublishSettings.Credentials.ClientSecret);
+        Assert.Equal("refresh-token", request.PublishSettings.Credentials.RefreshToken);
+        Assert.Equal("private", request.PublishSettings.PrivacyStatus);
+        Assert.False(request.PublishSettings.SelfDeclaredMadeForKids.GetValueOrDefault());
+    }
+
+    [Fact]
     public void UpdateEventTextFieldsRequest_InternalDto_DeserializesWithWebDefaults()
     {
         const string json = """
@@ -157,22 +198,59 @@ public sealed class HttpDtoJsonTests
     }
 
     [Fact]
-    public void PlatformResponse_WordPressSettings_SerializesRedactedSettings()
+    public void PlatformResponse_YouTubeSettings_SerializesDisplayValuesAndExcludesRawSecrets()
     {
-        object response = new PlatformResponse(
+        object response = PlatformsApi.ToPlatformResponse(
+            "yt-platform",
+            "Main YouTube channel",
+            PlatformType.YouTube,
+            "main-channel",
+            new YouTubeSettings(
+                new YouTubeCredentials(
+                    "client-id",
+                    "stored-client-secret-A3B",
+                    "stored-refresh-token-Z9Y"),
+                "private",
+                false),
+            new PublishingContent(
+                "title-template",
+                "description-template"));
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+
+        using var document = JsonDocument.Parse(json);
+        var settings = document.RootElement.GetProperty("publishSettings");
+        var credentials = settings.GetProperty("credentials");
+
+        Assert.Equal("client-id", credentials.GetProperty("clientId").GetString());
+        Assert.True(credentials.GetProperty("clientSecretConfigured").GetBoolean());
+        Assert.True(credentials.GetProperty("refreshTokenConfigured").GetBoolean());
+        Assert.Equal(
+            "*********A3B",
+            credentials.GetProperty("clientSecretDisplayValue").GetString());
+        Assert.Equal(
+            "*********Z9Y",
+            credentials.GetProperty("refreshTokenDisplayValue").GetString());
+        Assert.DoesNotContain("\"clientSecret\":\"", json);
+        Assert.DoesNotContain("\"refreshToken\":\"", json);
+        Assert.DoesNotContain("stored-client-secret-A3B", json);
+        Assert.DoesNotContain("stored-refresh-token-Z9Y", json);
+    }
+
+    [Fact]
+    public void PlatformResponse_WordPressSettings_SerializesDisplayValueAndExcludesRawSecret()
+    {
+        object response = PlatformsApi.ToPlatformResponse(
             "wp-platform",
             "Main WordPress site",
+            PlatformType.WordPress,
             "company-blog",
-            "WordPress",
-            new PublishSettingsResponse(
-                null,
-                null,
-                null,
+            new WordPressSettings(
                 "https://example.com",
                 "editor",
-                "publish",
-                true),
-            new PlatformPublishingContentResponse(
+                "local-test-password",
+                "publish"),
+            new PublishingContent(
                 "title-template",
                 "description-template"));
 
@@ -191,8 +269,19 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("editor", settings.GetProperty("username").GetString());
         Assert.Equal("publish", settings.GetProperty("postStatus").GetString());
         Assert.True(settings.GetProperty("applicationPasswordConfigured").GetBoolean());
+        Assert.Equal("*******", settings.GetProperty("passwordDisplayValue").GetString());
         Assert.DoesNotContain("applicationPassword\":\"", json);
-        Assert.DoesNotContain("application-password", json);
+        Assert.DoesNotContain("local-test-password", json);
+    }
+
+    [Fact]
+    public void WriteRequestDtos_DoNotDeclareDisplayValueFields()
+    {
+        Assert.Null(typeof(PublishSettingsPayload).GetProperty("PasswordDisplayValue"));
+        Assert.Null(typeof(PublishSettingsPayload).GetProperty("ClientSecretDisplayValue"));
+        Assert.Null(typeof(PublishSettingsPayload).GetProperty("RefreshTokenDisplayValue"));
+        Assert.Null(typeof(YouTubeCredentialsPayload).GetProperty("ClientSecretDisplayValue"));
+        Assert.Null(typeof(YouTubeCredentialsPayload).GetProperty("RefreshTokenDisplayValue"));
     }
 
     [Fact]

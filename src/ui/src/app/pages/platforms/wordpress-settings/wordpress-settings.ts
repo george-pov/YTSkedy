@@ -21,6 +21,7 @@ export class WordPressSettings {
   readonly applicationPassword = input.required<Field<string>>();
   readonly postStatus = input.required<Field<string>>();
   readonly applicationPasswordConfigured = input(false);
+  readonly passwordDisplayValue = input('');
 
   protected readonly postStatusOptions: readonly SelectOption[] = [
     { value: 'draft', label: 'Draft' },

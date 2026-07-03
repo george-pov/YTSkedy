@@ -67,6 +67,8 @@ describe('Platforms', () => {
           clientId: 'client-id',
           clientSecretConfigured: true,
           refreshTokenConfigured: true,
+          clientSecretDisplayValue: '*********A3B',
+          refreshTokenDisplayValue: '*********Z9Y',
         },
         privacyStatus: 'private',
         selfDeclaredMadeForKids: false,
@@ -90,6 +92,7 @@ describe('Platforms', () => {
         username: 'publisher',
         postStatus: 'draft',
         applicationPasswordConfigured: true,
+        passwordDisplayValue: '*******',
       },
       ...overrides,
     };
@@ -126,6 +129,8 @@ describe('Platforms', () => {
       youTubeRefreshToken: 'refresh-token',
       youTubeClientSecretConfigured: 'false',
       youTubeRefreshTokenConfigured: 'false',
+      youTubeClientSecretDisplayValue: '',
+      youTubeRefreshTokenDisplayValue: '',
       youTubePrivacyStatus: 'private',
       youTubeMadeForKids: 'false',
       wordPressSiteUrl: '',
@@ -133,6 +138,7 @@ describe('Platforms', () => {
       wordPressApplicationPassword: '',
       wordPressPostStatus: 'draft',
       wordPressApplicationPasswordConfigured: 'false',
+      wordPressPasswordDisplayValue: '',
       ...overrides,
     };
   }
@@ -274,6 +280,8 @@ describe('Platforms', () => {
     expect(inputs.some((input) => input.value === 'client-id')).toBe(true);
     expect(inputs.some((input) => input.value === 'client-secret')).toBe(false);
     expect(inputs.some((input) => input.value === 'refresh-token')).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain('*********A3B');
+    expect(fixture.nativeElement.textContent).toContain('*********Z9Y');
     expect(inputs.some((input) => input.placeholder.includes('keep existing secret'))).toBe(true);
     expect(inputs.some((input) => input.placeholder.includes('keep existing token'))).toBe(true);
   });
@@ -380,7 +388,53 @@ describe('Platforms', () => {
     expect(inputs.some((input) => input.value === 'https://blog.example.test/')).toBe(true);
     expect(inputs.some((input) => input.value === 'publisher')).toBe(true);
     expect(inputs.some((input) => input.value === 'application-password')).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain('*******');
     expect(inputs.some((input) => input.placeholder.includes('keep existing password'))).toBe(true);
+  });
+
+  it('rejects a YouTube client secret that matches the displayed hidden value', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+
+    await createComponent();
+    await selectRow(0);
+
+    await setValue(inputByLabel('Client secret'), '*********A3B');
+    await submitEditor();
+
+    expect(service.update).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain(
+      'Enter the actual secret value, not the displayed hidden value.',
+    );
+  });
+
+  it('rejects a YouTube refresh token that matches the displayed hidden value', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+
+    await createComponent();
+    await selectRow(0);
+
+    await setValue(inputByLabel('Refresh token'), '*********Z9Y');
+    await submitEditor();
+
+    expect(service.update).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain(
+      'Enter the actual secret value, not the displayed hidden value.',
+    );
+  });
+
+  it('rejects a WordPress Application Password that matches the displayed hidden value', async () => {
+    service.list.mockReturnValue(of({ platforms: [wordPressPlatform()] }));
+
+    await createComponent();
+    await selectRow(0);
+
+    await setValue(inputByLabel('Application Password'), '*******');
+    await submitEditor();
+
+    expect(service.update).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain(
+      'Enter the actual secret value, not the displayed hidden value.',
+    );
   });
 
   it('creates a platform and adds it to the list', async () => {
@@ -396,6 +450,8 @@ describe('Platforms', () => {
             clientId: 'second-client-id',
             clientSecretConfigured: true,
             refreshTokenConfigured: true,
+            clientSecretDisplayValue: '*********S3C',
+            refreshTokenDisplayValue: '*********T0K',
           },
           privacyStatus: 'private',
           selfDeclaredMadeForKids: false,
@@ -485,6 +541,7 @@ describe('Platforms', () => {
           username: 'publisher',
           postStatus: 'draft',
           applicationPasswordConfigured: true,
+          passwordDisplayValue: '*******',
         },
         publishingContent: publishingContent({
           titleTemplateId: 'wordpress-title-template',
@@ -510,6 +567,8 @@ describe('Platforms', () => {
       youTubeRefreshToken: '',
       youTubeClientSecretConfigured: 'false',
       youTubeRefreshTokenConfigured: 'false',
+      youTubeClientSecretDisplayValue: '',
+      youTubeRefreshTokenDisplayValue: '',
       youTubePrivacyStatus: 'private',
       youTubeMadeForKids: 'false',
       wordPressSiteUrl: ' https://blog.example.test/ ',
@@ -517,6 +576,7 @@ describe('Platforms', () => {
       wordPressApplicationPassword: 'local-test-password',
       wordPressPostStatus: 'draft',
       wordPressApplicationPasswordConfigured: 'false',
+      wordPressPasswordDisplayValue: '',
     });
     fixture.detectChanges();
 
@@ -553,6 +613,7 @@ describe('Platforms', () => {
           username: 'publisher',
           postStatus: 'draft',
           applicationPasswordConfigured: true,
+          passwordDisplayValue: '*******',
         },
         publishingContent: publishingContent({
           titleTemplateId: 'wordpress-title-template',
@@ -594,6 +655,7 @@ describe('Platforms', () => {
           username: 'publisher',
           postStatus: 'publish',
           applicationPasswordConfigured: true,
+          passwordDisplayValue: '*******',
         },
         publishingContent: publishingContent({
           titleTemplateId: 'wordpress-title-template',
@@ -616,6 +678,8 @@ describe('Platforms', () => {
       youTubeRefreshToken: '',
       youTubeClientSecretConfigured: 'false',
       youTubeRefreshTokenConfigured: 'false',
+      youTubeClientSecretDisplayValue: '',
+      youTubeRefreshTokenDisplayValue: '',
       youTubePrivacyStatus: 'private',
       youTubeMadeForKids: 'false',
       wordPressSiteUrl: 'https://blog.example.test/',
@@ -623,6 +687,7 @@ describe('Platforms', () => {
       wordPressApplicationPassword: 'replacement-local-password',
       wordPressPostStatus: 'publish',
       wordPressApplicationPasswordConfigured: 'true',
+      wordPressPasswordDisplayValue: '*******',
     });
     fixture.detectChanges();
 
@@ -642,6 +707,52 @@ describe('Platforms', () => {
         descriptionTemplateId: 'wordpress-description-template',
       }),
     });
+  });
+
+  it('refreshes redacted YouTube values from the update response', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+    service.update.mockReturnValue(
+      of({
+        id: 'id-1',
+        name: 'Main YouTube channel',
+        referenceKey: 'youTube1',
+        type: 'YouTube',
+        publishSettings: {
+          credentials: {
+            clientId: 'client-id',
+            clientSecretConfigured: true,
+            refreshTokenConfigured: true,
+            clientSecretDisplayValue: '*********N3W',
+            refreshTokenDisplayValue: '*********Z9Y',
+          },
+          privacyStatus: 'private',
+          selfDeclaredMadeForKids: false,
+        },
+        publishingContent: publishingContent(),
+      }),
+    );
+
+    await createComponent();
+    await selectRow(0);
+
+    await setValue(inputByLabel('Client secret'), 'stored-client-secret-N3W');
+    await submitEditor();
+
+    expect(service.update).toHaveBeenCalledWith('YouTube', 'id-1', {
+      name: 'Main YouTube channel',
+      referenceKey: 'youTube1',
+      publishSettings: {
+        credentials: {
+          clientId: 'client-id',
+          clientSecret: 'stored-client-secret-N3W',
+        },
+        privacyStatus: 'private',
+        selfDeclaredMadeForKids: false,
+      },
+      publishingContent: publishingContent(),
+    });
+    expect(fixture.nativeElement.textContent).toContain('*********N3W');
+    expect(inputByLabel('Client secret').value).toBe('');
   });
 
   it('surfaces a friendly message when the name is already taken', async () => {
