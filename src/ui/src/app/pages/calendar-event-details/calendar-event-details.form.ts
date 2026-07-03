@@ -70,14 +70,13 @@ export function createCalendarEventDetailsModel(
 }
 
 // Signal Forms validation rules. Defined as a function so the page can close
-// over its edit-mode signal: in edit mode the `start` group is disabled, which
-// excludes it from validation (text-values-only edit).
+// over its edit-mode and API action-state signals.
 export function applyCalendarEventDetailsRules(
   path: SchemaPathTree<CalendarEventDetailsModel>,
   isEditMode: () => boolean,
   canUpdate: () => boolean = () => true,
 ): void {
-  disabled(path.start, { when: () => isEditMode() });
+  disabled(path.start, { when: () => isEditMode() && !canUpdate() });
   required(path.start.date, { message: 'Start date is required.' });
   required(path.start.time, { message: 'Start time is required.' });
   required(path.start.timeZoneId, { message: 'Time zone is required.' });
@@ -210,13 +209,16 @@ export function patchCalendarEventDetailsModel(
   });
 }
 
-// Pure mapping from the model to the update request. Edit changes only the
-// text values (the start is immutable), so it carries no start. Trims text and
-// preserves the stored field order.
+// Pure mapping from the model to the update request. Edit replaces start and
+// text values together. Trims text and preserves the stored field order.
 export function toUpdateCalendarEventRequest(
   model: CalendarEventDetailsModel,
 ): UpdateCalendarEventRequest {
   return {
+    start: {
+      localDateTime: `${model.start.date}T${model.start.time}:00`,
+      timeZoneId: model.start.timeZoneId,
+    },
     texts: toEventTextValues(model),
   };
 }

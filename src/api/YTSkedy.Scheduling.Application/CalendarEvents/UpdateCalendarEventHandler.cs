@@ -9,7 +9,7 @@ public sealed class UpdateCalendarEventHandler(
     ICalendarEventModifier calendarEvents)
 {
     public async Task<UpdateCalendarEventResult> HandleAsync(
-        UpdateEventTextCommand command,
+        UpdateCalendarEventCommand command,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -31,6 +31,16 @@ public sealed class UpdateCalendarEventHandler(
             return UpdateCalendarEventResult.HasPlatformPublications;
         }
 
+        ScheduledStartConversion conversion;
+        try
+        {
+            conversion = ScheduledStartConverter.Convert(command.Start);
+        }
+        catch (InvalidScheduledStartException exception)
+        {
+            return UpdateCalendarEventResult.Invalid(exception.ValidationError);
+        }
+
         EventTextSnapshot text;
         try
         {
@@ -41,10 +51,20 @@ public sealed class UpdateCalendarEventHandler(
             return UpdateCalendarEventResult.Invalid(exception.Message);
         }
 
-        var updated = await calendarEvents.UpdateTextAsync(
-            command.CalendarEventId,
-            text,
-            cancellationToken);
+        bool updated;
+        try
+        {
+            updated = await calendarEvents.UpdateAsync(
+                command.CalendarEventId,
+                new CalendarEvent(command.Start, text),
+                conversion.ScheduledStartUtc,
+                cancellationToken);
+        }
+        catch (DuplicateScheduledStartException exception)
+        {
+            return UpdateCalendarEventResult.DuplicateScheduledStart(
+                exception.ScheduledStartUtc);
+        }
 
         // The row was read but vanished before the write. Treat the
         // stale client as a missing event so the host returns 404.

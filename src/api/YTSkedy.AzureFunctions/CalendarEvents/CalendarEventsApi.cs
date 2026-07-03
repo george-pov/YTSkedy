@@ -39,13 +39,7 @@ public sealed class CalendarEventsApi(
 
         var result = await createHandler.HandleAsync(command, cancellationToken);
 
-        return result.Status switch
-        {
-            CreateCalendarEventStatus.Created => new OkObjectResult(
-                new CreateCalendarEventResponse(result.CalendarEventId!)),
-            CreateCalendarEventStatus.Invalid => new BadRequestObjectResult(result.ValidationError),
-            _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
-        };
+        return ToCreateResult(result);
     }
 
     [Function("ListCalendarEvents")]
@@ -170,6 +164,19 @@ public sealed class CalendarEventsApi(
                 $"Calendar event '{calendarEventId}' has platform publications. " +
                 "Delete platform publications before updating the event."),
             UpdateCalendarEventStatus.Invalid => new BadRequestObjectResult(result.ValidationError),
+            UpdateCalendarEventStatus.DuplicateScheduledStart => new ConflictObjectResult(
+                $"Calendar event scheduled for '{result.ScheduledStartUtc!.Value:o}' already exists."),
+            _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
+        };
+
+    internal static IActionResult ToCreateResult(CreateCalendarEventResult result) =>
+        result.Status switch
+        {
+            CreateCalendarEventStatus.Created => new OkObjectResult(
+                new CreateCalendarEventResponse(result.CalendarEventId!)),
+            CreateCalendarEventStatus.Invalid => new BadRequestObjectResult(result.ValidationError),
+            CreateCalendarEventStatus.DuplicateScheduledStart => new ConflictObjectResult(
+                $"Calendar event scheduled for '{result.ScheduledStartUtc!.Value:o}' already exists."),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
 
@@ -448,14 +455,13 @@ public sealed class CalendarEventsApi(
 
     /// <summary>
     /// Validates an update request and its route id at the API boundary and maps
-    /// them to a command. The start is immutable and not accepted; only the text
-    /// values change. Structural failures yield a <c>400 Bad Request</c> through
-    /// <paramref name="error"/>.
+    /// them to a command. Structural failures yield a <c>400 Bad Request</c>
+    /// through <paramref name="error"/>.
     /// </summary>
     internal static bool TryBuildUpdateCommand(
         string calendarEventId,
         UpdateCalendarEventRequest request,
-        out UpdateEventTextCommand command,
+        out UpdateCalendarEventCommand command,
         out IActionResult error)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -463,12 +469,23 @@ public sealed class CalendarEventsApi(
         command = default!;
         error = new EmptyResult();
 
+        if (request.Start is null)
+        {
+            error = InvalidStartResult();
+            return false;
+        }
+
         if (!TryBuildEventTextValues(request.Texts, out var texts, out error))
         {
             return false;
         }
 
-        command = new UpdateEventTextCommand(calendarEventId, texts);
+        command = new UpdateCalendarEventCommand(
+            calendarEventId,
+            new ScheduledStart(
+                request.Start.LocalDateTime,
+                request.Start.TimeZoneId),
+            texts);
         return true;
     }
 

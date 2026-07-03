@@ -56,6 +56,11 @@ Cross-boundary rules:
 - Calendar event list responses are provider-neutral. Per-platform publication
   state and root event mutation flags are exposed through the calendar event
   details read model.
+- Calendar event update requests include both `start` and `texts`. The backend
+  owns scheduled-start conversion, invalid/repeated local-time validation,
+  publication-lock enforcement, and best-effort duplicate scheduled-start
+  detection. The UI enables or disables scheduled-start and event-text controls
+  from the API-provided `canUpdate` flag.
 - The Settings page consumes `GET /api/settings/event-text-fields` and
   `PUT /api/settings/event-text-fields` through a typed settings service. The
   backend owns `fieldKey` derivation and normalizes keys from field order.

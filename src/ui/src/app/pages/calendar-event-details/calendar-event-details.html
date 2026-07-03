@@ -4,7 +4,7 @@
     <p>
       {{
         isEditMode
-          ? 'Update this stream and its text fields.'
+          ? 'Update this stream, scheduled start, and text fields.'
           : 'Schedule a new stream and its text fields.'
       }}
     </p>
@@ -45,7 +45,7 @@
 
           @if (isEditMode && (!canUpdate() || !canDelete())) {
             <app-alert variant="info">
-              Delete platform publications before changing event text or deleting this event.
+              Delete platform publications before changing this event or deleting it.
             </app-alert>
           }
 

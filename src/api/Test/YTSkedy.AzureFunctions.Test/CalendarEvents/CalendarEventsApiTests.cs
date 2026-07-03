@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
 using YTSkedy.AzureFunctions.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
@@ -49,7 +51,14 @@ public sealed class CalendarEventsApiTests
     public static TheoryData<object, string> InvalidUpdateRequests =>
         new()
         {
-            { new UpdateCalendarEventRequest(null!), InvalidTextsMessage }
+            {
+                new UpdateCalendarEventRequest(
+                    new CalendarEventStart(
+                        new DateTime(2026, 6, 15, 10, 0, 0),
+                        "America/Vancouver"),
+                    null!),
+                InvalidTextsMessage
+            }
         };
 
     [Fact]
@@ -111,6 +120,7 @@ public sealed class CalendarEventsApiTests
     public void TryBuildUpdateCommand_ValidRequest_BuildsCommand()
     {
         var request = new UpdateCalendarEventRequest(
+            new CalendarEventStart(new DateTime(2026, 7, 20, 9, 30, 0), "Europe/London"),
             [
                 new EventTextPayload("text1", "Updated title"),
                 new EventTextPayload("text2", "Updated description")
@@ -124,10 +134,31 @@ public sealed class CalendarEventsApiTests
 
         Assert.True(built);
         Assert.Equal(CalendarEventId, command.CalendarEventId);
+        Assert.Equal(new DateTime(2026, 7, 20, 9, 30, 0), command.Start.LocalDateTime);
+        Assert.Equal("Europe/London", command.Start.TimeZoneId);
         Assert.Equal(["text1", "text2"], command.Texts.Select(text => text.FieldKey));
         Assert.Equal(
             ["Updated title", "Updated description"],
             command.Texts.Select(text => text.Value));
+    }
+
+    [Fact]
+    public void TryBuildUpdateCommand_MissingStart_ReturnsBadRequest()
+    {
+        var request = new UpdateCalendarEventRequest(
+            null!,
+            [new EventTextPayload("text1", "Updated title")]);
+
+        var built = CalendarEventsApi.TryBuildUpdateCommand(
+            CalendarEventId,
+            request,
+            out _,
+            out var error);
+
+        Assert.False(built);
+        Assert.Equal(
+            "Start local date-time and time zone id are required.",
+            BadRequestMessage(error));
     }
 
     [Theory]
@@ -144,6 +175,62 @@ public sealed class CalendarEventsApiTests
 
         Assert.False(built);
         Assert.Equal(expectedMessage, BadRequestMessage(error));
+    }
+
+    [Fact]
+    public async Task CreateCalendarEvent_DuplicateScheduledStart_ReturnsDuplicateScheduledStart()
+    {
+        var scheduledStartUtc = new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero);
+        var modifier = new FakeCalendarEventModifier
+        {
+            DuplicateScheduledStartUtc = scheduledStartUtc
+        };
+        var api = new CalendarEventsApi(
+            new CreateCalendarEventHandler(
+                new FakeEventTextFieldsReader(EventTextFields.Default),
+                modifier),
+            null!,
+            null!,
+            null!,
+            null!);
+
+        var result = await api.CreateCalendarEventAsync(
+            RequestWithBody("""
+                {
+                  "start": {
+                    "localDateTime": "2026-06-15T10:00:00",
+                    "timeZoneId": "America/Vancouver"
+                  },
+                  "texts": [
+                    {
+                      "fieldKey": "text1",
+                      "value": "English stream"
+                    },
+                    {
+                      "fieldKey": "text2",
+                      "value": "Live stream"
+                    }
+                  ]
+                }
+                """),
+            CancellationToken.None);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(result);
+        Assert.Equal(StatusCodes.Status409Conflict, conflict.StatusCode);
+        Assert.Equal(
+            "Calendar event scheduled for '2026-06-15T17:00:00.0000000+00:00' already exists.",
+            conflict.Value);
+    }
+
+    [Fact]
+    public void ToCreateResult_DuplicateScheduledStart_Returns409()
+    {
+        var result = CalendarEventsApi.ToCreateResult(
+            CreateCalendarEventResult.DuplicateScheduledStart(
+                new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero)));
+
+        var conflict = Assert.IsType<ConflictObjectResult>(result);
+        Assert.Equal(StatusCodes.Status409Conflict, conflict.StatusCode);
     }
 
     private static string BadRequestMessage(IActionResult actionResult)
@@ -164,6 +251,13 @@ public sealed class CalendarEventsApiTests
                     new EventTextValue("text2", "Event description")
                 ]));
 
+    private static HttpRequest RequestWithBody(string body)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
+        return context.Request;
+    }
+
     private sealed class FakeCalendarEventReader(
         IReadOnlyList<CalendarEventView> items) : ICalendarEventReader
     {
@@ -173,6 +267,43 @@ public sealed class CalendarEventsApiTests
             Task.FromResult(items);
 
         public Task<CalendarEventView?> GetByIdAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class FakeEventTextFieldsReader(EventTextFields eventTextFields) :
+        IEventTextFieldsReader
+    {
+        public Task<EventTextFields> GetAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(eventTextFields);
+    }
+
+    private sealed class FakeCalendarEventModifier : ICalendarEventModifier
+    {
+        public DateTimeOffset? DuplicateScheduledStartUtc { get; init; }
+
+        public Task<string> CreateAsync(
+            CalendarEvent calendarEvent,
+            DateTimeOffset scheduledStartUtc,
+            CancellationToken cancellationToken)
+        {
+            if (DuplicateScheduledStartUtc is { } duplicateScheduledStartUtc)
+            {
+                throw new DuplicateScheduledStartException(duplicateScheduledStartUtc);
+            }
+
+            return Task.FromResult(CalendarEventId);
+        }
+
+        public Task<bool> UpdateAsync(
+            string calendarEventId,
+            CalendarEvent calendarEvent,
+            DateTimeOffset scheduledStartUtc,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task DeleteAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();

@@ -1,9 +1,11 @@
+using System.Globalization;
 using System.Text.Json;
 using Azure;
 using Azure.Core;
 using Azure.Data.Tables;
 using Azure.Data.Tables.Models;
 using YTSkedy.Infrastructure.CalendarEvents;
+using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Infrastructure.Test.CalendarEvents;
@@ -11,62 +13,245 @@ namespace YTSkedy.Infrastructure.Test.CalendarEvents;
 public sealed class AzureCalendarEventRepositoryTests
 {
     [Fact]
-    public async Task CreateAsync_CalendarEvent_StoresTextJson()
+    public async Task CreateAsync_CalendarEvent_StoresStableKeysAndTextJson()
     {
         var tableClient = new InMemoryTableClient();
         var repository = CreateRepository(tableClient);
         var calendarEvent = new CalendarEvent(
-            new ScheduledStart(new DateTime(2026, 6, 15, 17, 0, 0), "UTC"),
+            new ScheduledStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
             Text("Original title", "Original description"));
+        var scheduledStartUtc = new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero);
 
-        var calendarEventId = await repository.CreateAsync(calendarEvent, CancellationToken.None);
+        var calendarEventId = await repository.CreateAsync(
+            calendarEvent,
+            scheduledStartUtc,
+            CancellationToken.None);
 
         var entity = Assert.Single(tableClient.Entities.Values);
+        Assert.Equal(32, calendarEventId.Length);
         Assert.Equal(calendarEventId, entity.CalendarEventId);
-        Assert.Equal("2026-06-15T17:00:00", entity.LocalDateTime);
+        Assert.Equal("calendar-events", entity.PartitionKey);
+        Assert.Equal($"event-{calendarEventId}", entity.RowKey);
+        Assert.Equal(scheduledStartUtc, entity.ScheduledStartUtc);
+        Assert.Equal("2026-06-15T10:00:00", entity.LocalDateTime);
+        Assert.Equal("America/Vancouver", entity.TimeZoneId);
         Assert.Equal(["text1", "text2"], FieldKeys(entity.TextJson));
         Assert.Equal("Original title", ValueFor(entity.TextJson, "text1"));
         Assert.Equal("Original description", ValueFor(entity.TextJson, "text2"));
     }
 
     [Fact]
-    public async Task UpdateTextAsync_ExistingEvent_ReplacesTextJson()
+    public async Task CreateAsync_DuplicateScheduledStart_ThrowsDuplicateScheduledStartException()
     {
         var tableClient = new InMemoryTableClient();
         var repository = CreateRepository(tableClient);
-        var calendarEvent = new CalendarEvent(
-            new ScheduledStart(new DateTime(2026, 6, 15, 17, 0, 0), "UTC"),
-            Text("Original title", "Original description"));
-        var calendarEventId = await repository.CreateAsync(calendarEvent, CancellationToken.None);
+        var scheduledStartUtc = new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero);
+        await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            scheduledStartUtc,
+            CancellationToken.None);
 
-        var result = await repository.UpdateTextAsync(
+        var exception = await Assert.ThrowsAsync<DuplicateScheduledStartException>(
+            () => repository.CreateAsync(
+                Event("Duplicate title", "2026-06-15T11:00:00"),
+                scheduledStartUtc,
+                CancellationToken.None));
+
+        Assert.Equal(scheduledStartUtc, exception.ScheduledStartUtc);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_OpaqueId_ReturnsCalendarEvent()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        var scheduledStartUtc = new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            scheduledStartUtc,
+            CancellationToken.None);
+
+        var result = await repository.GetByIdAsync(calendarEventId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(calendarEventId, result!.CalendarEventId);
+        Assert.Equal(scheduledStartUtc, result.ScheduledStartUtc);
+        Assert.Equal("Original title", result.Text.ValueFor("text1"));
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_LegacyScheduledStartId_ReturnsNull()
+    {
+        var repository = CreateRepository(new InMemoryTableClient());
+
+        var result = await repository.GetByIdAsync(
+            "start-20260606T170000Z-6f9619ff8b864fb5bdfd4f5c2f2f16a1",
+            CancellationToken.None);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_OpaqueId_RemovesEventRow()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        await repository.DeleteAsync(calendarEventId, CancellationToken.None);
+
+        Assert.Empty(tableClient.Entities);
+    }
+
+    [Fact]
+    public async Task ListAsync_MonthCriteria_FiltersSinglePartitionByLocalMonth()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        var tokyoJuneId = await repository.CreateAsync(
+            Event("Tokyo June", "2026-06-01T00:30:00", "Asia/Tokyo"),
+            new DateTimeOffset(2026, 5, 31, 15, 30, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        var vancouverJuneId = await repository.CreateAsync(
+            Event("Vancouver June", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        var lateJuneId = await repository.CreateAsync(
+            Event("Late June", "2026-06-30T23:30:00"),
+            new DateTimeOffset(2026, 7, 1, 6, 30, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        await repository.CreateAsync(
+            Event("May local", "2026-05-31T23:30:00"),
+            new DateTimeOffset(2026, 6, 1, 6, 30, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        var result = await repository.ListAsync(
+            new CalendarEventMonthCriteria(2026, 6),
+            CancellationToken.None);
+
+        Assert.Equal(
+            [tokyoJuneId, vancouverJuneId, lateJuneId],
+            result.Select(calendarEvent => calendarEvent.CalendarEventId));
+    }
+
+    [Fact]
+    public async Task ListAsync_NoCriteria_ReturnsAllEvents()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        var firstId = await repository.CreateAsync(
+            Event("First", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        var secondId = await repository.CreateAsync(
+            Event("Second", "2026-07-15T10:00:00"),
+            new DateTimeOffset(2026, 7, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        var result = await repository.ListAsync(null, CancellationToken.None);
+
+        Assert.Equal(
+            [firstId, secondId],
+            result.Select(calendarEvent => calendarEvent.CalendarEventId));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ExistingEvent_ReplacesScheduledStartAndTextJson()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        var updatedEvent = Event(
+            "Updated title",
+            "2026-07-20T09:30:00",
+            "Europe/London");
+        var updatedScheduledStartUtc = new DateTimeOffset(
+            2026,
+            7,
+            20,
+            8,
+            30,
+            0,
+            TimeSpan.Zero);
+
+        var result = await repository.UpdateAsync(
             calendarEventId,
-            Text("Updated title", "Updated description"),
+            updatedEvent,
+            updatedScheduledStartUtc,
             CancellationToken.None);
 
         var entity = Assert.Single(tableClient.Entities.Values);
         Assert.True(result);
+        Assert.Equal("calendar-events", entity.PartitionKey);
+        Assert.Equal($"event-{calendarEventId}", entity.RowKey);
+        Assert.Equal(updatedScheduledStartUtc, entity.ScheduledStartUtc);
+        Assert.Equal("2026-07-20T09:30:00", entity.LocalDateTime);
+        Assert.Equal("Europe/London", entity.TimeZoneId);
         Assert.Equal("Updated title", ValueFor(entity.TextJson, "text1"));
         Assert.Equal("Updated description", ValueFor(entity.TextJson, "text2"));
-        Assert.Equal("2026-06-15T17:00:00", entity.LocalDateTime);
     }
 
     [Fact]
-    public async Task UpdateTextAsync_MissingEvent_ReturnsFalse()
+    public async Task UpdateAsync_MissingEvent_ReturnsFalse()
     {
         var repository = CreateRepository(new InMemoryTableClient());
 
-        var result = await repository.UpdateTextAsync(
-            "20260615T170000Z-missing",
-            Text("Updated title", "Updated description"),
+        var result = await repository.UpdateAsync(
+            "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
+            Event("Updated title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
             CancellationToken.None);
 
         Assert.False(result);
     }
 
+    [Fact]
+    public async Task UpdateAsync_DuplicateScheduledStart_ThrowsDuplicateScheduledStartException()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        var scheduledStartUtc = new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero);
+        await repository.CreateAsync(
+            Event("First", "2026-06-15T10:00:00"),
+            scheduledStartUtc,
+            CancellationToken.None);
+        var otherEventId = await repository.CreateAsync(
+            Event("Second", "2026-07-15T10:00:00"),
+            new DateTimeOffset(2026, 7, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        var exception = await Assert.ThrowsAsync<DuplicateScheduledStartException>(
+            () => repository.UpdateAsync(
+                otherEventId,
+                Event("Second updated", "2026-06-15T10:00:00"),
+                scheduledStartUtc,
+                CancellationToken.None));
+
+        Assert.Equal(scheduledStartUtc, exception.ScheduledStartUtc);
+    }
+
     private static AzureCalendarEventRepository CreateRepository(InMemoryTableClient tableClient) =>
         new(tableClient, new FixedTimeProvider(
             new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero)));
+
+    private static CalendarEvent Event(
+        string title,
+        string localDateTime,
+        string timeZoneId = "America/Vancouver") =>
+        new(
+            new ScheduledStart(
+                DateTime.Parse(
+                    localDateTime,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None),
+                timeZoneId),
+            Text(title, "Updated description"));
 
     private static EventTextSnapshot Text(string title, string description) =>
         EventTextSnapshot.Create(
@@ -151,6 +336,17 @@ public sealed class AzureCalendarEventRepositoryTests
             return Task.FromResult<Response>(StubResponse.Instance);
         }
 
+        public override Task<Response> DeleteEntityAsync(
+            string partitionKey,
+            string rowKey,
+            ETag ifMatch = default,
+            CancellationToken cancellationToken = default)
+        {
+            Entities.Remove((partitionKey, rowKey));
+
+            return Task.FromResult<Response>(StubResponse.Instance);
+        }
+
         public override Task<NullableResponse<T>> GetEntityIfExistsAsync<T>(
             string partitionKey,
             string rowKey,
@@ -164,6 +360,23 @@ public sealed class AzureCalendarEventRepositoryTests
             }
 
             return Task.FromResult<NullableResponse<T>>(new EmptyNullableResponse<T>());
+        }
+
+        public override AsyncPageable<T> QueryAsync<T>(
+            string? filter = null,
+            int? maxPerPage = null,
+            IEnumerable<string>? select = null,
+            CancellationToken cancellationToken = default)
+        {
+            var values = filter is null || string.Equals(
+                filter,
+                CalendarEventStorageKey.PartitionFilter(),
+                StringComparison.Ordinal)
+                    ? Entities.Values.Select(entity => (T)(object)Clone(entity)).ToArray()
+                    : [];
+
+            return AsyncPageable<T>.FromPages(
+                [Page<T>.FromValues(values, continuationToken: null, StubResponse.Instance)]);
         }
 
         private static CalendarEventEntity ToCalendarEventEntity<T>(T entity)

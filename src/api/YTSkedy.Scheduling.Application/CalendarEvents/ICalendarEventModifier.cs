@@ -6,16 +6,17 @@ public interface ICalendarEventModifier
 {
     Task<string> CreateAsync(
         CalendarEvent calendarEvent,
+        DateTimeOffset scheduledStartUtc,
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Replaces the stored event text snapshot of an existing event in place,
-    /// leaving its scheduled start and identity unchanged. Returns false when
-    /// no event has the id.
+    /// Replaces the stored scheduled start and event text snapshot of an
+    /// existing event in place. Returns false when no event has the id.
     /// </summary>
-    Task<bool> UpdateTextAsync(
+    Task<bool> UpdateAsync(
         string calendarEventId,
-        EventTextSnapshot text,
+        CalendarEvent calendarEvent,
+        DateTimeOffset scheduledStartUtc,
         CancellationToken cancellationToken);
 
     /// <summary>

@@ -111,6 +111,7 @@ export interface CreateCalendarEventResponse {
 }
 
 export interface UpdateCalendarEventRequest {
+  start: ScheduledStart;
   texts: EventTextValue[];
 }
 

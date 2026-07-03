@@ -651,6 +651,7 @@ describe('CalendarEventDetails', () => {
       expect(platformDeletePublicationButton()).not.toBeNull();
       expect(saveButton().disabled).toBe(true);
       expect(deleteButton()!.disabled).toBe(true);
+      expect(api().form.start().disabled()).toBe(true);
       expect(eventTextControls().every((control) => control.disabled)).toBe(true);
       expect(api().model().texts[0].value).toBe('English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event published.');
@@ -828,6 +829,7 @@ describe('CalendarEventDetails', () => {
       expect(platformPublishHosts()).toHaveLength(1);
       expect(saveButton().disabled).toBe(false);
       expect(deleteButton()!.disabled).toBe(false);
+      expect(api().form.start().disabled()).toBe(false);
       expect(eventTextControls().every((control) => !control.disabled)).toBe(true);
       expect(api().model().texts[0].value).toBe('English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Platform publication deleted.');
@@ -928,15 +930,53 @@ describe('CalendarEventDetails', () => {
       expect(platformPublishButton()!.disabled).toBe(true);
     });
 
-    it('disables the scheduled start controls in edit mode', () => {
+    it('enables scheduled start controls in edit mode when API canUpdate is true', () => {
       service.getById.mockReturnValue(of(sampleEvent()));
 
       createEditComponent();
 
-      expect(api().form.start().disabled()).toBe(true);
+      expect(api().form.start().disabled()).toBe(false);
+      expect(api().form.start.date().disabled()).toBe(false);
+      expect(api().form.start.time().disabled()).toBe(false);
+      expect(api().form.start.timeZoneId().disabled()).toBe(false);
     });
 
-    it('keeps Save enabled and updates text values on submit', async () => {
+    it('disables scheduled start controls in edit mode when API canUpdate is false', () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            canUpdate: false,
+            canDelete: false,
+            platforms: [publishedPlatform()],
+          }),
+        ),
+      );
+
+      createEditComponent();
+
+      expect(api().form.start().disabled()).toBe(true);
+      expect(api().form.start.date().disabled()).toBe(true);
+      expect(api().form.start.time().disabled()).toBe(true);
+      expect(api().form.start.timeZoneId().disabled()).toBe(true);
+    });
+
+    it('previews the edited scheduled start UTC in edit mode when API canUpdate is true', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+
+      api().form.start().value.set({
+        date: '2030-07-05',
+        time: '10:00',
+        timeZoneId: 'America/Vancouver',
+      });
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain('Scheduled start (UTC)');
+      expect(fixture.nativeElement.textContent).toContain('2030-07-05 17:00');
+    });
+
+    it('keeps Save enabled and updates start and text values on submit', async () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.update.mockReturnValue(of({ calendarEventId: editId }));
 
@@ -948,6 +988,11 @@ describe('CalendarEventDetails', () => {
       expect(save.disabled).toBe(false);
 
       api().form.texts[0].value().value.set('  Updated English title  ');
+      api().form.start().value.set({
+        date: '2030-07-05',
+        time: '10:00',
+        timeZoneId: 'America/Vancouver',
+      });
 
       fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
       fixture.detectChanges();
@@ -958,6 +1003,10 @@ describe('CalendarEventDetails', () => {
       expect(service.update).toHaveBeenCalledWith(
         editId,
         expect.objectContaining({
+          start: {
+            localDateTime: '2030-07-05T10:00:00',
+            timeZoneId: 'America/Vancouver',
+          },
           texts: expect.arrayContaining([
             {
               fieldKey: 'text1',
@@ -985,9 +1034,10 @@ describe('CalendarEventDetails', () => {
 
       expect(saveButton().disabled).toBe(true);
       expect(deleteButton()!.disabled).toBe(true);
+      expect(api().form.start().disabled()).toBe(true);
       expect(eventTextControls().every((control) => control.disabled)).toBe(true);
       expect(fixture.nativeElement.textContent).toContain(
-        'Delete platform publications before changing event text or deleting this event.',
+        'Delete platform publications before changing this event or deleting it.',
       );
     });
 

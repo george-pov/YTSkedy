@@ -42,21 +42,19 @@ public sealed class ListEventsHandler(ICalendarEventReader calendarEvents)
         CalendarEventSortField sort,
         SortDirection direction)
     {
-        var primaryKey = PrimaryKey(sort);
-
-        var ordered = direction == SortDirection.Descending
-            ? candidates.OrderByDescending(primaryKey, StringComparer.Ordinal)
-            : candidates.OrderBy(primaryKey, StringComparer.Ordinal);
+        var ordered = sort switch
+        {
+            CalendarEventSortField.TimeZone => direction == SortDirection.Descending
+                ? candidates.OrderByDescending(item => item.Start.TimeZoneId, StringComparer.Ordinal)
+                : candidates.OrderBy(item => item.Start.TimeZoneId, StringComparer.Ordinal),
+            CalendarEventSortField.Title => direction == SortDirection.Descending
+                ? candidates.OrderByDescending(item => item.Text.DisplayTitle, StringComparer.Ordinal)
+                : candidates.OrderBy(item => item.Text.DisplayTitle, StringComparer.Ordinal),
+            _ => direction == SortDirection.Descending
+                ? candidates.OrderByDescending(item => item.ScheduledStartUtc)
+                : candidates.OrderBy(item => item.ScheduledStartUtc)
+        };
 
         return ordered.ThenBy(item => item.CalendarEventId, StringComparer.Ordinal);
     }
-
-    private static Func<CalendarEventView, string> PrimaryKey(
-        CalendarEventSortField sort) =>
-        sort switch
-        {
-            CalendarEventSortField.TimeZone => item => item.Start.TimeZoneId,
-            CalendarEventSortField.Title => item => item.Text.DisplayTitle,
-            _ => item => item.CalendarEventId
-        };
 }

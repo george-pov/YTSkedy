@@ -130,9 +130,12 @@ Success response:
 
 ```json
 {
-  "calendarEventId": "start-20260606T170000Z-6f9619ff8b864fb5bdfd4f5c2f2f16a1"
+  "calendarEventId": "6f9619ff8b864fb5bdfd4f5c2f2f16a1"
 }
 ```
+
+`calendarEventId` is an opaque lowercase `guid:N` string. Legacy
+scheduled-start-derived ids are unsupported and return not found.
 
 Current error behavior:
 
@@ -140,11 +143,13 @@ Current error behavior:
 - Missing request body returns `400 Bad Request` with a plain string message.
 - Missing, unknown, duplicate, blank, or over-length text values return
   `400 Bad Request`.
+- Detected duplicate scheduled starts return `409 Conflict`. Duplicate
+  detection is best-effort for normal sequential writes; concurrent duplicate
+  writes are an accepted risk.
 
 Production release requirements:
 
 - Broader command validation must return stable client-facing errors.
-- Storage conflicts must map to stable HTTP responses.
 - Unexpected storage failures must avoid leaking provider details or secrets.
 
 ## List Calendar Events
@@ -182,7 +187,7 @@ Success response (`200 OK`) is a paged envelope:
 {
   "items": [
     {
-      "calendarEventId": "start-20260606T170000Z-6f9619ff8b864fb5bdfd4f5c2f2f16a1",
+      "calendarEventId": "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
       "start": {
         "localDateTime": "2026-06-06T10:00:00",
         "timeZoneId": "America/Vancouver"
@@ -256,8 +261,8 @@ Requires the `CalendarEvents.Read` scope. The calendar event fields match one
 `items[]` entry from the list endpoint, carrying the wall-clock local start and
 time zone (not the UTC instant) so the UI edit form can repopulate from stored
 local time. It also carries `scheduledStartUtc`, the same instant as a UTC
-ISO-8601 string, which the edit form shows as a read-only translation of the
-local start.
+ISO-8601 string. The edit form shows this translation and updates it from
+editable start controls when `canUpdate` is true.
 
 Unlike a list item, the details response also carries `platforms`: one entry
 per active registered platform with its publish status, plus orphan history
@@ -273,7 +278,7 @@ Success response (`200 OK`):
 
 ```json
 {
-  "calendarEventId": "start-20260606T170000Z-6f9619ff8b864fb5bdfd4f5c2f2f16a1",
+  "calendarEventId": "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
   "start": {
     "localDateTime": "2026-06-06T10:00:00",
     "timeZoneId": "America/Vancouver"
@@ -320,7 +325,7 @@ Current behavior:
 - Unknown `calendarEventId` returns `404 Not Found`.
 - `canUpdate` is `true` only when the event has no platform publication rows.
   Any current platform publication row, including `Publishing`, `Published`,
-  and orphan history rows, makes event text update state-ineligible.
+  and orphan history rows, makes event update state-ineligible.
 - `canDelete` is `true` only when the event has no platform publication rows.
   It is separate from platform-row `canDeletePublication`.
 - Deleting platform publication rows through the platform-publication delete
@@ -412,18 +417,21 @@ external resource id for that same calendar event.
 PUT /api/calendar-events/{calendarEventId}
 ```
 
-Replaces the text values of an existing calendar event in place. Requires the
-`CalendarEvents.Write` scope. Only text values can change: the scheduled start
-is immutable because changing it would move the event's scheduling identity and
-active-start uniqueness key, so the request body carries no start.
+Replaces the scheduled start and text values of an existing calendar event in
+place. Requires the `CalendarEvents.Write` scope.
 
-Update validates submitted values against the event's stored text snapshot, not
-against the current event text fields setting.
+Update converts and validates the submitted scheduled start before persistence,
+then validates submitted text values against the event's stored text snapshot,
+not against the current event text fields setting.
 
 Request body:
 
 ```json
 {
+  "start": {
+    "localDateTime": "2026-06-07T10:30:00",
+    "timeZoneId": "America/Vancouver"
+  },
   "texts": [
     {
       "fieldKey": "text1",
@@ -441,18 +449,21 @@ Success response (`200 OK`):
 
 ```json
 {
-  "calendarEventId": "start-20260606T170000Z-6f9619ff8b864fb5bdfd4f5c2f2f16a1"
+  "calendarEventId": "6f9619ff8b864fb5bdfd4f5c2f2f16a1"
 }
 ```
 
-The update is an in-place write of the event text snapshot values; the event
-identity, stored field definitions, and scheduled start are left unchanged. The
-list page re-fetches its current page after a successful edit, so the new text
-values appear in the active sort order.
+The update is an in-place write of the scheduled start fields and event text
+snapshot values. The event identity and stored field definitions are left
+unchanged. The list page re-fetches its current page after a successful edit,
+so the new scheduled start and text values appear in the active sort order.
 
 Current behavior and error mapping:
 
 - Unknown `calendarEventId` returns `404 Not Found`.
+- Missing `start` returns `400 Bad Request`.
+- Invalid, unknown, skipped, or repeated local scheduled-start values return
+  `400 Bad Request`.
 - Invalid JSON returns `400 Bad Request` with a plain string message.
 - Missing request body returns `400 Bad Request` with a plain string message.
 - Missing, unknown, duplicate, blank, or over-length text values return
@@ -460,9 +471,12 @@ Current behavior and error mapping:
 - Any platform publication row for the event returns `409 Conflict`. Use the
   platform-publication delete route to clean up completed provider
   publications before updating the event.
+- Detected duplicate scheduled starts return `409 Conflict`. Duplicate
+  detection is best-effort for normal sequential writes; concurrent duplicate
+  writes are an accepted risk.
 - The `CalendarEventDetails` edit route
   (`/calendar-events/{calendarEventId}/edit`) consumes this endpoint on save,
-  sending the event's text values.
+  sending the event's scheduled start and text values.
 
 Production release requirements:
 
@@ -488,7 +502,7 @@ Rejected states and error mapping:
 - Unknown non-empty `calendarEventId` returns `404 Not Found`. Calendar event
   IDs are opaque; there is no public id-format validation contract.
 - Any platform publication row for the event returns `409 Conflict`. This is
-  the same row-based lock used by event text update. Use the
+  the same row-based lock used by event update. Use the
   platform-publication delete route to clean up completed provider
   publications before deleting the event.
 - A row that disappears between the existence check and delete write returns

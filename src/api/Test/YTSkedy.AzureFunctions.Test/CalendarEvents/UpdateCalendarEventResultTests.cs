@@ -43,6 +43,21 @@ public sealed class UpdateCalendarEventResultTests
     }
 
     [Fact]
+    public void ToUpdateResult_DuplicateScheduledStart_Returns409()
+    {
+        var result = CalendarEventsApi.ToUpdateResult(
+            UpdateCalendarEventResult.DuplicateScheduledStart(
+                new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero)),
+            CalendarEventId);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(result);
+        Assert.Equal(StatusCodes.Status409Conflict, conflict.StatusCode);
+        Assert.Equal(
+            "Calendar event scheduled for '2026-06-15T17:00:00.0000000+00:00' already exists.",
+            conflict.Value);
+    }
+
+    [Fact]
     public void UpdateCalendarEventAsync_HasPlatformPublications_Returns409()
     {
         var result = CalendarEventsApi.ToUpdateResult(

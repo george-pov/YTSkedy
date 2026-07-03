@@ -5,52 +5,68 @@ namespace YTSkedy.Infrastructure.Test.CalendarEvents;
 public class CalendarEventStorageKeyTests
 {
     [Fact]
-    public void NewCalendarEventId_ReturnsNonReusableAddress()
+    public void NewCalendarEventId_ReturnsOpaqueLowercaseGuid()
     {
-        var scheduledStartUtc = new DateTimeOffset(2026, 6, 6, 17, 0, 0, TimeSpan.Zero);
+        var calendarEventId = CalendarEventStorageKey.NewCalendarEventId();
 
-        var first = CalendarEventStorageKey.NewCalendarEventId(scheduledStartUtc);
-        var second = CalendarEventStorageKey.NewCalendarEventId(scheduledStartUtc);
-
-        Assert.NotEqual(first, second);
-        Assert.StartsWith("start-20260606T170000Z-", first, StringComparison.Ordinal);
-        Assert.True(CalendarEventStorageKey.TryGetAddress(
-            first,
-            out var parsedScheduledStartUtc,
-            out var rowKey));
-        Assert.Equal(scheduledStartUtc, parsedScheduledStartUtc);
-        Assert.Equal("start-20260606T170000Z", rowKey);
-        Assert.All(first[^32..], character => Assert.True(IsLowercaseHex(character)));
+        Assert.Equal(32, calendarEventId.Length);
+        Assert.All(calendarEventId, character => Assert.True(IsLowercaseHex(character)));
     }
 
     [Fact]
-    public void RowKeyForScheduledStart_UsesScheduledStartUtc()
+    public void RowKeyFor_ValidCalendarEventId_ReturnsEventRowKey()
     {
-        var rowKey = CalendarEventStorageKey.RowKeyForScheduledStart(
-            new DateTimeOffset(2026, 6, 6, 17, 0, 0, TimeSpan.Zero));
+        var rowKey = CalendarEventStorageKey.RowKeyFor(
+            "6f9619ff8b864fb5bdfd4f5c2f2f16a1");
 
-        Assert.Equal("start-20260606T170000Z", rowKey);
+        Assert.Equal("event-6f9619ff8b864fb5bdfd4f5c2f2f16a1", rowKey);
     }
 
     [Fact]
     public void TryGetAddress_RejectsUnknownFormat()
     {
         var result = CalendarEventStorageKey.TryGetAddress(
-            "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
-            out var scheduledStartUtc,
+            "not-a-calendar-event-id",
+            out var partitionKey,
             out var rowKey);
 
         Assert.False(result);
-        Assert.Equal(default, scheduledStartUtc);
+        Assert.Equal(string.Empty, partitionKey);
         Assert.Equal(string.Empty, rowKey);
     }
 
     [Fact]
-    public void PartitionFilter_EscapesSingleQuotes()
+    public void TryGetAddress_GuidId_ReturnsCalendarEventsAddress()
     {
-        var filter = CalendarEventStorageKey.PartitionFilter("month'value");
+        var result = CalendarEventStorageKey.TryGetAddress(
+            "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
+            out var partitionKey,
+            out var rowKey);
 
-        Assert.Equal("PartitionKey eq 'month''value'", filter);
+        Assert.True(result);
+        Assert.Equal("calendar-events", partitionKey);
+        Assert.Equal("event-6f9619ff8b864fb5bdfd4f5c2f2f16a1", rowKey);
+    }
+
+    [Fact]
+    public void TryGetAddress_LegacyScheduledStartId_ReturnsFalse()
+    {
+        var result = CalendarEventStorageKey.TryGetAddress(
+            "start-20260606T170000Z-6f9619ff8b864fb5bdfd4f5c2f2f16a1",
+            out var partitionKey,
+            out var rowKey);
+
+        Assert.False(result);
+        Assert.Equal(string.Empty, partitionKey);
+        Assert.Equal(string.Empty, rowKey);
+    }
+
+    [Fact]
+    public void PartitionFilter_ReturnsCalendarEventsPartitionFilter()
+    {
+        var filter = CalendarEventStorageKey.PartitionFilter();
+
+        Assert.Equal("PartitionKey eq 'calendar-events'", filter);
     }
 
     private static bool IsLowercaseHex(char character) =>

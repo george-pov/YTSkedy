@@ -121,18 +121,17 @@ export class CalendarEventDetails {
     { key: 'actions', header: 'Actions' },
   ];
 
-  // In edit mode the stored UTC instant comes from the loaded event (exact). In
-  // create mode it is derived live from the start controls so the operator sees
-  // how the chosen local start translates to UTC.
+  // Editable starts use a live UTC preview. Locked edit-mode events keep the
+  // backend-provided UTC instant instead of deriving a local preview.
   private readonly loadedScheduledStartUtc = signal<string | null>(null);
   protected readonly scheduledStartUtcDisplay = computed(() => {
-    const loaded = this.loadedScheduledStartUtc();
-    if (loaded !== null) {
-      return formatScheduledStartUtcIso(loaded);
+    const start = this.model().start;
+    if (!this.isEditMode || this.canUpdate()) {
+      return scheduledStartUtcPreview(start.date, start.time, start.timeZoneId);
     }
 
-    const start = this.model().start;
-    return scheduledStartUtcPreview(start.date, start.time, start.timeZoneId);
+    const loaded = this.loadedScheduledStartUtc();
+    return loaded === null ? '' : formatScheduledStartUtcIso(loaded);
   });
 
   private readonly errorRegion = viewChild('errorRegion', {
@@ -231,7 +230,7 @@ export class CalendarEventDetails {
 
     this.isSubmitting.set(true);
 
-    // Edit updates text values in place; create posts a new event. Both
+    // Edit updates start and text values in place; create posts a new event. Both
     // responses are ignored, so the union is typed as the wider observable.
     const request$: Observable<unknown> =
       this.editingId === null

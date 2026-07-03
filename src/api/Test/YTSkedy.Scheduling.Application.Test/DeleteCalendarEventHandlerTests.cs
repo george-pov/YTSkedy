@@ -131,12 +131,14 @@ public class DeleteCalendarEventHandlerTests
 
         public Task<string> CreateAsync(
             CalendarEvent calendarEvent,
+            DateTimeOffset scheduledStartUtc,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<bool> UpdateTextAsync(
+        public Task<bool> UpdateAsync(
             string calendarEventId,
-            EventTextSnapshot text,
+            CalendarEvent calendarEvent,
+            DateTimeOffset scheduledStartUtc,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

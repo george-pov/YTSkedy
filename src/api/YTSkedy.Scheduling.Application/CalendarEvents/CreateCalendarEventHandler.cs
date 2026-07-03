@@ -13,6 +13,16 @@ public sealed class CreateCalendarEventHandler(
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        ScheduledStartConversion conversion;
+        try
+        {
+            conversion = ScheduledStartConverter.Convert(command.Start);
+        }
+        catch (InvalidScheduledStartException exception)
+        {
+            return CreateCalendarEventResult.Invalid(exception.ValidationError);
+        }
+
         var fields = await eventTextFields.GetAsync(cancellationToken);
 
         EventTextSnapshot snapshot;
@@ -27,9 +37,19 @@ public sealed class CreateCalendarEventHandler(
 
         var calendarEvent = new CalendarEvent(command.Start, snapshot);
 
-        var calendarEventId = await calendarEvents.CreateAsync(
-            calendarEvent,
-            cancellationToken);
+        string calendarEventId;
+        try
+        {
+            calendarEventId = await calendarEvents.CreateAsync(
+                calendarEvent,
+                conversion.ScheduledStartUtc,
+                cancellationToken);
+        }
+        catch (DuplicateScheduledStartException exception)
+        {
+            return CreateCalendarEventResult.DuplicateScheduledStart(
+                exception.ScheduledStartUtc);
+        }
 
         return CreateCalendarEventResult.Created(calendarEventId);
     }

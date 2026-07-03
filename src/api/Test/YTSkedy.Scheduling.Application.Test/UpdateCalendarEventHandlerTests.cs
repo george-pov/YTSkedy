@@ -18,20 +18,27 @@ public class UpdateCalendarEventHandlerTests
     ];
 
     [Fact]
-    public async Task HandleAsync_ExistingEvent_UpdatesTextAndReturnsUpdated()
+    public async Task HandleAsync_ExistingEvent_UpdatesStartAndTextAndReturnsUpdated()
     {
         var modifier = new FakeCalendarEventModifier(updateResult: true);
         var handler = CreateHandler(CreateCalendarEventView(), modifier);
+        var updatedStart = ValidUpdatedStart();
 
         var result = await handler.HandleAsync(
-            new UpdateEventTextCommand(CalendarEventId, Texts),
+            new UpdateCalendarEventCommand(CalendarEventId, updatedStart, Texts),
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventStatus.Updated, result.Status);
         Assert.Equal(1, modifier.UpdateCallCount);
         Assert.Equal(CalendarEventId, modifier.UpdatedCalendarEventId);
-        Assert.NotNull(modifier.UpdatedText);
-        Assert.Equal(["Updated title", "Updated description"], modifier.UpdatedText!.Values.Select(value => value.Value));
+        Assert.NotNull(modifier.UpdatedCalendarEvent);
+        Assert.Equal(updatedStart, modifier.UpdatedCalendarEvent!.Start);
+        Assert.Equal(
+            ["Updated title", "Updated description"],
+            modifier.UpdatedCalendarEvent.Text.Values.Select(value => value.Value));
+        Assert.Equal(
+            new DateTimeOffset(2026, 07, 20, 08, 30, 00, TimeSpan.Zero),
+            modifier.UpdatedScheduledStartUtc);
     }
 
     [Fact]
@@ -41,13 +48,34 @@ public class UpdateCalendarEventHandlerTests
         var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
         var result = await handler.HandleAsync(
-            new UpdateEventTextCommand(
+            new UpdateCalendarEventCommand(
                 CalendarEventId,
+                ValidUpdatedStart(),
                 [new EventTextValue("text1", "Updated title")]),
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventStatus.Invalid, result.Status);
         Assert.False(string.IsNullOrWhiteSpace(result.ValidationError));
+        Assert.Equal(0, modifier.UpdateCallCount);
+    }
+
+    [Fact]
+    public async Task HandleAsync_InvalidScheduledStart_ReturnsInvalid()
+    {
+        var modifier = new FakeCalendarEventModifier(updateResult: true);
+        var handler = CreateHandler(CreateCalendarEventView(), modifier);
+
+        var result = await handler.HandleAsync(
+            new UpdateCalendarEventCommand(
+                CalendarEventId,
+                new ScheduledStart(new DateTime(2026, 3, 8, 2, 30, 0), "America/Vancouver"),
+                Texts),
+            CancellationToken.None);
+
+        Assert.Equal(UpdateCalendarEventStatus.Invalid, result.Status);
+        Assert.Equal(
+            "Scheduled start time does not exist in the specified time zone.",
+            result.ValidationError);
         Assert.Equal(0, modifier.UpdateCallCount);
     }
 
@@ -58,7 +86,7 @@ public class UpdateCalendarEventHandlerTests
         var handler = CreateHandler(calendarEvent: null, modifier);
 
         var result = await handler.HandleAsync(
-            new UpdateEventTextCommand(CalendarEventId, Texts),
+            new UpdateCalendarEventCommand(CalendarEventId, ValidUpdatedStart(), Texts),
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventStatus.NotFound, result.Status);
@@ -72,7 +100,7 @@ public class UpdateCalendarEventHandlerTests
         var handler = CreateHandler(CreateCalendarEventView(), modifier, [Publication()]);
 
         var result = await handler.HandleAsync(
-            new UpdateEventTextCommand(CalendarEventId, Texts),
+            new UpdateCalendarEventCommand(CalendarEventId, ValidUpdatedStart(), Texts),
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventStatus.HasPlatformPublications, result.Status);
@@ -86,11 +114,29 @@ public class UpdateCalendarEventHandlerTests
         var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
         var result = await handler.HandleAsync(
-            new UpdateEventTextCommand(CalendarEventId, Texts),
+            new UpdateCalendarEventCommand(CalendarEventId, ValidUpdatedStart(), Texts),
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventStatus.NotFound, result.Status);
         Assert.Equal(1, modifier.UpdateCallCount);
+    }
+
+    [Fact]
+    public async Task HandleAsync_DuplicateScheduledStart_ReturnsDuplicateScheduledStartWithoutUpdating()
+    {
+        var scheduledStartUtc = new DateTimeOffset(2026, 7, 20, 8, 30, 0, TimeSpan.Zero);
+        var modifier = new FakeCalendarEventModifier(updateResult: true)
+        {
+            DuplicateScheduledStartUtc = scheduledStartUtc
+        };
+        var handler = CreateHandler(CreateCalendarEventView(), modifier);
+
+        var result = await handler.HandleAsync(
+            new UpdateCalendarEventCommand(CalendarEventId, ValidUpdatedStart(), Texts),
+            CancellationToken.None);
+
+        Assert.Equal(UpdateCalendarEventStatus.DuplicateScheduledStart, result.Status);
+        Assert.Equal(scheduledStartUtc, result.ScheduledStartUtc);
     }
 
     [Fact]
@@ -124,6 +170,9 @@ public class UpdateCalendarEventHandlerTests
                     new EventTextValue("text1", "English title"),
                     new EventTextValue("text2", "English description")
                 ]));
+
+    private static ScheduledStart ValidUpdatedStart() =>
+        new(new DateTime(2026, 07, 20, 09, 30, 00), "Europe/London");
 
     private static PlatformPublication Publication() =>
         new(
@@ -176,21 +225,33 @@ public class UpdateCalendarEventHandlerTests
 
         public string? UpdatedCalendarEventId { get; private set; }
 
-        public EventTextSnapshot? UpdatedText { get; private set; }
+        public CalendarEvent? UpdatedCalendarEvent { get; private set; }
+
+        public DateTimeOffset? UpdatedScheduledStartUtc { get; private set; }
+
+        public DateTimeOffset? DuplicateScheduledStartUtc { get; init; }
 
         public Task<string> CreateAsync(
             CalendarEvent calendarEvent,
+            DateTimeOffset scheduledStartUtc,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<bool> UpdateTextAsync(
+        public Task<bool> UpdateAsync(
             string calendarEventId,
-            EventTextSnapshot text,
+            CalendarEvent calendarEvent,
+            DateTimeOffset scheduledStartUtc,
             CancellationToken cancellationToken)
         {
+            if (DuplicateScheduledStartUtc is { } duplicateScheduledStartUtc)
+            {
+                throw new DuplicateScheduledStartException(duplicateScheduledStartUtc);
+            }
+
             UpdateCallCount++;
             UpdatedCalendarEventId = calendarEventId;
-            UpdatedText = text;
+            UpdatedCalendarEvent = calendarEvent;
+            UpdatedScheduledStartUtc = scheduledStartUtc;
 
             return Task.FromResult(updateResult);
         }

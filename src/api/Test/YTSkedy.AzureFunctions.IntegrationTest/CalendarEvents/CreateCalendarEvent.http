@@ -109,17 +109,21 @@ Authorization: Bearer {{accessTokenReadOnly}}
 GET {{HostAddress}}/api/calendar-events/{{calendarEventId}}
 Authorization: Bearer {{accessToken}}
 
-### Update a calendar event's text values
-# Replace the id with one returned by a create above. Only the text values
-# change; the scheduled start is immutable. Expected response: 200 OK with
-# { calendarEventId }, 404 Not Found for an unknown id, or 409 Conflict when
-# any platform publication row exists for the event.
+### Update a calendar event's scheduled start and text values
+# Replace the id with one returned by a create above. Expected response:
+# 200 OK with { calendarEventId }, 404 Not Found for an unknown id, or
+# 409 Conflict when any platform publication row exists for the event or a
+# duplicate scheduled start is detected.
 
 PUT {{HostAddress}}/api/calendar-events/{{calendarEventId}}
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
 {
+  "start": {
+    "localDateTime": "2026-06-07T10:30:00",
+    "timeZoneId": "America/Vancouver"
+  },
   "texts": [
     {
       "fieldKey": "text1",
@@ -142,6 +146,10 @@ Content-Type: application/json
 Authorization: Bearer {{accessTokenReadOnly}}
 
 {
+  "start": {
+    "localDateTime": "2026-06-07T10:30:00",
+    "timeZoneId": "America/Vancouver"
+  },
   "texts": [
     { "fieldKey": "text1", "value": "Scope-insufficient update probe" },
     { "fieldKey": "text2", "value": "Probe description" }

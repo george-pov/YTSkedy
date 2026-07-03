@@ -1,9 +1,12 @@
 import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { form } from '@angular/forms/signals';
 import { describe, expect, it } from 'vitest';
 
 import { CalendarEvent } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { EventTextField } from 'src/app/shared/api/settings/event-text-fields-service';
 import {
+  applyCalendarEventDetailsRules,
   createCalendarEventDetailsModel,
   eventTextFieldsToModel,
   patchCalendarEventDetailsModel,
@@ -81,8 +84,12 @@ describe('calendar event details form mapping', () => {
     });
   });
 
-  it('maps update model values to trimmed text values only', () => {
+  it('maps update model values to start and trimmed text values', () => {
     expect(toUpdateCalendarEventRequest(model())).toEqual({
+      start: {
+        localDateTime: '2999-01-01T10:00:00',
+        timeZoneId: 'UTC',
+      },
       texts: [
         {
           fieldKey: 'text1',
@@ -94,6 +101,32 @@ describe('calendar event details form mapping', () => {
         },
       ],
     });
+  });
+
+  it('enables start controls in edit mode when canUpdate returns true', () => {
+    const detailsForm = TestBed.runInInjectionContext(() =>
+      form(signal(model()), (path) =>
+        applyCalendarEventDetailsRules(path, () => true, () => true),
+      ),
+    );
+
+    expect(detailsForm.start().disabled()).toBe(false);
+    expect(detailsForm.start.date().disabled()).toBe(false);
+    expect(detailsForm.start.time().disabled()).toBe(false);
+    expect(detailsForm.start.timeZoneId().disabled()).toBe(false);
+  });
+
+  it('disables start controls in edit mode when canUpdate returns false', () => {
+    const detailsForm = TestBed.runInInjectionContext(() =>
+      form(signal(model()), (path) =>
+        applyCalendarEventDetailsRules(path, () => true, () => false),
+      ),
+    );
+
+    expect(detailsForm.start().disabled()).toBe(true);
+    expect(detailsForm.start.date().disabled()).toBe(true);
+    expect(detailsForm.start.time().disabled()).toBe(true);
+    expect(detailsForm.start.timeZoneId().disabled()).toBe(true);
   });
 
   function model(): CalendarEventDetailsModel {

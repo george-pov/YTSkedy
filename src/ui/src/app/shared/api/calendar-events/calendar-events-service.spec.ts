@@ -217,6 +217,10 @@ describe('CalendarEventsService', () => {
 
   it('puts an update request to the by-id endpoint and returns the API response', () => {
     const updateRequest: UpdateCalendarEventRequest = {
+      start: {
+        localDateTime: '2026-07-20T09:30:00',
+        timeZoneId: 'Europe/London',
+      },
       texts: [
         {
           fieldKey: 'text1',

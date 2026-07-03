@@ -1,4 +1,3 @@
-using System.Globalization;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
@@ -6,32 +5,36 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class ListEventsHandlerTests
 {
+    private const string FirstId = "11111111111111111111111111111111";
+    private const string SecondId = "22222222222222222222222222222222";
+    private const string ThirdId = "33333333333333333333333333333333";
+    private const string FourthId = "44444444444444444444444444444444";
+    private const string FifthId = "55555555555555555555555555555555";
+
     [Fact]
-    public async Task HandleAsync_DefaultSort_OrdersByCalendarEventIdDescending()
+    public async Task HandleAsync_DefaultSort_OrdersByScheduledStartDescending()
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateView("20260101T000000Z"),
-            CreateView("20260103T000000Z"),
-            CreateView("20260102T000000Z")
+            CreateView(FirstId, ScheduledStartUtc(2026, 1, 1)),
+            CreateView(ThirdId, ScheduledStartUtc(2026, 1, 3)),
+            CreateView(SecondId, ScheduledStartUtc(2026, 1, 2))
         ]);
         var handler = new ListEventsHandler(reader);
 
         var result = await handler.HandleAsync(Query(), CancellationToken.None);
 
-        Assert.Equal(
-            ["20260103T000000Z", "20260102T000000Z", "20260101T000000Z"],
-            Ids(result));
+        Assert.Equal([ThirdId, SecondId, FirstId], Ids(result));
     }
 
     [Fact]
-    public async Task HandleAsync_ScheduledStartAscending_OrdersByCalendarEventIdAscending()
+    public async Task HandleAsync_ScheduledStartAscending_OrdersByScheduledStartAscending()
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateView("20260103T000000Z"),
-            CreateView("20260101T000000Z"),
-            CreateView("20260102T000000Z")
+            CreateView(ThirdId, ScheduledStartUtc(2026, 1, 3)),
+            CreateView(FirstId, ScheduledStartUtc(2026, 1, 1)),
+            CreateView(SecondId, ScheduledStartUtc(2026, 1, 2))
         ]);
         var handler = new ListEventsHandler(reader);
 
@@ -41,9 +44,7 @@ public class ListEventsHandlerTests
                 direction: SortDirection.Ascending),
             CancellationToken.None);
 
-        Assert.Equal(
-            ["20260101T000000Z", "20260102T000000Z", "20260103T000000Z"],
-            Ids(result));
+        Assert.Equal([FirstId, SecondId, ThirdId], Ids(result));
     }
 
     [Fact]
@@ -51,9 +52,9 @@ public class ListEventsHandlerTests
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateView("20260101T000000Z", timeZoneId: "Europe/London"),
-            CreateView("20260102T000000Z", timeZoneId: "America/Vancouver"),
-            CreateView("20260103T000000Z", timeZoneId: "Asia/Tokyo")
+            CreateView(FirstId, ScheduledStartUtc(2026, 1, 1), timeZoneId: "Europe/London"),
+            CreateView(SecondId, ScheduledStartUtc(2026, 1, 2), timeZoneId: "America/Vancouver"),
+            CreateView(ThirdId, ScheduledStartUtc(2026, 1, 3), timeZoneId: "Asia/Tokyo")
         ]);
         var handler = new ListEventsHandler(reader);
 
@@ -61,9 +62,7 @@ public class ListEventsHandlerTests
             Query(sort: CalendarEventSortField.TimeZone, direction: SortDirection.Ascending),
             CancellationToken.None);
 
-        Assert.Equal(
-            ["20260102T000000Z", "20260103T000000Z", "20260101T000000Z"],
-            Ids(result));
+        Assert.Equal([SecondId, ThirdId, FirstId], Ids(result));
     }
 
     [Fact]
@@ -71,9 +70,9 @@ public class ListEventsHandlerTests
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateView("20260101T000000Z", title: "Charlie stream"),
-            CreateView("20260102T000000Z", title: "Alpha stream"),
-            CreateView("20260103T000000Z", title: "Bravo stream")
+            CreateView(FirstId, ScheduledStartUtc(2026, 1, 1), title: "Charlie stream"),
+            CreateView(SecondId, ScheduledStartUtc(2026, 1, 2), title: "Alpha stream"),
+            CreateView(ThirdId, ScheduledStartUtc(2026, 1, 3), title: "Bravo stream")
         ]);
         var handler = new ListEventsHandler(reader);
 
@@ -81,9 +80,7 @@ public class ListEventsHandlerTests
             Query(sort: CalendarEventSortField.Title, direction: SortDirection.Ascending),
             CancellationToken.None);
 
-        Assert.Equal(
-            ["20260102T000000Z", "20260103T000000Z", "20260101T000000Z"],
-            Ids(result));
+        Assert.Equal([SecondId, ThirdId, FirstId], Ids(result));
     }
 
     [Fact]
@@ -91,9 +88,21 @@ public class ListEventsHandlerTests
     {
         var reader = new FakeCalendarEventReader(
         [
-            CreateView("20260101T000000Z", title: "Charlie stream", includeShortText: false),
-            CreateView("20260102T000000Z", title: "Alpha stream", includeShortText: false),
-            CreateView("20260103T000000Z", title: "Bravo stream", includeShortText: false)
+            CreateView(
+                FirstId,
+                ScheduledStartUtc(2026, 1, 1),
+                title: "Charlie stream",
+                includeShortText: false),
+            CreateView(
+                SecondId,
+                ScheduledStartUtc(2026, 1, 2),
+                title: "Alpha stream",
+                includeShortText: false),
+            CreateView(
+                ThirdId,
+                ScheduledStartUtc(2026, 1, 3),
+                title: "Bravo stream",
+                includeShortText: false)
         ]);
         var handler = new ListEventsHandler(reader);
 
@@ -101,9 +110,7 @@ public class ListEventsHandlerTests
             Query(sort: CalendarEventSortField.Title, direction: SortDirection.Ascending),
             CancellationToken.None);
 
-        Assert.Equal(
-            ["20260102T000000Z", "20260103T000000Z", "20260101T000000Z"],
-            Ids(result));
+        Assert.Equal([SecondId, ThirdId, FirstId], Ids(result));
     }
 
     [Fact]
@@ -115,7 +122,7 @@ public class ListEventsHandlerTests
             Query(page: 0, pageSize: 2, direction: SortDirection.Descending),
             CancellationToken.None);
 
-        Assert.Equal(["20260105T000000Z", "20260104T000000Z"], Ids(result));
+        Assert.Equal([FifthId, FourthId], Ids(result));
         Assert.Equal(0, result.Page);
         Assert.Equal(2, result.PageSize);
         Assert.Equal(5, result.TotalCount);
@@ -130,7 +137,7 @@ public class ListEventsHandlerTests
             Query(page: 1, pageSize: 2, direction: SortDirection.Descending),
             CancellationToken.None);
 
-        Assert.Equal(["20260103T000000Z", "20260102T000000Z"], Ids(result));
+        Assert.Equal([ThirdId, SecondId], Ids(result));
         Assert.Equal(5, result.TotalCount);
     }
 
@@ -143,7 +150,7 @@ public class ListEventsHandlerTests
             Query(page: 2, pageSize: 2, direction: SortDirection.Descending),
             CancellationToken.None);
 
-        Assert.Equal(["20260101T000000Z"], Ids(result));
+        Assert.Equal([FirstId], Ids(result));
         Assert.Equal(5, result.TotalCount);
     }
 
@@ -250,22 +257,20 @@ public class ListEventsHandlerTests
 
     private static IReadOnlyList<CalendarEventView> FiveAscendingItems() =>
     [
-        CreateView("20260101T000000Z"),
-        CreateView("20260102T000000Z"),
-        CreateView("20260103T000000Z"),
-        CreateView("20260104T000000Z"),
-        CreateView("20260105T000000Z")
+        CreateView(FirstId, ScheduledStartUtc(2026, 1, 1)),
+        CreateView(SecondId, ScheduledStartUtc(2026, 1, 2)),
+        CreateView(ThirdId, ScheduledStartUtc(2026, 1, 3)),
+        CreateView(FourthId, ScheduledStartUtc(2026, 1, 4)),
+        CreateView(FifthId, ScheduledStartUtc(2026, 1, 5))
     ];
 
     private static CalendarEventView CreateView(
         string calendarEventId,
+        DateTimeOffset scheduledStartUtc,
         string timeZoneId = "America/Vancouver",
         string? title = null,
-        bool includeShortText = true)
-    {
-        var scheduledStartUtc = ParseScheduledStartUtc(calendarEventId);
-
-        return new CalendarEventView(
+        bool includeShortText = true) =>
+        new(
             calendarEventId,
             new ScheduledStart(scheduledStartUtc.UtcDateTime, timeZoneId),
             scheduledStartUtc,
@@ -280,16 +285,9 @@ public class ListEventsHandlerTests
                     new EventTextFields(
                         [new EventTextField("Body", EventTextType.LongText, 2500)]),
                     [new EventTextValue("text1", title ?? $"Title {calendarEventId}")]));
-    }
 
-    private static DateTimeOffset ParseScheduledStartUtc(string calendarEventId) =>
-        new(
-            DateTime.ParseExact(
-                calendarEventId,
-                "yyyyMMdd'T'HHmmss'Z'",
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
-            TimeSpan.Zero);
+    private static DateTimeOffset ScheduledStartUtc(int year, int month, int day) =>
+        new(year, month, day, 0, 0, 0, TimeSpan.Zero);
 
     private static string[] Ids(CalendarEventListPage page) =>
         page.Items.Select(item => item.CalendarEventId).ToArray();

@@ -213,8 +213,8 @@ public class CalendarEventViewMapperTests
         string timeZoneId = "America/Vancouver") =>
         new()
         {
-            PartitionKey = CalendarEventPartitionKey.ForInstant(scheduledStartUtc),
-            RowKey = CalendarEventStorageKey.RowKeyForScheduledStart(scheduledStartUtc),
+            PartitionKey = CalendarEventStorageKey.PartitionKey,
+            RowKey = CalendarEventStorageKey.RowKeyFor(calendarEventId),
             CalendarEventId = calendarEventId,
             ScheduledStartUtc = scheduledStartUtc,
             LocalDateTime = localDateTime,

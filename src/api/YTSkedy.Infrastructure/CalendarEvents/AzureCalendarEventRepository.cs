@@ -14,17 +14,26 @@ public sealed class AzureCalendarEventRepository(
 {
     public async Task<string> CreateAsync(
         CalendarEvent calendarEvent,
+        DateTimeOffset scheduledStartUtc,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(calendarEvent);
 
-        var scheduledStartUtc = ToUtc(calendarEvent.Start);
-        var calendarEventId = CalendarEventStorageKey.NewCalendarEventId(scheduledStartUtc);
-        var rowKey = CalendarEventStorageKey.RowKeyForScheduledStart(scheduledStartUtc);
+        await tableClient.CreateIfNotExistsAsync(cancellationToken);
+
+        if (await HasScheduledStartAsync(
+                scheduledStartUtc,
+                excludedCalendarEventId: null,
+                cancellationToken))
+        {
+            throw new DuplicateScheduledStartException(scheduledStartUtc);
+        }
+
+        var calendarEventId = CalendarEventStorageKey.NewCalendarEventId();
         var entity = new CalendarEventEntity
         {
-            PartitionKey = CalendarEventPartitionKey.ForInstant(scheduledStartUtc),
-            RowKey = rowKey,
+            PartitionKey = CalendarEventStorageKey.PartitionKey,
+            RowKey = CalendarEventStorageKey.RowKeyFor(calendarEventId),
             CalendarEventId = calendarEventId,
             ScheduledStartUtc = scheduledStartUtc,
             LocalDateTime = FormatLocalDateTime(calendarEvent.Start.LocalDateTime),
@@ -33,16 +42,7 @@ public sealed class AzureCalendarEventRepository(
             CreatedUtc = timeProvider.GetUtcNow()
         };
 
-        await tableClient.CreateIfNotExistsAsync(cancellationToken);
-
-        try
-        {
-            await tableClient.AddEntityAsync(entity, cancellationToken);
-        }
-        catch (RequestFailedException exception) when (exception.Status == 409)
-        {
-            throw DuplicateScheduledStart(scheduledStartUtc, exception);
-        }
+        await tableClient.AddEntityAsync(entity, cancellationToken);
 
         return calendarEventId;
     }
@@ -60,53 +60,14 @@ public sealed class AzureCalendarEventRepository(
     {
         ArgumentNullException.ThrowIfNull(criteria);
 
-        var entities = new List<CalendarEventEntity>();
-
-        foreach (var partitionKey in CalendarEventPartitionKey.ForLocalMonth(criteria))
-        {
-            var filter = CalendarEventStorageKey.PartitionFilter(partitionKey);
-
-            try
-            {
-                await foreach (var entity in tableClient.QueryAsync<CalendarEventEntity>(
-                    filter,
-                    cancellationToken: cancellationToken))
-                {
-                    entities.Add(entity);
-                }
-            }
-            catch (RequestFailedException exception) when (exception.Status == 404)
-            {
-                return [];
-            }
-        }
-
         return CalendarEventViewMapper.ToViewsForMonth(
-            entities,
+            await ListEntitiesAsync(cancellationToken),
             criteria);
     }
 
     private async Task<IReadOnlyList<CalendarEventView>> ListAllAsync(
-        CancellationToken cancellationToken)
-    {
-        var entities = new List<CalendarEventEntity>();
-
-        try
-        {
-            await foreach (var entity in tableClient.QueryAsync<CalendarEventEntity>(
-                filter: (string?)null,
-                cancellationToken: cancellationToken))
-            {
-                entities.Add(entity);
-            }
-        }
-        catch (RequestFailedException exception) when (exception.Status == 404)
-        {
-            return [];
-        }
-
-        return CalendarEventViewMapper.ToViews(entities);
-    }
+        CancellationToken cancellationToken) =>
+        CalendarEventViewMapper.ToViews(await ListEntitiesAsync(cancellationToken));
 
     public async Task<CalendarEventView?> GetByIdAsync(
         string calendarEventId,
@@ -119,13 +80,14 @@ public sealed class AzureCalendarEventRepository(
         return entity is null ? null : CalendarEventViewMapper.ToView(entity);
     }
 
-    public async Task<bool> UpdateTextAsync(
+    public async Task<bool> UpdateAsync(
         string calendarEventId,
-        EventTextSnapshot text,
+        CalendarEvent calendarEvent,
+        DateTimeOffset scheduledStartUtc,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
-        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(calendarEvent);
 
         var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
 
@@ -134,16 +96,33 @@ public sealed class AzureCalendarEventRepository(
             return false;
         }
 
-        entity.TextJson = CalendarEventViewMapper.SerializeText(text);
+        if (await HasScheduledStartAsync(
+                scheduledStartUtc,
+                excludedCalendarEventId: calendarEventId,
+                cancellationToken))
+        {
+            throw new DuplicateScheduledStartException(scheduledStartUtc);
+        }
 
-        // Conditional on the read ETag so a concurrent change to the same row is
-        // not silently overwritten. The start and identity are left untouched;
-        // only the event text blob is replaced.
-        await tableClient.UpdateEntityAsync(
-            entity,
-            entity.ETag,
-            TableUpdateMode.Replace,
-            cancellationToken);
+        entity.ScheduledStartUtc = scheduledStartUtc;
+        entity.LocalDateTime = FormatLocalDateTime(calendarEvent.Start.LocalDateTime);
+        entity.TimeZoneId = calendarEvent.Start.TimeZoneId;
+        entity.TextJson = CalendarEventViewMapper.SerializeText(calendarEvent.Text);
+
+        try
+        {
+            // Conditional on the read ETag so a concurrent change to the same row is
+            // not silently overwritten.
+            await tableClient.UpdateEntityAsync(
+                entity,
+                entity.ETag,
+                TableUpdateMode.Replace,
+                cancellationToken);
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            return false;
+        }
 
         return true;
     }
@@ -177,13 +156,50 @@ public sealed class AzureCalendarEventRepository(
         }
     }
 
+    private async Task<bool> HasScheduledStartAsync(
+        DateTimeOffset scheduledStartUtc,
+        string? excludedCalendarEventId,
+        CancellationToken cancellationToken)
+    {
+        var entities = await ListEntitiesAsync(cancellationToken);
+
+        return entities.Any(entity =>
+            entity.ScheduledStartUtc == scheduledStartUtc &&
+            !string.Equals(
+                entity.CalendarEventId,
+                excludedCalendarEventId,
+                StringComparison.Ordinal));
+    }
+
+    private async Task<IReadOnlyList<CalendarEventEntity>> ListEntitiesAsync(
+        CancellationToken cancellationToken)
+    {
+        var entities = new List<CalendarEventEntity>();
+
+        try
+        {
+            await foreach (var entity in tableClient.QueryAsync<CalendarEventEntity>(
+                CalendarEventStorageKey.PartitionFilter(),
+                cancellationToken: cancellationToken))
+            {
+                entities.Add(entity);
+            }
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            return [];
+        }
+
+        return entities;
+    }
+
     private async Task<CalendarEventEntity?> TryGetEntityAsync(
         string calendarEventId,
         CancellationToken cancellationToken)
     {
         if (!CalendarEventStorageKey.TryGetAddress(
                 calendarEventId,
-                out var scheduledStartUtc,
+                out var partitionKey,
                 out var rowKey))
         {
             return null;
@@ -192,7 +208,7 @@ public sealed class AzureCalendarEventRepository(
         try
         {
             var response = await tableClient.GetEntityIfExistsAsync<CalendarEventEntity>(
-                CalendarEventPartitionKey.ForInstant(scheduledStartUtc),
+                partitionKey,
                 rowKey,
                 cancellationToken: cancellationToken);
 
@@ -214,52 +230,8 @@ public sealed class AzureCalendarEventRepository(
         }
     }
 
-    private static DateTimeOffset ToUtc(ScheduledStart start)
-    {
-        var localDateTime = DateTime.SpecifyKind(
-            start.LocalDateTime,
-            DateTimeKind.Unspecified);
-        var timeZone = FindTimeZone(start.TimeZoneId);
-
-        if (timeZone.IsInvalidTime(localDateTime))
-        {
-            throw new InvalidOperationException(
-                "Scheduled start time does not exist in the specified time zone.");
-        }
-
-        if (timeZone.IsAmbiguousTime(localDateTime))
-        {
-            throw new InvalidOperationException(
-                "Scheduled start time is ambiguous in the specified time zone.");
-        }
-
-        var utcDateTime = TimeZoneInfo.ConvertTimeToUtc(localDateTime, timeZone);
-
-        return new DateTimeOffset(utcDateTime, TimeSpan.Zero);
-    }
-
-    private static TimeZoneInfo FindTimeZone(string timeZoneId)
-    {
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        }
-        catch (TimeZoneNotFoundException)
-            when (TimeZoneInfo.TryConvertIanaIdToWindowsId(timeZoneId, out var windowsTimeZoneId))
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById(windowsTimeZoneId);
-        }
-    }
-
     private static string FormatLocalDateTime(DateTime localDateTime) =>
         localDateTime.ToString(
             "yyyy-MM-dd'T'HH:mm:ss",
             CultureInfo.InvariantCulture);
-
-    private static InvalidOperationException DuplicateScheduledStart(
-        DateTimeOffset scheduledStartUtc,
-        Exception? innerException = null) =>
-        new(
-            $"Calendar event scheduled for '{scheduledStartUtc:o}' already exists.",
-            innerException);
 }

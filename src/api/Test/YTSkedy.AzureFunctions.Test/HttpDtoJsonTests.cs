@@ -54,6 +54,48 @@ public sealed class HttpDtoJsonTests
     }
 
     [Fact]
+    public void UpdateCalendarEventRequest_InternalDto_DeserializesWithWebDefaults()
+    {
+        const string json = """
+            {
+              "start": {
+                "localDateTime": "2026-07-20T09:30:00",
+                "timeZoneId": "Europe/London"
+              },
+              "texts": [
+                {
+                  "fieldKey": "text1",
+                  "value": "Updated English stream"
+                },
+                {
+                  "fieldKey": "text2",
+                  "value": "Updated live stream"
+                }
+              ]
+            }
+            """;
+
+        var request = JsonSerializer.Deserialize<UpdateCalendarEventRequest>(json, JsonOptions);
+
+        Assert.NotNull(request);
+        Assert.Equal(new DateTime(2026, 7, 20, 9, 30, 0), request.Start.LocalDateTime);
+        Assert.Equal("Europe/London", request.Start.TimeZoneId);
+
+        Assert.Collection(
+            request.Texts,
+            first =>
+            {
+                Assert.Equal("text1", first.FieldKey);
+                Assert.Equal("Updated English stream", first.Value);
+            },
+            second =>
+            {
+                Assert.Equal("text2", second.FieldKey);
+                Assert.Equal("Updated live stream", second.Value);
+            });
+    }
+
+    [Fact]
     public void CreatePlatformRequest_InternalNestedDto_DeserializesWithWebDefaults()
     {
         const string json = """
