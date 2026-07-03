@@ -1,9 +1,11 @@
+using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
 public sealed class UpdateCalendarEventHandler(
     ICalendarEventReader calendarEventReader,
+    IPlatformPublicationReader publicationReader,
     ICalendarEventModifier calendarEvents)
 {
     public async Task<UpdateCalendarEventResult> HandleAsync(
@@ -19,6 +21,14 @@ public sealed class UpdateCalendarEventHandler(
         if (calendarEvent is null)
         {
             return UpdateCalendarEventResult.NotFound;
+        }
+
+        var publicationRows = await publicationReader.ListByEventAsync(
+            command.CalendarEventId,
+            cancellationToken);
+        if (publicationRows.Count > 0)
+        {
+            return UpdateCalendarEventResult.HasPlatformPublications;
         }
 
         EventTextSnapshot text;

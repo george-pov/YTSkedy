@@ -280,6 +280,8 @@ Success response (`200 OK`):
   },
   "scheduledStartUtc": "2026-06-06T17:00:00+00:00",
   "displayTitle": "Saturday stream",
+  "canUpdate": true,
+  "canDelete": true,
   "texts": [
     {
       "fieldKey": "text1",
@@ -316,6 +318,13 @@ Success response (`200 OK`):
 Current behavior:
 
 - Unknown `calendarEventId` returns `404 Not Found`.
+- `canUpdate` is `true` only when the event has no platform publication rows.
+  Any current platform publication row, including `Publishing`, `Published`,
+  and orphan history rows, makes event text update state-ineligible.
+- `canDelete` is `true` only when the event has no platform publication rows.
+  It is separate from platform-row `canDeletePublication`.
+- Deleting platform publication rows through the platform-publication delete
+  route unlocks event update and event delete when no publication rows remain.
 - `platforms` is `[]` when no platforms are registered.
 - `status` is `NotPublished`, `Publishing`, or `Published`. An active platform
   with no stored publication row is reported as a computed `NotPublished` item;
@@ -448,6 +457,9 @@ Current behavior and error mapping:
 - Missing request body returns `400 Bad Request` with a plain string message.
 - Missing, unknown, duplicate, blank, or over-length text values return
   `400 Bad Request`.
+- Any platform publication row for the event returns `409 Conflict`. Use the
+  platform-publication delete route to clean up completed provider
+  publications before updating the event.
 - The `CalendarEventDetails` edit route
   (`/calendar-events/{calendarEventId}/edit`) consumes this endpoint on save,
   sending the event's text values.
@@ -475,9 +487,10 @@ Rejected states and error mapping:
 
 - Unknown non-empty `calendarEventId` returns `404 Not Found`. Calendar event
   IDs are opaque; there is no public id-format validation contract.
-- Any platform publication row for the event returns `409 Conflict`. Use the
-  platform-publication delete route to clean up completed provider publications
-  before deleting the event.
+- Any platform publication row for the event returns `409 Conflict`. This is
+  the same row-based lock used by event text update. Use the
+  platform-publication delete route to clean up completed provider
+  publications before deleting the event.
 - A row that disappears between the existence check and delete write returns
   `204 No Content` because the requested end state already holds.
 
@@ -502,13 +515,16 @@ array in [Get Calendar Event](#get-calendar-event)). The publish action is
 documented in [`platforms.md`](platforms.md):
 
 - `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`
-  publishes the event to one selected platform.
+  publishes the event to one selected platform. The response is row-level only;
+  clients that need root `canUpdate` or `canDelete` must refresh the calendar
+  event details response.
 - `GET /api/calendar-events/{calendarEventId}/platforms/{platformId}/publishing-content`
   returns a recalculated preview for active unpublished rows or a stored
   snapshot for rows where publishing has started.
 - `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`
   deletes one completed provider publication and resets the platform row when
-  cleanup succeeds.
+  cleanup succeeds. The response is row-level only; clients that need root
+  `canUpdate` or `canDelete` must refresh the calendar event details response.
 
 ## Manual Checks
 

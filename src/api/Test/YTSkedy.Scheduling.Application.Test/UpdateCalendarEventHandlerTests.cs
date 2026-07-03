@@ -1,5 +1,7 @@
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
+using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
@@ -64,6 +66,20 @@ public class UpdateCalendarEventHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_EventWithPlatformPublications_ReturnsConflictWithoutUpdating()
+    {
+        var modifier = new FakeCalendarEventModifier(updateResult: true);
+        var handler = CreateHandler(CreateCalendarEventView(), modifier, [Publication()]);
+
+        var result = await handler.HandleAsync(
+            new UpdateEventTextCommand(CalendarEventId, Texts),
+            CancellationToken.None);
+
+        Assert.Equal(UpdateCalendarEventStatus.HasPlatformPublications, result.Status);
+        Assert.Equal(0, modifier.UpdateCallCount);
+    }
+
+    [Fact]
     public async Task HandleAsync_RowVanishedBeforeWrite_ReturnsNotFound()
     {
         var modifier = new FakeCalendarEventModifier(updateResult: false);
@@ -90,8 +106,12 @@ public class UpdateCalendarEventHandlerTests
 
     private static UpdateCalendarEventHandler CreateHandler(
         CalendarEventView? calendarEvent,
-        FakeCalendarEventModifier modifier) =>
-        new(new FakeCalendarEventReader(calendarEvent), modifier);
+        FakeCalendarEventModifier modifier,
+        IReadOnlyList<PlatformPublication>? publications = null) =>
+        new(
+            new FakeCalendarEventReader(calendarEvent),
+            new FakePlatformPublicationReader(publications ?? []),
+            modifier);
 
     private static CalendarEventView CreateCalendarEventView() =>
         new(
@@ -105,6 +125,18 @@ public class UpdateCalendarEventHandlerTests
                     new EventTextValue("text2", "English description")
                 ]));
 
+    private static PlatformPublication Publication() =>
+        new(
+            CalendarEventId,
+            "platform-1",
+            "Main YouTube channel",
+            PlatformType.YouTube,
+            PublishStatus.Published,
+            "external-1",
+            StartUtc,
+            null,
+            StartUtc);
+
     private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent) : ICalendarEventReader
     {
         public Task<IReadOnlyList<CalendarEventView>> ListAsync(
@@ -116,6 +148,26 @@ public class UpdateCalendarEventHandlerTests
             string calendarEventId,
             CancellationToken cancellationToken) =>
             Task.FromResult(calendarEvent);
+    }
+
+    private sealed class FakePlatformPublicationReader(
+        IReadOnlyList<PlatformPublication> publications) : IPlatformPublicationReader
+    {
+        public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(publications);
+
+        public Task<PlatformPublication?> GetAsync(
+            string calendarEventId,
+            string platformId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<PlatformPublication>> ListPublishingByPlatformAsync(
+            string platformId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeCalendarEventModifier(bool updateResult) : ICalendarEventModifier

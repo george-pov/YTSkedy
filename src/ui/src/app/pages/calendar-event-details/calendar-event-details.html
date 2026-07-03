@@ -43,6 +43,12 @@
         <fieldset class="section">
           <legend>Event text</legend>
 
+          @if (isEditMode && (!canUpdate() || !canDelete())) {
+            <app-alert variant="info">
+              Delete platform publications before changing event text or deleting this event.
+            </app-alert>
+          }
+
           @if (form.texts().errors().length > 0 && form.texts().touched()) {
             <app-alert variant="error">
               {{ form.texts().errors()[0].message }}
@@ -194,7 +200,10 @@
             </app-button>
             <app-button
               type="submit"
-              [disabled]="hasActiveMutation()"
+              [disabled]="
+                hasActiveMutation() ||
+                (isEditMode && !canUpdate())
+              "
             >
               {{ isEditMode ? 'Save changes' : 'Save event' }}
             </app-button>

@@ -14,4 +14,6 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents;
 /// </summary>
 public sealed record CalendarEventDetailsView(
     CalendarEventView Event,
+    bool CanUpdate,
+    bool CanDelete,
     IReadOnlyList<EventPlatformView> Platforms);

@@ -29,7 +29,7 @@ placeholder.
 | `/` | Public | Renders `Home` with a sign-in button. Auto-redirects signed-in visitors to `/calendar-events`. |
 | `/calendar-events` | Protected | Renders `CalendarEvents` and loads one server-side sorted page of events through `GET /api/calendar-events`. The scheduled start is shown as the UTC instant (`scheduledStartUtc`), and the Title column displays the backend `displayTitle` field that also drives `title` sorting. Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`. |
 | `/calendar-events/new` | Protected | Renders `CalendarEventDetails` in create mode. Loads current event text fields with `GET /api/settings/event-text-fields`, renders one control per configured field, creates via `POST /api/calendar-events`, and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
-| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, renders the stored `texts` snapshot, keeps the scheduled start read-only, and shows the response `platforms` array as a Type, Name, Status, and Actions table. Platform preview, publish, and publication-delete actions call the platform-scoped endpoints and replace only the affected platform row. Save sends `PUT /api/calendar-events/{calendarEventId}` with text values. A separate Delete action calls `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
+| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, renders the stored `texts` snapshot, keeps the scheduled start read-only, and shows the response `platforms` array as a Type, Name, Status, and Actions table. The page uses backend-computed root `canUpdate` and `canDelete` from the details response to enable event text Save and event Delete. Platform preview, publish, and publication-delete actions call the platform-scoped endpoints; successful publish and publication-delete refresh event details before updating root lock state. Save sends `PUT /api/calendar-events/{calendarEventId}` with text values. A separate Delete action calls `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
 | `/templates` | Protected | Renders `Templates`, a single-page CRUD for reusable social-post templates backed by the `templates` API through a typed `TemplatesService`. On load it lists templates with `GET /api/templates` and shows each template's type (platform) and name. New Template opens an unsaved editor whose type is selectable and creates via `POST /api/templates`. Selecting a row opens the editor with the type read-only (immutable after create) and saves name and content via `PUT /api/templates/{type}/{id}`; Delete calls `DELETE /api/templates/{type}/{id}`. A failed load, save, or delete shows an inline error, and a duplicate name surfaces the `409` conflict. Guarded by `authenticatedGuard`. |
 | `/platforms` | Protected | Renders `Platforms`, a single-page CRUD for configured publishing destinations backed by the `platforms` API through a typed `PlatformsService`. On load it lists platforms with `GET /api/platforms` and shows Type, Name, and Reference key; New Platform creates a YouTube or WordPress platform via `POST /api/platforms`; selecting a row opens an editor that saves via `PUT /api/platforms/{platformId}` or deletes via `DELETE /api/platforms/{platformId}`. The editor requires title-template and description-template selections backed by `GET /api/templates?type={type}`. In edit mode, backend-provided redacted secret display strings appear inside the blank replacement inputs, hide while the input is focused, and return on blur when no replacement is entered; blank saves preserve stored secrets. A failed load, save, or delete shows an inline error, and duplicate names or duplicate reference keys surface the `409` conflict. Guarded by `authenticatedGuard`. |
 | `/settings` | Protected | Renders `Settings`, an event text field editor backed by `GET /api/settings/event-text-fields` and `PUT /api/settings/event-text-fields`. The page shows the derived `fieldKey`, label, type, max length, and delete action for each field; add and delete renumber local `textN` keys immediately, and save replaces local state with the backend-normalized response. Guarded by `authenticatedGuard`. |
@@ -43,10 +43,11 @@ through the shared API service. It requests one server-side sorted page at a
 time (the first page defaults to scheduled start descending) and drives the
 shared `app-data-table` in server mode from the returned
 `{ items, page, pageSize, totalCount, sort, direction }` envelope. Each row
-shows an Edit icon that opens the details/edit view where Save, Delete, and
-platform-scoped Publish and Delete publication actions enforce the
-API-computed action flags. The HTTP client attaches an Entra External ID access
-token via the YTSkedy-owned `AuthFacade` and bearer interceptor (see
+shows an Edit icon that opens the details/edit view. In edit mode, event Save
+and Delete use root `canUpdate` and `canDelete` from the details response, while
+platform-scoped Publish and Delete publication use row action flags. The HTTP
+client attaches an Entra External ID access token via the YTSkedy-owned
+`AuthFacade` and bearer interceptor (see
 [`development/end-to-end-testing.md`](development/end-to-end-testing.md) and
 [`../architecture/integration-contracts.md`](../architecture/integration-contracts.md)).
 Richer calendar navigation and scheduling workflow behavior remain required
@@ -63,10 +64,11 @@ to the server sort order and the active page.
 In edit mode (`/calendar-events/:calendarEventId/edit`) the page reads the id
 from the route, calls `GET /api/calendar-events/{calendarEventId}` through the
 same shared API service, and patches the loaded local start, time zone, stored
-`texts` snapshot, and `platforms` array into page state. It does not call the
-current settings endpoint to reshape an existing event. The `platforms` array
-is rendered through `app-data-table`, showing platform type, name, and publish
-status from the API response. Rows with `canPreviewPublishingContent: true`
+`texts` snapshot, root `canUpdate`/`canDelete` flags, and `platforms` array into
+page state. It does not call the current settings endpoint to reshape an
+existing event. The `platforms` array is rendered through `app-data-table`,
+showing platform type, name, and publish status from the API response. Rows with
+`canPreviewPublishingContent: true`
 show a Preview action that calls
 `GET /api/calendar-events/{calendarEventId}/platforms/{platformId}/publishing-content`
 and displays the returned `Preview` or `Snapshot` title and description below
@@ -74,15 +76,14 @@ the table. The preview surface is on demand and does not add title or
 description columns to the table. Rows with `canPublish: true` show a Publish
 action that calls
 `POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`.
-On success, the row is updated from the publish response and the Publish action
-is removed for that row; any open preview for that platform is cleared. Rows
+On success, the page refreshes event details before applying root event lock
+state, and any open preview for that platform is cleared. Rows
 with `canDeletePublication: true` show an icon button with the accessible label
 `Delete publication for {platformName}`. That action opens a confirmation
 dialog and, after confirmation, calls
 `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`.
-On success, only the affected platform row is replaced from the API response
-and any open preview for that platform is cleared; the page does not reload the
-event and does not overwrite unsaved text edits.
+On success, the page refreshes event details before applying root event lock
+state, and any open preview for that platform is cleared.
 
 A preview `409` keeps the page open with
 `Publishing content cannot be previewed. Reload the page and try again.` A
@@ -97,11 +98,13 @@ read-only "Scheduled start (UTC)" translation of the local start: in edit mode
 it is the stored `scheduledStartUtc`; in create mode it is derived live from
 the chosen local date, time, and zone. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with the text values and navigates
-back to `/calendar-events` on success.
+back to `/calendar-events` on success. If the API-provided `canUpdate` flag is
+false, the event text controls and Save action are disabled.
 
 In edit mode the page also shows a Delete action; it is hidden in create mode.
-Delete calls `DELETE /api/calendar-events/{calendarEventId}` immediately with
-no confirmation prompt and, on success, shows the `Calendar event deleted.`
+If the API-provided `canDelete` flag is false, Delete is disabled. Delete calls
+`DELETE /api/calendar-events/{calendarEventId}` immediately with no
+confirmation prompt and, on success, shows the `Calendar event deleted.`
 notification and navigates back to `/calendar-events`. A `404` is treated as
 the event already being gone (`Calendar event no longer exists.` then
 navigation); a `409` keeps the page open with

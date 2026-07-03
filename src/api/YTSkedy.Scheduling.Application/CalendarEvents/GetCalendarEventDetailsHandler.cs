@@ -31,10 +31,13 @@ public sealed class GetCalendarEventDetailsHandler(
 
         var activePlatforms = await platforms.ListAsync(null, cancellationToken);
         var publicationRows = await publications.ListByEventAsync(calendarEventId, cancellationToken);
+        var canMutateEvent = publicationRows.Count == 0;
 
         return new CalendarEventDetailsView(
             calendarEvent,
-            EventPlatformProjection.Project(
+            CanUpdate: canMutateEvent,
+            CanDelete: canMutateEvent,
+            Platforms: EventPlatformProjection.Project(
                 calendarEvent,
                 activePlatforms,
                 publicationRows,

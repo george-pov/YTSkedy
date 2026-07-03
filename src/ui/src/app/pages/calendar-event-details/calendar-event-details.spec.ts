@@ -192,6 +192,16 @@ describe('CalendarEventDetails', () => {
     return host?.querySelector('button') ?? null;
   }
 
+  function saveButton(): HTMLButtonElement {
+    return fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement;
+  }
+
+  function eventTextControls(): Array<HTMLInputElement | HTMLTextAreaElement> {
+    return Array.from(
+      fixture.nativeElement.querySelectorAll('app-input input, app-input textarea'),
+    ) as Array<HTMLInputElement | HTMLTextAreaElement>;
+  }
+
   function platformPublishHosts(): HTMLElement[] {
     return Array.from(
       fixture.nativeElement.querySelectorAll('.platform-publish-button'),
@@ -610,21 +620,20 @@ describe('CalendarEventDetails', () => {
       expect(platformDeletePublicationButton()!.disabled).toBe(true);
     });
 
-    it('publishes a platform row and updates that row from the response', async () => {
-      service.getById.mockReturnValue(of(sampleEvent()));
+    it('refreshes event details after publish and locks event update and delete from API flags', async () => {
+      service.getById
+        .mockReturnValueOnce(of(sampleEvent()))
+        .mockReturnValueOnce(
+          of(
+            sampleEvent({
+              canUpdate: false,
+              canDelete: false,
+              platforms: [publishedPlatform()],
+            }),
+          ),
+        );
       service.publishPlatform.mockReturnValue(
-        of({
-          platformId: 'platform-1',
-          platformName: 'Main YouTube channel',
-          platformType: 'YouTube',
-          status: 'Published',
-          externalResourceId: 'broadcast-123',
-          publishedUtc: '2030-07-04T08:45:00+00:00',
-          platformDeletedUtc: null,
-          canPublish: false,
-          canDeletePublication: true,
-          canPreviewPublishingContent: true,
-        }),
+        of(publishedPlatform()),
       );
 
       createEditComponent();
@@ -636,47 +645,51 @@ describe('CalendarEventDetails', () => {
       fixture.detectChanges();
 
       expect(service.publishPlatform).toHaveBeenCalledWith(editId, 'platform-1');
+      expect(service.getById).toHaveBeenCalledTimes(2);
       expect(fixture.nativeElement.textContent).toContain('Published');
       expect(platformPublishHosts()).toHaveLength(0);
       expect(platformDeletePublicationButton()).not.toBeNull();
-      expect(api().model().texts[0].value).toBe('Unsaved English title');
+      expect(saveButton().disabled).toBe(true);
+      expect(deleteButton()!.disabled).toBe(true);
+      expect(eventTextControls().every((control) => control.disabled)).toBe(true);
+      expect(api().model().texts[0].value).toBe('English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event published.');
     });
 
     it('publishes a WordPress platform row through the existing table action', async () => {
-      service.getById.mockReturnValue(
-        of(
-          sampleEvent({
-            platforms: [
-              {
-                platformId: 'wordpress-platform',
-                platformName: 'Company blog',
-                platformType: 'WordPress',
-                status: 'NotPublished',
-                externalResourceId: null,
-                publishedUtc: null,
-                platformDeletedUtc: null,
-                canPublish: true,
-                canDeletePublication: false,
-                canPreviewPublishingContent: true,
-              },
-            ],
-          }),
-        ),
-      );
+      const wordpressDraft: CalendarEventPlatform = {
+        platformId: 'wordpress-platform',
+        platformName: 'Company blog',
+        platformType: 'WordPress',
+        status: 'NotPublished',
+        externalResourceId: null,
+        publishedUtc: null,
+        platformDeletedUtc: null,
+        canPublish: true,
+        canDeletePublication: false,
+        canPreviewPublishingContent: true,
+      };
+      const wordpressPublished: CalendarEventPlatform = {
+        ...wordpressDraft,
+        status: 'Published',
+        externalResourceId: '123',
+        publishedUtc: '2030-07-04T08:45:00+00:00',
+        canPublish: false,
+        canDeletePublication: true,
+      };
+      service.getById
+        .mockReturnValueOnce(of(sampleEvent({ platforms: [wordpressDraft] })))
+        .mockReturnValueOnce(
+          of(
+            sampleEvent({
+              canUpdate: false,
+              canDelete: false,
+              platforms: [wordpressPublished],
+            }),
+          ),
+        );
       service.publishPlatform.mockReturnValue(
-        of({
-          platformId: 'wordpress-platform',
-          platformName: 'Company blog',
-          platformType: 'WordPress',
-          status: 'Published',
-          externalResourceId: '123',
-          publishedUtc: '2030-07-04T08:45:00+00:00',
-          platformDeletedUtc: null,
-          canPublish: false,
-          canDeletePublication: true,
-          canPreviewPublishingContent: true,
-        }),
+        of(wordpressPublished),
       );
 
       createEditComponent();
@@ -765,21 +778,40 @@ describe('CalendarEventDetails', () => {
       expect(service.deletePlatformPublication).toHaveBeenCalledWith(editId, 'platform-1');
     });
 
-    it('replaces only the deleted platform publication row on success', async () => {
-      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
+    it('refreshes event details after publication delete and unlocks event update and delete from API flags', async () => {
+      const unpublishedPlatform: CalendarEventPlatform = {
+        platformId: 'platform-1',
+        platformName: 'Main YouTube channel',
+        platformType: 'YouTube',
+        status: 'NotPublished',
+        externalResourceId: null,
+        publishedUtc: null,
+        platformDeletedUtc: null,
+        canPublish: true,
+        canDeletePublication: false,
+        canPreviewPublishingContent: true,
+      };
+      service.getById
+        .mockReturnValueOnce(
+          of(
+            sampleEvent({
+              canUpdate: false,
+              canDelete: false,
+              platforms: [publishedPlatform()],
+            }),
+          ),
+        )
+        .mockReturnValueOnce(
+          of(
+            sampleEvent({
+              canUpdate: true,
+              canDelete: true,
+              platforms: [unpublishedPlatform],
+            }),
+          ),
+        );
       service.deletePlatformPublication.mockReturnValue(
-        of({
-          platformId: 'platform-1',
-          platformName: 'Main YouTube channel',
-          platformType: 'YouTube',
-          status: 'NotPublished',
-          externalResourceId: null,
-          publishedUtc: null,
-          platformDeletedUtc: null,
-          canPublish: true,
-          canDeletePublication: false,
-          canPreviewPublishingContent: true,
-        }),
+        of(unpublishedPlatform),
       );
 
       createEditComponent();
@@ -791,9 +823,13 @@ describe('CalendarEventDetails', () => {
       fixture.detectChanges();
 
       expect(fixture.nativeElement.textContent).toContain('NotPublished');
+      expect(service.getById).toHaveBeenCalledTimes(2);
       expect(platformDeletePublicationHosts()).toHaveLength(0);
       expect(platformPublishHosts()).toHaveLength(1);
-      expect(api().model().texts[0].value).toBe('Unsaved English title');
+      expect(saveButton().disabled).toBe(false);
+      expect(deleteButton()!.disabled).toBe(false);
+      expect(eventTextControls().every((control) => !control.disabled)).toBe(true);
+      expect(api().model().texts[0].value).toBe('English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Platform publication deleted.');
     });
 
@@ -934,6 +970,48 @@ describe('CalendarEventDetails', () => {
       expect(navigations).toEqual(['/calendar-events']);
     });
 
+    it('disables event text save and delete when API canUpdate and canDelete are false', () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            canUpdate: false,
+            canDelete: false,
+            platforms: [publishedPlatform()],
+          }),
+        ),
+      );
+
+      createEditComponent();
+
+      expect(saveButton().disabled).toBe(true);
+      expect(deleteButton()!.disabled).toBe(true);
+      expect(eventTextControls().every((control) => control.disabled)).toBe(true);
+      expect(fixture.nativeElement.textContent).toContain(
+        'Delete platform publications before changing event text or deleting this event.',
+      );
+    });
+
+    it('does not call update when API canUpdate is false', async () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            canUpdate: false,
+            canDelete: false,
+            platforms: [publishedPlatform()],
+          }),
+        ),
+      );
+
+      createEditComponent();
+
+      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(service.update).not.toHaveBeenCalled();
+      expect(navigations).toEqual([]);
+    });
+
     it('shows a save error and does not navigate when the update fails', async () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.update.mockReturnValue(throwError(() => new Error('boom')));
@@ -997,13 +1075,34 @@ describe('CalendarEventDetails', () => {
       }
     });
 
-    it('enables delete in edit mode after the event is loaded', () => {
+    it('enables delete in edit mode when API canDelete is true', () => {
       service.getById.mockReturnValue(of(sampleEvent()));
 
       createEditComponent();
 
       expect(deleteButton()).not.toBeNull();
       expect(deleteButton()!.disabled).toBe(false);
+    });
+
+    it('does not call delete when API canDelete is false', async () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            canUpdate: false,
+            canDelete: false,
+            platforms: [publishedPlatform()],
+          }),
+        ),
+      );
+
+      createEditComponent();
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(service.delete).not.toHaveBeenCalled();
+      expect(navigations).toEqual([]);
     });
 
     it('deletes a draft, notifies, and navigates to the list', async () => {
@@ -1191,6 +1290,8 @@ describe('CalendarEventDetails', () => {
       },
       scheduledStartUtc: '2030-07-04T08:30:00+00:00',
       displayTitle: 'English title',
+      canUpdate: true,
+      canDelete: true,
       texts: [
         {
           fieldKey: 'text1',

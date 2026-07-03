@@ -26,6 +26,8 @@ interface CalendarEventFields {
 export interface CalendarEvent extends CalendarEventFields {}
 
 export interface CalendarEventDetailsResponse extends CalendarEventFields {
+  canUpdate: boolean;
+  canDelete: boolean;
   platforms: CalendarEventPlatform[];
 }
 

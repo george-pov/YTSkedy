@@ -43,6 +43,44 @@ public class GetCalendarEventDetailsHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_NoPublicationRows_AllowsUpdateAndDelete()
+    {
+        var handler = new GetCalendarEventDetailsHandler(
+            new FakeCalendarEventReader(CreateEvent()),
+            new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
+            new FakePlatformPublicationReader([]),
+            new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.True(result!.CanUpdate);
+        Assert.True(result.CanDelete);
+    }
+
+    [Fact]
+    public async Task HandleAsync_PublicationRowsExist_DisallowsUpdateAndDelete()
+    {
+        var handler = new GetCalendarEventDetailsHandler(
+            new FakeCalendarEventReader(CreateEvent()),
+            new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
+            new FakePlatformPublicationReader([
+                CreatePublication(
+                    PlatformId,
+                    "Main channel",
+                    PublishStatus.Published,
+                    externalResourceId: "abc123youtubeid")
+            ]),
+            new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.False(result!.CanUpdate);
+        Assert.False(result.CanDelete);
+    }
+
+    [Fact]
     public async Task HandleAsync_NoActivePlatforms_ReturnsEmptyPlatforms()
     {
         var handler = new GetCalendarEventDetailsHandler(

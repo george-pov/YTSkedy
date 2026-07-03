@@ -75,6 +75,7 @@ export function createCalendarEventDetailsModel(
 export function applyCalendarEventDetailsRules(
   path: SchemaPathTree<CalendarEventDetailsModel>,
   isEditMode: () => boolean,
+  canUpdate: () => boolean = () => true,
 ): void {
   disabled(path.start, { when: () => isEditMode() });
   required(path.start.date, { message: 'Start date is required.' });
@@ -106,6 +107,8 @@ export function applyCalendarEventDetailsRules(
   );
 
   applyEach(path.texts, (text) => {
+    disabled(text.value, { when: () => isEditMode() && !canUpdate() });
+
     // Required-trimmed (reject whitespace-only) reuses the `required` error kind.
     validate(text.value, ({ value, valueOf }) =>
       value().trim().length === 0

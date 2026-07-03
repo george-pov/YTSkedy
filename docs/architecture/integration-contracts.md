@@ -46,14 +46,16 @@ duplicating endpoint shapes.
 
 Cross-boundary rules:
 
-- Clients must use backend-computed action flags, such as `canPublish` and
-  `canDeletePublication`, rather than re-deriving eligibility from browser time,
-  provider ids, or local status checks.
+- Clients must use backend-computed action flags, such as root `canUpdate` and
+  `canDelete` on calendar event details and row-level `canPublish` and
+  `canDeletePublication`, rather than re-deriving eligibility from browser
+  time, provider ids, row status, or local row counts.
 - Calendar event create uses the current event text fields setting, while
   calendar event list and details expose each event's stored text snapshot.
   Clients must not reshape edit forms from the current setting.
 - Calendar event list responses are provider-neutral. Per-platform publication
-  state is exposed through the calendar event details read model.
+  state and root event mutation flags are exposed through the calendar event
+  details read model.
 - The Settings page consumes `GET /api/settings/event-text-fields` and
   `PUT /api/settings/event-text-fields` through a typed settings service. The
   backend owns `fieldKey` derivation and normalizes keys from field order.
@@ -63,7 +65,9 @@ Cross-boundary rules:
   already-published platform external resource ids for matching reference-key
   tokens.
 - Platform publish and publication cleanup always target an explicit platform.
-  There is no calendar-event-level publish route.
+  Their responses are row-level only, so clients refresh calendar event details
+  when they need root event action flags after those mutations. There is no
+  calendar-event-level publish route.
 - Platform CRUD exposes the optional provider-neutral `referenceKey` field.
   The backend owns validation, blank-as-null normalization, case-insensitive
   uniqueness, and the `409 Conflict` duplicate-key response. The UI consumes it

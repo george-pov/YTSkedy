@@ -123,14 +123,7 @@ public sealed class CalendarEventsApi(
 
         var result = await updateHandler.HandleAsync(command, cancellationToken);
 
-        return result.Status switch
-        {
-            UpdateCalendarEventStatus.Updated => new OkObjectResult(
-                new UpdateCalendarEventResponse(calendarEventId)),
-            UpdateCalendarEventStatus.NotFound => new NotFoundResult(),
-            UpdateCalendarEventStatus.Invalid => new BadRequestObjectResult(result.ValidationError),
-            _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
-        };
+        return ToUpdateResult(result, calendarEventId);
     }
 
     [Function("DeleteCalendarEvent")]
@@ -162,6 +155,21 @@ public sealed class CalendarEventsApi(
             DeleteCalendarEventResult.HasPlatformPublications => new ConflictObjectResult(
                 $"Calendar event '{calendarEventId}' has platform publications. " +
                 "Delete platform publications before deleting the event."),
+            _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
+        };
+
+    internal static IActionResult ToUpdateResult(
+        UpdateCalendarEventResult result,
+        string calendarEventId) =>
+        result.Status switch
+        {
+            UpdateCalendarEventStatus.Updated => new OkObjectResult(
+                new UpdateCalendarEventResponse(calendarEventId)),
+            UpdateCalendarEventStatus.NotFound => new NotFoundResult(),
+            UpdateCalendarEventStatus.HasPlatformPublications => new ConflictObjectResult(
+                $"Calendar event '{calendarEventId}' has platform publications. " +
+                "Delete platform publications before updating the event."),
+            UpdateCalendarEventStatus.Invalid => new BadRequestObjectResult(result.ValidationError),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
 
@@ -342,7 +350,8 @@ public sealed class CalendarEventsApi(
 
     /// <summary>
     /// Maps the calendar event details read model to the get-by-id response. The
-    /// event fields mirror one list item; <c>platforms</c> is mapped by
+    /// event fields mirror one list item; root action flags describe event text
+    /// update and event delete eligibility; <c>platforms</c> is mapped by
     /// <see cref="ToEventPlatformResponse"/>. This details response is the only
     /// place the per-platform publication state is exposed over HTTP.
     /// </summary>
@@ -359,6 +368,8 @@ public sealed class CalendarEventsApi(
                 calendarEvent.Start.TimeZoneId),
             calendarEvent.ScheduledStartUtc,
             calendarEvent.Text.DisplayTitle,
+            details.CanUpdate,
+            details.CanDelete,
             ToTextResponse(calendarEvent.Text),
             details.Platforms
                 .Select(ToEventPlatformResponse)

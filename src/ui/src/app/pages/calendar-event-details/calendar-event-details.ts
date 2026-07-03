@@ -11,10 +11,11 @@ import {
 import { HttpErrorResponse } from '@angular/common/http';
 import { form } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize, Observable } from 'rxjs';
+import { finalize, Observable, switchMap, tap } from 'rxjs';
 
 import {
   CalendarEventsService,
+  type CalendarEventDetailsResponse,
   type CalendarEventPlatform,
   type EventPlatformPublishingContent,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
@@ -82,8 +83,10 @@ export class CalendarEventDetails {
   protected readonly isEditMode = this.editingId !== null;
 
   protected readonly model = signal<CalendarEventDetailsModel>(createCalendarEventDetailsModel());
+  protected readonly canUpdate = signal(!this.isEditMode);
+  protected readonly canDelete = signal(false);
   protected readonly form = form(this.model, (path) =>
-    applyCalendarEventDetailsRules(path, () => this.isEditMode),
+    applyCalendarEventDetailsRules(path, () => this.isEditMode, () => this.canUpdate()),
   );
   protected readonly timeZoneOptions = timeZoneOptions;
 
@@ -117,10 +120,6 @@ export class CalendarEventDetails {
     { key: 'status', header: 'Status', value: (platform) => platform.status },
     { key: 'actions', header: 'Actions' },
   ];
-
-  // The page owns local mutation guards. The backend remains authoritative for
-  // event edit and delete eligibility through 404/409 responses.
-  protected readonly canDelete = computed(() => this.isEditMode);
 
   // In edit mode the stored UTC instant comes from the loaded event (exact). In
   // create mode it is derived live from the start controls so the operator sees
@@ -192,13 +191,13 @@ export class CalendarEventDetails {
       .pipe(finalize(() => this.isLoading.set(false)))
       .subscribe({
         next: (event) => {
-          patchCalendarEventDetailsModel(this.model, event);
-          this.loadedScheduledStartUtc.set(event.scheduledStartUtc);
-          this.platforms.set(event.platforms);
+          this.applyEventDetails(event);
           this.previewErrorMessage.set(null);
           this.previewedPublishingContent.set(null);
         },
         error: () => {
+          this.canUpdate.set(false);
+          this.canDelete.set(false);
           this.platforms.set([]);
           this.publishErrorMessage.set(null);
           this.deletePublicationErrorMessage.set(null);
@@ -216,6 +215,10 @@ export class CalendarEventDetails {
 
   protected submit(): void {
     if (this.hasActiveMutation()) {
+      return;
+    }
+
+    if (this.isEditMode && !this.canUpdate()) {
       return;
     }
 
@@ -312,15 +315,14 @@ export class CalendarEventDetails {
 
     this.calendarEventsService
       .publishPlatform(this.editingId, platform.platformId)
-      .pipe(finalize(() => this.publishingPlatformId.set(null)))
+      .pipe(
+        switchMap((response) =>
+          this.refreshEventDetailsAfterPlatformMutation(response.platformId),
+        ),
+        finalize(() => this.publishingPlatformId.set(null)),
+      )
       .subscribe({
-        next: (response) => {
-          this.platforms.update((platforms) =>
-            platforms.map((entry) =>
-              entry.platformId === response.platformId ? response : entry,
-            ),
-          );
-          this.clearPreview(response.platformId);
+        next: () => {
           this.notifications.showSuccess('Calendar event published.');
         },
         error: (error: unknown) => {
@@ -355,15 +357,14 @@ export class CalendarEventDetails {
 
         this.calendarEventsService
           .deletePlatformPublication(this.editingId!, platform.platformId)
-          .pipe(finalize(() => this.deletingPublicationPlatformId.set(null)))
+          .pipe(
+            switchMap((response) =>
+              this.refreshEventDetailsAfterPlatformMutation(response.platformId),
+            ),
+            finalize(() => this.deletingPublicationPlatformId.set(null)),
+          )
           .subscribe({
-            next: (response) => {
-              this.platforms.update((platforms) =>
-                platforms.map((entry) =>
-                  entry.platformId === response.platformId ? response : entry,
-                ),
-              );
-              this.clearPreview(response.platformId);
+            next: () => {
               this.notifications.showSuccess('Platform publication deleted.');
             },
             error: (error: unknown) => {
@@ -408,6 +409,25 @@ export class CalendarEventDetails {
     if (this.previewedPublishingContent()?.platformId === platformId) {
       this.previewedPublishingContent.set(null);
     }
+  }
+
+  private refreshEventDetailsAfterPlatformMutation(
+    platformId: string,
+  ): Observable<CalendarEventDetailsResponse> {
+    return this.calendarEventsService.getById(this.editingId!).pipe(
+      tap((event) => {
+        this.applyEventDetails(event);
+        this.clearPreview(platformId);
+      }),
+    );
+  }
+
+  private applyEventDetails(event: CalendarEventDetailsResponse): void {
+    patchCalendarEventDetailsModel(this.model, event);
+    this.loadedScheduledStartUtc.set(event.scheduledStartUtc);
+    this.platforms.set(event.platforms);
+    this.canUpdate.set(event.canUpdate);
+    this.canDelete.set(event.canDelete);
   }
 }
 

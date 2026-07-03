@@ -28,8 +28,9 @@ GET {{HostAddress}}/api/calendar-events?sort=title&direction=asc
 Authorization: Bearer {{accessToken}}
 
 ### Get a single calendar event by id
-# Replace the id with one returned by a list call. The response item has the
-# same shape as a list item (local start, time zone, texts).
+# Replace the id with one returned by a list call. The response item includes
+# the event fields, root canUpdate/canDelete flags, and platform publication
+# state. Calendar event list items do not include those details-only fields.
 # Expected response: 200 OK, or 404 Not Found for an unknown id.
 
 GET {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID

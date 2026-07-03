@@ -4,5 +4,6 @@ public enum UpdateCalendarEventStatus
 {
     Updated,
     NotFound,
+    HasPlatformPublications,
     Invalid
 }

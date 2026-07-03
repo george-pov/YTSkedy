@@ -15,7 +15,11 @@ public sealed class GetCalendarEventDetailsResponseTests
     [Fact]
     public void ToDetailsResponse_MapsEventFieldsAndEmptyPlatforms()
     {
-        var details = new CalendarEventDetailsView(CreateEvent(), []);
+        var details = new CalendarEventDetailsView(
+            CreateEvent(),
+            CanUpdate: true,
+            CanDelete: true,
+            Platforms: []);
 
         var response = CalendarEventsApi.ToDetailsResponse(details);
 
@@ -26,6 +30,8 @@ public sealed class GetCalendarEventDetailsResponseTests
             new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
             response.ScheduledStartUtc);
         Assert.Equal("English stream 1", response.DisplayTitle);
+        Assert.True(response.CanUpdate);
+        Assert.True(response.CanDelete);
 
         Assert.Collection(
             response.Texts,
@@ -79,10 +85,16 @@ public sealed class GetCalendarEventDetailsResponseTests
                 CanDeletePublication: false,
                 CanPreviewPublishingContent: true)
         };
-        var details = new CalendarEventDetailsView(CreateEvent(), views);
+        var details = new CalendarEventDetailsView(
+            CreateEvent(),
+            CanUpdate: false,
+            CanDelete: false,
+            Platforms: views);
 
         var response = CalendarEventsApi.ToDetailsResponse(details);
 
+        Assert.False(response.CanUpdate);
+        Assert.False(response.CanDelete);
         Assert.Equal(2, response.Platforms.Count);
 
         var active = response.Platforms[0];

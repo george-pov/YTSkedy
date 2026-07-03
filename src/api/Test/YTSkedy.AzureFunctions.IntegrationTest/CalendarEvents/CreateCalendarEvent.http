@@ -90,16 +90,19 @@ Authorization: Bearer {{accessTokenReadOnly}}
 
 ### Get a calendar event by id (with embedded platform state)
 # Replace the id with one returned by a create above. Used by the UI edit form
-# to load an event. Expected response: 200 OK with the event fields plus a
-# `platforms` array (the only place per-event publish state is exposed over
-# HTTP), or 404 Not Found for an unknown id. Verify these states:
+# to load an event. Expected response: 200 OK with the event fields, root
+# `canUpdate`/`canDelete` flags, and a `platforms` array (the only place
+# per-event publish state is exposed over HTTP), or 404 Not Found for an
+# unknown id. Verify these states:
 # - No platforms registered: `platforms` is [].
 # - Active platform never published for this event: one item with status
 #   "NotPublished", null externalResourceId/publishedUtc/platformDeletedUtc, and
-#   canPublish true.
+#   canPublish true. Root canUpdate and canDelete are true when no publication
+#   rows exist.
 # - After a successful publish (see EventPlatforms.http): that platform's item
 #   shows status "Published", a non-null externalResourceId and publishedUtc, and
-#   canPublish false.
+#   canPublish false. Root canUpdate and canDelete are false while any
+#   publication row exists.
 # - After deleting a platform that had published this event: an orphan history
 #   item with platformDeletedUtc set and canPublish false.
 
@@ -109,7 +112,8 @@ Authorization: Bearer {{accessToken}}
 ### Update a calendar event's text values
 # Replace the id with one returned by a create above. Only the text values
 # change; the scheduled start is immutable. Expected response: 200 OK with
-# { calendarEventId }, or 404 Not Found for an unknown id.
+# { calendarEventId }, 404 Not Found for an unknown id, or 409 Conflict when
+# any platform publication row exists for the event.
 
 PUT {{HostAddress}}/api/calendar-events/{{calendarEventId}}
 Content-Type: application/json

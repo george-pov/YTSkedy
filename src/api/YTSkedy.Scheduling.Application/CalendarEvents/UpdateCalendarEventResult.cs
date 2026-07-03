@@ -2,10 +2,11 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
 /// <summary>
 /// Outcome of an update-calendar-event-text use case. <see cref="Updated"/> and
-/// <see cref="NotFound"/> are stateless singletons; <see cref="Invalid"/> carries a
-/// validation message for the API to surface as a 400. The domain-invariant check
-/// (new text values against the stored snapshot) is state-dependent, so it is
-/// reported as a result rather than thrown across the boundary.
+/// <see cref="NotFound"/> are stateless singletons; <see cref="Invalid"/>
+/// carries a validation message for the API to surface as a 400. The
+/// domain-invariant check (new text values against the stored snapshot) is
+/// state-dependent, so it is reported as a result rather than thrown across the
+/// boundary.
 /// </summary>
 public sealed record UpdateCalendarEventResult
 {
@@ -26,6 +27,9 @@ public sealed record UpdateCalendarEventResult
 
     public static UpdateCalendarEventResult NotFound { get; } =
         new(UpdateCalendarEventStatus.NotFound, null);
+
+    public static UpdateCalendarEventResult HasPlatformPublications { get; } =
+        new(UpdateCalendarEventStatus.HasPlatformPublications, null);
 
     public static UpdateCalendarEventResult Invalid(string validationError)
     {
