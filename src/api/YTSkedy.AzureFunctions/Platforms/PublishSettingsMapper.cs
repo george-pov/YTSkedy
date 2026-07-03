@@ -3,7 +3,7 @@ using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.AzureFunctions.Platforms;
 
-internal static class PlatformPublishSettingsHttpMapper
+internal static class PublishSettingsMapper
 {
     internal static PlatformType TypeOf(PublishSettings publishSettings) =>
         publishSettings switch

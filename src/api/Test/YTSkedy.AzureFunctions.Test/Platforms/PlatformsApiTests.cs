@@ -544,7 +544,7 @@ public sealed class PlatformsApiTests
     [Fact]
     public void ToPublishSettingsResponse_YouTubeSettings_RedactsSecrets()
     {
-        var response = PlatformPublishSettingsHttpMapper.ToResponse(
+        var response = PublishSettingsMapper.ToResponse(
             YouTubeSettings());
 
         Assert.NotNull(response.Credentials);
@@ -564,7 +564,7 @@ public sealed class PlatformsApiTests
     [Fact]
     public void ToPublishSettingsResponse_WordPressSettings_RedactsApplicationPassword()
     {
-        var response = PlatformPublishSettingsHttpMapper.ToResponse(
+        var response = PublishSettingsMapper.ToResponse(
             new WordPressSettings(
                 "https://example.com",
                 "editor",
@@ -577,7 +577,7 @@ public sealed class PlatformsApiTests
     [Fact]
     public void TypeOf_WordPressSettings_ReturnsWordPress()
     {
-        var type = PlatformPublishSettingsHttpMapper.TypeOf(
+        var type = PublishSettingsMapper.TypeOf(
             new WordPressSettings(
                 "https://example.com",
                 "editor",

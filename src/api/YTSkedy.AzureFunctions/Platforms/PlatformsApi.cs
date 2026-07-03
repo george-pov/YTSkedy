@@ -195,7 +195,7 @@ public sealed class PlatformsApi(
             return false;
         }
 
-        if (!PlatformPublishSettingsHttpMapper.TryBuild(
+        if (!PublishSettingsMapper.TryBuild(
                 type,
                 request.PublishSettings,
                 out var publishSettings,
@@ -251,7 +251,7 @@ public sealed class PlatformsApi(
             return false;
         }
 
-        if (!PlatformPublishSettingsHttpMapper.TryBuild(
+        if (!PublishSettingsMapper.TryBuild(
                 existingPlatform.Type,
                 request.PublishSettings,
                 existingPlatform.PublishSettings,
@@ -318,7 +318,7 @@ public sealed class PlatformsApi(
                 ToPlatformResponse(
                     command.PlatformId,
                     command.Name,
-                    PlatformPublishSettingsHttpMapper.TypeOf(command.PublishSettings),
+                    PublishSettingsMapper.TypeOf(command.PublishSettings),
                     command.ReferenceKey,
                     command.PublishSettings,
                     command.PublishingContent)),
@@ -380,7 +380,7 @@ public sealed class PlatformsApi(
             name,
             referenceKey,
             type.ToString(),
-            PlatformPublishSettingsHttpMapper.ToResponse(publishSettings),
+            PublishSettingsMapper.ToResponse(publishSettings),
             ToPlatformPublishingContentResponse(publishingContent));
 
     internal static PlatformPublishingContentResponse ToPlatformPublishingContentResponse(
