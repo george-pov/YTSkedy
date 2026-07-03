@@ -1,17 +1,21 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { firstValueFrom } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { APP_CONFIG } from 'src/app/shared/config/app-config';
 import { testAppConfig } from 'src/app/shared/config/testing/app-config.fixture';
 import {
+  EventTextField,
   EventTextFieldsResponse,
   EventTextFieldsService,
   UpdateEventTextFieldsRequest,
 } from './event-text-fields-service';
 
 describe('EventTextFieldsService', () => {
+  const endpoint = 'https://api.example.test/api/settings/event-text-fields';
+
   let http: HttpTestingController;
   let service: EventTextFieldsService;
 
@@ -37,72 +41,58 @@ describe('EventTextFieldsService', () => {
     http.verify();
   });
 
-  it('gets the current event text fields setting', () => {
-    const apiResponse: EventTextFieldsResponse = {
-      fields: [
-        {
-          fieldKey: 'text1',
-          label: 'Title',
-          type: 'ShortText',
-          maxLength: 50,
-        },
-        {
-          fieldKey: 'text2',
-          label: 'Description',
-          type: 'LongText',
-          maxLength: 2500,
-        },
-      ],
-    };
-
-    let actual: EventTextFieldsResponse | undefined;
-    service.get().subscribe((response) => {
-      actual = response;
-    });
-
-    const request = http.expectOne('https://api.example.test/api/settings/event-text-fields');
+  it('gets the current event text fields setting', async () => {
+    const apiResponse = eventTextFields();
+    const responsePromise = firstValueFrom(service.get());
+    const request = http.expectOne(endpoint);
 
     expect(request.request.method).toBe('GET');
 
     request.flush(apiResponse);
 
-    expect(actual).toEqual(apiResponse);
+    await expect(responsePromise).resolves.toEqual(apiResponse);
   });
 
-  it('puts the updated field list and returns the normalized response', () => {
+  it('puts the updated field list and returns the normalized response', async () => {
     const updateRequest: UpdateEventTextFieldsRequest = {
-      fields: [
-        {
-          fieldKey: 'text9',
-          label: 'Stream title',
-          type: 'ShortText',
-          maxLength: 80,
-        },
-      ],
+      fields: [eventTextField({ fieldKey: 'text9', label: 'Stream title', maxLength: 80 })],
     };
-    const apiResponse: EventTextFieldsResponse = {
-      fields: [
-        {
-          fieldKey: 'text1',
-          label: 'Stream title',
-          type: 'ShortText',
-          maxLength: 80,
-        },
-      ],
-    };
+    const apiResponse = eventTextFields([
+      eventTextField({ fieldKey: 'text1', label: 'Stream title', maxLength: 80 }),
+    ]);
 
-    let actual: EventTextFieldsResponse | undefined;
-    service.update(updateRequest).subscribe((response) => {
-      actual = response;
-    });
-
-    const request = http.expectOne('https://api.example.test/api/settings/event-text-fields');
+    const responsePromise = firstValueFrom(service.update(updateRequest));
+    const request = http.expectOne(endpoint);
 
     expect(request.request.method).toBe('PUT');
     expect(request.request.body).toEqual(updateRequest);
 
     request.flush(apiResponse);
 
-    expect(actual).toEqual(apiResponse);
+    await expect(responsePromise).resolves.toEqual(apiResponse);
   });
+
+  function eventTextFields(
+    fields: EventTextField[] = [
+      eventTextField(),
+      eventTextField({
+        fieldKey: 'text2',
+        label: 'Description',
+        type: 'LongText',
+        maxLength: 2500,
+      }),
+    ],
+  ): EventTextFieldsResponse {
+    return { fields };
+  }
+
+  function eventTextField(overrides: Partial<EventTextField> = {}): EventTextField {
+    return {
+      fieldKey: 'text1',
+      label: 'Title',
+      type: 'ShortText',
+      maxLength: 50,
+      ...overrides,
+    };
+  }
 });

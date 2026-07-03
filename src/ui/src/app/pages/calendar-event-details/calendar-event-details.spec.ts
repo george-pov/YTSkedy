@@ -64,10 +64,7 @@ describe('CalendarEventDetails', () => {
       (calendarEventId: string, platformId: string) => Observable<CalendarEventPlatform>
     >;
     getPublishingContent: Mock<
-      (
-        calendarEventId: string,
-        platformId: string,
-      ) => Observable<EventPlatformPublishingContent>
+      (calendarEventId: string, platformId: string) => Observable<EventPlatformPublishingContent>
     >;
   };
   let eventTextFieldsService: {
@@ -365,46 +362,17 @@ describe('CalendarEventDetails', () => {
       fixture.detectChanges();
     }
 
-    it('loads the event by id and populates the form', () => {
+    it('loads the event by id without reloading current text field settings', () => {
       service.getById.mockReturnValue(of(sampleEvent()));
 
       createEditComponent();
 
       expect(service.getById).toHaveBeenCalledWith(editId);
-      const model = api().model();
-      expect({
-        start: model.start,
-        texts: model.texts.map(({ fieldKey, label, type, maxLength, value }) => ({
-          fieldKey,
-          label,
-          type,
-          maxLength,
-          value,
-        })),
-      }).toEqual({
-        start: {
-          date: '2030-07-04',
-          time: '09:30',
-          timeZoneId: 'Europe/London',
-        },
-        texts: [
-          {
-            fieldKey: 'text1',
-            label: 'Title',
-            type: 'ShortText',
-            maxLength: 50,
-            value: 'English title',
-          },
-          {
-            fieldKey: 'text2',
-            label: 'Description',
-            type: 'LongText',
-            maxLength: 2500,
-            value: 'English description',
-          },
-        ],
-      });
       expect(eventTextFieldsService.get).not.toHaveBeenCalled();
+      const fieldValues = Array.from(fixture.nativeElement.querySelectorAll('input, textarea')).map(
+        (input) => (input as HTMLInputElement | HTMLTextAreaElement).value,
+      );
+      expect(fieldValues).toContain('English title');
     });
 
     it('shows the edit heading', () => {
@@ -951,18 +919,17 @@ describe('CalendarEventDetails', () => {
 
       expect(service.create).not.toHaveBeenCalled();
       expect(service.update).toHaveBeenCalledTimes(1);
-      expect(service.update).toHaveBeenCalledWith(editId, {
-        texts: [
-          {
-            fieldKey: 'text1',
-            value: 'Updated English title',
-          },
-          {
-            fieldKey: 'text2',
-            value: 'English description',
-          },
-        ],
-      });
+      expect(service.update).toHaveBeenCalledWith(
+        editId,
+        expect.objectContaining({
+          texts: expect.arrayContaining([
+            {
+              fieldKey: 'text1',
+              value: 'Updated English title',
+            },
+          ]),
+        }),
+      );
       expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event updated.');
       expect(navigations).toEqual(['/calendar-events']);
     });

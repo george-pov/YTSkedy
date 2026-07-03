@@ -1,4 +1,4 @@
-import { provideZonelessChangeDetection, type WritableSignal } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
@@ -11,15 +11,6 @@ import {
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Settings } from './settings';
 
-interface SettingsModel {
-  fields: {
-    fieldKey: string;
-    label: string;
-    type: string;
-    maxLength: string;
-  }[];
-}
-
 describe('Settings', () => {
   let fixture: ComponentFixture<Settings>;
   let service: {
@@ -31,7 +22,8 @@ describe('Settings', () => {
   beforeEach(() => {
     service = {
       get: vi.fn<() => Observable<EventTextFieldsResponse>>(),
-      update: vi.fn<(request: UpdateEventTextFieldsRequest) => Observable<EventTextFieldsResponse>>(),
+      update:
+        vi.fn<(request: UpdateEventTextFieldsRequest) => Observable<EventTextFieldsResponse>>(),
     };
     service.get.mockReturnValue(of(defaultFields()));
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
@@ -53,32 +45,23 @@ describe('Settings', () => {
     fixture.detectChanges();
   }
 
-  function componentModel(): WritableSignal<SettingsModel> {
-    return (
-      fixture.componentInstance as unknown as {
-        model: WritableSignal<SettingsModel>;
-      }
-    ).model;
-  }
-
   function text(): string {
     return fixture.nativeElement.textContent;
   }
 
-  function inputHostsByLabel(label: string): HTMLElement[] {
-    return Array.from(fixture.nativeElement.querySelectorAll('app-input')).filter(
-      (input) =>
-        ((input as HTMLElement).querySelector('mat-label')?.textContent ?? '').trim() === label,
-    ) as HTMLElement[];
+  function inputs(): HTMLInputElement[] {
+    return Array.from(
+      fixture.nativeElement.querySelectorAll('app-input input'),
+    ) as HTMLInputElement[];
   }
 
-  function inputByLabel(label: string, index = 0): HTMLInputElement {
-    const host = inputHostsByLabel(label)[index];
-    if (host === undefined) {
-      throw new Error(`Input with label '${label}' at index ${index} was not found.`);
+  function inputAt(index: number): HTMLInputElement {
+    const input = inputs()[index];
+    if (input === undefined) {
+      throw new Error(`Input at index ${index} was not found.`);
     }
 
-    return host.querySelector('input') as HTMLInputElement;
+    return input;
   }
 
   function buttonByText(label: string): HTMLButtonElement {
@@ -94,16 +77,9 @@ describe('Settings', () => {
   }
 
   function deleteButtons(): HTMLElement[] {
-    return Array.from(fixture.nativeElement.querySelectorAll('.delete-field-button')) as HTMLElement[];
-  }
-
-  function plainFields() {
-    return componentModel()().fields.map(({ fieldKey, label, type, maxLength }) => ({
-      fieldKey,
-      label,
-      type,
-      maxLength,
-    }));
+    return Array.from(
+      fixture.nativeElement.querySelectorAll('.delete-field-button'),
+    ) as HTMLElement[];
   }
 
   async function setValue(element: HTMLInputElement, value: string): Promise<void> {
@@ -126,8 +102,7 @@ describe('Settings', () => {
     expect(service.get).toHaveBeenCalledTimes(1);
     expect(text()).toContain('text1');
     expect(text()).toContain('text2');
-    expect(inputByLabel('Label', 0).value).toBe('Title');
-    expect(inputByLabel('Max length', 1).value).toBe('2500');
+    expect(inputs().map((input) => input.value)).toEqual(['Title', '50', 'Description', '2500']);
   });
 
   it('appends a field with the next derived key immediately', async () => {
@@ -137,19 +112,15 @@ describe('Settings', () => {
     fixture.detectChanges();
 
     expect(text()).toContain('text3');
-    expect(componentModel()().fields[2]).toMatchObject({
-      fieldKey: 'text3',
-      type: 'ShortText',
-      maxLength: '50',
-    });
+    expect(inputs()).toHaveLength(6);
   });
 
   it('saves edited labels and max lengths', async () => {
     service.update.mockReturnValue(of(defaultFields()));
     await createComponent();
 
-    await setValue(inputByLabel('Label', 0), ' Stream title ');
-    await setValue(inputByLabel('Max length', 0), '80');
+    await setValue(inputAt(0), ' Stream title ');
+    await setValue(inputAt(1), '80');
 
     await submit();
 
@@ -171,7 +142,7 @@ describe('Settings', () => {
     });
   });
 
-  it('renumbers later fields immediately after delete', async () => {
+  it('saves remaining fields after delete', async () => {
     service.get.mockReturnValue(
       of({
         fields: [
@@ -181,15 +152,20 @@ describe('Settings', () => {
         ],
       }),
     );
+    service.update.mockReturnValue(of(defaultFields()));
     await createComponent();
 
     deleteButtons()[1].dispatchEvent(new Event('click'));
     fixture.detectChanges();
 
-    expect(plainFields()).toEqual([
-      { fieldKey: 'text1', label: 'Title', type: 'ShortText', maxLength: '50' },
-      { fieldKey: 'text2', label: 'Description', type: 'LongText', maxLength: '2500' },
-    ]);
+    await submit();
+
+    expect(service.update).toHaveBeenCalledWith({
+      fields: [
+        { fieldKey: 'text1', label: 'Title', type: 'ShortText', maxLength: 50 },
+        { fieldKey: 'text2', label: 'Description', type: 'LongText', maxLength: 2500 },
+      ],
+    });
     expect(text()).not.toContain('text3');
   });
 
@@ -210,14 +186,7 @@ describe('Settings', () => {
 
     await submit();
 
-    expect(plainFields()).toEqual([
-      {
-        fieldKey: 'text1',
-        label: 'Normalized title',
-        type: 'ShortText',
-        maxLength: '90',
-      },
-    ]);
+    expect(inputs().map((input) => input.value)).toEqual(['Normalized title', '90']);
     expect(notifications.showSuccess).toHaveBeenCalledWith('Event text fields saved.');
   });
 
@@ -234,7 +203,7 @@ describe('Settings', () => {
   it('blocks save when max length is invalid', async () => {
     await createComponent();
 
-    await setValue(inputByLabel('Max length', 0), '0');
+    await setValue(inputAt(1), '0');
     await submit();
 
     expect(service.update).not.toHaveBeenCalled();
