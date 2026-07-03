@@ -130,12 +130,14 @@ display; blank input sends `null` and clears the stored key. For YouTube, the
 client secret and refresh token replacement inputs are intentionally blank on
 edit. Backend-provided redacted display strings are shown inside those blank
 inputs, hide while the input is focused, and return on blur when no replacement
-value is entered. Blank values are omitted so the API preserves the stored
-values. For WordPress, the Application Password replacement input is
-intentionally blank on edit. The password display string appears inside that
-blank input, hides on focus, returns on blur when left blank, and a non-blank
-value replaces it. Redacted display values are not copied into create or update
-requests. The exact API response fields are documented in
+value is entered. A typed replacement stays clear while focused and masks again
+on blur. Blank values are omitted so the API preserves the stored values. For
+WordPress, the Application Password replacement input is intentionally blank on
+edit. The password display string appears inside that blank input, hides on
+focus, returns on blur when left blank, and a non-blank value replaces it. A
+typed Application Password stays clear while focused and returns to the full
+password mask on blur. Redacted display values are not copied into create or
+update requests. The exact API response fields are documented in
 [`../api/http/platforms.md`](../api/http/platforms.md). Delete calls
 `DELETE /api/platforms/{platformId}` and removes the row after a successful
 `204 No Content`. The HTTP client attaches an Entra External ID access token

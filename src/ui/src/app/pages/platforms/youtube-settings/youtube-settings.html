@@ -1,19 +1,15 @@
 <app-input [field]="clientId()" label="Client ID" />
-<app-input
+<app-masked-input
   [field]="clientSecret()"
   label="Client secret"
-  type="password"
-  [placeholder]="clientSecretDisplayValue()"
-  [floatLabel]="clientSecretDisplayValue() ? 'always' : 'auto'"
-  [hidePlaceholderOnFocus]="true"
+  [displayValue]="clientSecretDisplayValue()"
+  maskMode="secret"
 />
-<app-input
+<app-masked-input
   [field]="refreshToken()"
   label="Refresh token"
-  type="password"
-  [placeholder]="refreshTokenDisplayValue()"
-  [floatLabel]="refreshTokenDisplayValue() ? 'always' : 'auto'"
-  [hidePlaceholderOnFocus]="true"
+  [displayValue]="refreshTokenDisplayValue()"
+  maskMode="secret"
 />
 <app-select
   [field]="privacyStatus()"

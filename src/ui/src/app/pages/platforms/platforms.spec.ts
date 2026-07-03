@@ -164,7 +164,9 @@ describe('Platforms', () => {
   }
 
   function inputByLabel(label: string): HTMLInputElement {
-    const field = Array.from(fixture.nativeElement.querySelectorAll('app-input')).find(
+    const field = Array.from(
+      fixture.nativeElement.querySelectorAll('app-input, app-masked-input'),
+    ).find(
       (input) =>
         ((input as HTMLElement).querySelector('mat-label')?.textContent ?? '').trim() === label,
     ) as HTMLElement | undefined;
@@ -275,15 +277,15 @@ describe('Platforms', () => {
     expect(nameInput().value).toBe('Main YouTube channel');
     expect(referenceKeyInput().value).toBe('youTube1');
     const inputs = Array.from(
-      fixture.nativeElement.querySelectorAll('app-input input'),
+      fixture.nativeElement.querySelectorAll('app-input input, app-masked-input input'),
     ) as HTMLInputElement[];
     expect(inputs.some((input) => input.value === 'client-id')).toBe(true);
     expect(inputs.some((input) => input.value === 'client-secret')).toBe(false);
     expect(inputs.some((input) => input.value === 'refresh-token')).toBe(false);
     expect(fixture.nativeElement.textContent).not.toContain('*********A3B');
     expect(fixture.nativeElement.textContent).not.toContain('*********Z9Y');
-    expect(inputByLabel('Client secret').placeholder).toBe('*********A3B');
-    expect(inputByLabel('Refresh token').placeholder).toBe('*********Z9Y');
+    expect(inputByLabel('Client secret').value).toBe('*********A3B');
+    expect(inputByLabel('Refresh token').value).toBe('*********Z9Y');
   });
 
   it('loads templates filtered by the editor platform type', async () => {
@@ -378,7 +380,7 @@ describe('Platforms', () => {
     await selectRow(0);
 
     const inputs = Array.from(
-      fixture.nativeElement.querySelectorAll('app-input input'),
+      fixture.nativeElement.querySelectorAll('app-input input, app-masked-input input'),
     ) as HTMLInputElement[];
 
     expect(fixture.nativeElement.textContent).not.toContain('not available');
@@ -389,7 +391,7 @@ describe('Platforms', () => {
     expect(inputs.some((input) => input.value === 'publisher')).toBe(true);
     expect(inputs.some((input) => input.value === 'application-password')).toBe(false);
     expect(fixture.nativeElement.textContent).not.toContain('*******');
-    expect(inputByLabel('Application Password').placeholder).toBe('*******');
+    expect(inputByLabel('Application Password').value).toBe('*******');
   });
 
   it('creates a platform and adds it to the list', async () => {
@@ -706,8 +708,7 @@ describe('Platforms', () => {
       },
       publishingContent: publishingContent(),
     });
-    expect(inputByLabel('Client secret').value).toBe('');
-    expect(inputByLabel('Client secret').placeholder).toBe('*********N3W');
+    expect(inputByLabel('Client secret').value).toBe('*********N3W');
   });
 
   it('surfaces a friendly message when the name is already taken', async () => {

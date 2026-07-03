@@ -1,0 +1,36 @@
+<app-lab-page titleId="masked-input-lab-title" title="Masked Input">
+  <app-lab-example
+    titleId="masked-input-secret-example-title"
+    title="Secret"
+  >
+    <app-masked-input
+      [field]="form.secret"
+      label="Client secret"
+      displayValue="*********A3B"
+      maskMode="secret"
+    />
+  </app-lab-example>
+
+  <app-lab-example
+    titleId="masked-input-password-example-title"
+    title="Password"
+  >
+    <app-masked-input
+      [field]="form.password"
+      label="Application Password"
+      displayValue="*******"
+      maskMode="password"
+    />
+  </app-lab-example>
+
+  <app-lab-example
+    titleId="masked-input-replacement-example-title"
+    title="Replacement"
+  >
+    <app-masked-input
+      [field]="form.replacement"
+      label="Replacement secret"
+      maskMode="secret"
+    />
+  </app-lab-example>
+</app-lab-page>

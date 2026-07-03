@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { type Field } from '@angular/forms/signals';
 
 import { Input } from 'src/app/shared/components/input/input';
+import { MaskedInput } from 'src/app/shared/components/masked-input/masked-input';
 import { Select, SelectOption } from 'src/app/shared/components/select/select';
 
 /**
@@ -10,7 +11,7 @@ import { Select, SelectOption } from 'src/app/shared/components/select/select';
  */
 @Component({
   selector: 'app-youtube-settings',
-  imports: [Input, Select],
+  imports: [Input, MaskedInput, Select],
   templateUrl: './youtube-settings.html',
   styleUrl: './youtube-settings.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

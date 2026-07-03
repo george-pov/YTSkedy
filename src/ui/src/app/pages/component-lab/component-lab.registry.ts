@@ -6,6 +6,7 @@ import { ConfirmationDialogLab } from './confirmation-dialog-lab/confirmation-di
 import { DataTableLab } from './data-table-lab/data-table-lab';
 import { FormControlsLab } from './form-controls-lab/form-controls-lab';
 import { InputLab } from './input-lab/input-lab';
+import { MaskedInputLab } from './masked-input-lab/masked-input-lab';
 import { ProgressBarLab } from './progress-bar-lab/progress-bar-lab';
 import { ToolbarLab } from './toolbar-lab/toolbar-lab';
 import { ToolbarNavLab } from './toolbar-nav-lab/toolbar-nav-lab';
@@ -36,6 +37,10 @@ export const componentLabItems: readonly ComponentLabItem[] = [
   {
     label: 'Input',
     component: InputLab,
+  },
+  {
+    label: 'Masked Input',
+    component: MaskedInputLab,
   },
   {
     label: 'Data Table',

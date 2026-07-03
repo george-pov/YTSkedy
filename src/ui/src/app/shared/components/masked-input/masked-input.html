@@ -1,0 +1,22 @@
+<mat-form-field appearance="outline" [floatLabel]="floatLabel()">
+  @if (label()) {
+    <mat-label>{{ label() }}</mat-label>
+  }
+  <input
+    matInput
+    type="text"
+    autocomplete="off"
+    [value]="visibleValue()"
+    [placeholder]="placeholder()"
+    [attr.maxlength]="maxLength()"
+    [disabled]="disabled()"
+    [readonly]="readOnly()"
+    [required]="required()"
+    [errorStateMatcher]="errorStateMatcher"
+    (focus)="onFocus()"
+    (input)="onInput($event)"
+    (blur)="onBlur()">
+  @if (errorMessage(); as message) {
+    <mat-error>{{ message }}</mat-error>
+  }
+</mat-form-field>

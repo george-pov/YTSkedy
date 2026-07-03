@@ -51,29 +51,28 @@ describe('YouTubeSettings', () => {
   });
 
   it('renders the credential inputs and the two settings selects', () => {
-    expect(fixture.nativeElement.querySelectorAll('app-input input')).toHaveLength(3);
+    expect(fixture.nativeElement.querySelectorAll('app-input input')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelectorAll('app-masked-input input')).toHaveLength(2);
     expect(fixture.nativeElement.querySelectorAll('app-select')).toHaveLength(2);
   });
 
   it('shows display values inside replacement inputs while values stay empty', () => {
     const inputs = Array.from(
-      fixture.nativeElement.querySelectorAll('app-input input'),
+      fixture.nativeElement.querySelectorAll('app-masked-input input'),
     ) as HTMLInputElement[];
 
     expect(fixture.nativeElement.querySelectorAll('.secret-status')).toHaveLength(0);
-    expect(inputs[1].placeholder).toBe('*********A3B');
-    expect(inputs[2].placeholder).toBe('*********Z9Y');
-    expect(inputs.some((input) => input.value === '*********A3B')).toBe(false);
-    expect(inputs.some((input) => input.value === '*********Z9Y')).toBe(false);
+    expect(inputs[0].value).toBe('*********A3B');
+    expect(inputs[1].value).toBe('*********Z9Y');
     expect(host.model().clientSecret).toBe('');
     expect(host.model().refreshToken).toBe('');
   });
 
   it('hides a display value while focused and restores it when left blank', () => {
     const inputs = Array.from(
-      fixture.nativeElement.querySelectorAll('app-input input'),
+      fixture.nativeElement.querySelectorAll('app-masked-input input'),
     ) as HTMLInputElement[];
-    const clientSecret = inputs[1];
+    const clientSecret = inputs[0];
 
     clientSecret.dispatchEvent(new Event('focus'));
     fixture.detectChanges();
@@ -85,27 +84,36 @@ describe('YouTubeSettings', () => {
     clientSecret.dispatchEvent(new Event('blur'));
     fixture.detectChanges();
 
-    expect(clientSecret.value).toBe('');
-    expect(clientSecret.placeholder).toBe('*********A3B');
+    expect(clientSecret.value).toBe('*********A3B');
     expect(host.model().clientSecret).toBe('');
   });
 
-  it('keeps a replacement value after typing over the hidden display value', async () => {
+  it('masks a replacement value after typing over the hidden display value', async () => {
     const inputs = Array.from(
-      fixture.nativeElement.querySelectorAll('app-input input'),
+      fixture.nativeElement.querySelectorAll('app-masked-input input'),
     ) as HTMLInputElement[];
-    const clientSecret = inputs[1];
+    const clientSecret = inputs[0];
 
     clientSecret.dispatchEvent(new Event('focus'));
     fixture.detectChanges();
-    clientSecret.value = 'replacement-secret';
+    clientSecret.value = 'replacement-secret-N3W';
     clientSecret.dispatchEvent(new Event('input'));
     await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(clientSecret.value).toBe('replacement-secret-N3W');
+    expect(host.model().clientSecret).toBe('replacement-secret-N3W');
+
     clientSecret.dispatchEvent(new Event('blur'));
     fixture.detectChanges();
 
-    expect(clientSecret.value).toBe('replacement-secret');
-    expect(host.model().clientSecret).toBe('replacement-secret');
+    expect(clientSecret.value).toBe('*********N3W');
+    expect(host.model().clientSecret).toBe('replacement-secret-N3W');
+
+    clientSecret.dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+
+    expect(clientSecret.value).toBe('replacement-secret-N3W');
   });
 
   it('binds the supplied client ID field to its model value', async () => {

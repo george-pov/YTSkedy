@@ -1,21 +1,11 @@
-import {
-  booleanAttribute,
-  Component,
-  computed,
-  input,
-  signal,
-} from '@angular/core';
+import { booleanAttribute, Component, computed, input } from '@angular/core';
 import { FormField, type Field } from '@angular/forms/signals';
 import { MatInputModule } from '@angular/material/input';
-
-type InputType = 'text' | 'date' | 'time' | 'password';
-type FloatLabel = 'always' | 'auto';
 
 // Default (CheckAlways) change detection. The bound Signal Forms field exposes
 // its value/touched/errors as signals, so the error message and character
 // counter update reactively as the user types and when the page marks the form
-// touched on submit. See repo memory:
-// "Frontend form-control wrappers (leaf controls)".
+// touched on submit.
 @Component({
   selector: 'app-input',
   imports: [MatInputModule, FormField],
@@ -26,10 +16,7 @@ export class Input {
   /** Signal Forms field to bind. */
   readonly field = input.required<Field<string>>();
   readonly label = input('');
-  readonly type = input<InputType>('text');
   readonly placeholder = input('');
-  readonly floatLabel = input<FloatLabel>('auto');
-  readonly hidePlaceholderOnFocus = input(false, { transform: booleanAttribute });
 
   /** Render a multi-line textarea instead of a single-line input. */
   readonly multiline = input(false, { transform: booleanAttribute });
@@ -44,19 +31,6 @@ export class Input {
    * limit.
    */
   readonly showCharacterCount = input(false, { transform: booleanAttribute });
-
-  protected readonly focused = signal(false);
-  protected readonly visiblePlaceholder = computed(() =>
-    this.hidePlaceholderOnFocus() && this.focused() ? '' : this.placeholder(),
-  );
-
-  protected onFocus(): void {
-    this.focused.set(true);
-  }
-
-  protected onBlur(): void {
-    this.focused.set(false);
-  }
 
   /**
    * The bound field's maximum string length from the form schema, or null when
