@@ -16,5 +16,7 @@ internal sealed record CalendarEventDetailsResponse(
     string DisplayTitle,
     bool CanUpdate,
     bool CanDelete,
+    ThumbnailResponse? Thumbnail,
+    bool CanUpdateThumbnail,
     IReadOnlyList<EventTextResponse> Texts,
     IReadOnlyList<EventPlatformResponse> Platforms);

@@ -10,7 +10,9 @@ public sealed class AzureCalendarEventRepository(
     TableClient tableClient,
     TimeProvider timeProvider) :
     ICalendarEventModifier,
-    ICalendarEventReader
+    ICalendarEventReader,
+    ICalendarEventThumbnailReader,
+    ICalendarEventThumbnailModifier
 {
     public async Task<string> CreateAsync(
         CalendarEvent calendarEvent,
@@ -113,6 +115,81 @@ public sealed class AzureCalendarEventRepository(
         {
             // Conditional on the read ETag so a concurrent change to the same row is
             // not silently overwritten.
+            await tableClient.UpdateEntityAsync(
+                entity,
+                entity.ETag,
+                TableUpdateMode.Replace,
+                cancellationToken);
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    public async Task<Thumbnail?> GetThumbnailAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+
+        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
+
+        return entity is null
+            ? null
+            : ThumbnailJson.Deserialize(entity.ThumbnailJson, calendarEventId);
+    }
+
+    public async Task<bool> SaveThumbnailAsync(
+        string calendarEventId,
+        Thumbnail thumbnail,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+        ArgumentNullException.ThrowIfNull(thumbnail);
+
+        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
+        if (entity is null)
+        {
+            return false;
+        }
+
+        entity.ThumbnailJson = ThumbnailJson.FromDomain(thumbnail).Serialize();
+
+        try
+        {
+            await tableClient.UpdateEntityAsync(
+                entity,
+                entity.ETag,
+                TableUpdateMode.Replace,
+                cancellationToken);
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    public async Task<bool> DeleteThumbnailAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+
+        var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
+        if (entity is null)
+        {
+            return false;
+        }
+
+        entity.ThumbnailJson = null;
+
+        try
+        {
             await tableClient.UpdateEntityAsync(
                 entity,
                 entity.ETag,

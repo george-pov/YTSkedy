@@ -16,4 +16,6 @@ public sealed record CalendarEventDetailsView(
     CalendarEventView Event,
     bool CanUpdate,
     bool CanDelete,
-    IReadOnlyList<EventPlatformView> Platforms);
+    IReadOnlyList<EventPlatformView> Platforms,
+    Thumbnail? Thumbnail = null,
+    bool CanUpdateThumbnail = true);

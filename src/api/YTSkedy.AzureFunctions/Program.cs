@@ -1,4 +1,5 @@
 using Azure.Data.Tables;
+using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
@@ -103,11 +104,41 @@ builder.Services.AddScoped<ListEventsHandler>();
 builder.Services.AddScoped<GetCalendarEventDetailsHandler>();
 builder.Services.AddScoped<UpdateCalendarEventHandler>();
 builder.Services.AddScoped<DeleteCalendarEventHandler>();
+builder.Services.AddScoped<UploadThumbnailHandler>();
+builder.Services.AddScoped<GetThumbnailHandler>();
+builder.Services.AddScoped<DeleteThumbnailHandler>();
 builder.Services.AddScoped<AzureCalendarEventRepository>();
 builder.Services.AddScoped<ICalendarEventModifier>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
 builder.Services.AddScoped<ICalendarEventReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
+builder.Services.AddScoped<ICalendarEventThumbnailModifier>(
+    serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
+builder.Services.AddScoped<ICalendarEventThumbnailReader>(
+    serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
+
+builder.Services.AddSingleton(_ =>
+{
+    var connectionString =
+        builder.Configuration["AzureStorage:ConnectionString"] ??
+        builder.Configuration["AzureWebJobsStorage"];
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "Azure Blob Storage connection string is not configured.");
+    }
+
+    var containerName = builder.Configuration["AzureStorage:ThumbnailsContainerName"];
+    if (string.IsNullOrWhiteSpace(containerName))
+    {
+        containerName = "CalendarEventThumbnails";
+    }
+
+    return new BlobContainerClient(connectionString, containerName);
+});
+
+builder.Services.AddScoped<IThumbnailStore, AzureThumbnailStore>();
 
 builder.Services.AddSingleton(TimeProvider.System);
 

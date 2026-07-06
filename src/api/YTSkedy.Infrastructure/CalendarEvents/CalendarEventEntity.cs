@@ -23,5 +23,7 @@ internal sealed class CalendarEventEntity : ITableEntity
 
     public string TextJson { get; set; } = string.Empty;
 
+    public string? ThumbnailJson { get; set; }
+
     public DateTimeOffset CreatedUtc { get; set; }
 }

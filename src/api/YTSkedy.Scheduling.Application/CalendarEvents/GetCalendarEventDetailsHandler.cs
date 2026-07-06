@@ -14,7 +14,8 @@ public sealed class GetCalendarEventDetailsHandler(
     ICalendarEventReader calendarEvents,
     IPlatformReader platforms,
     IPlatformPublicationReader publications,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ICalendarEventThumbnailReader thumbnails)
 {
     public async Task<CalendarEventDetailsView?> HandleAsync(
         string calendarEventId,
@@ -32,11 +33,14 @@ public sealed class GetCalendarEventDetailsHandler(
         var activePlatforms = await platforms.ListAsync(null, cancellationToken);
         var publicationRows = await publications.ListByEventAsync(calendarEventId, cancellationToken);
         var canMutateEvent = publicationRows.Count == 0;
+        var thumbnail = await thumbnails.GetThumbnailAsync(calendarEventId, cancellationToken);
 
         return new CalendarEventDetailsView(
             calendarEvent,
             CanUpdate: canMutateEvent,
             CanDelete: canMutateEvent,
+            Thumbnail: thumbnail,
+            CanUpdateThumbnail: canMutateEvent,
             Platforms: EventPlatformProjection.Project(
                 calendarEvent,
                 activePlatforms,

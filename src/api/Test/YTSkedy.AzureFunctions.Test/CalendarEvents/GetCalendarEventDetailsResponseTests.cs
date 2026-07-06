@@ -32,6 +32,8 @@ public sealed class GetCalendarEventDetailsResponseTests
         Assert.Equal("English stream 1", response.DisplayTitle);
         Assert.True(response.CanUpdate);
         Assert.True(response.CanDelete);
+        Assert.Null(response.Thumbnail);
+        Assert.True(response.CanUpdateThumbnail);
 
         Assert.Collection(
             response.Texts,
@@ -89,12 +91,14 @@ public sealed class GetCalendarEventDetailsResponseTests
             CreateEvent(),
             CanUpdate: false,
             CanDelete: false,
-            Platforms: views);
+            Platforms: views,
+            CanUpdateThumbnail: false);
 
         var response = CalendarEventsApi.ToDetailsResponse(details);
 
         Assert.False(response.CanUpdate);
         Assert.False(response.CanDelete);
+        Assert.False(response.CanUpdateThumbnail);
         Assert.Equal(2, response.Platforms.Count);
 
         var active = response.Platforms[0];
@@ -118,6 +122,37 @@ public sealed class GetCalendarEventDetailsResponseTests
         Assert.False(orphan.CanPublish);
         Assert.False(orphan.CanDeletePublication);
         Assert.True(orphan.CanPreviewPublishingContent);
+    }
+
+    [Fact]
+    public void ToDetailsResponse_MapsThumbnailMetadataWithoutBlobName()
+    {
+        var updatedUtc = new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero);
+        var details = new CalendarEventDetailsView(
+            CreateEvent(),
+            CanUpdate: true,
+            CanDelete: true,
+            Platforms: [],
+            Thumbnail: new(
+                "stream.png",
+                "image/png",
+                123,
+                1280,
+                720,
+                updatedUtc,
+                $"calendar-events/{CalendarEventId}/thumbnail"),
+            CanUpdateThumbnail: true);
+
+        var response = CalendarEventsApi.ToDetailsResponse(details);
+
+        Assert.NotNull(response.Thumbnail);
+        Assert.Equal("stream.png", response.Thumbnail!.FileName);
+        Assert.Equal("image/png", response.Thumbnail.ContentType);
+        Assert.Equal(123, response.Thumbnail.SizeBytes);
+        Assert.Equal(1280, response.Thumbnail.Width);
+        Assert.Equal(720, response.Thumbnail.Height);
+        Assert.Equal(updatedUtc, response.Thumbnail.UpdatedUtc);
+        Assert.True(response.CanUpdateThumbnail);
     }
 
     [Fact]

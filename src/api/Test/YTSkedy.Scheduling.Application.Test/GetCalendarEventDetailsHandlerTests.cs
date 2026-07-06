@@ -19,7 +19,8 @@ public class GetCalendarEventDetailsHandlerTests
             new FakeCalendarEventReader(null),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -34,7 +35,8 @@ public class GetCalendarEventDetailsHandlerTests
             new FakeCalendarEventReader(calendarEvent),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -49,13 +51,15 @@ public class GetCalendarEventDetailsHandlerTests
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.True(result!.CanUpdate);
         Assert.True(result.CanDelete);
+        Assert.True(result.CanUpdateThumbnail);
     }
 
     [Fact]
@@ -71,13 +75,31 @@ public class GetCalendarEventDetailsHandlerTests
                     PublishStatus.Published,
                     externalResourceId: "abc123youtubeid")
             ]),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.False(result!.CanUpdate);
         Assert.False(result.CanDelete);
+        Assert.False(result.CanUpdateThumbnail);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ExistingThumbnail_ReturnsThumbnail()
+    {
+        var thumbnail = CreateThumbnail();
+        var handler = new GetCalendarEventDetailsHandler(
+            new FakeCalendarEventReader(CreateEvent()),
+            new FakePlatformReader([]),
+            new FakePlatformPublicationReader([]),
+            new FixedTimeProvider(Now),
+            new FakeThumbnailReader(thumbnail));
+
+        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+
+        Assert.Same(thumbnail, result!.Thumbnail);
     }
 
     [Fact]
@@ -87,7 +109,8 @@ public class GetCalendarEventDetailsHandlerTests
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -102,7 +125,8 @@ public class GetCalendarEventDetailsHandlerTests
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -134,7 +158,8 @@ public class GetCalendarEventDetailsHandlerTests
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([publication]),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -162,7 +187,8 @@ public class GetCalendarEventDetailsHandlerTests
                 new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero))),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([publication]),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -188,7 +214,8 @@ public class GetCalendarEventDetailsHandlerTests
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([orphan]),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -218,7 +245,8 @@ public class GetCalendarEventDetailsHandlerTests
             reader,
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new FakeThumbnailReader(null));
 
         await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -234,7 +262,8 @@ public class GetCalendarEventDetailsHandlerTests
             new FakeCalendarEventReader(CreateEvent()),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new FakeThumbnailReader(null));
 
         await Assert.ThrowsAsync<ArgumentException>(
             () => handler.HandleAsync(calendarEventId, CancellationToken.None));
@@ -290,6 +319,16 @@ public class GetCalendarEventDetailsHandlerTests
             new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
             TargetSnapshot: null,
             ContentSnapshot: contentSnapshot);
+
+    private static Thumbnail CreateThumbnail() =>
+        new(
+            "stream.png",
+            "image/png",
+            123,
+            1280,
+            720,
+            new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero),
+            $"calendar-events/{CalendarEventId}/thumbnail");
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
@@ -347,5 +386,13 @@ public class GetCalendarEventDetailsHandlerTests
             string platformId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class FakeThumbnailReader(Thumbnail? thumbnail) : ICalendarEventThumbnailReader
+    {
+        public Task<Thumbnail?> GetThumbnailAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(thumbnail);
     }
 }

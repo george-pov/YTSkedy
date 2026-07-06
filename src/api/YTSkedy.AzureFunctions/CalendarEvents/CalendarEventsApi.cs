@@ -377,6 +377,10 @@ public sealed class CalendarEventsApi(
             calendarEvent.Text.DisplayTitle,
             details.CanUpdate,
             details.CanDelete,
+            details.Thumbnail is null
+                ? null
+                : CalendarEventThumbnailsApi.ToThumbnailResponse(details.Thumbnail),
+            details.CanUpdateThumbnail,
             ToTextResponse(calendarEvent.Text),
             details.Platforms
                 .Select(ToEventPlatformResponse)

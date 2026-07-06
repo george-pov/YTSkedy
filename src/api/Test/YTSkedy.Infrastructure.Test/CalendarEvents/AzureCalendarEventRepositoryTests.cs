@@ -38,6 +38,7 @@ public sealed class AzureCalendarEventRepositoryTests
         Assert.Equal(["text1", "text2"], FieldKeys(entity.TextJson));
         Assert.Equal("Original title", ValueFor(entity.TextJson, "text1"));
         Assert.Equal("Original description", ValueFor(entity.TextJson, "text2"));
+        Assert.Null(entity.ThumbnailJson);
     }
 
     [Fact]
@@ -236,6 +237,99 @@ public sealed class AzureCalendarEventRepositoryTests
         Assert.Equal(scheduledStartUtc, exception.ScheduledStartUtc);
     }
 
+    [Fact]
+    public async Task SaveThumbnailAsync_ExistingEvent_StoresThumbnailJson()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        var thumbnail = Thumbnail(calendarEventId);
+
+        var result = await repository.SaveThumbnailAsync(
+            calendarEventId,
+            thumbnail,
+            CancellationToken.None);
+
+        var entity = Assert.Single(tableClient.Entities.Values);
+        Assert.True(result);
+        Assert.NotNull(entity.ThumbnailJson);
+        Assert.Equal(thumbnail, await repository.GetThumbnailAsync(
+            calendarEventId,
+            CancellationToken.None));
+        Assert.Equal("Original title", ValueFor(entity.TextJson, "text1"));
+    }
+
+    [Fact]
+    public async Task SaveThumbnailAsync_MissingEvent_ReturnsFalse()
+    {
+        var repository = CreateRepository(new InMemoryTableClient());
+
+        var result = await repository.SaveThumbnailAsync(
+            "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
+            Thumbnail("6f9619ff8b864fb5bdfd4f5c2f2f16a1"),
+            CancellationToken.None);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task GetThumbnailAsync_NoThumbnail_ReturnsNull()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        var result = await repository.GetThumbnailAsync(
+            calendarEventId,
+            CancellationToken.None);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task DeleteThumbnailAsync_ExistingEvent_ClearsThumbnailJson()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        await repository.SaveThumbnailAsync(
+            calendarEventId,
+            Thumbnail(calendarEventId),
+            CancellationToken.None);
+
+        var result = await repository.DeleteThumbnailAsync(
+            calendarEventId,
+            CancellationToken.None);
+
+        var entity = Assert.Single(tableClient.Entities.Values);
+        Assert.True(result);
+        Assert.Null(entity.ThumbnailJson);
+        Assert.Null(await repository.GetThumbnailAsync(
+            calendarEventId,
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DeleteThumbnailAsync_MissingEvent_ReturnsFalse()
+    {
+        var repository = CreateRepository(new InMemoryTableClient());
+
+        var result = await repository.DeleteThumbnailAsync(
+            "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
+            CancellationToken.None);
+
+        Assert.False(result);
+    }
+
     private static AzureCalendarEventRepository CreateRepository(InMemoryTableClient tableClient) =>
         new(tableClient, new FixedTimeProvider(
             new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero)));
@@ -260,6 +354,16 @@ public sealed class AzureCalendarEventRepositoryTests
                 new EventTextValue("text1", title),
                 new EventTextValue("text2", description)
             ]);
+
+    private static Thumbnail Thumbnail(string calendarEventId) =>
+        new(
+            "stream.png",
+            "image/png",
+            123,
+            1280,
+            720,
+            new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero),
+            $"calendar-events/{calendarEventId}/thumbnail");
 
     private static string[] FieldKeys(string textJson)
     {
@@ -401,6 +505,7 @@ public sealed class AzureCalendarEventRepositoryTests
                 LocalDateTime = entity.LocalDateTime,
                 TimeZoneId = entity.TimeZoneId,
                 TextJson = entity.TextJson,
+                ThumbnailJson = entity.ThumbnailJson,
                 CreatedUtc = entity.CreatedUtc
             };
     }
