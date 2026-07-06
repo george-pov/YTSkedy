@@ -9,7 +9,7 @@
     "AzureStorage:ApplicationSettingsTableName": "ApplicationSettings",
     "AzureStorage:PlatformsTableName": "Platforms",
     "AzureStorage:PlatformPublicationsTableName": "PlatformPublications",
-    "AzureStorage:ThumbnailsContainerName": "CalendarEventThumbnails",
+    "AzureStorage:ThumbnailsContainerName": "calendar-event-thumbnails",
     "Auth:Instance": "https://<tenantSubdomain>.ciamlogin.com/",
     "Auth:TenantId": "<tenant-id-guid>",
     "Auth:ClientId": "<api-app-client-id-guid>",
