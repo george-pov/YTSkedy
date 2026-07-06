@@ -305,6 +305,11 @@ public class DeletePublicationHandlerTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
+        public Task<bool> HasAnyForEventAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<PlatformPublication?> GetAsync(
             string calendarEventId,
             string platformId,

@@ -11,6 +11,7 @@ namespace YTSkedy.Infrastructure.Test.Platforms;
 public class AzurePlatformPublicationRepositoryTests
 {
     private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
+    private const string OtherCalendarEventId = "7c2d4fae7dec11d0a76500a0c91e6bf6";
     private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
 
     [Fact]
@@ -102,6 +103,34 @@ public class AzurePlatformPublicationRepositoryTests
     }
 
     [Fact]
+    public async Task HasAnyForEventAsync_NoRowsForEvent_ReturnsFalse()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        await repository.StartPublishingAsync(Attempt(OtherCalendarEventId), CancellationToken.None);
+
+        var hasAny = await repository.HasAnyForEventAsync(
+            CalendarEventId,
+            CancellationToken.None);
+
+        Assert.False(hasAny);
+    }
+
+    [Fact]
+    public async Task HasAnyForEventAsync_RowExistsForEvent_ReturnsTrue()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        await repository.StartPublishingAsync(Attempt(CalendarEventId), CancellationToken.None);
+
+        var hasAny = await repository.HasAnyForEventAsync(
+            CalendarEventId,
+            CancellationToken.None);
+
+        Assert.True(hasAny);
+    }
+
+    [Fact]
     public void CanDeletePublished_PublishedRowWithMatchingExternalId_ReturnsDeleted()
     {
         var entity = PublishedEntity("yt-broadcast-id");
@@ -166,9 +195,9 @@ public class AzurePlatformPublicationRepositoryTests
             CancellationToken.None);
     }
 
-    private static PlatformPublicationAttempt Attempt() =>
+    private static PlatformPublicationAttempt Attempt(string calendarEventId = CalendarEventId) =>
         new(
-            CalendarEventId,
+            calendarEventId,
             PlatformId,
             "Main YouTube channel",
             PlatformType.YouTube,
@@ -263,6 +292,22 @@ public class AzurePlatformPublicationRepositoryTests
             return Task.FromResult<NullableResponse<T>>(new EmptyNullableResponse<T>());
         }
 
+        public override AsyncPageable<T> QueryAsync<T>(
+            string? filter = null,
+            int? maxPerPage = null,
+            IEnumerable<string>? select = null,
+            CancellationToken cancellationToken = default)
+        {
+            var values = entities.Values
+                .Where(entity => MatchesFilter(entity, filter))
+                .Select(Clone)
+                .Cast<T>()
+                .ToArray();
+            var page = Page<T>.FromValues(values, continuationToken: null, StubResponse.Instance);
+
+            return AsyncPageable<T>.FromPages([page]);
+        }
+
         private static PlatformPublicationEntity ToPublicationEntity<T>(T entity)
         {
             if (entity is not PlatformPublicationEntity publication)
@@ -271,6 +316,32 @@ public class AzurePlatformPublicationRepositoryTests
             }
 
             return publication;
+        }
+
+        private static bool MatchesFilter(
+            PlatformPublicationEntity entity,
+            string? filter)
+        {
+            if (string.IsNullOrWhiteSpace(filter))
+            {
+                return true;
+            }
+
+            var partitionPrefix = "PartitionKey eq '";
+            if (filter.StartsWith(partitionPrefix, StringComparison.Ordinal))
+            {
+                var partitionKeyEnd = filter.IndexOf(
+                    '\'',
+                    partitionPrefix.Length);
+
+                return partitionKeyEnd > partitionPrefix.Length &&
+                    string.Equals(
+                        entity.PartitionKey,
+                        filter[partitionPrefix.Length..partitionKeyEnd],
+                        StringComparison.Ordinal);
+            }
+
+            throw new NotSupportedException($"Unsupported filter '{filter}'.");
         }
 
         private static PlatformPublicationEntity Clone(PlatformPublicationEntity entity) =>

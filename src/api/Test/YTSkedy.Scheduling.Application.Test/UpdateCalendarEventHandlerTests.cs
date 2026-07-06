@@ -97,7 +97,10 @@ public class UpdateCalendarEventHandlerTests
     public async Task HandleAsync_EventWithPlatformPublications_ReturnsConflictWithoutUpdating()
     {
         var modifier = new FakeCalendarEventModifier(updateResult: true);
-        var handler = CreateHandler(CreateCalendarEventView(), modifier, [Publication()]);
+        var handler = CreateHandler(
+            CreateCalendarEventView(),
+            modifier,
+            canMutate: false);
 
         var result = await handler.HandleAsync(
             new UpdateCalendarEventCommand(CalendarEventId, ValidUpdatedStart(), Texts),
@@ -153,10 +156,10 @@ public class UpdateCalendarEventHandlerTests
     private static UpdateCalendarEventHandler CreateHandler(
         CalendarEventView? calendarEvent,
         FakeCalendarEventModifier modifier,
-        IReadOnlyList<PlatformPublication>? publications = null) =>
+        bool canMutate = true) =>
         new(
             new FakeCalendarEventReader(calendarEvent),
-            new FakePlatformPublicationReader(publications ?? []),
+            new FakePublicationReader(hasAnyForEvent: !canMutate),
             modifier);
 
     private static CalendarEventView CreateCalendarEventView() =>
@@ -174,18 +177,6 @@ public class UpdateCalendarEventHandlerTests
     private static ScheduledStart ValidUpdatedStart() =>
         new(new DateTime(2026, 07, 20, 09, 30, 00), "Europe/London");
 
-    private static PlatformPublication Publication() =>
-        new(
-            CalendarEventId,
-            "platform-1",
-            "Main YouTube channel",
-            PlatformType.YouTube,
-            PublishStatus.Published,
-            "external-1",
-            StartUtc,
-            null,
-            StartUtc);
-
     private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent) : ICalendarEventReader
     {
         public Task<IReadOnlyList<CalendarEventView>> ListAsync(
@@ -199,13 +190,17 @@ public class UpdateCalendarEventHandlerTests
             Task.FromResult(calendarEvent);
     }
 
-    private sealed class FakePlatformPublicationReader(
-        IReadOnlyList<PlatformPublication> publications) : IPlatformPublicationReader
+    private sealed class FakePublicationReader(bool hasAnyForEvent) : IPlatformPublicationReader
     {
         public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
-            Task.FromResult(publications);
+            throw new NotSupportedException();
+
+        public Task<bool> HasAnyForEventAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(hasAnyForEvent);
 
         public Task<PlatformPublication?> GetAsync(
             string calendarEventId,

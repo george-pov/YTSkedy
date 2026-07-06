@@ -251,7 +251,7 @@ public sealed class PublishHandler(
         PublishThumbnail thumbnail,
         CancellationToken cancellationToken)
     {
-        var thumbnailStatus = EventPlatformProjection.ThumbnailStatusFor(platform.Type);
+        var thumbnailStatus = ThumbnailPublicationPolicy.InitialStatusFor(platform.Type);
         if (thumbnailStatus is null)
         {
             return null;

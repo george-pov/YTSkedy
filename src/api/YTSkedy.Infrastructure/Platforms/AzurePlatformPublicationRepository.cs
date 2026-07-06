@@ -280,6 +280,29 @@ public sealed class AzurePlatformPublicationRepository(
         return PlatformPublicationMapper.ToPublications(entities);
     }
 
+    public async Task<bool> HasAnyForEventAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+
+        try
+        {
+            await foreach (var _ in tableClient.QueryAsync<PlatformPublicationEntity>(
+                EventPartitionFilter(calendarEventId),
+                cancellationToken: cancellationToken))
+            {
+                return true;
+            }
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            return false;
+        }
+
+        return false;
+    }
+
     public async Task<PlatformPublication?> GetAsync(
         string calendarEventId,
         string platformId,

@@ -838,6 +838,11 @@ public class PublishHandlerTests
             CancellationToken cancellationToken) =>
             Task.FromResult(rows);
 
+        public Task<bool> HasAnyForEventAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(rows.Count > 0);
+
         public Task<PlatformPublication?> GetAsync(
             string calendarEventId,
             string platformId,

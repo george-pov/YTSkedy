@@ -17,7 +17,7 @@ public sealed class DeleteThumbnailHandlerTests
     {
         var modifier = new FakeThumbnailModifier();
         var store = new FakeThumbnailStore();
-        var handler = CreateHandler(null, [], null, modifier, store);
+        var handler = CreateHandler(null, null, modifier, store);
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -31,7 +31,12 @@ public sealed class DeleteThumbnailHandlerTests
     {
         var modifier = new FakeThumbnailModifier();
         var store = new FakeThumbnailStore();
-        var handler = CreateHandler(CreateEvent(), [Publication()], CreateThumbnail(), modifier, store);
+        var handler = CreateHandler(
+            CreateEvent(),
+            CreateThumbnail(),
+            modifier,
+            store,
+            canMutate: false);
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -45,7 +50,7 @@ public sealed class DeleteThumbnailHandlerTests
     {
         var modifier = new FakeThumbnailModifier();
         var store = new FakeThumbnailStore();
-        var handler = CreateHandler(CreateEvent(), [], null, modifier, store);
+        var handler = CreateHandler(CreateEvent(), null, modifier, store);
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -59,7 +64,7 @@ public sealed class DeleteThumbnailHandlerTests
     {
         var modifier = new FakeThumbnailModifier();
         var store = new FakeThumbnailStore();
-        var handler = CreateHandler(CreateEvent(), [], CreateThumbnail(), modifier, store);
+        var handler = CreateHandler(CreateEvent(), CreateThumbnail(), modifier, store);
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -72,13 +77,13 @@ public sealed class DeleteThumbnailHandlerTests
 
     private static DeleteThumbnailHandler CreateHandler(
         CalendarEventView? calendarEvent,
-        IReadOnlyList<PlatformPublication> publications,
         Thumbnail? thumbnail,
         FakeThumbnailModifier modifier,
-        FakeThumbnailStore store) =>
+        FakeThumbnailStore store,
+        bool canMutate = true) =>
         new(
             new FakeCalendarEventReader(calendarEvent),
-            new FakePlatformPublicationReader(publications),
+            new FakePublicationReader(hasAnyForEvent: !canMutate),
             new FakeThumbnailReader(thumbnail),
             modifier,
             store);
@@ -98,18 +103,6 @@ public sealed class DeleteThumbnailHandlerTests
     private static Thumbnail CreateThumbnail() =>
         new("stream.png", "image/png", 123, 1280, 720, Now, BlobName);
 
-    private static PlatformPublication Publication() =>
-        new(
-            CalendarEventId,
-            "platform-1",
-            "Main YouTube channel",
-            PlatformType.YouTube,
-            PublishStatus.Published,
-            "external-1",
-            Now,
-            null,
-            Now);
-
     private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent) : ICalendarEventReader
     {
         public Task<IReadOnlyList<CalendarEventView>> ListAsync(
@@ -123,13 +116,17 @@ public sealed class DeleteThumbnailHandlerTests
             Task.FromResult(calendarEvent);
     }
 
-    private sealed class FakePlatformPublicationReader(IReadOnlyList<PlatformPublication> publications)
-        : IPlatformPublicationReader
+    private sealed class FakePublicationReader(bool hasAnyForEvent) : IPlatformPublicationReader
     {
         public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
-            Task.FromResult(publications);
+            throw new NotSupportedException();
+
+        public Task<bool> HasAnyForEventAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(hasAnyForEvent);
 
         public Task<PlatformPublication?> GetAsync(
             string calendarEventId,

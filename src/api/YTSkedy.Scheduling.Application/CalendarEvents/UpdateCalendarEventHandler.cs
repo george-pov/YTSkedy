@@ -23,10 +23,9 @@ public sealed class UpdateCalendarEventHandler(
             return UpdateCalendarEventResult.NotFound;
         }
 
-        var publicationRows = await publicationReader.ListByEventAsync(
-            command.CalendarEventId,
-            cancellationToken);
-        if (publicationRows.Count > 0)
+        if (await publicationReader.HasAnyForEventAsync(
+                command.CalendarEventId,
+                cancellationToken))
         {
             return UpdateCalendarEventResult.HasPlatformPublications;
         }

@@ -376,6 +376,11 @@ public class GetCalendarEventDetailsHandlerTests
             CancellationToken cancellationToken) =>
             Task.FromResult(publications);
 
+        public Task<bool> HasAnyForEventAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(publications.Count > 0);
+
         public Task<PlatformPublication?> GetAsync(
             string calendarEventId,
             string platformId,

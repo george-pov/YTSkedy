@@ -24,10 +24,9 @@ public sealed class DeleteCalendarEventHandler(
             return DeleteCalendarEventResult.NotFound;
         }
 
-        var publicationRows = await publicationReader.ListByEventAsync(
-            calendarEventId,
-            cancellationToken);
-        if (publicationRows.Count > 0)
+        if (await publicationReader.HasAnyForEventAsync(
+                calendarEventId,
+                cancellationToken))
         {
             return DeleteCalendarEventResult.HasPlatformPublications;
         }

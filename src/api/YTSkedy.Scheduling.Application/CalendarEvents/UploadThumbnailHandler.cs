@@ -25,10 +25,9 @@ public sealed class UploadThumbnailHandler(
             return UploadThumbnailResult.EventNotFound;
         }
 
-        var publicationRows = await publicationReader.ListByEventAsync(
-            command.CalendarEventId,
-            cancellationToken);
-        if (publicationRows.Count > 0)
+        if (await publicationReader.HasAnyForEventAsync(
+                command.CalendarEventId,
+                cancellationToken))
         {
             return UploadThumbnailResult.HasPlatformPublications;
         }

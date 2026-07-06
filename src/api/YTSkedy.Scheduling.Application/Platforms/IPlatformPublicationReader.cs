@@ -16,6 +16,15 @@ public interface IPlatformPublicationReader
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Returns true when any persisted publication row exists for one calendar
+    /// event. Use this for mutation guards that only need to know whether the
+    /// event is locked by platform-publication history.
+    /// </summary>
+    Task<bool> HasAnyForEventAsync(
+        string calendarEventId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Reads the publication row for one calendar event and one platform, or null
     /// when no row exists. A null result is the normal representation of
     /// <see cref="PublishStatus.NotPublished"/>.

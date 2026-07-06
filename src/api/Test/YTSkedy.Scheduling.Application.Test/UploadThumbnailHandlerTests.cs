@@ -17,7 +17,7 @@ public sealed class UploadThumbnailHandlerTests
     {
         var store = new FakeThumbnailStore();
         var modifier = new FakeThumbnailModifier();
-        var handler = CreateHandler(null, [], modifier, store);
+        var handler = CreateHandler(null, modifier, store);
 
         var result = await handler.HandleAsync(ValidCommand(), CancellationToken.None);
 
@@ -31,7 +31,7 @@ public sealed class UploadThumbnailHandlerTests
     {
         var store = new FakeThumbnailStore();
         var modifier = new FakeThumbnailModifier();
-        var handler = CreateHandler(CreateEvent(), [Publication()], modifier, store);
+        var handler = CreateHandler(CreateEvent(), modifier, store, canMutate: false);
 
         var result = await handler.HandleAsync(ValidCommand(), CancellationToken.None);
 
@@ -45,7 +45,7 @@ public sealed class UploadThumbnailHandlerTests
     {
         var store = new FakeThumbnailStore();
         var modifier = new FakeThumbnailModifier();
-        var handler = CreateHandler(CreateEvent(), [], modifier, store);
+        var handler = CreateHandler(CreateEvent(), modifier, store);
         var command = ValidCommand() with { FileName = "stream.gif" };
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -61,7 +61,7 @@ public sealed class UploadThumbnailHandlerTests
     {
         var store = new FakeThumbnailStore();
         var modifier = new FakeThumbnailModifier();
-        var handler = CreateHandler(CreateEvent(), [], modifier, store);
+        var handler = CreateHandler(CreateEvent(), modifier, store);
 
         var result = await handler.HandleAsync(ValidCommand(), CancellationToken.None);
 
@@ -83,12 +83,12 @@ public sealed class UploadThumbnailHandlerTests
 
     private static UploadThumbnailHandler CreateHandler(
         CalendarEventView? calendarEvent,
-        IReadOnlyList<PlatformPublication> publications,
         FakeThumbnailModifier modifier,
-        FakeThumbnailStore store) =>
+        FakeThumbnailStore store,
+        bool canMutate = true) =>
         new(
             new FakeCalendarEventReader(calendarEvent),
-            new FakePlatformPublicationReader(publications),
+            new FakePublicationReader(hasAnyForEvent: !canMutate),
             modifier,
             store,
             new FixedTimeProvider(Now));
@@ -111,18 +111,6 @@ public sealed class UploadThumbnailHandlerTests
                     new EventTextValue("text1", "Stream"),
                     new EventTextValue("text2", "Description")
                 ]));
-
-    private static PlatformPublication Publication() =>
-        new(
-            CalendarEventId,
-            "platform-1",
-            "Main YouTube channel",
-            PlatformType.YouTube,
-            PublishStatus.Published,
-            "external-1",
-            Now,
-            null,
-            Now);
 
     private static byte[] Png(int width, int height)
     {
@@ -154,13 +142,17 @@ public sealed class UploadThumbnailHandlerTests
             Task.FromResult(calendarEvent);
     }
 
-    private sealed class FakePlatformPublicationReader(IReadOnlyList<PlatformPublication> publications)
-        : IPlatformPublicationReader
+    private sealed class FakePublicationReader(bool hasAnyForEvent) : IPlatformPublicationReader
     {
         public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
-            Task.FromResult(publications);
+            throw new NotSupportedException();
+
+        public Task<bool> HasAnyForEventAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(hasAnyForEvent);
 
         public Task<PlatformPublication?> GetAsync(
             string calendarEventId,

@@ -23,10 +23,9 @@ public sealed class DeleteThumbnailHandler(
             return DeleteThumbnailResult.EventNotFound;
         }
 
-        var publicationRows = await publicationReader.ListByEventAsync(
-            calendarEventId,
-            cancellationToken);
-        if (publicationRows.Count > 0)
+        if (await publicationReader.HasAnyForEventAsync(
+                calendarEventId,
+                cancellationToken))
         {
             return DeleteThumbnailResult.HasPlatformPublications;
         }

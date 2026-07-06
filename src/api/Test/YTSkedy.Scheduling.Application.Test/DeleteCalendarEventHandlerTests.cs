@@ -45,9 +45,9 @@ public class DeleteCalendarEventHandlerTests
         var handler = CreateHandler(
             CreateCalendarEventView(),
             modifier,
-            [Publication()],
             thumbnail: CreateThumbnail(),
-            store: store);
+            store: store,
+            canMutate: false);
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
@@ -105,12 +105,12 @@ public class DeleteCalendarEventHandlerTests
     private static DeleteCalendarEventHandler CreateHandler(
         CalendarEventView? calendarEvent,
         FakeCalendarEventModifier modifier,
-        IReadOnlyList<PlatformPublication>? publications = null,
         Thumbnail? thumbnail = null,
-        FakeThumbnailStore? store = null) =>
+        FakeThumbnailStore? store = null,
+        bool canMutate = true) =>
         new(
             new FakeCalendarEventReader(calendarEvent),
-            new FakePlatformPublicationReader(publications ?? []),
+            new FakePublicationReader(hasAnyForEvent: !canMutate),
             modifier,
             new FakeThumbnailReader(thumbnail),
             store ?? new FakeThumbnailStore());
@@ -126,18 +126,6 @@ public class DeleteCalendarEventHandlerTests
                     new EventTextValue("text1", "English title"),
                     new EventTextValue("text2", "English description")
                 ]));
-
-    private static PlatformPublication Publication() =>
-        new(
-            CalendarEventId,
-            "platform-1",
-            "Main YouTube channel",
-            PlatformType.YouTube,
-            PublishStatus.Published,
-            "external-1",
-            StartUtc,
-            null,
-            StartUtc);
 
     private static Thumbnail CreateThumbnail() =>
         new("stream.png", "image/png", 123, 1280, 720, StartUtc, BlobName);
@@ -155,13 +143,17 @@ public class DeleteCalendarEventHandlerTests
             Task.FromResult(calendarEvent);
     }
 
-    private sealed class FakePlatformPublicationReader(
-        IReadOnlyList<PlatformPublication> publications) : IPlatformPublicationReader
+    private sealed class FakePublicationReader(bool hasAnyForEvent) : IPlatformPublicationReader
     {
         public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
-            Task.FromResult(publications);
+            throw new NotSupportedException();
+
+        public Task<bool> HasAnyForEventAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(hasAnyForEvent);
 
         public Task<PlatformPublication?> GetAsync(
             string calendarEventId,

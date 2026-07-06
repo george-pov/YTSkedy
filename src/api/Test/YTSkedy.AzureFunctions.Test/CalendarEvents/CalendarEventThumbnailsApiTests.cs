@@ -23,7 +23,7 @@ public sealed class CalendarEventThumbnailsApiTests
         var api = new CalendarEventThumbnailsApi(
             new UploadThumbnailHandler(
                 new FakeCalendarEventReader(CreateEvent()),
-                new FakePlatformPublicationReader([]),
+                new FakePublicationReader(hasAnyForEvent: false),
                 new FakeThumbnailModifier(),
                 new FakeThumbnailStore(),
                 new FixedTimeProvider(Now)),
@@ -210,13 +210,17 @@ public sealed class CalendarEventThumbnailsApiTests
             Task.FromResult(calendarEvent);
     }
 
-    private sealed class FakePlatformPublicationReader(IReadOnlyList<PlatformPublication> publications)
-        : IPlatformPublicationReader
+    private sealed class FakePublicationReader(bool hasAnyForEvent) : IPlatformPublicationReader
     {
         public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
             string calendarEventId,
             CancellationToken cancellationToken) =>
-            Task.FromResult(publications);
+            throw new NotSupportedException();
+
+        public Task<bool> HasAnyForEventAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(hasAnyForEvent);
 
         public Task<PlatformPublication?> GetAsync(
             string calendarEventId,

@@ -68,7 +68,9 @@ internal static class PlatformPublicationMapper
             PlatformType = attempt.PlatformType.ToString(),
             Status = PublishStatus.Publishing.ToString(),
             ExternalResourceId = null,
-            ThumbnailStatus = ToInitialThumbnailStatus(attempt.PlatformType)?.ToString(),
+            ThumbnailStatus = ThumbnailPublicationPolicy
+                .InitialStatusFor(attempt.PlatformType)?
+                .ToString(),
             ContentSnapshotTitle = attempt.ContentSnapshot.Title,
             ContentSnapshotDescription = attempt.ContentSnapshot.Description,
             PublishSettingsJson = PublishSettingsSerializer.SerializeSnapshot(
@@ -99,9 +101,6 @@ internal static class PlatformPublicationMapper
             "failed" => ThumbnailPublishStatus.Failed,
             _ => throw InvalidStoredValue(nameof(ThumbnailPublishStatus), status)
         };
-
-    private static ThumbnailPublishStatus? ToInitialThumbnailStatus(PlatformType platformType) =>
-        platformType == PlatformType.YouTube ? ThumbnailPublishStatus.NotConfigured : null;
 
     private static ContentSnapshot? ToContentSnapshot(PlatformPublicationEntity entity) =>
         entity.ContentSnapshotTitle is null
