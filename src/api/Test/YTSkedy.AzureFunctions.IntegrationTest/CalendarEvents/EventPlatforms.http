@@ -14,12 +14,31 @@
 # Replace both ids. The request body is empty.
 # Expected response: 200 OK with the event-platform row: { platformId,
 # platformName, platformType, status: "Published", externalResourceId,
-# publishedUtc, platformDeletedUtc, canPublish, canDeletePublication }. A
-# private scheduled broadcast appears in YouTube Studio under Content > Live.
+# thumbnailStatus, publishedUtc, platformDeletedUtc, canPublish,
+# canDeletePublication }. If the event has no thumbnail, thumbnailStatus is
+# "NotConfigured". A private scheduled broadcast appears in YouTube Studio
+# under Content > Live.
 # Refresh GET /api/calendar-events/{calendarEventId} after publish to observe
 # root canUpdate/canDelete changing from the details response.
 
 POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_PLATFORM_ID/publish
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{}
+
+### PublishYouTubeWithThumbnail
+# Prereqs:
+# - Upload a thumbnail first with EventThumbnails.http.
+# - Use a future event with no existing publication row.
+# - Use a YouTube platform with valid OAuth values.
+# Expected response: 200 OK with status "Published", externalResourceId set to
+# the YouTube broadcast id, and thumbnailStatus "Applied". If YouTube creates
+# the broadcast but rejects the thumbnail, the response is still 200 OK with
+# status "Published" and thumbnailStatus "Failed"; update the thumbnail in
+# YouTube Studio.
+
+POST {{HostAddress}}/api/calendar-events/REPLACE_WITH_CALENDAR_EVENT_ID/platforms/REPLACE_WITH_YOUTUBE_PLATFORM_ID/publish
 Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
@@ -35,7 +54,8 @@ Authorization: Bearer {{accessToken}}
 #   event text tokens such as {{ text1 }} and {{ text2 }}.
 # - The calendar event has a FUTURE start and required event text values.
 # Replace both ids. Expected response: 200 OK with platformType "WordPress",
-# status "Published", and externalResourceId set to the WordPress post id.
+# status "Published", thumbnailStatus null, and externalResourceId set to the
+# WordPress post id.
 # Refresh GET /api/calendar-events/{calendarEventId} after publish to observe
 # root canUpdate/canDelete changing from the details response.
 

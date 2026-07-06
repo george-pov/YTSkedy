@@ -20,6 +20,10 @@ Application-owned settings persist in a generic `ApplicationSettings` table.
 The current event text fields setting is one row in that table, read and
 written through the event-text-fields settings ports.
 
+Calendar event thumbnail bytes persist in private Azure Blob Storage through
+the `IThumbnailStore` port, implemented by `AzureThumbnailStore`. Calendar
+event rows store thumbnail metadata only.
+
 ## Configuration
 
 The Azure Functions host creates one `TableClient` for calendar events.
@@ -58,6 +62,13 @@ The host registers one keyed `TableClient` for application-owned settings:
 
 The templates, platforms, platform-publications, and application-settings
 clients reuse the same connection string lookup above.
+
+The host also registers one Blob container client for calendar event thumbnail
+bytes. It reuses the same connection string lookup above. Its container name
+lookup is:
+
+1. `AzureStorage:ThumbnailsContainerName`
+2. Default: `CalendarEventThumbnails`
 
 For local development, use Azurite with `AzureWebJobsStorage` set to
 `UseDevelopmentStorage=true` in the ignored Azure Functions
@@ -100,6 +111,19 @@ fields and text values against the stored snapshot and does not consult the
 current setting, so stored events keep their field list, labels, max lengths,
 keys, and values after settings edits. Rows without `TextJson` are not a
 supported read shape.
+
+Calendar event rows can also store `ThumbnailJson`, optional metadata for one
+current event thumbnail. `ThumbnailJson` contains file name, content type, byte
+size, image width, image height, update instant, and the internal blob name.
+The deterministic blob name is `calendar-events/{calendarEventId}/thumbnail`.
+HTTP metadata responses omit the blob name, and thumbnail bytes are read only
+through the protected thumbnail route.
+
+Uploading or replacing a thumbnail writes the blob first and then writes
+`ThumbnailJson`. These writes are not transactional, so blob bytes and metadata
+can temporarily disagree if the blob write succeeds and the metadata write
+fails. Deleting a calendar event deletes thumbnail blob bytes best-effort after
+the event row delete is allowed.
 
 ## Template Rows
 
@@ -221,6 +245,10 @@ one platform.
   computed `NotPublished` after a failed provider call. `MarkPublishedAsync`
   records the `Published` status, the provider `ExternalResourceId`, and the
   publish instant.
+- `ThumbnailStatus` is stored on platform-publication rows for providers that
+  support thumbnail application. YouTube rows use `NotConfigured`, `Applied`,
+  or `Failed`; providers without thumbnail support store no thumbnail status.
+  Thumbnail status updates are conditional on the row still being `Published`.
 - `DeletePublishedAsync` removes a completed publication row after provider
   cleanup succeeds. The delete is conditional on the row still being non-orphan
   `Published` with the same `ExternalResourceId`; otherwise the caller receives

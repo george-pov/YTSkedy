@@ -28,8 +28,8 @@ placeholder.
 | --- | --- | --- |
 | `/` | Public | Renders `Home` with a sign-in button. Auto-redirects signed-in visitors to `/calendar-events`. |
 | `/calendar-events` | Protected | Renders `CalendarEvents` and loads one server-side sorted page of events through `GET /api/calendar-events`. The scheduled start is shown as the UTC instant (`scheduledStartUtc`), and the Title column displays the backend `displayTitle` field that also drives `title` sorting. Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`. |
-| `/calendar-events/new` | Protected | Renders `CalendarEventDetails` in create mode. Loads current event text fields with `GET /api/settings/event-text-fields`, renders one control per configured field, creates via `POST /api/calendar-events`, and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
-| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, renders the stored scheduled start and `texts` snapshot, and shows the response `platforms` array as a Type, Name, Status, and Actions table. The page uses backend-computed root `canUpdate` and `canDelete` from the details response to enable scheduled-start controls, event text Save, and event Delete. Platform preview, publish, and publication-delete actions call the platform-scoped endpoints; successful publish and publication-delete refresh event details before updating root lock state. Save sends `PUT /api/calendar-events/{calendarEventId}` with `start` and text values. A separate Delete action calls `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
+| `/calendar-events/new` | Protected | Renders `CalendarEventDetails` in create mode. Loads current event text fields with `GET /api/settings/event-text-fields`, renders one control per configured field, optionally selects and previews one thumbnail, creates via `POST /api/calendar-events`, uploads the selected thumbnail after create succeeds, and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
+| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, renders the stored scheduled start, `texts` snapshot, current thumbnail metadata, and protected thumbnail preview, and shows the response `platforms` array as a Type, Name, Status, and Actions table. The page uses backend-computed root `canUpdate`, `canDelete`, and `canUpdateThumbnail` from the details response to enable scheduled-start controls, event text Save, thumbnail replace/delete, and event Delete. Platform preview, publish, and publication-delete actions call the platform-scoped endpoints; successful publish and publication-delete refresh event details before updating root lock state. Save sends `PUT /api/calendar-events/{calendarEventId}` with `start` and text values. A separate Delete action calls `DELETE /api/calendar-events/{calendarEventId}` and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
 | `/templates` | Protected | Renders `Templates`, a single-page CRUD for reusable social-post templates backed by the `templates` API through a typed `TemplatesService`. On load it lists templates with `GET /api/templates` and shows each template's type (platform) and name. New Template opens an unsaved editor whose type is selectable and creates via `POST /api/templates`. Selecting a row opens the editor with the type read-only (immutable after create) and saves name and content via `PUT /api/templates/{type}/{id}`; Delete calls `DELETE /api/templates/{type}/{id}`. A failed load, save, or delete shows an inline error, and a duplicate name surfaces the `409` conflict. Guarded by `authenticatedGuard`. |
 | `/platforms` | Protected | Renders `Platforms`, a single-page CRUD for configured publishing destinations backed by the `platforms` API through a typed `PlatformsService`. On load it lists platforms with `GET /api/platforms` and shows Type, Name, and Reference key; New Platform creates a YouTube or WordPress platform via `POST /api/platforms`; selecting a row opens an editor that saves via `PUT /api/platforms/{platformId}` or deletes via `DELETE /api/platforms/{platformId}`. The editor requires title-template and description-template selections backed by `GET /api/templates?type={type}`. In edit mode, backend-provided redacted secret display strings appear inside the blank replacement inputs, hide while the input is focused, and return on blur when no replacement is entered; blank saves preserve stored secrets. A failed load, save, or delete shows an inline error, and duplicate names or duplicate reference keys surface the `409` conflict. Guarded by `authenticatedGuard`. |
 | `/settings` | Protected | Renders `Settings`, an event text field editor backed by `GET /api/settings/event-text-fields` and `PUT /api/settings/event-text-fields`. The page shows the derived `fieldKey`, label, type, max length, and delete action for each field; add and delete renumber local `textN` keys immediately, and save replaces local state with the backend-normalized response. Guarded by `authenticatedGuard`. |
@@ -59,16 +59,25 @@ same shared API service and bearer interceptor, then navigates back to
 text field list from `EventTextFieldsService`. `ShortText` fields render as
 single-line inputs and `LongText` fields render as multiline inputs. The list
 re-fetches its current page on load, so a newly created event appears according
-to the server sort order and the active page.
+to the server sort order and the active page. Create mode can select, preview,
+and clear one JPEG or PNG thumbnail before save. If event creation succeeds and
+thumbnail upload fails, the event is kept and the page shows a
+thumbnail-specific error.
 
 In edit mode (`/calendar-events/:calendarEventId/edit`) the page reads the id
 from the route, calls `GET /api/calendar-events/{calendarEventId}` through the
 same shared API service, and patches the loaded local start, time zone, stored
-`texts` snapshot, root `canUpdate`/`canDelete` flags, and `platforms` array into
-page state. It does not call the current settings endpoint to reshape an
-existing event. The `platforms` array is rendered through `app-data-table`,
-showing platform type, name, and publish status from the API response. Rows with
-`canPreviewPublishingContent: true`
+`texts` snapshot, root `canUpdate`/`canDelete` flags, `thumbnail`,
+`canUpdateThumbnail`, and `platforms` array into page state. It does not call
+the current settings endpoint to reshape an existing event. The thumbnail
+section fetches preview bytes through the protected thumbnail API route and
+creates an object URL in the browser. It never uses the protected route
+directly as an image `src`. Replace and delete are enabled only when
+`canUpdateThumbnail` is true. The `platforms` array is rendered through
+`app-data-table`, showing platform type, name, and publish status from the API
+response. A row whose `thumbnailStatus` is `Failed` shows a warning that the
+YouTube broadcast was created but the thumbnail was not applied; the page does
+not add a retry button. Rows with `canPreviewPublishingContent: true`
 show a Preview action that calls
 `GET /api/calendar-events/{calendarEventId}/platforms/{platformId}/publishing-content`
 and displays the returned `Preview` or `Snapshot` title and description below
@@ -113,8 +122,9 @@ navigation); a `409` keeps the page open with
 generic delete copy. An update `409` keeps the page open with
 `The event can no longer be updated. Reload the page and try again.` Save and
 Delete are mutually exclusive while either is in flight. Save, Delete, Cancel,
-Publish, and Delete publication are disabled while a publishing-content
-preview, platform publish, or platform-publication delete is in flight.
+Publish, Delete publication, and thumbnail controls are disabled while a
+publishing-content preview, platform publish, platform-publication delete,
+thumbnail upload, or thumbnail delete is in flight.
 
 The `Platforms` page calls `GET /api/platforms` through the shared platforms
 API service and maps the backend `{ items: [...] }` envelope plus `platformId`

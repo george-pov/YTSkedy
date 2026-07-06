@@ -288,6 +288,15 @@ Success response (`200 OK`):
   "displayTitle": "Saturday stream",
   "canUpdate": true,
   "canDelete": true,
+  "thumbnail": {
+    "fileName": "stream.png",
+    "contentType": "image/png",
+    "sizeBytes": 123456,
+    "width": 1280,
+    "height": 720,
+    "updatedUtc": "2026-06-01T12:00:00+00:00"
+  },
+  "canUpdateThumbnail": true,
   "texts": [
     {
       "fieldKey": "text1",
@@ -311,6 +320,7 @@ Success response (`200 OK`):
       "platformType": "YouTube",
       "status": "NotPublished",
       "externalResourceId": null,
+      "thumbnailStatus": "NotConfigured",
       "publishedUtc": null,
       "platformDeletedUtc": null,
       "canPublish": true,
@@ -329,6 +339,11 @@ Current behavior:
   and orphan history rows, makes event update state-ineligible.
 - `canDelete` is `true` only when the event has no platform publication rows.
   It is separate from platform-row `canDeletePublication`.
+- `thumbnail` is the current thumbnail metadata or `null`. It never includes
+  the internal blob name or image bytes.
+- `canUpdateThumbnail` is `true` only when the event has no platform
+  publication rows. It uses the same row-based lock as `canUpdate` and
+  `canDelete`.
 - Deleting platform publication rows through the platform-publication delete
   route unlocks event update and event delete when no publication rows remain.
 - `platforms` is `[]` when no platforms are registered.
@@ -337,6 +352,9 @@ Current behavior:
   no row is created just to read state.
 - `externalResourceId` and `publishedUtc` are populated for `Published` items
   and are `null` otherwise.
+- `thumbnailStatus` is `NotConfigured`, `Applied`, or `Failed` for YouTube
+  rows. It is `null` for providers that do not support thumbnail application,
+  including WordPress.
 - `platformDeletedUtc` is set only on orphan history items whose platform was
   deleted. Orphan items carry `canPublish: false` and
   `canDeletePublication: false`.
@@ -353,6 +371,79 @@ Current behavior:
   (`/calendar-events/{calendarEventId}/edit`) consumes this endpoint to load an
   event into the form. Edit mode uses the returned `texts` snapshot and does
   not reshape the event from the current settings row.
+
+## Upload Calendar Event Thumbnail
+
+```text
+PUT /api/calendar-events/{calendarEventId}/thumbnail
+```
+
+Uploads or replaces one current thumbnail for a calendar event. Requires the
+`CalendarEvents.Write` scope. The request must be `multipart/form-data` with
+one file part named `thumbnail`.
+
+The backend accepts JPEG and PNG thumbnails only. Validation checks the file
+extension (`.jpg`, `.jpeg`, or `.png`), content type (`image/jpeg` or
+`image/png`), byte size (2 MB or smaller), and readable image dimensions.
+The backend does not crop, resize, rotate, recompress, optimize, strip
+metadata, enforce a 16:9 aspect ratio, or enforce a minimum width.
+
+Success response (`200 OK`):
+
+```json
+{
+  "fileName": "stream.png",
+  "contentType": "image/png",
+  "sizeBytes": 123456,
+  "width": 1280,
+  "height": 720,
+  "updatedUtc": "2026-06-01T12:00:00+00:00"
+}
+```
+
+Status codes:
+
+- `200 OK` when the thumbnail is stored and metadata is saved.
+- `400 Bad Request` when the upload is not `multipart/form-data`, the
+  `thumbnail` part is missing, the form body cannot be read, or validation
+  fails.
+- `404 Not Found` when the calendar event id does not exist.
+- `409 Conflict` when any platform publication row exists for the event.
+
+## Get Calendar Event Thumbnail
+
+```text
+GET /api/calendar-events/{calendarEventId}/thumbnail
+```
+
+Returns the current thumbnail bytes. Requires the `CalendarEvents.Read` scope.
+The response body is the image content and the response content type is the
+stored thumbnail content type. Browser clients should fetch this route through
+the typed API client and create an object URL rather than using the protected
+route directly as an image URL.
+
+Status codes:
+
+- `200 OK` with image bytes when metadata and blob content exist.
+- `404 Not Found` when the calendar event id does not exist.
+- `404 Not Found` when the event has no thumbnail metadata or the stored blob
+  content is missing.
+
+## Delete Calendar Event Thumbnail
+
+```text
+DELETE /api/calendar-events/{calendarEventId}/thumbnail
+```
+
+Deletes the current thumbnail metadata and blob content. Requires the
+`CalendarEvents.Write` scope.
+
+Status codes:
+
+- `204 No Content` when the thumbnail is deleted.
+- `404 Not Found` when the calendar event id does not exist.
+- `404 Not Found` when the event has no thumbnail metadata.
+- `409 Conflict` when any platform publication row exists for the event.
 
 ## Get Platform Publishing Content
 
@@ -493,7 +584,8 @@ DELETE /api/calendar-events/{calendarEventId}
 Deletes a calendar event that has no platform publication rows. Requires the
 `CalendarEvents.Write` scope. Deleting a calendar event is local
 application-data cleanup only; this endpoint does not contact YouTube,
-WordPress, or any other provider.
+WordPress, or any other provider. If the event has thumbnail metadata, the
+stored thumbnail blob is deleted best-effort after the event row is deleted.
 
 Success returns `204 No Content` with an empty body.
 
@@ -507,6 +599,8 @@ Rejected states and error mapping:
   publications before deleting the event.
 - A row that disappears between the existence check and delete write returns
   `204 No Content` because the requested end state already holds.
+- A thumbnail blob cleanup failure does not change the delete result because
+  the event row has already been deleted.
 
 Scope and proof-of-concept limitations:
 
@@ -539,6 +633,10 @@ documented in [`platforms.md`](platforms.md):
   deletes one completed provider publication and resets the platform row when
   cleanup succeeds. The response is row-level only; clients that need root
   `canUpdate` or `canDelete` must refresh the calendar event details response.
+- `PUT /api/calendar-events/{calendarEventId}/thumbnail`,
+  `GET /api/calendar-events/{calendarEventId}/thumbnail`, and
+  `DELETE /api/calendar-events/{calendarEventId}/thumbnail` manage the optional
+  event thumbnail while no platform publication rows exist.
 
 ## Manual Checks
 
@@ -547,6 +645,8 @@ Manual `.http` checks live under:
 ```text
 src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/CalendarEvents/
 ```
+
+Thumbnail upload, read, and delete checks are in `EventThumbnails.http`.
 
 Before sending local requests:
 

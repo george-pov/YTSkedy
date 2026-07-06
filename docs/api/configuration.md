@@ -50,6 +50,8 @@ issuer rejects valid tokens.
 
 Publishing a calendar event to a YouTube platform creates a scheduled YouTube
 live broadcast using Google OAuth credentials stored on the selected platform.
+When the calendar event has a thumbnail, the backend applies that thumbnail to
+the created broadcast after the local publication row records the broadcast id.
 The backend exchanges the refresh token for short-lived access tokens at
 runtime, so there is no interactive Google consent at request time.
 
@@ -95,8 +97,11 @@ This is a proof-of-concept integration with deliberate limitations:
   `PublishSettingsJson` so the provider can publish at request time. An app-managed
   secret store is not part of the current implementation.
 - Only the rendered title, optional rendered description, scheduled start,
-  privacy, and made-for-kids state are sent. Thumbnails, categories, and stream
-  binding are out of scope for this slice.
+  privacy, made-for-kids state, and optional event thumbnail are sent.
+  Categories and stream binding are not part of the current publish surface.
+- There is no thumbnail retry route or UI action. If broadcast creation
+  succeeds but thumbnail application fails, the operator recovery path is to
+  update the thumbnail in YouTube Studio.
 
 ## WordPress Publish Settings
 
@@ -217,6 +222,12 @@ lookup and the same connection string lookup above:
 2. `AzureStorage:PlatformsTableName`, default `Platforms`.
 3. `AzureStorage:PlatformPublicationsTableName`, default `PlatformPublications`.
 4. `AzureStorage:ApplicationSettingsTableName`, default `ApplicationSettings`.
+
+The host registers a private Blob container client for calendar event thumbnail
+bytes. It uses the same connection string lookup as the table clients:
+
+1. `AzureStorage:ThumbnailsContainerName`
+2. Default: `CalendarEventThumbnails`
 
 The `ApplicationSettings` table stores application-owned settings such as the
 current event text fields list. It is not an Azure Functions host settings

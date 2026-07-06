@@ -445,6 +445,10 @@ For a YouTube platform this creates a scheduled YouTube `liveBroadcast` using
 the rendered title and optional rendered description, the stored UTC scheduled
 start, and the platform's `privacyStatus` and `selfDeclaredMadeForKids`. The
 created broadcast id is returned as the provider-neutral `externalResourceId`.
+When the calendar event has a stored thumbnail, the backend records the created
+broadcast id on the local publication row first, then applies the thumbnail to
+that YouTube broadcast. Thumbnail application is a separate YouTube API call
+from broadcast creation.
 
 For a WordPress platform this creates a post through
 `POST /wp-json/wp/v2/posts` using Basic Auth with the configured WordPress
@@ -462,6 +466,7 @@ YouTube success response (`200 OK`):
   "platformType": "YouTube",
   "status": "Published",
   "externalResourceId": "abc123youtubeid",
+  "thumbnailStatus": "Applied",
   "publishedUtc": "2026-06-22T12:00:00+00:00",
   "platformDeletedUtc": null,
   "canPublish": false,
@@ -479,6 +484,7 @@ WordPress success response (`200 OK`):
   "platformType": "WordPress",
   "status": "Published",
   "externalResourceId": "123",
+  "thumbnailStatus": null,
   "publishedUtc": "2026-06-22T12:00:00+00:00",
   "platformDeletedUtc": null,
   "canPublish": false,
@@ -491,6 +497,9 @@ Status codes:
 
 - `200 OK` when the publish succeeds and the publication row is marked
   `Published`. The response is the computed event-platform row.
+- `200 OK` when YouTube broadcast creation succeeds but thumbnail application
+  fails. The row remains `Published`, `externalResourceId` is the created
+  broadcast id, and `thumbnailStatus` is `Failed`.
 - `400 Bad Request` when the event start is not in the future.
 - `404 Not Found` when the calendar event id or the platform id does not exist.
 - `409 Conflict` when rendered publishing content is invalid. Invalid content
@@ -513,6 +522,19 @@ Status codes:
 State conflicts are evaluated before content validation, so an
 already-published or in-progress publication returns `409` even when the start
 is in the past.
+
+For YouTube rows, `thumbnailStatus` is:
+
+- `NotConfigured` when no event thumbnail existed for the publish or the row is
+  an unpublished YouTube projection.
+- `Applied` when the stored event thumbnail was applied to the created YouTube
+  broadcast.
+- `Failed` when the broadcast was created but thumbnail application failed.
+
+`Failed` does not make the publish eligible for a normal retry because the
+external broadcast already exists. This feature does not include a retry route
+or retry button. Operators recover by updating the thumbnail in YouTube Studio.
+WordPress rows return `thumbnailStatus: null`.
 
 ## Delete Platform Publication
 
@@ -555,6 +577,7 @@ same shape as `GET /api/calendar-events/{calendarEventId}`:
   "platformType": "YouTube",
   "status": "NotPublished",
   "externalResourceId": null,
+  "thumbnailStatus": "NotConfigured",
   "publishedUtc": null,
   "platformDeletedUtc": null,
   "canPublish": true,

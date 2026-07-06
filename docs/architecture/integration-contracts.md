@@ -22,7 +22,7 @@ request, response, status-code, and manual-check details belong in
 | Contract surface | Producer | Consumer | Durable owner |
 | --- | --- | --- | --- |
 | HTTP API routes, DTOs, status codes, and auth requirements | Azure Functions API | Angular UI typed services and manual API clients | [`../api/http/`](../api/http/) |
-| Calendar event list, details, create, update, and delete behavior | Azure Functions API | `CalendarEvents` and `CalendarEventDetails` pages | [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
+| Calendar event list, details, create, update, delete, and thumbnail behavior | Azure Functions API | `CalendarEvents` and `CalendarEventDetails` pages | [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
 | Event text fields settings reads and writes | Azure Functions API | `Settings` and `CalendarEventDetails` pages | [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
 | Platform CRUD, `referenceKey`, publish, publication delete, and provider-specific settings | Azure Functions API | `Platforms` and `CalendarEventDetails` pages | [`../api/http/platforms.md`](../api/http/platforms.md) |
 | Template CRUD and template-token reads | Azure Functions API | `Templates` page and template editor clients | [`../api/http/templates.md`](../api/http/templates.md) |
@@ -149,7 +149,8 @@ Scheduling behavior must use explicit date, time, and time-zone context.
 
 Azure Table Storage is the current persistence technology for
 application-owned calendar event, template, platform, platform-publication, and
-application-settings rows. API persistence behavior is documented in
+application-settings rows. Private Azure Blob Storage stores calendar event
+thumbnail bytes. API persistence behavior is documented in
 [`../api/persistence.md`](../api/persistence.md).
 
 Persistence contracts are internal to the API boundary unless a feature
@@ -166,6 +167,7 @@ HTTP routes.
 - YouTube SDK types, WordPress REST DTOs, and provider credential handling stay
   inside `YTSkedy.Infrastructure`.
 - Publishing uses `IPlatformPublisher` selected by platform type.
+- Thumbnail application uses `IThumbnailPublisher` selected by platform type.
 - Publication cleanup uses `IPlatformPublicationDeleter` selected by platform
   type.
 - Provider-specific request mapping, cleanup behavior, and recovery notes are
