@@ -10,6 +10,7 @@ import {
   CalendarEventDetailsResponse,
   CalendarEventListPage,
   CalendarEventPlatform,
+  CalendarEventThumbnail,
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
@@ -174,6 +175,15 @@ describe('CalendarEventsService', () => {
       displayTitle: 'English stream 1',
       canUpdate: true,
       canDelete: true,
+      thumbnail: {
+        fileName: 'stream.png',
+        contentType: 'image/png',
+        sizeBytes: 123,
+        width: 1280,
+        height: 720,
+        updatedUtc: '2026-07-06T12:00:00+00:00',
+      },
+      canUpdateThumbnail: true,
       texts: [
         {
           fieldKey: 'text1',
@@ -213,6 +223,74 @@ describe('CalendarEventsService', () => {
     request.flush(apiResponse);
 
     expect(actual).toEqual(apiResponse);
+  });
+
+  it('uploads a thumbnail with the expected multipart part name', () => {
+    const file = new File(['image-bytes'], 'stream.png', { type: 'image/png' });
+    const apiResponse: CalendarEventThumbnail = {
+      fileName: 'stream.png',
+      contentType: 'image/png',
+      sizeBytes: 11,
+      width: 1280,
+      height: 720,
+      updatedUtc: '2026-07-06T12:00:00+00:00',
+    };
+
+    let actual: CalendarEventThumbnail | undefined;
+    service.uploadThumbnail('event/id', file).subscribe((response) => {
+      actual = response;
+    });
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/event%2Fid/thumbnail',
+    );
+
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toBeInstanceOf(FormData);
+    expect((request.request.body as FormData).get('thumbnail')).toBe(file);
+
+    request.flush(apiResponse);
+
+    expect(actual).toEqual(apiResponse);
+  });
+
+  it('gets thumbnail bytes as a blob', () => {
+    const blob = new Blob(['image-bytes'], { type: 'image/png' });
+
+    let actual: Blob | undefined;
+    service.getThumbnail('event/id').subscribe((response) => {
+      actual = response;
+    });
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/event%2Fid/thumbnail',
+    );
+
+    expect(request.request.method).toBe('GET');
+    expect(request.request.responseType).toBe('blob');
+
+    request.flush(blob);
+
+    expect(actual).toBe(blob);
+  });
+
+  it('deletes a thumbnail through the thumbnail endpoint', () => {
+    let completed = false;
+    service.deleteThumbnail('event/id').subscribe({
+      complete: () => {
+        completed = true;
+      },
+    });
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/event%2Fid/thumbnail',
+    );
+
+    expect(request.request.method).toBe('DELETE');
+
+    request.flush(null, { status: 204, statusText: 'No Content' });
+
+    expect(completed).toBe(true);
   });
 
   it('puts an update request to the by-id endpoint and returns the API response', () => {

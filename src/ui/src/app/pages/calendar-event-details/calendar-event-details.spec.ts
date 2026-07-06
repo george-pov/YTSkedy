@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import {
   CalendarEventDetailsResponse,
   CalendarEventPlatform,
+  CalendarEventThumbnail,
   CalendarEventsService,
   CreateCalendarEventRequest,
   CreateCalendarEventResponse,
@@ -25,7 +26,11 @@ import {
 } from 'src/app/shared/api/settings/event-text-fields-service';
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
-import { CalendarEventDetails } from './calendar-event-details';
+import {
+  CalendarEventDetails,
+  describeThumbnailError,
+  isSupportedThumbnailFile,
+} from './calendar-event-details';
 import { CalendarEventDetailsModel } from './calendar-event-details.form';
 
 const testDateFormats: MatDateFormats = {
@@ -66,6 +71,11 @@ describe('CalendarEventDetails', () => {
     getPublishingContent: Mock<
       (calendarEventId: string, platformId: string) => Observable<EventPlatformPublishingContent>
     >;
+    uploadThumbnail: Mock<
+      (calendarEventId: string, thumbnail: File) => Observable<CalendarEventThumbnail>
+    >;
+    getThumbnail: Mock<(calendarEventId: string) => Observable<Blob>>;
+    deleteThumbnail: Mock<(calendarEventId: string) => Observable<void>>;
   };
   let eventTextFieldsService: {
     get: Mock<() => Observable<EventTextFieldsResponse>>;
@@ -100,6 +110,10 @@ describe('CalendarEventDetails', () => {
             platformId: string,
           ) => Observable<EventPlatformPublishingContent>
         >(),
+      uploadThumbnail:
+        vi.fn<(calendarEventId: string, thumbnail: File) => Observable<CalendarEventThumbnail>>(),
+      getThumbnail: vi.fn<(calendarEventId: string) => Observable<Blob>>(),
+      deleteThumbnail: vi.fn<(calendarEventId: string) => Observable<void>>(),
     };
     eventTextFieldsService = {
       get: vi.fn<() => Observable<EventTextFieldsResponse>>(),
@@ -109,6 +123,15 @@ describe('CalendarEventDetails', () => {
     confirmation.confirm.mockReturnValue(of('delete'));
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
     navigations = [];
+    let objectUrlIndex = 0;
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => `blob:thumbnail-${++objectUrlIndex}`),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
 
     TestBed.configureTestingModule({
       providers: [
@@ -180,7 +203,10 @@ describe('CalendarEventDetails', () => {
   function deleteButtonHost(): HTMLElement | null {
     // The label is 'Delete' or 'Deleting...'; both contain 'Delet' with a
     // capital D, which the lowercase 'delete' icon ligature does not.
-    return appButtonHosts().find((host) => (host.textContent ?? '').includes('Delet')) ?? null;
+    return appButtonHosts().find((host) => {
+      const text = host.textContent ?? '';
+      return text.includes('Delet') && !text.includes('thumbnail');
+    }) ?? null;
   }
 
   function deleteButton(): HTMLButtonElement | null {
@@ -230,6 +256,49 @@ describe('CalendarEventDetails', () => {
 
   function platformDeletePublicationButton(): HTMLButtonElement | null {
     return platformDeletePublicationHosts()[0]?.querySelector('button') ?? null;
+  }
+
+  function thumbnailSelectInput(): HTMLInputElement | null {
+    return fixture.nativeElement.querySelector('.thumbnail-select-input');
+  }
+
+  function thumbnailReplaceInput(): HTMLInputElement | null {
+    return fixture.nativeElement.querySelector('.thumbnail-replace-input');
+  }
+
+  function thumbnailClearButtonHost(): HTMLElement | null {
+    return fixture.nativeElement.querySelector('.thumbnail-clear-button');
+  }
+
+  function thumbnailDeleteButtonHost(): HTMLElement | null {
+    return appButtonHosts().find((host) =>
+      (host.textContent ?? '').includes('Delete thumbnail'),
+    ) ?? null;
+  }
+
+  function thumbnailDeleteButton(): HTMLButtonElement | null {
+    return thumbnailDeleteButtonHost()?.querySelector('button') ?? null;
+  }
+
+  function chooseThumbnail(input: HTMLInputElement, file: File): void {
+    Object.defineProperty(input, 'files', {
+      configurable: true,
+      value: {
+        0: file,
+        length: 1,
+        item: (index: number) => (index === 0 ? file : null),
+      },
+    });
+    input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+  }
+
+  function imageFile(
+    name = 'stream.png',
+    type = 'image/png',
+    sizeBytes = 11,
+  ): File {
+    return new File([new Uint8Array(sizeBytes)], name, { type });
   }
 
   it('blocks submit and reveals required errors when the form is empty', async () => {
@@ -300,6 +369,109 @@ describe('CalendarEventDetails', () => {
     await submitForm();
 
     expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event created.');
+  });
+
+  it('selects, previews, and clears a thumbnail in create mode', () => {
+    const file = imageFile('stream.png', 'image/png');
+
+    chooseThumbnail(thumbnailSelectInput()!, file);
+
+    expect(URL.createObjectURL).toHaveBeenCalledWith(file);
+    expect(fixture.nativeElement.querySelector('.thumbnail-preview')?.getAttribute('src')).toBe(
+      'blob:thumbnail-1',
+    );
+    expect(fixture.nativeElement.textContent).toContain('stream.png');
+
+    thumbnailClearButtonHost()!.dispatchEvent(new Event('click'));
+    fixture.detectChanges();
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:thumbnail-1');
+    expect(fixture.nativeElement.querySelector('.thumbnail-preview')).toBeNull();
+  });
+
+  it('rejects unsupported thumbnail files before upload', () => {
+    chooseThumbnail(thumbnailSelectInput()!, imageFile('stream.gif', 'image/gif'));
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'Thumbnail file must be a JPEG or PNG image.',
+    );
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('rejects thumbnail files over 2 MB before upload', () => {
+    chooseThumbnail(
+      thumbnailSelectInput()!,
+      imageFile('stream.png', 'image/png', 2 * 1024 * 1024 + 1),
+    );
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'Thumbnail file size must be 2 MB or smaller.',
+    );
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('uploads the selected thumbnail after creating the event', async () => {
+    const file = imageFile('stream.png', 'image/png');
+    service.create.mockReturnValue(of({ calendarEventId: 'created-event' }));
+    service.uploadThumbnail.mockReturnValue(of(thumbnailResponse({ fileName: 'stream.png' })));
+    fillValidForm();
+    chooseThumbnail(thumbnailSelectInput()!, file);
+
+    await submitForm();
+
+    expect(service.create).toHaveBeenCalledTimes(1);
+    expect(service.uploadThumbnail).toHaveBeenCalledWith('created-event', file);
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event created.');
+    expect(navigations).toEqual(['/calendar-events']);
+  });
+
+  it('keeps the created event and shows a thumbnail error when create-mode upload fails', async () => {
+    const file = imageFile('stream.png', 'image/png');
+    service.create.mockReturnValue(of({ calendarEventId: 'created-event' }));
+    service.uploadThumbnail.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 409 })),
+    );
+    fillValidForm();
+    chooseThumbnail(thumbnailSelectInput()!, file);
+
+    await submitForm();
+
+    expect(service.create).toHaveBeenCalledTimes(1);
+    expect(service.uploadThumbnail).toHaveBeenCalledWith('created-event', file);
+    expect(fixture.nativeElement.textContent).toContain(
+      'The thumbnail can no longer be changed. Reload the page and try again.',
+    );
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event created.');
+    expect(navigations).toEqual([]);
+  });
+
+  it('disables create-mode thumbnail selection while saving the event', () => {
+    service.create.mockReturnValue(new Subject<CreateCalendarEventResponse>());
+    fillValidForm();
+
+    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+    fixture.detectChanges();
+
+    expect(thumbnailSelectInput()!.disabled).toBe(true);
+  });
+
+  it('validates supported thumbnail files by browser type and file name', () => {
+    expect(isSupportedThumbnailFile(imageFile('stream.png', 'image/png'))).toBe(true);
+    expect(isSupportedThumbnailFile(imageFile('stream.jpg', 'image/jpeg'))).toBe(true);
+    expect(isSupportedThumbnailFile(imageFile('stream.gif', 'image/png'))).toBe(false);
+    expect(isSupportedThumbnailFile(imageFile('stream.png', 'image/gif'))).toBe(false);
+  });
+
+  it('maps thumbnail API errors to thumbnail-specific messages', () => {
+    expect(describeThumbnailError(new HttpErrorResponse({ status: 400 }))).toContain(
+      'JPEG or PNG image up to 2 MB',
+    );
+    expect(describeThumbnailError(new HttpErrorResponse({ status: 409 }))).toContain(
+      'can no longer be changed',
+    );
+    expect(describeThumbnailError(new Error('network'))).toContain(
+      'Check your connection and try again',
+    );
   });
 
   it('shows a generic error and does not navigate when the create fails', async () => {
@@ -404,6 +576,115 @@ describe('CalendarEventDetails', () => {
       const text = fixture.nativeElement.textContent;
       expect(text).toContain('Scheduled start (UTC)');
       expect(text).toContain('2030-07-04 08:30');
+    });
+
+    it('loads the current thumbnail preview through the API client', () => {
+      service.getById.mockReturnValue(of(sampleEvent({ thumbnail: thumbnailResponse() })));
+      const content = new Blob(['image-bytes'], { type: 'image/png' });
+      service.getThumbnail.mockReturnValue(of(content));
+
+      createEditComponent();
+
+      expect(service.getThumbnail).toHaveBeenCalledWith(editId);
+      expect(URL.createObjectURL).toHaveBeenCalledWith(content);
+      expect(fixture.nativeElement.querySelector('.thumbnail-preview')?.getAttribute('src')).toBe(
+        'blob:thumbnail-1',
+      );
+      expect(fixture.nativeElement.textContent).toContain('stream.png');
+      expect(fixture.nativeElement.textContent).toContain('1280 x 720');
+    });
+
+    it('replaces the thumbnail without discarding unsaved event text', async () => {
+      const replacement = imageFile('replacement.png', 'image/png');
+      service.getById.mockReturnValue(of(sampleEvent({ thumbnail: null })));
+      service.uploadThumbnail.mockReturnValue(
+        of(thumbnailResponse({ fileName: 'replacement.png' })),
+      );
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Unsaved English title');
+      chooseThumbnail(thumbnailReplaceInput()!, replacement);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(service.uploadThumbnail).toHaveBeenCalledWith(editId, replacement);
+      expect(fixture.nativeElement.textContent).toContain('replacement.png');
+      expect(fixture.nativeElement.querySelector('.thumbnail-preview')?.getAttribute('src')).toBe(
+        'blob:thumbnail-1',
+      );
+      expect(api().model().texts[0].value).toBe('Unsaved English title');
+      expect(notifications.showSuccess).toHaveBeenCalledWith('Thumbnail updated.');
+    });
+
+    it('deletes the thumbnail without discarding unsaved event text', async () => {
+      service.getById.mockReturnValue(of(sampleEvent({ thumbnail: thumbnailResponse() })));
+      service.getThumbnail.mockReturnValue(of(new Blob(['image-bytes'], { type: 'image/png' })));
+      service.deleteThumbnail.mockReturnValue(of<void>(undefined));
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Unsaved English title');
+      thumbnailDeleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(service.deleteThumbnail).toHaveBeenCalledWith(editId);
+      expect(fixture.nativeElement.textContent).toContain('No thumbnail selected.');
+      expect(fixture.nativeElement.textContent).not.toContain('stream.png');
+      expect(api().model().texts[0].value).toBe('Unsaved English title');
+      expect(notifications.showSuccess).toHaveBeenCalledWith('Thumbnail deleted.');
+    });
+
+    it('uses canUpdateThumbnail from the API to lock thumbnail controls only', () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            canUpdate: true,
+            canDelete: true,
+            canUpdateThumbnail: false,
+            thumbnail: thumbnailResponse(),
+            platforms: [],
+          }),
+        ),
+      );
+      service.getThumbnail.mockReturnValue(of(new Blob(['image-bytes'], { type: 'image/png' })));
+
+      createEditComponent();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'Delete platform publications before changing this thumbnail.',
+      );
+      expect(thumbnailReplaceInput()!.disabled).toBe(true);
+      expect(thumbnailDeleteButton()!.disabled).toBe(true);
+      expect(saveButton().disabled).toBe(false);
+      expect(deleteButton()!.disabled).toBe(false);
+    });
+
+    it('disables edit-mode thumbnail controls while another mutation is active', () => {
+      service.getById.mockReturnValue(of(sampleEvent({ thumbnail: null })));
+      service.update.mockReturnValue(new Subject<UpdateCalendarEventResponse>());
+
+      createEditComponent();
+      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+      fixture.detectChanges();
+
+      expect(thumbnailReplaceInput()!.disabled).toBe(true);
+    });
+
+    it('shows a thumbnail error when replace is rejected by the backend', async () => {
+      service.getById.mockReturnValue(of(sampleEvent({ thumbnail: null })));
+      service.uploadThumbnail.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 400 })),
+      );
+
+      createEditComponent();
+      chooseThumbnail(thumbnailReplaceInput()!, imageFile('replacement.png', 'image/png'));
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'The thumbnail must be a JPEG or PNG image up to 2 MB.',
+      );
     });
 
     it('shows the loaded platform publishing status table', () => {
@@ -1329,6 +1610,20 @@ describe('CalendarEventDetails', () => {
     };
   }
 
+  function thumbnailResponse(
+    overrides: Partial<CalendarEventThumbnail> = {},
+  ): CalendarEventThumbnail {
+    return {
+      fileName: 'stream.png',
+      contentType: 'image/png',
+      sizeBytes: 11,
+      width: 1280,
+      height: 720,
+      updatedUtc: '2030-07-04T08:20:00+00:00',
+      ...overrides,
+    };
+  }
+
   function sampleEvent(
     overrides: Partial<CalendarEventDetailsResponse> = {},
   ): CalendarEventDetailsResponse {
@@ -1342,6 +1637,8 @@ describe('CalendarEventDetails', () => {
       displayTitle: 'English title',
       canUpdate: true,
       canDelete: true,
+      thumbnail: null,
+      canUpdateThumbnail: true,
       texts: [
         {
           fieldKey: 'text1',

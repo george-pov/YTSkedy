@@ -7,6 +7,7 @@ import { EventTextType } from 'src/app/shared/api/settings/event-text-fields-ser
 import {
   calendarEventByIdUrl,
   calendarEventsUrl,
+  calendarEventThumbnailUrl,
   deletePlatformPublicationUrl,
   publishingContentUrl,
   publishPlatformUrl,
@@ -28,7 +29,18 @@ export interface CalendarEvent extends CalendarEventFields {}
 export interface CalendarEventDetailsResponse extends CalendarEventFields {
   canUpdate: boolean;
   canDelete: boolean;
+  thumbnail: CalendarEventThumbnail | null;
+  canUpdateThumbnail: boolean;
   platforms: CalendarEventPlatform[];
+}
+
+export interface CalendarEventThumbnail {
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  width: number;
+  height: number;
+  updatedUtc: string;
 }
 
 export interface CalendarEventPlatform {
@@ -195,5 +207,31 @@ export class CalendarEventsService {
 
   delete(calendarEventId: string): Observable<void> {
     return this.http.delete<void>(calendarEventByIdUrl(this.appConfig.api, calendarEventId));
+  }
+
+  uploadThumbnail(
+    calendarEventId: string,
+    thumbnail: File,
+  ): Observable<CalendarEventThumbnail> {
+    const formData = new FormData();
+    formData.append('thumbnail', thumbnail);
+
+    return this.http.put<CalendarEventThumbnail>(
+      calendarEventThumbnailUrl(this.appConfig.api, calendarEventId),
+      formData,
+    );
+  }
+
+  getThumbnail(calendarEventId: string): Observable<Blob> {
+    return this.http.get(
+      calendarEventThumbnailUrl(this.appConfig.api, calendarEventId),
+      { responseType: 'blob' },
+    );
+  }
+
+  deleteThumbnail(calendarEventId: string): Observable<void> {
+    return this.http.delete<void>(
+      calendarEventThumbnailUrl(this.appConfig.api, calendarEventId),
+    );
   }
 }

@@ -5,18 +5,20 @@ import {
   effect,
   ElementRef,
   inject,
+  OnDestroy,
   signal,
   viewChild,
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { form } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize, Observable, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, finalize, Observable, of, switchMap, tap } from 'rxjs';
 
 import {
   CalendarEventsService,
   type CalendarEventDetailsResponse,
   type CalendarEventPlatform,
+  type CalendarEventThumbnail,
   type EventPlatformPublishingContent,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { EventTextFieldsService } from 'src/app/shared/api/settings/event-text-fields-service';
@@ -68,7 +70,7 @@ interface PublishingContentPreview extends EventPlatformPublishingContent {
   styleUrl: './calendar-event-details.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CalendarEventDetails {
+export class CalendarEventDetails implements OnDestroy {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly calendarEventsService = inject(CalendarEventsService);
@@ -80,6 +82,7 @@ export class CalendarEventDetails {
   // non-null id puts the page in edit mode: it loads the stored event snapshot
   // and repopulates the form. Create mode loads the current text-field setting.
   private readonly editingId = this.route.snapshot.paramMap.get('calendarEventId');
+  private isDestroyed = false;
   protected readonly isEditMode = this.editingId !== null;
 
   protected readonly model = signal<CalendarEventDetailsModel>(createCalendarEventDetailsModel());
@@ -98,6 +101,14 @@ export class CalendarEventDetails {
 
   protected readonly isDeleting = signal(false);
   protected readonly deleteErrorMessage = signal<string | null>(null);
+  protected readonly thumbnail = signal<CalendarEventThumbnail | null>(null);
+  protected readonly thumbnailPreviewUrl = signal<string | null>(null);
+  protected readonly selectedThumbnailFile = signal<File | null>(null);
+  protected readonly selectedThumbnailPreviewUrl = signal<string | null>(null);
+  protected readonly thumbnailErrorMessage = signal<string | null>(null);
+  protected readonly canUpdateThumbnail = signal(!this.isEditMode);
+  protected readonly isUploadingThumbnail = signal(false);
+  protected readonly isDeletingThumbnail = signal(false);
   protected readonly platforms = signal<CalendarEventPlatform[]>([]);
   protected readonly publishingPlatformId = signal<string | null>(null);
   protected readonly publishErrorMessage = signal<string | null>(null);
@@ -110,9 +121,14 @@ export class CalendarEventDetails {
     () =>
       this.isSubmitting() ||
       this.isDeleting() ||
+      this.isUploadingThumbnail() ||
+      this.isDeletingThumbnail() ||
       this.publishingPlatformId() !== null ||
       this.deletingPublicationPlatformId() !== null ||
       this.previewingPlatformId() !== null,
+  );
+  protected readonly canMutateThumbnail = computed(
+    () => !this.hasActiveMutation() && (!this.isEditMode || this.canUpdateThumbnail()),
   );
   protected readonly platformColumns: readonly DataTableColumn<CalendarEventPlatform>[] = [
     { key: 'type', header: 'Type', value: (platform) => platform.platformType },
@@ -159,6 +175,12 @@ export class CalendarEventDetails {
     }
   }
 
+  ngOnDestroy(): void {
+    this.isDestroyed = true;
+    this.revokeSelectedThumbnailPreview();
+    this.revokeThumbnailPreview();
+  }
+
   private loadCurrentFields(): void {
     this.isLoading.set(true);
     this.loadFailed.set(false);
@@ -202,6 +224,11 @@ export class CalendarEventDetails {
           this.deletePublicationErrorMessage.set(null);
           this.previewErrorMessage.set(null);
           this.previewedPublishingContent.set(null);
+          this.thumbnail.set(null);
+          this.canUpdateThumbnail.set(false);
+          this.thumbnailErrorMessage.set(null);
+          this.clearSelectedThumbnail();
+          this.setThumbnailPreviewUrl(null);
           this.loadFailed.set(true);
         },
       });
@@ -230,26 +257,140 @@ export class CalendarEventDetails {
 
     this.isSubmitting.set(true);
 
-    // Edit updates start and text values in place; create posts a new event. Both
-    // responses are ignored, so the union is typed as the wider observable.
-    const request$: Observable<unknown> =
-      this.editingId === null
-        ? this.calendarEventsService.create(toCreateCalendarEventRequest(this.model()))
-        : this.calendarEventsService.update(
-            this.editingId,
-            toUpdateCalendarEventRequest(this.model()),
-          );
+    if (this.editingId === null) {
+      this.calendarEventsService
+        .create(toCreateCalendarEventRequest(this.model()))
+        .pipe(
+          switchMap((response) =>
+            this.uploadSelectedThumbnailAfterCreate(response.calendarEventId).pipe(
+              catchError((error: unknown) => {
+                this.thumbnailErrorMessage.set(describeThumbnailError(error));
+                this.notifications.showSuccess('Calendar event created.');
+                return EMPTY;
+              }),
+            ),
+          ),
+          finalize(() => this.isSubmitting.set(false)),
+        )
+        .subscribe({
+          next: () => {
+            this.notifications.showSuccess('Calendar event created.');
+            this.router.navigateByUrl('/calendar-events');
+          },
+          error: (error: unknown) => {
+            this.saveErrorMessage.set(describeSaveError(error));
+          },
+        });
+      return;
+    }
 
-    request$.pipe(finalize(() => this.isSubmitting.set(false))).subscribe({
-      next: () => {
-        this.notifications.showSuccess(
-          this.isEditMode ? 'Calendar event updated.' : 'Calendar event created.',
-        );        
-      },
-      error: (error: unknown) => {
-        this.saveErrorMessage.set(describeSaveError(error));
-      },
-    });
+    this.calendarEventsService
+      .update(this.editingId, toUpdateCalendarEventRequest(this.model()))
+      .pipe(finalize(() => this.isSubmitting.set(false)))
+      .subscribe({
+        next: () => {
+          this.notifications.showSuccess('Calendar event updated.');
+          this.router.navigateByUrl('/calendar-events');
+        },
+        error: (error: unknown) => {
+          this.saveErrorMessage.set(describeSaveError(error));
+        },
+      });
+  }
+
+  protected selectThumbnail(event: Event): void {
+    const file = thumbnailFileFrom(event);
+    if (file === null) {
+      return;
+    }
+
+    if (!this.setSelectedThumbnail(file)) {
+      resetFileInput(event);
+    }
+  }
+
+  protected clearSelectedThumbnail(): void {
+    this.selectedThumbnailFile.set(null);
+    this.revokeSelectedThumbnailPreview();
+  }
+
+  protected uploadSelectedThumbnailAfterCreate(
+    calendarEventId: string,
+  ): Observable<CalendarEventThumbnail | null> {
+    const file = this.selectedThumbnailFile();
+    if (file === null) {
+      return of(null);
+    }
+
+    this.isUploadingThumbnail.set(true);
+
+    return this.calendarEventsService
+      .uploadThumbnail(calendarEventId, file)
+      .pipe(finalize(() => this.isUploadingThumbnail.set(false)));
+  }
+
+  protected replaceThumbnail(event: Event): void {
+    if (this.editingId === null || !this.canMutateThumbnail()) {
+      resetFileInput(event);
+      return;
+    }
+
+    const file = thumbnailFileFrom(event);
+    if (file === null) {
+      return;
+    }
+
+    if (!this.setSelectedThumbnail(file)) {
+      resetFileInput(event);
+      return;
+    }
+
+    this.isUploadingThumbnail.set(true);
+
+    this.calendarEventsService
+      .uploadThumbnail(this.editingId, file)
+      .pipe(finalize(() => this.isUploadingThumbnail.set(false)))
+      .subscribe({
+        next: (thumbnail) => {
+          this.thumbnail.set(thumbnail);
+          this.promoteSelectedThumbnailPreview();
+          this.selectedThumbnailFile.set(null);
+          this.thumbnailErrorMessage.set(null);
+          resetFileInput(event);
+          this.notifications.showSuccess('Thumbnail updated.');
+        },
+        error: (error: unknown) => {
+          this.thumbnailErrorMessage.set(describeThumbnailError(error));
+        },
+      });
+  }
+
+  protected deleteThumbnail(): void {
+    if (
+      this.editingId === null ||
+      this.thumbnail() === null ||
+      !this.canMutateThumbnail()
+    ) {
+      return;
+    }
+
+    this.isDeletingThumbnail.set(true);
+    this.thumbnailErrorMessage.set(null);
+
+    this.calendarEventsService
+      .deleteThumbnail(this.editingId)
+      .pipe(finalize(() => this.isDeletingThumbnail.set(false)))
+      .subscribe({
+        next: () => {
+          this.thumbnail.set(null);
+          this.setThumbnailPreviewUrl(null);
+          this.clearSelectedThumbnail();
+          this.notifications.showSuccess('Thumbnail deleted.');
+        },
+        error: (error: unknown) => {
+          this.thumbnailErrorMessage.set(describeThumbnailError(error));
+        },
+      });
   }
 
   protected cancel(): void {
@@ -426,6 +567,84 @@ export class CalendarEventDetails {
     this.platforms.set(event.platforms);
     this.canUpdate.set(event.canUpdate);
     this.canDelete.set(event.canDelete);
+    this.thumbnail.set(event.thumbnail);
+    this.canUpdateThumbnail.set(event.canUpdateThumbnail);
+    this.clearSelectedThumbnail();
+    this.thumbnailErrorMessage.set(null);
+
+    if (event.thumbnail === null) {
+      this.setThumbnailPreviewUrl(null);
+      return;
+    }
+
+    this.loadThumbnailPreview();
+  }
+
+  private setSelectedThumbnail(file: File): boolean {
+    this.thumbnailErrorMessage.set(null);
+
+    const error = describeClientThumbnailError(file);
+    if (error !== null) {
+      this.clearSelectedThumbnail();
+      this.thumbnailErrorMessage.set(error);
+      return false;
+    }
+
+    this.selectedThumbnailFile.set(file);
+    this.revokeSelectedThumbnailPreview();
+    this.selectedThumbnailPreviewUrl.set(URL.createObjectURL(file));
+    return true;
+  }
+
+  private loadThumbnailPreview(): void {
+    if (this.editingId === null || this.thumbnail() === null) {
+      this.setThumbnailPreviewUrl(null);
+      return;
+    }
+
+    this.calendarEventsService.getThumbnail(this.editingId).subscribe({
+      next: (content) => {
+        if (this.isDestroyed) {
+          return;
+        }
+
+        this.setThumbnailPreviewUrl(URL.createObjectURL(content));
+      },
+      error: () => {
+        this.setThumbnailPreviewUrl(null);
+        this.thumbnailErrorMessage.set(
+          'The thumbnail preview could not be loaded. Reload the page and try again.',
+        );
+      },
+    });
+  }
+
+  private promoteSelectedThumbnailPreview(): void {
+    const previewUrl = this.selectedThumbnailPreviewUrl();
+    this.revokeThumbnailPreview();
+    this.thumbnailPreviewUrl.set(previewUrl);
+    this.selectedThumbnailPreviewUrl.set(null);
+  }
+
+  private setThumbnailPreviewUrl(value: string | null): void {
+    this.revokeThumbnailPreview();
+    this.thumbnailPreviewUrl.set(value);
+  }
+
+  private revokeSelectedThumbnailPreview(): void {
+    const previewUrl = this.selectedThumbnailPreviewUrl();
+    if (previewUrl !== null) {
+      URL.revokeObjectURL(previewUrl);
+      this.selectedThumbnailPreviewUrl.set(null);
+    }
+  }
+
+  private revokeThumbnailPreview(): void {
+    const previewUrl = this.thumbnailPreviewUrl();
+    if (previewUrl !== null) {
+      URL.revokeObjectURL(previewUrl);
+      this.thumbnailPreviewUrl.set(null);
+    }
   }
 }
 
@@ -476,4 +695,58 @@ function describePreviewError(error: unknown): string {
   }
 
   return 'Publishing content could not be loaded. Check your connection and try again.';
+}
+
+const thumbnailMaxSizeBytes = 2 * 1024 * 1024;
+const supportedThumbnailTypes = new Set(['image/jpeg', 'image/png']);
+const supportedThumbnailExtensions = new Set(['.jpg', '.jpeg', '.png']);
+
+export function isSupportedThumbnailFile(file: File): boolean {
+  return (
+    supportedThumbnailTypes.has(file.type.toLowerCase()) &&
+    supportedThumbnailExtensions.has(fileExtension(file.name))
+  );
+}
+
+export function describeThumbnailError(error: unknown): string {
+  if (error instanceof HttpErrorResponse && error.status === 400) {
+    return 'The thumbnail must be a JPEG or PNG image up to 2 MB.';
+  }
+
+  if (error instanceof HttpErrorResponse && error.status === 409) {
+    return 'The thumbnail can no longer be changed. Reload the page and try again.';
+  }
+
+  return 'The thumbnail could not be changed. Check your connection and try again.';
+}
+
+function describeClientThumbnailError(file: File): string | null {
+  if (file.size > thumbnailMaxSizeBytes) {
+    return 'Thumbnail file size must be 2 MB or smaller.';
+  }
+
+  if (!isSupportedThumbnailFile(file)) {
+    return 'Thumbnail file must be a JPEG or PNG image.';
+  }
+
+  return null;
+}
+
+function thumbnailFileFrom(event: Event): File | null {
+  const input = event.target as HTMLInputElement | null;
+
+  return input?.files?.item(0) ?? null;
+}
+
+function resetFileInput(event: Event): void {
+  const input = event.target as HTMLInputElement | null;
+  if (input !== null) {
+    input.value = '';
+  }
+}
+
+function fileExtension(fileName: string): string {
+  const dotIndex = fileName.lastIndexOf('.');
+
+  return dotIndex < 0 ? '' : fileName.slice(dotIndex).toLowerCase();
 }

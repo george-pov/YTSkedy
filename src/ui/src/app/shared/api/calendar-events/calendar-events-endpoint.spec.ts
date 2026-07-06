@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { publishingContentUrl } from './calendar-events-endpoint';
+import { calendarEventThumbnailUrl, publishingContentUrl } from './calendar-events-endpoint';
 
 describe('calendar events endpoint helpers', () => {
   it('builds the platform publishing-content URL with encoded ids', () => {
@@ -13,5 +13,14 @@ describe('calendar events endpoint helpers', () => {
     expect(url).toBe(
       'https://api.example.test/api/calendar-events/event%2Fid/platforms/platform%20id/publishing-content',
     );
+  });
+
+  it('builds the calendar event thumbnail URL with encoded id', () => {
+    const url = calendarEventThumbnailUrl(
+      { baseUrl: 'https://api.example.test/' },
+      'event/id',
+    );
+
+    expect(url).toBe('https://api.example.test/api/calendar-events/event%2Fid/thumbnail');
   });
 });
