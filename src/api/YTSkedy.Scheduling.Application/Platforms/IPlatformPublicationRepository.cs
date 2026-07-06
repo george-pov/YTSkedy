@@ -43,6 +43,30 @@ public interface IPlatformPublicationRepository
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Records that the secondary thumbnail application succeeded after the
+    /// provider resource was created and the row was marked
+    /// <see cref="Domain.Platforms.PublishStatus.Published"/>. Returns false
+    /// when the row no longer exists or no longer represents a completed
+    /// publication.
+    /// </summary>
+    Task<bool> MarkThumbnailAppliedAsync(
+        string calendarEventId,
+        string platformId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records that the secondary thumbnail application failed after the
+    /// provider resource was created and the row was marked
+    /// <see cref="Domain.Platforms.PublishStatus.Published"/>. Returns false
+    /// when the row no longer exists or no longer represents a completed
+    /// publication.
+    /// </summary>
+    Task<bool> MarkThumbnailFailedAsync(
+        string calendarEventId,
+        string platformId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Deletes a completed publication row after provider cleanup succeeds.
     /// Deletion is conditional on the row still being non-orphan
     /// <see cref="Domain.Platforms.PublishStatus.Published"/> with the same

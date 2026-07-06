@@ -59,6 +59,17 @@ public class PlatformPublicationTests
     }
 
     [Fact]
+    public void Constructor_ThumbnailStatusProvided_SetsThumbnailStatus()
+    {
+        var publication = CreatePublication(
+            PublishStatus.Published,
+            platformDeletedUtc: null,
+            thumbnailStatus: ThumbnailPublishStatus.Applied);
+
+        Assert.Equal(ThumbnailPublishStatus.Applied, publication.ThumbnailStatus);
+    }
+
+    [Fact]
     public void IsOrphaned_PlatformDeletedUtcSet_ReturnsTrue()
     {
         var publication = CreatePublication(
@@ -79,7 +90,8 @@ public class PlatformPublicationTests
     private static PlatformPublication CreatePublication(
         PublishStatus status,
         DateTimeOffset? platformDeletedUtc,
-        ContentSnapshot? contentSnapshot = null) =>
+        ContentSnapshot? contentSnapshot = null,
+        ThumbnailPublishStatus? thumbnailStatus = null) =>
         new(
             "f81d4fae7dec11d0a76500a0c91e6bf6",
             "4fb4a32f3f344de1a7c3a9f4a2f94918",
@@ -90,5 +102,6 @@ public class PlatformPublicationTests
             new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
             platformDeletedUtc,
             new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
-            ContentSnapshot: contentSnapshot);
+            ContentSnapshot: contentSnapshot,
+            ThumbnailStatus: thumbnailStatus);
 }

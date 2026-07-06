@@ -214,6 +214,15 @@
               caption="Calendar event platforms"
               emptyText="No platforms found."
             >
+              <ng-template appDataTableCell="status" let-platform>
+                <div class="platform-status">
+                  <span>{{ platform.status }}</span>
+                  @if (thumbnailStatusText(platform); as thumbnailMessage) {
+                    <p>{{ thumbnailMessage }}</p>
+                  }
+                </div>
+              </ng-template>
+
               <ng-template appDataTableCell="actions" let-platform>
                 <div class="app-actions">
                   @if (platform.canPreviewPublishingContent) {

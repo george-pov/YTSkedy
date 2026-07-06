@@ -30,6 +30,7 @@ import {
   CalendarEventDetails,
   describeThumbnailError,
   isSupportedThumbnailFile,
+  thumbnailStatusText,
 } from './calendar-event-details';
 import { CalendarEventDetailsModel } from './calendar-event-details.form';
 
@@ -474,6 +475,21 @@ describe('CalendarEventDetails', () => {
     );
   });
 
+  it('maps failed thumbnail publish status to a non-actionable warning', () => {
+    expect(thumbnailStatusText(publishedPlatform({ thumbnailStatus: 'Failed' }))).toContain(
+      'Update it in YouTube Studio.',
+    );
+    expect(thumbnailStatusText(publishedPlatform({ thumbnailStatus: 'Applied' }))).toBeNull();
+    expect(
+      thumbnailStatusText(
+        publishedPlatform({
+          platformType: 'WordPress',
+          thumbnailStatus: null,
+        }),
+      ),
+    ).toBeNull();
+  });
+
   it('shows a generic error and does not navigate when the create fails', async () => {
     service.create.mockReturnValue(throwError(() => new Error('boom')));
     fillValidForm();
@@ -698,6 +714,7 @@ describe('CalendarEventDetails', () => {
                 platformType: 'YouTube',
                 status: 'NotPublished',
                 externalResourceId: null,
+                thumbnailStatus: 'NotConfigured',
                 publishedUtc: null,
                 platformDeletedUtc: null,
                 canPublish: true,
@@ -710,6 +727,7 @@ describe('CalendarEventDetails', () => {
                 platformType: 'WordPress',
                 status: 'Published',
                 externalResourceId: 'post-123',
+                thumbnailStatus: null,
                 publishedUtc: '2030-07-04T08:45:00+00:00',
                 platformDeletedUtc: null,
                 canPublish: false,
@@ -738,6 +756,20 @@ describe('CalendarEventDetails', () => {
       expect(platformPreviewHosts()).toHaveLength(2);
     });
 
+    it('shows a thumbnail failure warning without a retry action', () => {
+      service.getById.mockReturnValue(
+        of(sampleEvent({ platforms: [publishedPlatform({ thumbnailStatus: 'Failed' })] })),
+      );
+
+      createEditComponent();
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain(
+        'YouTube broadcast was created, but the thumbnail was not applied. Update it in YouTube Studio.',
+      );
+      expect(text).not.toContain('Retry');
+    });
+
     it('shows an empty platform state when no platforms are returned', () => {
       service.getById.mockReturnValue(of(sampleEvent({ platforms: [] })));
 
@@ -757,6 +789,7 @@ describe('CalendarEventDetails', () => {
                 platformType: 'YouTube',
                 status: 'Published',
                 externalResourceId: 'broadcast-123',
+                thumbnailStatus: 'Applied',
                 publishedUtc: '2030-07-04T08:45:00+00:00',
                 platformDeletedUtc: null,
                 canPublish: false,
@@ -784,6 +817,7 @@ describe('CalendarEventDetails', () => {
                 platformType: 'YouTube',
                 status: 'Published',
                 externalResourceId: 'broadcast-123',
+                thumbnailStatus: 'Applied',
                 publishedUtc: '2030-07-04T08:45:00+00:00',
                 platformDeletedUtc: null,
                 canPublish: false,
@@ -945,6 +979,7 @@ describe('CalendarEventDetails', () => {
         platformType: 'WordPress',
         status: 'NotPublished',
         externalResourceId: null,
+        thumbnailStatus: null,
         publishedUtc: null,
         platformDeletedUtc: null,
         canPublish: true,
@@ -1067,6 +1102,7 @@ describe('CalendarEventDetails', () => {
         platformType: 'YouTube',
         status: 'NotPublished',
         externalResourceId: null,
+        thumbnailStatus: 'NotConfigured',
         publishedUtc: null,
         platformDeletedUtc: null,
         canPublish: true,
@@ -1128,6 +1164,7 @@ describe('CalendarEventDetails', () => {
                 platformType: 'WordPress',
                 status: 'NotPublished',
                 externalResourceId: null,
+                thumbnailStatus: null,
                 publishedUtc: null,
                 platformDeletedUtc: null,
                 canPublish: true,
@@ -1601,6 +1638,7 @@ describe('CalendarEventDetails', () => {
       platformType: 'YouTube',
       status: 'Published',
       externalResourceId: 'broadcast-123',
+      thumbnailStatus: 'Applied',
       publishedUtc: '2030-07-04T08:45:00+00:00',
       platformDeletedUtc: null,
       canPublish: false,
@@ -1662,6 +1700,7 @@ describe('CalendarEventDetails', () => {
           platformType: 'YouTube',
           status: 'NotPublished',
           externalResourceId: null,
+          thumbnailStatus: 'NotConfigured',
           publishedUtc: null,
           platformDeletedUtc: null,
           canPublish: true,

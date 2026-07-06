@@ -60,7 +60,8 @@ internal static class EventPlatformProjection
                 PlatformActionPolicy.CanPreviewPublishingContent(
                     status,
                     isOrphaned,
-                    hasContentSnapshot)));
+                    hasContentSnapshot),
+                publication?.ThumbnailStatus ?? ThumbnailStatusFor(platform.Type)));
         }
 
         var activePlatformIds = activePlatforms
@@ -97,9 +98,13 @@ internal static class EventPlatformProjection
                 PlatformActionPolicy.CanPreviewPublishingContent(
                     publication.Status,
                     publication.IsOrphaned,
-                    publication.ContentSnapshot is not null)));
+                    publication.ContentSnapshot is not null),
+                publication.ThumbnailStatus ?? ThumbnailStatusFor(publication.PlatformType)));
         }
 
         return items;
     }
+
+    internal static ThumbnailPublishStatus? ThumbnailStatusFor(PlatformType platformType) =>
+        platformType == PlatformType.YouTube ? ThumbnailPublishStatus.NotConfigured : null;
 }

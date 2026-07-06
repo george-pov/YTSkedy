@@ -12,6 +12,7 @@ internal sealed record EventPlatformResponse(
     string PlatformType,
     string Status,
     string? ExternalResourceId,
+    string? ThumbnailStatus,
     DateTimeOffset? PublishedUtc,
     DateTimeOffset? PlatformDeletedUtc,
     bool CanPublish,

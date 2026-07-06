@@ -409,6 +409,7 @@ public class PublishHandlerTests
         Assert.Equal(PlatformType.YouTube, result.Platform.PlatformType);
         Assert.Equal(PublishStatus.Published, result.Platform.Status);
         Assert.Equal("yt-broadcast-id", result.Platform.ExternalResourceId);
+        Assert.Equal(ThumbnailPublishStatus.NotConfigured, result.Platform.ThumbnailStatus);
         Assert.Equal(publishedUtc, result.Platform.PublishedUtc);
         Assert.Null(result.Platform.PlatformDeletedUtc);
         Assert.False(result.Platform.CanPublish);
@@ -426,6 +427,116 @@ public class PublishHandlerTests
         Assert.Equal("English description", publisher.Request.Description);
         Assert.Equal(FutureStart, publisher.Request.ScheduledStartUtc);
         Assert.Same(Settings, publisher.Request.PublishSettings);
+    }
+
+    [Fact]
+    public async Task HandleAsync_YouTubeThumbnailSuccess_MarksThumbnailApplied()
+    {
+        var repository = new FakePublicationRepository();
+        var publisher = new FakePublisher { Result = new PlatformPublishResult("yt-broadcast-id") };
+        var thumbnailPublisher = new FakeThumbnailPublisher();
+        var content = ThumbnailContent();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository,
+            thumbnail: Thumbnail(),
+            thumbnailContent: content,
+            thumbnailPublisher: thumbnailPublisher);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.Equal(ThumbnailPublishStatus.Applied, result.Platform!.ThumbnailStatus);
+        Assert.True(repository.MarkThumbnailAppliedCalled);
+        Assert.False(repository.MarkThumbnailFailedCalled);
+        Assert.False(repository.ReleaseCalled);
+        Assert.Equal("yt-broadcast-id", thumbnailPublisher.Request!.ExternalResourceId);
+        Assert.Same(Settings, thumbnailPublisher.Request.PublishSettings);
+        Assert.Same(content, thumbnailPublisher.Request.ThumbnailContent);
+    }
+
+    [Fact]
+    public async Task HandleAsync_YouTubeThumbnailFailure_MarksThumbnailFailedAndKeepsPublished()
+    {
+        var repository = new FakePublicationRepository();
+        var publisher = new FakePublisher { Result = new PlatformPublishResult("yt-broadcast-id") };
+        var thumbnailPublisher = new FakeThumbnailPublisher
+        {
+            Throws = new ThumbnailPublishException("thumbnail rejected")
+        };
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository,
+            thumbnail: Thumbnail(),
+            thumbnailContent: ThumbnailContent(),
+            thumbnailPublisher: thumbnailPublisher);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.Equal(PublishStatus.Published, result.Platform!.Status);
+        Assert.Equal("yt-broadcast-id", result.Platform.ExternalResourceId);
+        Assert.Equal(ThumbnailPublishStatus.Failed, result.Platform.ThumbnailStatus);
+        Assert.True(repository.MarkPublishedCalled);
+        Assert.False(repository.ReleaseCalled);
+        Assert.False(repository.MarkThumbnailAppliedCalled);
+        Assert.True(repository.MarkThumbnailFailedCalled);
+    }
+
+    [Fact]
+    public async Task HandleAsync_YouTubeThumbnailUnexpectedFailure_MarksThumbnailFailedAndKeepsPublished()
+    {
+        var repository = new FakePublicationRepository();
+        var publisher = new FakePublisher { Result = new PlatformPublishResult("yt-broadcast-id") };
+        var thumbnailPublisher = new FakeThumbnailPublisher
+        {
+            Throws = new InvalidOperationException("thumbnail client failed")
+        };
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository,
+            thumbnail: Thumbnail(),
+            thumbnailContent: ThumbnailContent(),
+            thumbnailPublisher: thumbnailPublisher);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.Equal(PublishStatus.Published, result.Platform!.Status);
+        Assert.Equal(ThumbnailPublishStatus.Failed, result.Platform.ThumbnailStatus);
+        Assert.True(repository.MarkPublishedCalled);
+        Assert.False(repository.ReleaseCalled);
+        Assert.False(repository.MarkThumbnailAppliedCalled);
+        Assert.True(repository.MarkThumbnailFailedCalled);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ConfiguredThumbnailWithMissingBytes_MarksThumbnailFailed()
+    {
+        var repository = new FakePublicationRepository();
+        var publisher = new FakePublisher { Result = new PlatformPublishResult("yt-broadcast-id") };
+        var thumbnailPublisher = new FakeThumbnailPublisher();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository,
+            thumbnail: Thumbnail(),
+            thumbnailContent: null,
+            thumbnailPublisher: thumbnailPublisher);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.Equal(ThumbnailPublishStatus.Failed, result.Platform!.ThumbnailStatus);
+        Assert.True(repository.MarkThumbnailFailedCalled);
+        Assert.Null(thumbnailPublisher.Request);
     }
 
     [Fact]
@@ -453,12 +564,42 @@ public class PublishHandlerTests
         Assert.Equal(PlatformType.WordPress, result.Platform.PlatformType);
         Assert.Equal(publishedUtc, result.Platform.PublishedUtc);
         Assert.Equal("123", result.Platform.ExternalResourceId);
+        Assert.Null(result.Platform.ThumbnailStatus);
         Assert.False(result.Platform.CanPublish);
         Assert.True(result.Platform.CanDeletePublication);
         Assert.True(result.Platform.CanPreviewPublishingContent);
 
         Assert.Equal("123", repository.MarkedExternalResourceId);
         Assert.Same(WordPressSettings, publisher.Request!.PublishSettings);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WordPressWithEventThumbnail_DoesNotApplyThumbnail()
+    {
+        var repository = new FakePublicationRepository();
+        var publisher = new FakePublisher(
+            PlatformType.WordPress,
+            new PlatformPublishResult("123"));
+        var thumbnailPublisher = new FakeThumbnailPublisher();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(
+                "Company blog",
+                PlatformType.WordPress,
+                WordPressSettings),
+            publisher,
+            repository: repository,
+            thumbnail: Thumbnail(),
+            thumbnailContent: ThumbnailContent(),
+            thumbnailPublisher: thumbnailPublisher);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.Null(result.Platform!.ThumbnailStatus);
+        Assert.False(repository.MarkThumbnailAppliedCalled);
+        Assert.False(repository.MarkThumbnailFailedCalled);
+        Assert.Null(thumbnailPublisher.Request);
     }
 
     [Fact]
@@ -481,13 +622,19 @@ public class PublishHandlerTests
         FakePublicationRepository? repository = null,
         ITemplateReader? templates = null,
         IReadOnlyList<PlatformView>? activePlatforms = null,
-        IReadOnlyList<PlatformPublication>? publicationRows = null) =>
+        IReadOnlyList<PlatformPublication>? publicationRows = null,
+        Thumbnail? thumbnail = null,
+        ThumbnailContent? thumbnailContent = null,
+        IThumbnailPublisher? thumbnailPublisher = null) =>
         new(
             new FakeCalendarEventReader(calendarEvent),
+            new FakeThumbnailReader(thumbnail),
+            new FakeThumbnailStore(thumbnailContent),
             new FakePlatformReader(platform, activePlatforms),
             new FakePublicationReader(existing, publicationRows),
             repository ?? new FakePublicationRepository(),
             new FakeSelector(publisher),
+            new FakeThumbnailSelector(thumbnailPublisher),
             new PublishingContentRenderer(templates ?? RequiredTemplates()),
             new FixedTimeProvider(Now),
             NullLogger<PublishHandler>.Instance);
@@ -586,7 +733,8 @@ public class PublishHandlerTests
         PublishStatus status,
         DateTimeOffset? platformDeletedUtc = null,
         string platformId = PlatformId,
-        string? externalResourceId = null) =>
+        string? externalResourceId = null,
+        ThumbnailPublishStatus? thumbnailStatus = null) =>
         new(
             CalendarEventId,
             platformId,
@@ -596,7 +744,21 @@ public class PublishHandlerTests
             externalResourceId,
             null,
             platformDeletedUtc,
-            Now);
+            Now,
+            ThumbnailStatus: thumbnailStatus);
+
+    private static Thumbnail Thumbnail() =>
+        new(
+            "stream.png",
+            "image/png",
+            11,
+            1280,
+            720,
+            Now,
+            "calendar-events/f81d4fae7dec11d0a76500a0c91e6bf6/thumbnail");
+
+    private static ThumbnailContent ThumbnailContent() =>
+        new([1, 2, 3], "image/png");
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
@@ -614,6 +776,34 @@ public class PublishHandlerTests
             string calendarEventId,
             CancellationToken cancellationToken) =>
             Task.FromResult(calendarEvent);
+    }
+
+    private sealed class FakeThumbnailReader(Thumbnail? thumbnail) : ICalendarEventThumbnailReader
+    {
+        public Task<Thumbnail?> GetThumbnailAsync(
+            string calendarEventId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(thumbnail);
+    }
+
+    private sealed class FakeThumbnailStore(ThumbnailContent? content) : IThumbnailStore
+    {
+        public Task SaveAsync(
+            string blobName,
+            byte[] content,
+            string contentType,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<ThumbnailContent?> GetAsync(
+            string blobName,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(content);
+
+        public Task DeleteAsync(
+            string blobName,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakePlatformReader(
@@ -678,6 +868,10 @@ public class PublishHandlerTests
 
         public bool MarkPublishedCalled { get; private set; }
 
+        public bool MarkThumbnailAppliedCalled { get; private set; }
+
+        public bool MarkThumbnailFailedCalled { get; private set; }
+
         public string? MarkedExternalResourceId { get; private set; }
 
         public PlatformPublicationAttempt? StartedAttempt { get; private set; }
@@ -714,6 +908,26 @@ public class PublishHandlerTests
             return Task.FromResult(MarkPublishedResult);
         }
 
+        public Task<bool> MarkThumbnailAppliedAsync(
+            string calendarEventId,
+            string platformId,
+            CancellationToken cancellationToken)
+        {
+            MarkThumbnailAppliedCalled = true;
+
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> MarkThumbnailFailedAsync(
+            string calendarEventId,
+            string platformId,
+            CancellationToken cancellationToken)
+        {
+            MarkThumbnailFailedCalled = true;
+
+            return Task.FromResult(true);
+        }
+
         public Task<DeletePublishedResult> DeletePublishedAsync(
             string calendarEventId,
             string platformId,
@@ -730,6 +944,12 @@ public class PublishHandlerTests
     private sealed class FakeSelector(IPlatformPublisher? publisher) : IPlatformPublisherSelector
     {
         public IPlatformPublisher? Find(PlatformType type) => publisher;
+    }
+
+    private sealed class FakeThumbnailSelector(
+        IThumbnailPublisher? publisher) : IThumbnailPublisherSelector
+    {
+        public IThumbnailPublisher? Find(PlatformType type) => publisher;
     }
 
     private sealed class FakeTemplateReader(params TemplateView[] templates) : ITemplateReader
@@ -785,6 +1005,36 @@ public class PublishHandlerTests
             }
 
             return Task.FromResult(Result ?? result ?? new PlatformPublishResult("yt-broadcast-id"));
+        }
+    }
+
+    private sealed class FakeThumbnailPublisher : IThumbnailPublisher
+    {
+        private readonly PlatformType type;
+
+        public FakeThumbnailPublisher(PlatformType type = PlatformType.YouTube)
+        {
+            this.type = type;
+        }
+
+        public Exception? Throws { get; init; }
+
+        public ThumbnailPublishRequest? Request { get; private set; }
+
+        public PlatformType Type => type;
+
+        public Task PublishAsync(
+            ThumbnailPublishRequest request,
+            CancellationToken cancellationToken)
+        {
+            Request = request;
+
+            if (Throws is not null)
+            {
+                throw Throws;
+            }
+
+            return Task.CompletedTask;
         }
     }
 }

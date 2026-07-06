@@ -45,8 +45,60 @@ public class AzurePlatformPublicationRepositoryTests
         Assert.NotNull(published);
         Assert.Equal(PublishStatus.Published, published.Status);
         Assert.Equal("yt-broadcast-id", published.ExternalResourceId);
+        Assert.Equal(ThumbnailPublishStatus.NotConfigured, published.ThumbnailStatus);
         Assert.Equal("Rendered title", published.ContentSnapshot!.Title);
         Assert.Equal("Rendered description", published.ContentSnapshot.Description);
+    }
+
+    [Fact]
+    public async Task MarkThumbnailApplied_PublishedRow_StoresApplied()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        await StartAndPublish(repository);
+
+        var updated = await repository.MarkThumbnailAppliedAsync(
+            CalendarEventId,
+            PlatformId,
+            CancellationToken.None);
+        var publication = await repository.GetAsync(CalendarEventId, PlatformId, CancellationToken.None);
+
+        Assert.True(updated);
+        Assert.Equal(ThumbnailPublishStatus.Applied, publication!.ThumbnailStatus);
+    }
+
+    [Fact]
+    public async Task MarkThumbnailFailed_PublishedRow_StoresFailed()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        await StartAndPublish(repository);
+
+        var updated = await repository.MarkThumbnailFailedAsync(
+            CalendarEventId,
+            PlatformId,
+            CancellationToken.None);
+        var publication = await repository.GetAsync(CalendarEventId, PlatformId, CancellationToken.None);
+
+        Assert.True(updated);
+        Assert.Equal(ThumbnailPublishStatus.Failed, publication!.ThumbnailStatus);
+    }
+
+    [Fact]
+    public async Task MarkThumbnailApplied_PublishingRow_ReturnsFalse()
+    {
+        var tableClient = new InMemoryTableClient();
+        var repository = CreateRepository(tableClient);
+        await repository.StartPublishingAsync(Attempt(), CancellationToken.None);
+
+        var updated = await repository.MarkThumbnailAppliedAsync(
+            CalendarEventId,
+            PlatformId,
+            CancellationToken.None);
+        var publication = await repository.GetAsync(CalendarEventId, PlatformId, CancellationToken.None);
+
+        Assert.False(updated);
+        Assert.Equal(ThumbnailPublishStatus.NotConfigured, publication!.ThumbnailStatus);
     }
 
     [Fact]
@@ -103,6 +155,25 @@ public class AzurePlatformPublicationRepositoryTests
         InMemoryTableClient tableClient) =>
         new(tableClient, new FixedTimeProvider(
             new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)));
+
+    private static async Task StartAndPublish(AzurePlatformPublicationRepository repository)
+    {
+        await repository.StartPublishingAsync(Attempt(), CancellationToken.None);
+        await repository.MarkPublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            "yt-broadcast-id",
+            CancellationToken.None);
+    }
+
+    private static PlatformPublicationAttempt Attempt() =>
+        new(
+            CalendarEventId,
+            PlatformId,
+            "Main YouTube channel",
+            PlatformType.YouTube,
+            YouTubeSettings(),
+            new ContentSnapshot("Rendered title", "Rendered description"));
 
     private static PlatformPublicationEntity PublishedEntity(string externalResourceId) =>
         new()
@@ -215,6 +286,7 @@ public class AzurePlatformPublicationRepositoryTests
                 PlatformType = entity.PlatformType,
                 Status = entity.Status,
                 ExternalResourceId = entity.ExternalResourceId,
+                ThumbnailStatus = entity.ThumbnailStatus,
                 ContentSnapshotTitle = entity.ContentSnapshotTitle,
                 ContentSnapshotDescription = entity.ContentSnapshotDescription,
                 PublishSettingsJson = entity.PublishSettingsJson,

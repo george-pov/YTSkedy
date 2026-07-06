@@ -169,6 +169,20 @@
   color: $app-color-muted;
 }
 
+.platform-status {
+  display: flex;
+  max-width: 28rem;
+  flex-direction: column;
+  gap: $app-space-1;
+
+  p {
+    margin: 0;
+    color: $app-color-warning-text;
+    font-size: 0.85rem;
+    line-height: 1.35;
+  }
+}
+
 .publishing-content-preview {
   display: flex;
   flex-direction: column;

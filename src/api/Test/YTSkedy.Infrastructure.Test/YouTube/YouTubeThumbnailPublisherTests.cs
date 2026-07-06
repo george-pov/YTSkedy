@@ -1,0 +1,144 @@
+using Microsoft.Extensions.Logging;
+using YTSkedy.Infrastructure.YouTube;
+using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Domain.Platforms;
+
+namespace YTSkedy.Infrastructure.Test.YouTube;
+
+public class YouTubeThumbnailPublisherTests
+{
+    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
+    private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
+    private const string BroadcastId = "yt-broadcast-id";
+    private const string ClientSecret = "client-secret-value";
+    private const string RefreshToken = "refresh-token-value";
+
+    [Fact]
+    public void Type_IsYouTube()
+    {
+        var publisher = CreatePublisher(new FakeThumbnailClient());
+
+        Assert.Equal(PlatformType.YouTube, publisher.Type);
+    }
+
+    [Fact]
+    public async Task PublishAsync_Success_UploadsThumbnailForBroadcast()
+    {
+        var client = new FakeThumbnailClient();
+        var publisher = CreatePublisher(client);
+        var request = Request();
+
+        await publisher.PublishAsync(request, CancellationToken.None);
+
+        Assert.Equal(BroadcastId, client.BroadcastId);
+        Assert.Equal("client-id", client.Credentials!.ClientId);
+        Assert.Same(request.ThumbnailContent, client.ThumbnailContent);
+    }
+
+    [Fact]
+    public async Task PublishAsync_NonYouTubeSettings_Throws()
+    {
+        var publisher = CreatePublisher(new FakeThumbnailClient());
+
+        await Assert.ThrowsAsync<ThumbnailPublishException>(
+            () => publisher.PublishAsync(Request(new OtherSettings()), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task PublishAsync_ProviderFailure_ThrowsWithoutLoggingSecrets()
+    {
+        var logger = new CapturingLogger<YouTubeThumbnailPublisher>();
+        var publisher = CreatePublisher(
+            new FakeThumbnailClient
+            {
+                Throws = new YouTubeThumbnailPublishException(null, ["invalidImage"])
+            },
+            logger);
+
+        await Assert.ThrowsAsync<ThumbnailPublishException>(
+            () => publisher.PublishAsync(Request(), CancellationToken.None));
+
+        var logText = string.Join(Environment.NewLine, logger.Entries.Select(entry => entry.Message));
+        Assert.DoesNotContain(ClientSecret, logText);
+        Assert.DoesNotContain(RefreshToken, logText);
+        Assert.Contains("invalidImage", logText);
+    }
+
+    [Fact]
+    public async Task PublishAsync_OperationCanceledException_Propagates()
+    {
+        var publisher = CreatePublisher(
+            new FakeThumbnailClient
+            {
+                Throws = new OperationCanceledException()
+            });
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => publisher.PublishAsync(Request(), CancellationToken.None));
+    }
+
+    private static YouTubeThumbnailPublisher CreatePublisher(
+        FakeThumbnailClient client,
+        ILogger<YouTubeThumbnailPublisher>? logger = null) =>
+        new(client, logger ?? new CapturingLogger<YouTubeThumbnailPublisher>());
+
+    private static ThumbnailPublishRequest Request(PublishSettings? settings = null) =>
+        new(
+            CalendarEventId,
+            PlatformId,
+            BroadcastId,
+            settings ?? new YouTubeSettings(
+                new YouTubeCredentials("client-id", ClientSecret, RefreshToken),
+                "private",
+                false),
+            new ThumbnailContent([1, 2, 3], "image/png"));
+
+    private sealed record OtherSettings : PublishSettings;
+
+    private sealed class FakeThumbnailClient : IYouTubeThumbnailClient
+    {
+        public YouTubeCredentials? Credentials { get; private set; }
+
+        public string? BroadcastId { get; private set; }
+
+        public ThumbnailContent? ThumbnailContent { get; private set; }
+
+        public Exception? Throws { get; init; }
+
+        public Task SetAsync(
+            YouTubeCredentials credentials,
+            string broadcastId,
+            ThumbnailContent thumbnailContent,
+            CancellationToken cancellationToken)
+        {
+            Credentials = credentials;
+            BroadcastId = broadcastId;
+            ThumbnailContent = thumbnailContent;
+
+            if (Throws is not null)
+            {
+                throw Throws;
+            }
+
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, formatter(state, exception)));
+    }
+}

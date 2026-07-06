@@ -20,6 +20,7 @@ public class PlatformPublicationMapperTests
         entity.UpdatedUtc = updatedUtc;
         entity.ContentSnapshotTitle = "Rendered title";
         entity.ContentSnapshotDescription = "Rendered description";
+        entity.ThumbnailStatus = "Applied";
 
         var publication = PlatformPublicationMapper.ToPublication(entity);
 
@@ -29,6 +30,7 @@ public class PlatformPublicationMapperTests
         Assert.Equal(PlatformType.YouTube, publication.PlatformType);
         Assert.Equal(PublishStatus.Published, publication.Status);
         Assert.Equal("abc123youtubeid", publication.ExternalResourceId);
+        Assert.Equal(ThumbnailPublishStatus.Applied, publication.ThumbnailStatus);
         Assert.Equal(publishedUtc, publication.PublishedUtc);
         Assert.Null(publication.PlatformDeletedUtc);
         Assert.Equal(updatedUtc, publication.UpdatedUtc);
@@ -101,6 +103,7 @@ public class PlatformPublicationMapperTests
         Assert.Equal("YouTube", entity.PlatformType);
         Assert.Equal("Publishing", entity.Status);
         Assert.Null(entity.ExternalResourceId);
+        Assert.Equal("NotConfigured", entity.ThumbnailStatus);
         Assert.Equal("Rendered title", entity.ContentSnapshotTitle);
         Assert.Equal("Rendered description", entity.ContentSnapshotDescription);
         Assert.Null(entity.PublishedUtc);
@@ -155,6 +158,7 @@ public class PlatformPublicationMapperTests
             new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero));
 
         Assert.Equal("WordPress", entity.PlatformType);
+        Assert.Null(entity.ThumbnailStatus);
         Assert.Contains("\"siteUrl\":\"https://example.com\"", entity.PublishSettingsJson);
         Assert.Contains("\"username\":\"editor\"", entity.PublishSettingsJson);
         Assert.Contains("\"postStatus\":\"publish\"", entity.PublishSettingsJson);
@@ -179,6 +183,26 @@ public class PlatformPublicationMapperTests
     public void ParseStatus_UnknownValue_Throws(string? stored)
     {
         Assert.Throws<InvalidOperationException>(() => PlatformPublicationMapper.ParseStatus(stored));
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData("NotConfigured", ThumbnailPublishStatus.NotConfigured)]
+    [InlineData("Applied", ThumbnailPublishStatus.Applied)]
+    [InlineData("failed", ThumbnailPublishStatus.Failed)]
+    public void ParseThumbnailStatus_KnownValue_ParsesCaseInsensitively(
+        string? stored,
+        ThumbnailPublishStatus? expected)
+    {
+        Assert.Equal(expected, PlatformPublicationMapper.ParseThumbnailStatus(stored));
+    }
+
+    [Fact]
+    public void ParseThumbnailStatus_UnknownValue_Throws()
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => PlatformPublicationMapper.ParseThumbnailStatus("nonsense"));
     }
 
     private static PlatformPublicationEntity CreateEntity(PublishStatus status) =>

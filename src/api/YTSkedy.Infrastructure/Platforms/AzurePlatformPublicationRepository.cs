@@ -114,6 +114,26 @@ public sealed class AzurePlatformPublicationRepository(
         }
     }
 
+    public Task<bool> MarkThumbnailAppliedAsync(
+        string calendarEventId,
+        string platformId,
+        CancellationToken cancellationToken) =>
+        MarkThumbnailStatusAsync(
+            calendarEventId,
+            platformId,
+            ThumbnailPublishStatus.Applied,
+            cancellationToken);
+
+    public Task<bool> MarkThumbnailFailedAsync(
+        string calendarEventId,
+        string platformId,
+        CancellationToken cancellationToken) =>
+        MarkThumbnailStatusAsync(
+            calendarEventId,
+            platformId,
+            ThumbnailPublishStatus.Failed,
+            cancellationToken);
+
     public async Task<DeletePublishedResult> DeletePublishedAsync(
         string calendarEventId,
         string platformId,
@@ -155,6 +175,49 @@ public sealed class AzurePlatformPublicationRepository(
         {
             return DeletePublishedResult.Changed;
         }
+    }
+
+    private async Task<bool> MarkThumbnailStatusAsync(
+        string calendarEventId,
+        string platformId,
+        ThumbnailPublishStatus thumbnailStatus,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
+
+        var entity = await TryGetEntityAsync(calendarEventId, platformId, cancellationToken);
+
+        if (entity is null || !CanMarkThumbnailStatus(entity))
+        {
+            return false;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        entity.ThumbnailStatus = thumbnailStatus.ToString();
+        entity.UpdatedUtc = now;
+
+        try
+        {
+            await tableClient.UpdateEntityAsync(
+                entity,
+                entity.ETag,
+                TableUpdateMode.Replace,
+                cancellationToken);
+
+            return true;
+        }
+        catch (RequestFailedException exception) when (exception.Status is 404 or 412)
+        {
+            return false;
+        }
+    }
+
+    internal static bool CanMarkThumbnailStatus(PlatformPublicationEntity entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+
+        return PlatformPublicationMapper.ParseStatus(entity.Status) == PublishStatus.Published;
     }
 
     internal static DeletePublishedResult CanDeletePublished(

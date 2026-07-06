@@ -1,8 +1,3 @@
-using Google.Apis.Auth.OAuth2;
-using Google.Apis.Auth.OAuth2.Flows;
-using Google.Apis.Auth.OAuth2.Responses;
-using Google.Apis.Services;
-using Google.Apis.YouTube.v3;
 using Microsoft.Extensions.Logging;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
@@ -21,8 +16,6 @@ namespace YTSkedy.Infrastructure.YouTube;
 public sealed class YouTubePublisher(
     ILogger<YouTubePublisher> logger) : IPlatformPublisher
 {
-    private const string ApplicationName = "YTSkedy";
-
     public PlatformType Type => PlatformType.YouTube;
 
     public async Task<PlatformPublishResult> PublishAsync(
@@ -48,7 +41,7 @@ public sealed class YouTubePublisher(
 
         try
         {
-            var service = CreateService(settings.Credentials);
+            var service = YouTubeServiceFactory.Create(settings.Credentials);
 
             var created = await service.LiveBroadcasts
                 .Insert(broadcast, "snippet,status")
@@ -83,27 +76,5 @@ public sealed class YouTubePublisher(
                 $"Failed to publish calendar event '{request.CalendarEventId}' to YouTube.",
                 exception);
         }
-    }
-
-    private static YouTubeService CreateService(YouTubeCredentials credentials)
-    {
-        var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
-        {
-            ClientSecrets = new ClientSecrets
-            {
-                ClientId = credentials.ClientId,
-                ClientSecret = credentials.ClientSecret
-            },
-            Scopes = [YouTubeService.Scope.Youtube]
-        });
-
-        var token = new TokenResponse { RefreshToken = credentials.RefreshToken };
-        var credential = new UserCredential(flow, ApplicationName, token);
-
-        return new YouTubeService(new BaseClientService.Initializer
-        {
-            HttpClientInitializer = credential,
-            ApplicationName = ApplicationName
-        });
     }
 }

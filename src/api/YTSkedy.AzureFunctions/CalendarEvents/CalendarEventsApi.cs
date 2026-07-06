@@ -404,6 +404,7 @@ public sealed class CalendarEventsApi(
             view.PlatformType.ToString(),
             view.Status.ToString(),
             view.ExternalResourceId,
+            view.ThumbnailStatus?.ToString(),
             view.PublishedUtc,
             view.PlatformDeletedUtc,
             view.CanPublish,

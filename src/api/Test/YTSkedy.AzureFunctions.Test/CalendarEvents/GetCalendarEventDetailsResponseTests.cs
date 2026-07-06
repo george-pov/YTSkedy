@@ -74,7 +74,8 @@ public sealed class GetCalendarEventDetailsResponseTests
                 null,
                 CanPublish: true,
                 CanDeletePublication: false,
-                CanPreviewPublishingContent: true),
+                CanPreviewPublishingContent: true,
+                ThumbnailStatus: ThumbnailPublishStatus.NotConfigured),
             new EventPlatformView(
                 OrphanPlatformId,
                 "Old channel",
@@ -85,7 +86,8 @@ public sealed class GetCalendarEventDetailsResponseTests
                 deletedUtc,
                 CanPublish: false,
                 CanDeletePublication: false,
-                CanPreviewPublishingContent: true)
+                CanPreviewPublishingContent: true,
+                ThumbnailStatus: ThumbnailPublishStatus.Failed)
         };
         var details = new CalendarEventDetailsView(
             CreateEvent(),
@@ -107,6 +109,7 @@ public sealed class GetCalendarEventDetailsResponseTests
         Assert.Equal("YouTube", active.PlatformType);
         Assert.Equal("NotPublished", active.Status);
         Assert.Null(active.ExternalResourceId);
+        Assert.Equal("NotConfigured", active.ThumbnailStatus);
         Assert.Null(active.PublishedUtc);
         Assert.Null(active.PlatformDeletedUtc);
         Assert.True(active.CanPublish);
@@ -117,6 +120,7 @@ public sealed class GetCalendarEventDetailsResponseTests
         Assert.Equal(OrphanPlatformId, orphan.PlatformId);
         Assert.Equal("Published", orphan.Status);
         Assert.Equal("oldyoutubeid", orphan.ExternalResourceId);
+        Assert.Equal("Failed", orphan.ThumbnailStatus);
         Assert.Equal(publishedUtc, orphan.PublishedUtc);
         Assert.Equal(deletedUtc, orphan.PlatformDeletedUtc);
         Assert.False(orphan.CanPublish);
@@ -169,12 +173,14 @@ public sealed class GetCalendarEventDetailsResponseTests
             null,
             CanPublish: false,
             CanDeletePublication: true,
-            CanPreviewPublishingContent: true);
+            CanPreviewPublishingContent: true,
+            ThumbnailStatus: ThumbnailPublishStatus.Applied);
 
         var response = CalendarEventsApi.ToEventPlatformResponse(view);
 
         Assert.Equal("Published", response.Status);
         Assert.Equal("abc123youtubeid", response.ExternalResourceId);
+        Assert.Equal("Applied", response.ThumbnailStatus);
         Assert.Equal(publishedUtc, response.PublishedUtc);
         Assert.Null(response.PlatformDeletedUtc);
         Assert.False(response.CanPublish);

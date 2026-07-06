@@ -292,6 +292,8 @@ builder.Services.AddHttpClient<WordPressPublisher>();
 builder.Services.AddSingleton<IPlatformPublisher>(
     serviceProvider => serviceProvider.GetRequiredService<WordPressPublisher>());
 builder.Services.AddSingleton<IPlatformPublisherSelector, PlatformPublisherSelector>();
+builder.Services.AddSingleton<IThumbnailPublisher, YouTubeThumbnailPublisher>();
+builder.Services.AddSingleton<IThumbnailPublisherSelector, ThumbnailPublisherSelector>();
 builder.Services.AddScoped<PublishHandler>();
 
 // Platform publication cleanup: providers are selected by platform type and use

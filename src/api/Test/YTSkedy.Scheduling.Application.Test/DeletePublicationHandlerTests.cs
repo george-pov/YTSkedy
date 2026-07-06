@@ -344,6 +344,18 @@ public class DeletePublicationHandlerTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
+        public Task<bool> MarkThumbnailAppliedAsync(
+            string calendarEventId,
+            string platformId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> MarkThumbnailFailedAsync(
+            string calendarEventId,
+            string platformId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<DeletePublishedResult> DeletePublishedAsync(
             string calendarEventId,
             string platformId,

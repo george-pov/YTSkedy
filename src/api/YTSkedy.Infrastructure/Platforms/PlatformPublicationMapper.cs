@@ -32,7 +32,8 @@ internal static class PlatformPublicationMapper
             PublishSettingsSerializer.DeserializeSnapshot(
                 platformType,
                 entity.PublishSettingsJson),
-            ToContentSnapshot(entity));
+            ToContentSnapshot(entity),
+            ParseThumbnailStatus(entity.ThumbnailStatus));
     }
 
     internal static IReadOnlyList<PlatformPublication> ToPublications(
@@ -67,6 +68,7 @@ internal static class PlatformPublicationMapper
             PlatformType = attempt.PlatformType.ToString(),
             Status = PublishStatus.Publishing.ToString(),
             ExternalResourceId = null,
+            ThumbnailStatus = ToInitialThumbnailStatus(attempt.PlatformType)?.ToString(),
             ContentSnapshotTitle = attempt.ContentSnapshot.Title,
             ContentSnapshotDescription = attempt.ContentSnapshot.Description,
             PublishSettingsJson = PublishSettingsSerializer.SerializeSnapshot(
@@ -87,6 +89,19 @@ internal static class PlatformPublicationMapper
             "published" => PublishStatus.Published,
             _ => throw InvalidStoredValue(nameof(PublishStatus), status)
         };
+
+    internal static ThumbnailPublishStatus? ParseThumbnailStatus(string? status) =>
+        status?.ToLowerInvariant() switch
+        {
+            null or "" => null,
+            "notconfigured" => ThumbnailPublishStatus.NotConfigured,
+            "applied" => ThumbnailPublishStatus.Applied,
+            "failed" => ThumbnailPublishStatus.Failed,
+            _ => throw InvalidStoredValue(nameof(ThumbnailPublishStatus), status)
+        };
+
+    private static ThumbnailPublishStatus? ToInitialThumbnailStatus(PlatformType platformType) =>
+        platformType == PlatformType.YouTube ? ThumbnailPublishStatus.NotConfigured : null;
 
     private static ContentSnapshot? ToContentSnapshot(PlatformPublicationEntity entity) =>
         entity.ContentSnapshotTitle is null

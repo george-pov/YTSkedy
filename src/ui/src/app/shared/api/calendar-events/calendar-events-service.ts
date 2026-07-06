@@ -14,6 +14,7 @@ import {
 } from './calendar-events-endpoint';
 
 export type CalendarEventPlatformStatus = 'NotPublished' | 'Publishing' | 'Published';
+export type ThumbnailPublishStatus = 'NotConfigured' | 'Applied' | 'Failed';
 export type PublishingContentType = 'Preview' | 'Snapshot';
 
 interface CalendarEventFields {
@@ -49,6 +50,7 @@ export interface CalendarEventPlatform {
   platformType: string;
   status: CalendarEventPlatformStatus;
   externalResourceId: string | null;
+  thumbnailStatus: ThumbnailPublishStatus | null;
   publishedUtc: string | null;
   platformDeletedUtc: string | null;
   canPublish: boolean;

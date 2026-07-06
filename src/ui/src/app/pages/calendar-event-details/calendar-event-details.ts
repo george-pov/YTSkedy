@@ -136,6 +136,7 @@ export class CalendarEventDetails implements OnDestroy {
     { key: 'status', header: 'Status', value: (platform) => platform.status },
     { key: 'actions', header: 'Actions' },
   ];
+  protected readonly thumbnailStatusText = thumbnailStatusText;
 
   // Editable starts use a live UTC preview. Locked edit-mode events keep the
   // backend-provided UTC instant instead of deriving a local preview.
@@ -718,6 +719,12 @@ export function describeThumbnailError(error: unknown): string {
   }
 
   return 'The thumbnail could not be changed. Check your connection and try again.';
+}
+
+export function thumbnailStatusText(platform: CalendarEventPlatform): string | null {
+  return platform.thumbnailStatus === 'Failed'
+    ? 'YouTube broadcast was created, but the thumbnail was not applied. Update it in YouTube Studio.'
+    : null;
 }
 
 function describeClientThumbnailError(file: File): string | null {
