@@ -28,8 +28,6 @@ import { ConfirmationDialogService } from 'src/app/shared/components/confirmatio
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import {
   CalendarEventDetails,
-  describeThumbnailError,
-  isSupportedThumbnailFile,
   thumbnailStatusText,
 } from './calendar-event-details';
 import { CalendarEventDetailsModel } from './calendar-event-details.form';
@@ -84,6 +82,7 @@ describe('CalendarEventDetails', () => {
   let confirmation: { confirm: Mock<(data: unknown) => Observable<string | undefined>> };
   let notifications: { showSuccess: Mock<(message: string) => void> };
   let navigations: string[];
+  let navigationStates: Array<Record<string, unknown> | undefined>;
 
   beforeEach(() => {
     service = {
@@ -124,6 +123,7 @@ describe('CalendarEventDetails', () => {
     confirmation.confirm.mockReturnValue(of('delete'));
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
     navigations = [];
+    navigationStates = [];
     let objectUrlIndex = 0;
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
@@ -150,8 +150,9 @@ describe('CalendarEventDetails', () => {
     fixture = TestBed.createComponent(CalendarEventDetails);
 
     const router = TestBed.inject(Router);
-    router.navigateByUrl = ((url: string) => {
+    router.navigateByUrl = ((url: string, extras?: { state?: Record<string, unknown> }) => {
       navigations.push(url);
+      navigationStates.push(extras?.state);
       return Promise.resolve(true);
     }) as Router['navigateByUrl'];
 
@@ -426,7 +427,7 @@ describe('CalendarEventDetails', () => {
     expect(navigations).toEqual(['/calendar-events']);
   });
 
-  it('keeps the created event and shows a thumbnail error when create-mode upload fails', async () => {
+  it('opens the created event edit page when create-mode thumbnail upload fails', async () => {
     const file = imageFile('stream.png', 'image/png');
     service.create.mockReturnValue(of({ calendarEventId: 'created-event' }));
     service.uploadThumbnail.mockReturnValue(
@@ -439,11 +440,14 @@ describe('CalendarEventDetails', () => {
 
     expect(service.create).toHaveBeenCalledTimes(1);
     expect(service.uploadThumbnail).toHaveBeenCalledWith('created-event', file);
-    expect(fixture.nativeElement.textContent).toContain(
-      'The thumbnail can no longer be changed. Reload the page and try again.',
-    );
     expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event created.');
-    expect(navigations).toEqual([]);
+    expect(navigations).toEqual(['/calendar-events/created-event/edit']);
+    expect(navigationStates).toEqual([
+      {
+        thumbnailErrorMessage:
+          'The thumbnail can no longer be changed. Reload the page and try again.',
+      },
+    ]);
   });
 
   it('disables create-mode thumbnail selection while saving the event', () => {
@@ -454,25 +458,6 @@ describe('CalendarEventDetails', () => {
     fixture.detectChanges();
 
     expect(thumbnailSelectInput()!.disabled).toBe(true);
-  });
-
-  it('validates supported thumbnail files by browser type and file name', () => {
-    expect(isSupportedThumbnailFile(imageFile('stream.png', 'image/png'))).toBe(true);
-    expect(isSupportedThumbnailFile(imageFile('stream.jpg', 'image/jpeg'))).toBe(true);
-    expect(isSupportedThumbnailFile(imageFile('stream.gif', 'image/png'))).toBe(false);
-    expect(isSupportedThumbnailFile(imageFile('stream.png', 'image/gif'))).toBe(false);
-  });
-
-  it('maps thumbnail API errors to thumbnail-specific messages', () => {
-    expect(describeThumbnailError(new HttpErrorResponse({ status: 400 }))).toContain(
-      'JPEG or PNG image up to 2 MB',
-    );
-    expect(describeThumbnailError(new HttpErrorResponse({ status: 409 }))).toContain(
-      'can no longer be changed',
-    );
-    expect(describeThumbnailError(new Error('network'))).toContain(
-      'Check your connection and try again',
-    );
   });
 
   it('maps failed thumbnail publish status to a non-actionable warning', () => {
@@ -533,7 +518,7 @@ describe('CalendarEventDetails', () => {
   describe('edit mode', () => {
     const editId = calendarEventId;
 
-    function createEditComponent(): void {
+    function createEditComponent(navigationState?: Record<string, unknown>): void {
       eventTextFieldsService.get.mockClear();
       TestBed.resetTestingModule();
       TestBed.configureTestingModule({
@@ -549,11 +534,18 @@ describe('CalendarEventDetails', () => {
         ],
       });
 
+      const router = TestBed.inject(Router);
+      if (navigationState !== undefined) {
+        vi.spyOn(router, 'getCurrentNavigation').mockReturnValue({
+          extras: { state: navigationState },
+        } as ReturnType<Router['getCurrentNavigation']>);
+      }
+
       fixture = TestBed.createComponent(CalendarEventDetails);
 
-      const router = TestBed.inject(Router);
-      router.navigateByUrl = ((url: string) => {
+      router.navigateByUrl = ((url: string, extras?: { state?: Record<string, unknown> }) => {
         navigations.push(url);
+        navigationStates.push(extras?.state);
         return Promise.resolve(true);
       }) as Router['navigateByUrl'];
 
@@ -571,6 +563,19 @@ describe('CalendarEventDetails', () => {
         (input) => (input as HTMLInputElement | HTMLTextAreaElement).value,
       );
       expect(fieldValues).toContain('English title');
+    });
+
+    it('shows the create-mode thumbnail upload error carried by navigation state', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent({
+        thumbnailErrorMessage:
+          'The thumbnail can no longer be changed. Reload the page and try again.',
+      });
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'The thumbnail can no longer be changed. Reload the page and try again.',
+      );
     });
 
     it('shows the edit heading', () => {

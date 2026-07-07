@@ -1,0 +1,126 @@
+<fieldset class="thumbnail-section">
+  <legend>Thumbnail</legend>
+
+  @if (state().errorMessage(); as message) {
+    <app-alert variant="error">
+      {{ message }}
+    </app-alert>
+  }
+
+  @if (isEditMode() && !state().canUpdate()) {
+    <app-alert variant="info">
+      Delete platform publications before changing this thumbnail.
+    </app-alert>
+  }
+
+  @if (isEditMode()) {
+    @if (state().thumbnail(); as currentThumbnail) {
+      <div class="thumbnail-current">
+        @if (state().previewUrl(); as previewUrl) {
+          <img
+            class="thumbnail-preview"
+            [src]="previewUrl"
+            alt="Current thumbnail preview"
+          />
+        }
+
+        <div class="thumbnail-details">
+          <dl>
+            <div>
+              <dt>File</dt>
+              <dd>{{ currentThumbnail.fileName }}</dd>
+            </div>
+            <div>
+              <dt>Size</dt>
+              <dd>{{ currentThumbnail.sizeBytes }} bytes</dd>
+            </div>
+            <div>
+              <dt>Dimensions</dt>
+              <dd>{{ currentThumbnail.width }} x {{ currentThumbnail.height }}</dd>
+            </div>
+          </dl>
+
+          <div class="app-actions">
+            <label class="thumbnail-file-control">
+              <span>Replace thumbnail</span>
+              <input
+                class="thumbnail-replace-input"
+                type="file"
+                [accept]="state().acceptedFileTypes"
+                [disabled]="!state().canMutate()"
+                (change)="state().replaceThumbnail($event)"
+              />
+            </label>
+            <app-button
+              type="button"
+              appearance="outlined"
+              icon="delete"
+              [disabled]="!state().canMutate()"
+              (click)="state().deleteThumbnail()"
+            >
+              {{ state().isDeleting() ? 'Deleting thumbnail...' : 'Delete thumbnail' }}
+            </app-button>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <p class="thumbnail-empty">No thumbnail selected.</p>
+      <label class="thumbnail-file-control">
+        <span>Add thumbnail</span>
+        <input
+          class="thumbnail-replace-input"
+          type="file"
+          [accept]="state().acceptedFileTypes"
+          [disabled]="!state().canMutate()"
+          (change)="state().replaceThumbnail($event)"
+        />
+      </label>
+    }
+
+    @if (state().selectedPreviewUrl(); as selectedPreviewUrl) {
+      <div class="thumbnail-selected" aria-live="polite">
+        <img
+          class="thumbnail-preview"
+          [src]="selectedPreviewUrl"
+          alt="Selected thumbnail preview"
+        />
+        <p>{{ state().selectedFile()?.name }}</p>
+      </div>
+    }
+  } @else {
+    <label class="thumbnail-file-control">
+      <span>Thumbnail image</span>
+      <input
+        #thumbnailInput
+        class="thumbnail-select-input"
+        type="file"
+        [accept]="state().acceptedFileTypes"
+        [disabled]="!state().canMutate()"
+        (change)="state().selectThumbnail($event)"
+      />
+    </label>
+
+    @if (state().selectedPreviewUrl(); as previewUrl) {
+      <div class="thumbnail-selected" aria-live="polite">
+        <img
+          class="thumbnail-preview"
+          [src]="previewUrl"
+          alt="Selected thumbnail preview"
+        />
+        <div>
+          <p>{{ state().selectedFile()?.name }}</p>
+          <app-button
+            class="thumbnail-clear-button"
+            type="button"
+            appearance="outlined"
+            icon="close"
+            [disabled]="!state().canMutate()"
+            (click)="state().clearSelectedThumbnail(); thumbnailInput.value = ''"
+          >
+            Clear thumbnail
+          </app-button>
+        </div>
+      </div>
+    }
+  }
+</fieldset>
