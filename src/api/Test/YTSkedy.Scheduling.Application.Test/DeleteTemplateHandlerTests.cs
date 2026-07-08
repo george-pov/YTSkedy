@@ -50,13 +50,12 @@ public class DeleteTemplateHandlerTests
             modifier,
             new FakePlatformReader(
                 [
-                    new PlatformView(
-                        "p1",
-                        "Main channel",
-                        null,
-                        PlatformType.YouTube,
-                        YouTubeSettings(),
-                        new PublishingContent("9f8b1c2d3e4f", "description-template"))
+                    ApplicationTestData.Platform(
+                        platformId: "p1",
+                        name: "Main channel",
+                        publishingContent: new PublishingContent(
+                            "9f8b1c2d3e4f",
+                            "description-template"))
                 ]));
         var command = new DeleteTemplateCommand(TemplateType.YouTube, "9f8b1c2d3e4f");
 
@@ -110,29 +109,4 @@ public class DeleteTemplateHandlerTests
             return Task.FromResult(DeleteResult);
         }
     }
-
-    private sealed class FakePlatformReader(IReadOnlyList<PlatformView> platforms) : IPlatformReader
-    {
-        public PlatformType? RequestedType { get; private set; }
-
-        public Task<IReadOnlyList<PlatformView>> ListAsync(
-            PlatformType? type,
-            CancellationToken cancellationToken)
-        {
-            RequestedType = type;
-
-            return Task.FromResult(platforms);
-        }
-
-        public Task<PlatformView?> GetAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
-
-    private static YouTubeSettings YouTubeSettings() =>
-        new(
-            new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
-            "private",
-            false);
 }

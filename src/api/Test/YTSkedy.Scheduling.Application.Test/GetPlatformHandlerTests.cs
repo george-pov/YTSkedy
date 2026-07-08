@@ -1,5 +1,4 @@
 using YTSkedy.Scheduling.Application.Platforms;
-using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
@@ -8,26 +7,23 @@ public class GetPlatformHandlerTests
     [Fact]
     public async Task HandleAsync_Found_ReturnsView()
     {
-        var view = new PlatformView(
-            "p1",
-            "Main channel",
-            "main-youtube",
-            PlatformType.YouTube,
-            YouTubeSettings(),
-            RequiredPublishingContent());
-        var reader = new FakePlatformReader { View = view };
+        var view = ApplicationTestData.Platform(
+            platformId: "p1",
+            name: "Main channel",
+            referenceKey: "main-youtube");
+        var reader = new FakePlatformReader(getResult: view);
         var handler = new GetPlatformHandler(reader);
 
         var result = await handler.HandleAsync("p1", CancellationToken.None);
 
         Assert.Same(view, result);
-        Assert.Equal("p1", reader.RequestedPlatformId);
+        Assert.Equal("p1", reader.PlatformId);
     }
 
     [Fact]
     public async Task HandleAsync_Missing_ReturnsNull()
     {
-        var reader = new FakePlatformReader { View = null };
+        var reader = new FakePlatformReader(getResult: null);
         var handler = new GetPlatformHandler(reader);
 
         var result = await handler.HandleAsync("missing", CancellationToken.None);
@@ -46,31 +42,4 @@ public class GetPlatformHandlerTests
         await Assert.ThrowsAnyAsync<ArgumentException>(
             () => handler.HandleAsync(platformId!, CancellationToken.None));
     }
-
-    private sealed class FakePlatformReader : IPlatformReader
-    {
-        public PlatformView? View { get; init; }
-
-        public string? RequestedPlatformId { get; private set; }
-
-        public Task<IReadOnlyList<PlatformView>> ListAsync(
-            PlatformType? type,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<PlatformView?> GetAsync(
-            string platformId,
-            CancellationToken cancellationToken)
-        {
-            RequestedPlatformId = platformId;
-
-            return Task.FromResult(View);
-        }
-    }
-
-    private static YouTubeSettings YouTubeSettings() =>
-        new(new YouTubeCredentials("client-id", "client-secret", "refresh-token"), "private", false);
-
-    private static PublishingContent RequiredPublishingContent() =>
-        new("title-template", "description-template");
 }

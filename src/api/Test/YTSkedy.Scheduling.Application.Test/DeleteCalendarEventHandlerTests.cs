@@ -109,8 +109,13 @@ public class DeleteCalendarEventHandlerTests
         FakeThumbnailStore? store = null,
         bool canMutate = true) =>
         new(
-            new FakeCalendarEventReader(calendarEvent),
-            new FakePublicationReader(hasAnyForEvent: !canMutate),
+            new FakeCalendarEventReader(getResult: calendarEvent),
+            new FakePlatformPublicationReader(
+                canMutate
+                    ? []
+                    : [ApplicationTestData.Publication(
+                        PublishStatus.Published,
+                        calendarEventId: CalendarEventId)]),
             modifier,
             new FakeThumbnailReader(thumbnail),
             store ?? new FakeThumbnailStore());
@@ -128,44 +133,10 @@ public class DeleteCalendarEventHandlerTests
                 ]));
 
     private static Thumbnail CreateThumbnail() =>
-        new("stream.png", "image/png", 123, 1280, 720, StartUtc, BlobName);
-
-    private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent) : ICalendarEventReader
-    {
-        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
-            CalendarEventMonthCriteria? criteria,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<CalendarEventView?> GetByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(calendarEvent);
-    }
-
-    private sealed class FakePublicationReader(bool hasAnyForEvent) : IPlatformPublicationReader
-    {
-        public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> HasAnyForEventAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(hasAnyForEvent);
-
-        public Task<PlatformPublication?> GetAsync(
-            string calendarEventId,
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<PlatformPublication>> ListPublishingByPlatformAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
+        ApplicationTestData.Thumbnail(
+            calendarEventId: CalendarEventId,
+            updatedUtc: StartUtc,
+            blobName: BlobName);
 
     private sealed class FakeCalendarEventModifier : ICalendarEventModifier
     {
@@ -197,47 +168,4 @@ public class DeleteCalendarEventHandlerTests
         }
     }
 
-    private sealed class FakeThumbnailReader(Thumbnail? thumbnail) : ICalendarEventThumbnailReader
-    {
-        public Task<Thumbnail?> GetThumbnailAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(thumbnail);
-    }
-
-    private sealed class FakeThumbnailStore : IThumbnailStore
-    {
-        public bool ThrowOnDelete { get; init; }
-
-        public int DeleteCallCount { get; private set; }
-
-        public string? DeletedBlobName { get; private set; }
-
-        public Task SaveAsync(
-            string blobName,
-            byte[] content,
-            string contentType,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<ThumbnailContent?> GetAsync(
-            string blobName,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task DeleteAsync(
-            string blobName,
-            CancellationToken cancellationToken)
-        {
-            DeleteCallCount++;
-            DeletedBlobName = blobName;
-
-            if (ThrowOnDelete)
-            {
-                throw new InvalidOperationException("Blob delete failed.");
-            }
-
-            return Task.CompletedTask;
-        }
-    }
 }

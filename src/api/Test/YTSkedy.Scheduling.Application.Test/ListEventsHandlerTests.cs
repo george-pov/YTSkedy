@@ -292,29 +292,4 @@ public class ListEventsHandlerTests
     private static string[] Ids(CalendarEventListPage page) =>
         page.Items.Select(item => item.CalendarEventId).ToArray();
 
-    private sealed class FakeCalendarEventReader(
-        IReadOnlyList<CalendarEventView> items) : ICalendarEventReader
-    {
-        public bool ListCalled { get; private set; }
-
-        public CalendarEventMonthCriteria? Criteria { get; private set; }
-
-        public CancellationToken CancellationToken { get; private set; }
-
-        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
-            CalendarEventMonthCriteria? criteria,
-            CancellationToken cancellationToken)
-        {
-            ListCalled = true;
-            Criteria = criteria;
-            CancellationToken = cancellationToken;
-
-            return Task.FromResult(items);
-        }
-
-        public Task<CalendarEventView?> GetByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<CalendarEventView?>(null);
-    }
 }

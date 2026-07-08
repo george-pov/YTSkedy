@@ -15,10 +15,7 @@ public class DeletePublicationHandlerTests
     private static readonly DateTimeOffset Now = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset FutureStart = new(2026, 6, 15, 17, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset PastStart = Now;
-    private static readonly YouTubeSettings Settings = new(
-        new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
-        "private",
-        false);
+    private static readonly YouTubeSettings Settings = ApplicationTestData.YouTubeSettings();
 
     [Fact]
     public async Task DeletePublication_MissingEvent_ReturnsEventNotFound()
@@ -214,113 +211,47 @@ public class DeletePublicationHandlerTests
         bool hasPublication = true,
         bool hasDeleter = true) =>
         new(
-            new FakeCalendarEventReader(hasCalendarEvent ? calendarEvent ?? Event(FutureStart) : null),
-            new FakePlatformReader(hasPlatform ? platform ?? Platform() : null),
-            new FakePublicationReader(
-                hasPublication ? publication ?? Publication(PublishStatus.Published) : null),
+            new FakeCalendarEventReader(
+                getResult: hasCalendarEvent ? calendarEvent ?? Event(FutureStart) : null),
+            new FakePlatformReader(getResult: hasPlatform ? platform ?? Platform() : null),
+            new FakePlatformPublicationReader(
+                hasPublication ? [publication ?? Publication(PublishStatus.Published)] : []),
             repository ?? new FakePublicationRepository(),
             new FakePublicationDeleterSelector(
                 hasDeleter ? deleter ?? new FakePublicationDeleter() : null),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             NullLogger<DeletePublicationHandler>.Instance);
 
     private static CalendarEventView Event(DateTimeOffset startUtc) =>
-        new(
-            CalendarEventId,
-            new ScheduledStart(startUtc.UtcDateTime, "UTC"),
-            startUtc,
-            EventTextSnapshot.Create(
-                EventTextFields.Default,
-                [
-                    new EventTextValue("text1", "English title"),
-                    new EventTextValue("text2", "Description")
-                ]));
+        ApplicationTestData.CalendarEvent(
+            calendarEventId: CalendarEventId,
+            scheduledStartUtc: startUtc,
+            start: new ScheduledStart(startUtc.UtcDateTime, "UTC"));
 
     private static PlatformView Platform() =>
-        new(
-            PlatformId,
-            "Main YouTube channel",
-            null,
-            PlatformType.YouTube,
-            Settings,
-            new PublishingContent("title-template", "description-template"));
+        ApplicationTestData.Platform(
+            platformId: PlatformId,
+            name: "Main YouTube channel",
+            publishSettings: Settings);
 
     private static PlatformPublication Publication(
         PublishStatus status,
         string? externalResourceId = ExternalResourceId,
         DateTimeOffset? platformDeletedUtc = null,
         PublicationTargetSnapshot? targetSnapshot = null) =>
-        new(
-            CalendarEventId,
-            PlatformId,
-            "Main YouTube channel",
-            PlatformType.YouTube,
+        ApplicationTestData.Publication(
             status,
-            externalResourceId,
-            new DateTimeOffset(2026, 5, 30, 12, 0, 0, TimeSpan.Zero),
-            platformDeletedUtc,
-            new DateTimeOffset(2026, 5, 30, 12, 0, 0, TimeSpan.Zero),
-            targetSnapshot ?? new PublicationTargetSnapshot(
+            calendarEventId: CalendarEventId,
+            platformId: PlatformId,
+            platformName: "Main YouTube channel",
+            externalResourceId: externalResourceId,
+            publishedUtc: new DateTimeOffset(2026, 5, 30, 12, 0, 0, TimeSpan.Zero),
+            platformDeletedUtc: platformDeletedUtc,
+            updatedUtc: new DateTimeOffset(2026, 5, 30, 12, 0, 0, TimeSpan.Zero),
+            targetSnapshot: targetSnapshot ?? new PublicationTargetSnapshot(
                 PlatformType.YouTube,
                 WordPressSiteUrl: null,
-                YouTubeClientId: "client-id"));
-
-    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now;
-    }
-
-    private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent)
-        : ICalendarEventReader
-    {
-        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
-            CalendarEventMonthCriteria? criteria,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<CalendarEventView?> GetByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<CalendarEventView?>(calendarEvent);
-    }
-
-    private sealed class FakePlatformReader(PlatformView? platform) : IPlatformReader
-    {
-        public Task<IReadOnlyList<PlatformView>> ListAsync(
-            PlatformType? type,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<PlatformView?> GetAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(platform);
-    }
-
-    private sealed class FakePublicationReader(PlatformPublication? publication)
-        : IPlatformPublicationReader
-    {
-        public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> HasAnyForEventAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<PlatformPublication?> GetAsync(
-            string calendarEventId,
-            string platformId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(publication);
-
-        public Task<IReadOnlyList<PlatformPublication>> ListPublishingByPlatformAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
+                YouTubeClientId: ApplicationTestData.YouTubeClientId));
 
     private sealed class FakePublicationRepository : IPlatformPublicationRepository
     {

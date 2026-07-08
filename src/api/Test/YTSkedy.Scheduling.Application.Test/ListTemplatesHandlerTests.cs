@@ -47,26 +47,4 @@ public class ListTemplatesHandlerTests
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
     }
-
-    private sealed class FakeTemplateReader(IReadOnlyList<TemplateView> views) : ITemplateReader
-    {
-        public int ListCallCount { get; private set; }
-        public TemplateType? RequestedType { get; private set; }
-
-        public Task<TemplateView?> GetAsync(
-            TemplateType type,
-            string templateId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<TemplateView>> ListAsync(
-            TemplateType? type,
-            CancellationToken cancellationToken)
-        {
-            ListCallCount++;
-            RequestedType = type;
-
-            return Task.FromResult(views);
-        }
-    }
 }

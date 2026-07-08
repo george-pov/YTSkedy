@@ -158,8 +158,13 @@ public class UpdateCalendarEventHandlerTests
         FakeCalendarEventModifier modifier,
         bool canMutate = true) =>
         new(
-            new FakeCalendarEventReader(calendarEvent),
-            new FakePublicationReader(hasAnyForEvent: !canMutate),
+            new FakeCalendarEventReader(getResult: calendarEvent),
+            new FakePlatformPublicationReader(
+                canMutate
+                    ? []
+                    : [ApplicationTestData.Publication(
+                        PublishStatus.Published,
+                        calendarEventId: CalendarEventId)]),
             modifier);
 
     private static CalendarEventView CreateCalendarEventView() =>
@@ -176,43 +181,6 @@ public class UpdateCalendarEventHandlerTests
 
     private static ScheduledStart ValidUpdatedStart() =>
         new(new DateTime(2026, 07, 20, 09, 30, 00), "Europe/London");
-
-    private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent) : ICalendarEventReader
-    {
-        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
-            CalendarEventMonthCriteria? criteria,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<CalendarEventView?> GetByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(calendarEvent);
-    }
-
-    private sealed class FakePublicationReader(bool hasAnyForEvent) : IPlatformPublicationReader
-    {
-        public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> HasAnyForEventAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(hasAnyForEvent);
-
-        public Task<PlatformPublication?> GetAsync(
-            string calendarEventId,
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<PlatformPublication>> ListPublishingByPlatformAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
 
     private sealed class FakeCalendarEventModifier(bool updateResult) : ICalendarEventModifier
     {

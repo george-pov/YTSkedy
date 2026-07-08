@@ -1,5 +1,4 @@
 using YTSkedy.Scheduling.Application.Platforms;
-using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.Domain.Templates;
@@ -221,34 +220,8 @@ public class PublishingContentRendererTests
             ]);
 
     private static PlatformView Platform(PublishingContent publishingContent) =>
-        new(
-            "platform-id",
-            "Main channel",
-            null,
-            PlatformType.YouTube,
-            new YouTubeSettings(
-                new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
-                "private",
-                false),
-            publishingContent);
-
-    private sealed class FakeTemplateReader(params TemplateView[] templates) : ITemplateReader
-    {
-        public Task<TemplateView?> GetAsync(
-            TemplateType type,
-            string templateId,
-            CancellationToken cancellationToken)
-        {
-            var template = templates.FirstOrDefault(candidate =>
-                candidate.Type == type &&
-                string.Equals(candidate.Id, templateId, StringComparison.Ordinal));
-
-            return Task.FromResult(template);
-        }
-
-        public Task<IReadOnlyList<TemplateView>> ListAsync(
-            TemplateType? type,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
+        ApplicationTestData.Platform(
+            platformId: "platform-id",
+            name: "Main channel",
+            publishingContent: publishingContent);
 }

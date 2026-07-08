@@ -7,22 +7,15 @@ public class DeletePlatformHandlerTests
 {
     private const string PlatformId = "p1";
 
-    private static readonly PlatformView ExistingPlatform = new(
-        PlatformId,
-        "Main channel",
-        null,
-        PlatformType.YouTube,
-        new YouTubeSettings(
-            new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
-            "private",
-            false),
-        new PublishingContent("title-template", "description-template"));
+    private static readonly PlatformView ExistingPlatform = ApplicationTestData.Platform(
+        platformId: PlatformId,
+        name: "Main channel");
 
     [Fact]
     public async Task HandleAsync_NoPublishingRows_OrphansThenDeletesAndReturnsDeleted()
     {
         var calls = new List<string>();
-        var reader = new FakePlatformReader(ExistingPlatform);
+        var reader = new FakePlatformReader(getResult: ExistingPlatform);
         var modifier = new FakePlatformModifier(calls) { DeleteResult = DeletePlatformResult.Deleted };
         var publicationReader = new FakePlatformPublicationReader();
         var publicationRepository = new FakePlatformPublicationRepository(calls);
@@ -50,7 +43,7 @@ public class DeletePlatformHandlerTests
     public async Task HandleAsync_PlatformMissing_ReturnsNotFoundWithoutOrphanOrDelete()
     {
         var calls = new List<string>();
-        var reader = new FakePlatformReader(null);
+        var reader = new FakePlatformReader();
         var modifier = new FakePlatformModifier(calls);
         var publicationReader = new FakePlatformPublicationReader();
         var publicationRepository = new FakePlatformPublicationRepository(calls);
@@ -74,12 +67,10 @@ public class DeletePlatformHandlerTests
     public async Task HandleAsync_PublishingRowExists_ReturnsConflictWithoutOrphanOrDelete()
     {
         var calls = new List<string>();
-        var reader = new FakePlatformReader(ExistingPlatform);
+        var reader = new FakePlatformReader(getResult: ExistingPlatform);
         var modifier = new FakePlatformModifier(calls);
-        var publicationReader = new FakePlatformPublicationReader
-        {
-            Publishing = [CreatePublication(PublishStatus.Publishing)]
-        };
+        var publicationReader = new FakePlatformPublicationReader(
+            [CreatePublication(PublishStatus.Publishing)]);
         var publicationRepository = new FakePlatformPublicationRepository(calls);
         var handler = new DeletePlatformHandler(
             reader,
@@ -101,7 +92,7 @@ public class DeletePlatformHandlerTests
     public async Task HandleAsync_DeleteRacesToNotFound_ReturnsNotFoundAfterOrphaning()
     {
         var calls = new List<string>();
-        var reader = new FakePlatformReader(ExistingPlatform);
+        var reader = new FakePlatformReader(getResult: ExistingPlatform);
         var modifier = new FakePlatformModifier(calls) { DeleteResult = DeletePlatformResult.NotFound };
         var publicationReader = new FakePlatformPublicationReader();
         var publicationRepository = new FakePlatformPublicationRepository(calls);
@@ -124,7 +115,7 @@ public class DeletePlatformHandlerTests
     {
         var calls = new List<string>();
         var handler = new DeletePlatformHandler(
-            new FakePlatformReader(ExistingPlatform),
+            new FakePlatformReader(getResult: ExistingPlatform),
             new FakePlatformModifier(calls),
             new FakePlatformPublicationReader(),
             new FakePlatformPublicationRepository(calls));
@@ -134,29 +125,10 @@ public class DeletePlatformHandlerTests
     }
 
     private static PlatformPublication CreatePublication(PublishStatus status) =>
-        new(
-            "f81d4fae7dec11d0a76500a0c91e6bf6",
-            PlatformId,
-            "Main channel",
-            PlatformType.YouTube,
+        ApplicationTestData.Publication(
             status,
-            null,
-            null,
-            null,
-            new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero));
-
-    private sealed class FakePlatformReader(PlatformView? platform) : IPlatformReader
-    {
-        public Task<IReadOnlyList<PlatformView>> ListAsync(
-            PlatformType? type,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<PlatformView?> GetAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(platform);
-    }
+            platformId: PlatformId,
+            platformName: "Main channel");
 
     private sealed class FakePlatformModifier(List<string> calls) : IPlatformModifier
     {
@@ -186,38 +158,6 @@ public class DeletePlatformHandlerTests
             DeletedPlatformId = platformId;
 
             return Task.FromResult(DeleteResult);
-        }
-    }
-
-    private sealed class FakePlatformPublicationReader : IPlatformPublicationReader
-    {
-        public IReadOnlyList<PlatformPublication> Publishing { get; init; } = [];
-
-        public string? PublishingPlatformId { get; private set; }
-
-        public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> HasAnyForEventAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<PlatformPublication?> GetAsync(
-            string calendarEventId,
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<PlatformPublication>> ListPublishingByPlatformAsync(
-            string platformId,
-            CancellationToken cancellationToken)
-        {
-            PublishingPlatformId = platformId;
-
-            return Task.FromResult(Publishing);
         }
     }
 

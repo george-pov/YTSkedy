@@ -10,22 +10,19 @@ public class ListPlatformsHandlerTests
     {
         var views = new[]
         {
-            new PlatformView(
-                "p1",
-                "Main channel",
-                "main-youtube",
-                PlatformType.YouTube,
-                YouTubeSettings(),
-                RequiredPublishingContent())
+            ApplicationTestData.Platform(
+                platformId: "p1",
+                name: "Main channel",
+                referenceKey: "main-youtube")
         };
-        var reader = new FakePlatformReader { Views = views };
+        var reader = new FakePlatformReader(platforms: views);
         var handler = new ListPlatformsHandler(reader);
 
         var result = await handler.HandleAsync(
             new ListPlatformsQuery(PlatformType.YouTube),
             CancellationToken.None);
 
-        Assert.Same(views, result);
+        Assert.Equal(views, result);
         Assert.True(reader.ListCalled);
         Assert.Equal(PlatformType.YouTube, reader.RequestedType);
     }
@@ -50,34 +47,4 @@ public class ListPlatformsHandlerTests
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
     }
-
-    private sealed class FakePlatformReader : IPlatformReader
-    {
-        public IReadOnlyList<PlatformView> Views { get; init; } = [];
-
-        public bool ListCalled { get; private set; }
-
-        public PlatformType? RequestedType { get; private set; }
-
-        public Task<IReadOnlyList<PlatformView>> ListAsync(
-            PlatformType? type,
-            CancellationToken cancellationToken)
-        {
-            ListCalled = true;
-            RequestedType = type;
-
-            return Task.FromResult(Views);
-        }
-
-        public Task<PlatformView?> GetAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
-
-    private static YouTubeSettings YouTubeSettings() =>
-        new(new YouTubeCredentials("client-id", "client-secret", "refresh-token"), "private", false);
-
-    private static PublishingContent RequiredPublishingContent() =>
-        new("title-template", "description-template");
 }
