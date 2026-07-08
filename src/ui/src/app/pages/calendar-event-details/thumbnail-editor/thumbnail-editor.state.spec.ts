@@ -182,4 +182,19 @@ describe('ThumbnailEditorState', () => {
     expect(state.previewUrl()).toBeNull();
     expect(notifications.showSuccess).toHaveBeenCalledWith('Thumbnail deleted.');
   });
+
+  it('does not upload over an existing thumbnail', () => {
+    const file = imageFile('replacement.png', 'image/png');
+    service.getThumbnail.mockReturnValue(of(new Blob(['image-bytes'], { type: 'image/png' })));
+    const state = createState();
+
+    state.applyEventDetails({
+      thumbnail: thumbnail(),
+      canUpdateThumbnail: true,
+    });
+    state.uploadThumbnail(file);
+
+    expect(service.uploadThumbnail).not.toHaveBeenCalled();
+    expect(state.selectedFile()).toBeNull();
+  });
 });

@@ -98,8 +98,12 @@ export class ThumbnailEditorState {
     );
   }
 
-  replaceThumbnail(file: File): void {
-    if (this.calendarEventId === null || !this.canMutate()) {
+  uploadThumbnail(file: File): void {
+    if (
+      this.calendarEventId === null ||
+      this.thumbnail() !== null ||
+      !this.canMutate()
+    ) {
       return;
     }
 
@@ -119,7 +123,7 @@ export class ThumbnailEditorState {
           this.promoteSelectedPreview();
           this.selectedFile.set(null);
           this.errorMessage.set(null);
-          this.notifications.showSuccess('Thumbnail updated.');
+          this.notifications.showSuccess('Thumbnail uploaded.');
         },
         error: (error: unknown) => {
           this.errorMessage.set(describeThumbnailError(error));

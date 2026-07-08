@@ -31,17 +31,13 @@ export class ThumbnailEditor {
       : this.state().selectedPreviewUrl() === null,
   );
 
-  protected readonly pickerControlClass = computed(() =>
-    this.isEditMode() ? 'thumbnail-replace-input' : 'thumbnail-select-input',
-  );
-
   protected readonly pickerLabel = computed(() =>
     this.isEditMode() ? 'Add thumbnail' : 'Choose image',
   );
 
   protected selectFromPicker(file: File): void {
     if (this.isEditMode()) {
-      this.state().replaceThumbnail(file);
+      this.state().uploadThumbnail(file);
       return;
     }
 

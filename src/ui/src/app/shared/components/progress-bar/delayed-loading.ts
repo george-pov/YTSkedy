@@ -5,7 +5,7 @@ export interface DelayedLoadingOptions {
   /**
    * Grace period to wait before reporting `true`. If the source flag clears
    * within this window the result never flips, so quick operations show no
-   * indicator. Defaults to 200.
+   * indicator. Defaults to 100.
    */
   readonly appearDelayMs?: number;
   /**
@@ -16,7 +16,7 @@ export interface DelayedLoadingOptions {
   readonly minVisibleMs?: number;
 }
 
-const DEFAULT_APPEAR_DELAY_MS = 200;
+const DEFAULT_APPEAR_DELAY_MS = 100;
 const DEFAULT_MIN_VISIBLE_MS = 400;
 
 /**

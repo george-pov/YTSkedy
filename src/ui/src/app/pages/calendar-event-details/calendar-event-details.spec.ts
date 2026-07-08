@@ -291,12 +291,6 @@ describe('CalendarEventDetails', () => {
     );
   }
 
-  function thumbnailReplaceInput(): HTMLInputElement | null {
-    return fixture.nativeElement.querySelector(
-      '.thumbnail-replace-input input[type="file"]',
-    );
-  }
-
   function thumbnailClearButtonHost(): HTMLElement | null {
     return fixture.nativeElement.querySelector('.thumbnail-clear-button');
   }
@@ -627,13 +621,16 @@ describe('CalendarEventDetails', () => {
       expect(text).toContain('2030-07-04 08:30');
     });
 
-    it('shows edit-mode save scope copy without status pills', () => {
+    it('does not show edit-mode save scope copy for an editable event', () => {
       service.getById.mockReturnValue(of(sampleEvent()));
 
       createEditComponent();
 
-      expect(fixture.nativeElement.textContent).toContain(
+      expect(fixture.nativeElement.textContent).not.toContain(
         'Save changes updates scheduled start and event text only.',
+      );
+      expect(fixture.nativeElement.textContent).not.toContain(
+        'Delete platform publications before changing this event or deleting it.',
       );
       expect(statusPills()).toHaveLength(0);
     });
@@ -694,9 +691,10 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
 
-      expect(fixture.nativeElement.textContent).toContain(
-        'Delete platform publications before changing this event or deleting it.',
-      );
+      const text = fixture.nativeElement.textContent;
+      const lockMessage = 'Delete platform publications before changing this event or deleting it.';
+      expect(text).toContain(lockMessage);
+      expect(text.indexOf(lockMessage)).toBeLessThan(text.indexOf('Scheduled start'));
       expect(statusPills()).toHaveLength(0);
     });
 
@@ -812,29 +810,31 @@ describe('CalendarEventDetails', () => {
       );
       expect(fixture.nativeElement.textContent).toContain('stream.png');
       expect(fixture.nativeElement.textContent).toContain('1280 x 720');
+      expect(fixture.nativeElement.textContent).not.toContain('Current thumbnail');
+      expect(thumbnailSelectInput()).toBeNull();
       expect(statusPills()).toHaveLength(0);
     });
 
-    it('replaces the thumbnail without discarding unsaved event text', async () => {
-      const replacement = imageFile('replacement.png', 'image/png');
+    it('uploads a thumbnail when no current thumbnail is stored without discarding unsaved event text', async () => {
+      const selected = imageFile('selected.png', 'image/png');
       service.getById.mockReturnValue(of(sampleEvent({ thumbnail: null })));
       service.uploadThumbnail.mockReturnValue(
-        of(thumbnailResponse({ fileName: 'replacement.png' })),
+        of(thumbnailResponse({ fileName: 'selected.png' })),
       );
 
       createEditComponent();
       api().form.texts[0].value().value.set('Unsaved English title');
-      chooseThumbnail(thumbnailReplaceInput()!, replacement);
+      chooseThumbnail(thumbnailSelectInput()!, selected);
       await fixture.whenStable();
       fixture.detectChanges();
 
-      expect(service.uploadThumbnail).toHaveBeenCalledWith(editId, replacement);
-      expect(fixture.nativeElement.textContent).toContain('replacement.png');
+      expect(service.uploadThumbnail).toHaveBeenCalledWith(editId, selected);
+      expect(fixture.nativeElement.textContent).toContain('selected.png');
       expect(fixture.nativeElement.querySelector('.thumbnail-preview')?.getAttribute('src')).toBe(
         'blob:thumbnail-1',
       );
       expect(api().model().texts[0].value).toBe('Unsaved English title');
-      expect(notifications.showSuccess).toHaveBeenCalledWith('Thumbnail updated.');
+      expect(notifications.showSuccess).toHaveBeenCalledWith('Thumbnail uploaded.');
       expect(statusPills()).toHaveLength(0);
     });
 
@@ -873,10 +873,10 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
 
-      expect(fixture.nativeElement.textContent).toContain(
+      expect(fixture.nativeElement.textContent).not.toContain(
         'Delete platform publications before changing this thumbnail.',
       );
-      expect(thumbnailReplaceInput()!.disabled).toBe(true);
+      expect(thumbnailSelectInput()).toBeNull();
       expect(thumbnailDeleteButton()!.disabled).toBe(true);
       expect(saveButton().disabled).toBe(true);
       api().form.texts[0].value().value.set('Updated English title');
@@ -894,17 +894,17 @@ describe('CalendarEventDetails', () => {
       fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
       fixture.detectChanges();
 
-      expect(thumbnailReplaceInput()!.disabled).toBe(true);
+      expect(thumbnailSelectInput()!.disabled).toBe(true);
     });
 
-    it('shows a thumbnail error when replace is rejected by the backend', async () => {
+    it('shows a thumbnail error when edit-mode upload is rejected by the backend', async () => {
       service.getById.mockReturnValue(of(sampleEvent({ thumbnail: null })));
       service.uploadThumbnail.mockReturnValue(
         throwError(() => new HttpErrorResponse({ status: 400 })),
       );
 
       createEditComponent();
-      chooseThumbnail(thumbnailReplaceInput()!, imageFile('replacement.png', 'image/png'));
+      chooseThumbnail(thumbnailSelectInput()!, imageFile('selected.png', 'image/png'));
       await fixture.whenStable();
       fixture.detectChanges();
 

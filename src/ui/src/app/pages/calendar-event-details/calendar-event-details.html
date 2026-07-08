@@ -19,10 +19,10 @@
       </app-alert>
     } @else {
       <form class="app-grid app-gap-6" (submit)="onSubmit($event)">
-        @if (isEditMode) {
-          <p class="save-scope-note">
-            Save changes updates scheduled start and event text only.
-          </p>
+        @if (isEditMode && (!canUpdate() || !canDelete())) {
+          <app-alert variant="info">
+            Delete platform publications before changing this event or deleting it.
+          </app-alert>
         }
 
         <fieldset class="section">
@@ -47,13 +47,7 @@
         </fieldset>
 
         <fieldset class="section">
-          <legend>Event text</legend>
-
-          @if (isEditMode && (!canUpdate() || !canDelete())) {
-            <app-alert variant="info">
-              Delete platform publications before changing this event or deleting it.
-            </app-alert>
-          }
+          <legend>Event description</legend>
 
           @if (form.texts().errors().length > 0 && form.texts().touched()) {
             <app-alert variant="error">
