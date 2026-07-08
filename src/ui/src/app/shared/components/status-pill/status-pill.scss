@@ -1,0 +1,31 @@
+@use 'src/styles/variables' as *;
+
+:host {
+  --status-pill-border: #{$app-color-border};
+  --status-pill-surface: #{$app-color-surface};
+  --status-pill-text: #{$app-color-muted};
+
+  display: inline-flex;
+  min-height: 1.625rem;
+  align-items: center;
+  padding: $app-space-1 $app-space-3;
+  border: 1px solid var(--status-pill-border);
+  border-radius: 999px;
+  background: var(--status-pill-surface);
+  color: var(--status-pill-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+:host(.success) {
+  --status-pill-border: #{$app-color-success-border};
+  --status-pill-surface: #{$app-color-success-surface};
+  --status-pill-text: #{$app-color-success-text};
+}
+
+:host(.warning) {
+  --status-pill-border: #{$app-color-warning-border};
+  --status-pill-surface: #{$app-color-warning-surface};
+  --status-pill-text: #{$app-color-warning-text};
+}

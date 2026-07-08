@@ -15,42 +15,49 @@
 
   @if (isEditMode()) {
     @if (state().thumbnail(); as currentThumbnail) {
-      <div class="thumbnail-current">
+      <div class="app-grid app-gap-4">
         @if (state().previewUrl(); as previewUrl) {
           <img
-            class="thumbnail-preview"
+            class="thumbnail-preview app-col-md-4"
             [src]="previewUrl"
             alt="Current thumbnail preview"
           />
+        } @else {
+          <div class="thumbnail-preview thumbnail-preview-placeholder app-col-md-4">
+            Thumbnail preview loading...
+          </div>
         }
 
-        <div class="thumbnail-details">
-          <dl>
-            <div>
+        <div class="thumbnail-details app-col-md-8">
+          <header class="thumbnail-details-header">
+            <h2>Current thumbnail</h2>
+            <app-status-pill variant="success">Stored</app-status-pill>
+          </header>
+
+          <dl class="thumbnail-metadata app-grid app-gap-2">
+            <div class="app-col-md-6">
               <dt>File</dt>
               <dd>{{ currentThumbnail.fileName }}</dd>
             </div>
-            <div>
+            <div class="app-col-md-6">
               <dt>Size</dt>
               <dd>{{ currentThumbnail.sizeBytes }} bytes</dd>
             </div>
-            <div>
+            <div class="app-col-md-6">
               <dt>Dimensions</dt>
               <dd>{{ currentThumbnail.width }} x {{ currentThumbnail.height }}</dd>
             </div>
           </dl>
 
           <div class="app-actions">
-            <label class="thumbnail-file-control">
-              <span>Replace thumbnail</span>
-              <input
-                class="thumbnail-replace-input"
-                type="file"
-                [accept]="state().acceptedFileTypes"
-                [disabled]="!state().canMutate()"
-                (change)="state().replaceThumbnail($event)"
-              />
-            </label>
+            <app-file-button
+              class="thumbnail-replace-input"
+              icon="upload"
+              [label]="state().isUploading() ? 'Uploading thumbnail...' : 'Replace thumbnail'"
+              [accept]="state().acceptedFileTypes"
+              [disabled]="!state().canMutate()"
+              (fileSelected)="state().replaceThumbnail($event)"
+            />
             <app-button
               type="button"
               appearance="outlined"
@@ -64,61 +71,92 @@
         </div>
       </div>
     } @else {
-      <p class="thumbnail-empty">No thumbnail selected.</p>
-      <label class="thumbnail-file-control">
-        <span>Add thumbnail</span>
-        <input
-          class="thumbnail-replace-input"
-          type="file"
-          [accept]="state().acceptedFileTypes"
-          [disabled]="!state().canMutate()"
-          (change)="state().replaceThumbnail($event)"
-        />
-      </label>
+      <div class="thumbnail-picker" [class.thumbnail-control-disabled]="!state().canMutate()">
+        <div class="thumbnail-picker-content">
+          <strong>No thumbnail selected.</strong>
+          <span class="thumbnail-picker-help">
+            Choose one JPEG or PNG image up to 2 MB.
+          </span>
+          <app-file-button
+            class="thumbnail-replace-input"
+            label="Add thumbnail"
+            icon="upload"
+            [accept]="state().acceptedFileTypes"
+            [disabled]="!state().canMutate()"
+            (fileSelected)="state().replaceThumbnail($event)"
+          />
+        </div>
+      </div>
     }
 
     @if (state().selectedPreviewUrl(); as selectedPreviewUrl) {
-      <div class="thumbnail-selected" aria-live="polite">
+      <div class="thumbnail-pending app-grid app-gap-4" aria-live="polite">
         <img
-          class="thumbnail-preview"
+          class="thumbnail-preview app-col-md-4"
           [src]="selectedPreviewUrl"
           alt="Selected thumbnail preview"
         />
-        <p>{{ state().selectedFile()?.name }}</p>
+        <div class="thumbnail-details app-col-md-8">
+          <header class="thumbnail-details-header">
+            <h2>Selected thumbnail</h2>
+            <app-status-pill variant="warning">Not saved</app-status-pill>
+          </header>
+          <p class="thumbnail-file-name">{{ state().selectedFile()?.name }}</p>
+        </div>
       </div>
     }
   } @else {
-    <label class="thumbnail-file-control">
-      <span>Thumbnail image</span>
-      <input
-        #thumbnailInput
-        class="thumbnail-select-input"
-        type="file"
-        [accept]="state().acceptedFileTypes"
-        [disabled]="!state().canMutate()"
-        (change)="state().selectThumbnail($event)"
-      />
-    </label>
-
     @if (state().selectedPreviewUrl(); as previewUrl) {
-      <div class="thumbnail-selected" aria-live="polite">
+      <div class="app-grid app-gap-4" aria-live="polite">
         <img
-          class="thumbnail-preview"
+          class="thumbnail-preview app-col-md-4"
           [src]="previewUrl"
           alt="Selected thumbnail preview"
         />
-        <div>
-          <p>{{ state().selectedFile()?.name }}</p>
-          <app-button
-            class="thumbnail-clear-button"
-            type="button"
-            appearance="outlined"
-            icon="close"
+        <div class="thumbnail-details app-col-md-8">
+          <header class="thumbnail-details-header">
+            <h2>Selected thumbnail</h2>
+            <app-status-pill variant="warning">Not saved</app-status-pill>
+          </header>
+          <p class="thumbnail-file-name">{{ state().selectedFile()?.name }}</p>
+
+          <div class="app-actions">
+            <app-file-button
+              class="thumbnail-select-input"
+              label="Choose different image"
+              icon="upload"
+              [accept]="state().acceptedFileTypes"
+              [disabled]="!state().canMutate()"
+              (fileSelected)="state().selectThumbnail($event)"
+            />
+            <app-button
+              class="thumbnail-clear-button"
+              type="button"
+              appearance="outlined"
+              icon="close"
+              [disabled]="!state().canMutate()"
+              (click)="state().clearSelectedThumbnail()"
+            >
+              Clear thumbnail
+            </app-button>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="thumbnail-picker" [class.thumbnail-control-disabled]="!state().canMutate()">
+        <div class="thumbnail-picker-content">
+          <strong>No thumbnail selected.</strong>
+          <span class="thumbnail-picker-help">
+            Choose one JPEG or PNG image up to 2 MB.
+          </span>
+          <app-file-button
+            class="thumbnail-select-input"
+            label="Choose image"
+            icon="upload"
+            [accept]="state().acceptedFileTypes"
             [disabled]="!state().canMutate()"
-            (click)="state().clearSelectedThumbnail(); thumbnailInput.value = ''"
-          >
-            Clear thumbnail
-          </app-button>
+            (fileSelected)="state().selectThumbnail($event)"
+          />
         </div>
       </div>
     }

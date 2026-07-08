@@ -261,11 +261,15 @@ describe('CalendarEventDetails', () => {
   }
 
   function thumbnailSelectInput(): HTMLInputElement | null {
-    return fixture.nativeElement.querySelector('.thumbnail-select-input');
+    return fixture.nativeElement.querySelector(
+      '.thumbnail-select-input input[type="file"]',
+    );
   }
 
   function thumbnailReplaceInput(): HTMLInputElement | null {
-    return fixture.nativeElement.querySelector('.thumbnail-replace-input');
+    return fixture.nativeElement.querySelector(
+      '.thumbnail-replace-input input[type="file"]',
+    );
   }
 
   function thumbnailClearButtonHost(): HTMLElement | null {
@@ -488,8 +492,7 @@ describe('CalendarEventDetails', () => {
   });
 
   it('navigates to the list when cancel is clicked', async () => {
-    const cancelButton = fixture.nativeElement.querySelectorAll('app-button')[0];
-    cancelButton.dispatchEvent(new Event('click'));
+    cancelButton()!.click();
     await fixture.whenStable();
 
     expect(navigations).toEqual(['/calendar-events']);

@@ -1,0 +1,29 @@
+<app-lab-page titleId="file-button-lab-title" title="File Button">
+  <app-lab-example titleId="file-button-default-example-title" title="Default" itemsLayout="inline">
+    <app-file-button
+      label="Choose image"
+      accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+      (fileSelected)="selectFile($event)"
+    />
+    @if (selectedFile(); as file) {
+      <span>{{ file.name }} selected</span>
+    }
+  </app-lab-example>
+
+  <app-lab-example titleId="file-button-outlined-example-title" title="Outlined" itemsLayout="inline">
+    <app-file-button
+      label="Replace thumbnail"
+      appearance="outlined"
+      accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+      (fileSelected)="selectFile($event)"
+    />
+  </app-lab-example>
+
+  <app-lab-example titleId="file-button-disabled-example-title" title="Disabled" itemsLayout="inline">
+    <app-file-button
+      label="Choose image"
+      accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+      disabled
+    />
+  </app-lab-example>
+</app-lab-page>

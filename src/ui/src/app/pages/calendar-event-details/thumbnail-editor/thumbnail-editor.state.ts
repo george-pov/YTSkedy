@@ -74,15 +74,8 @@ export class ThumbnailEditorState {
     this.errorMessage.set(message);
   }
 
-  selectThumbnail(event: Event): void {
-    const file = thumbnailFileFrom(event);
-    if (file === null) {
-      return;
-    }
-
-    if (!this.setSelectedThumbnail(file)) {
-      resetFileInput(event);
-    }
+  selectThumbnail(file: File): void {
+    this.setSelectedThumbnail(file);
   }
 
   clearSelectedThumbnail(): void {
@@ -105,19 +98,12 @@ export class ThumbnailEditorState {
     );
   }
 
-  replaceThumbnail(event: Event): void {
+  replaceThumbnail(file: File): void {
     if (this.calendarEventId === null || !this.canMutate()) {
-      resetFileInput(event);
-      return;
-    }
-
-    const file = thumbnailFileFrom(event);
-    if (file === null) {
       return;
     }
 
     if (!this.setSelectedThumbnail(file)) {
-      resetFileInput(event);
       return;
     }
 
@@ -133,7 +119,6 @@ export class ThumbnailEditorState {
           this.promoteSelectedPreview();
           this.selectedFile.set(null);
           this.errorMessage.set(null);
-          resetFileInput(event);
           this.notifications.showSuccess('Thumbnail updated.');
         },
         error: (error: unknown) => {
@@ -305,19 +290,6 @@ function describeClientThumbnailError(file: File): string | null {
   }
 
   return null;
-}
-
-function thumbnailFileFrom(event: Event): File | null {
-  const input = event.target as HTMLInputElement | null;
-
-  return input?.files?.item(0) ?? null;
-}
-
-function resetFileInput(event: Event): void {
-  const input = event.target as HTMLInputElement | null;
-  if (input !== null) {
-    input.value = '';
-  }
 }
 
 function fileExtension(fileName: string): string {

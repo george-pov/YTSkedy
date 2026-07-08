@@ -1,0 +1,18 @@
+<input
+  #fileInput
+  class="file-input"
+  type="file"
+  [accept]="accept()"
+  [disabled]="disabled()"
+  (change)="onFileChange($event)"
+/>
+
+<app-button
+  type="button"
+  [appearance]="appearance()"
+  [icon]="icon()"
+  [disabled]="disabled()"
+  (click)="openPicker(fileInput)"
+>
+  {{ label() }}
+</app-button>
