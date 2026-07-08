@@ -5,6 +5,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Logging;
 using YTSkedy.AzureFunctions.Auth;
@@ -287,9 +288,28 @@ builder.Services.AddScoped<IPlatformPublicationReader>(
 
 // Platform provider adapters are selected by platform type and use settings
 // stored on the platform row.
+const string wordPressHttpClientName = "YTSkedy.WordPress";
+builder.Services.AddHttpClient(wordPressHttpClientName);
+builder.Services.AddSingleton(serviceProvider =>
+    new WordPressEndpointResolver(
+        serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(wordPressHttpClientName),
+        serviceProvider.GetRequiredService<ILogger<WordPressEndpointResolver>>()));
 builder.Services.AddSingleton<IPlatformPublisher, YouTubePublisher>();
 builder.Services.AddSingleton<IPlatformPublicationDeleter, YouTubePublicationDeleter>();
-builder.Services.AddWordPressPlatformAdapters();
+builder.Services.AddSingleton(serviceProvider =>
+    new WordPressPublisher(
+        serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(wordPressHttpClientName),
+        serviceProvider.GetRequiredService<WordPressEndpointResolver>(),
+        serviceProvider.GetRequiredService<ILogger<WordPressPublisher>>()));
+builder.Services.AddSingleton<IPlatformPublisher>(
+    serviceProvider => serviceProvider.GetRequiredService<WordPressPublisher>());
+builder.Services.AddSingleton(serviceProvider =>
+    new WordPressPublicationDeleter(
+        serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(wordPressHttpClientName),
+        serviceProvider.GetRequiredService<WordPressEndpointResolver>(),
+        serviceProvider.GetRequiredService<ILogger<WordPressPublicationDeleter>>()));
+builder.Services.AddSingleton<IPlatformPublicationDeleter>(
+    serviceProvider => serviceProvider.GetRequiredService<WordPressPublicationDeleter>());
 builder.Services.AddSingleton<IPlatformPublisherSelector, PlatformPublisherSelector>();
 builder.Services.AddSingleton<IThumbnailPublisher, YouTubeThumbnailPublisher>();
 builder.Services.AddSingleton<IThumbnailPublisherSelector, ThumbnailPublisherSelector>();

@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging;
 using System.Net;
-using System.Net.Http.Headers;
-using System.Text;
 using YTSkedy.Infrastructure.WordPress;
 using YTSkedy.Scheduling.Domain.Platforms;
+using static YTSkedy.Infrastructure.Test.WordPress.WordPressTestResponses;
 
 namespace YTSkedy.Infrastructure.Test.WordPress;
 
@@ -52,6 +51,57 @@ public class WordPressEndpointResolverTests
         Assert.Equal(
             "https://example.com/index.php?rest_route=/",
             handler.Requests.Single(request => request.Method == HttpMethod.Get).RequestUri.ToString());
+    }
+
+    [Fact]
+    public async Task ResolveAsync_LinkHeaderDifferentHost_IgnoresLinkedRoot()
+    {
+        var handler = new FakeHttpMessageHandler(request =>
+            request.Method == HttpMethod.Head
+                ? LinkResponse("<https://other.example.com/wp-json/>; rel=\"https://api.w.org/\"")
+                : JsonIndexResponse());
+        var resolver = CreateResolver(handler);
+
+        var root = await resolver.ResolveAsync(Settings(), CancellationToken.None);
+
+        Assert.Equal("https://example.com/wp-json/", root.RootUri.ToString());
+        Assert.DoesNotContain(
+            handler.Requests,
+            request => request.RequestUri.Host == "other.example.com");
+    }
+
+    [Fact]
+    public async Task ResolveAsync_LinkHeaderDowngradesHttps_IgnoresLinkedRoot()
+    {
+        var handler = new FakeHttpMessageHandler(request =>
+            request.Method == HttpMethod.Head
+                ? LinkResponse("<http://example.com/wp-json/>; rel=\"https://api.w.org/\"")
+                : JsonIndexResponse());
+        var resolver = CreateResolver(handler);
+
+        var root = await resolver.ResolveAsync(Settings(), CancellationToken.None);
+
+        Assert.Equal("https://example.com/wp-json/", root.RootUri.ToString());
+        Assert.DoesNotContain(
+            handler.Requests,
+            request => request.RequestUri.Scheme == Uri.UriSchemeHttp);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_UnsafeLinkedRootAndBrokenFallbacks_ThrowsWithoutUnsafeProbe()
+    {
+        var handler = new FakeHttpMessageHandler(request =>
+            request.Method == HttpMethod.Head
+                ? LinkResponse("<https://other.example.com/wp-json/>; rel=\"https://api.w.org/\"")
+                : HtmlResponse());
+        var resolver = CreateResolver(handler);
+
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => resolver.ResolveAsync(Settings(), CancellationToken.None));
+
+        Assert.DoesNotContain(
+            handler.Requests,
+            request => request.RequestUri.Host == "other.example.com");
     }
 
     [Fact]
@@ -234,69 +284,6 @@ public class WordPressEndpointResolverTests
     private static WordPressSettings Settings(string siteUrl = "https://example.com") =>
         new(siteUrl, "editor", ApplicationPassword, "publish");
 
-    private static HttpResponseMessage LinkResponse(string linkHeader)
-    {
-        var response = new HttpResponseMessage(HttpStatusCode.OK);
-        response.Headers.TryAddWithoutValidation("Link", linkHeader);
-
-        return response;
-    }
-
-    private static HttpResponseMessage JsonIndexResponse() =>
-        JsonResponse("""{"namespaces":["wp/v2"]}""");
-
-    private static HttpResponseMessage JsonResponse(string json) =>
-        new(HttpStatusCode.OK)
-        {
-            Content = new StringContent(json, Encoding.UTF8, "application/json")
-        };
-
-    private static HttpResponseMessage HtmlResponse() =>
-        new(HttpStatusCode.OK)
-        {
-            Content = new StringContent("<html></html>", Encoding.UTF8, "text/html")
-        };
-
     private static string LogText<T>(CapturingLogger<T> logger) =>
         string.Join(Environment.NewLine, logger.Entries.Select(entry => entry.Message));
-
-    private sealed class FakeHttpMessageHandler(
-        Func<HttpRequestMessage, HttpResponseMessage> handler) : HttpMessageHandler
-    {
-        public List<RequestSnapshot> Requests { get; } = [];
-
-        protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request,
-            CancellationToken cancellationToken)
-        {
-            Requests.Add(new RequestSnapshot(
-                request.Method,
-                request.RequestUri!,
-                request.Headers.Authorization));
-
-            return Task.FromResult(handler(request));
-        }
-    }
-
-    private sealed record RequestSnapshot(
-        HttpMethod Method,
-        Uri RequestUri,
-        AuthenticationHeaderValue? Authorization);
-
-    private sealed class CapturingLogger<T> : ILogger<T>
-    {
-        public List<(LogLevel Level, string Message)> Entries { get; } = [];
-
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter) =>
-            Entries.Add((logLevel, formatter(state, exception)));
-    }
 }

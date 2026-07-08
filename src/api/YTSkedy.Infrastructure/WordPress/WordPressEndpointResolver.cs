@@ -6,14 +6,14 @@ using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Infrastructure.WordPress;
 
-internal sealed class WordPressEndpointResolver(
+public sealed class WordPressEndpointResolver(
     HttpClient httpClient,
     ILogger<WordPressEndpointResolver> logger)
 {
     private const string ApiRel = "https://api.w.org/";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<WordPressRoot> ResolveAsync(
+    internal async Task<WordPressRoot> ResolveAsync(
         WordPressSettings settings,
         CancellationToken cancellationToken)
     {
@@ -98,7 +98,8 @@ internal sealed class WordPressEndpointResolver(
             }
 
             var value = link[1..uriEnd];
-            if (Uri.TryCreate(siteUri, value, out var rootUri))
+            if (Uri.TryCreate(siteUri, value, out var rootUri) &&
+                IsSafeLinkedRoot(siteUri, rootUri))
             {
                 return rootUri;
             }
@@ -106,6 +107,12 @@ internal sealed class WordPressEndpointResolver(
 
         return null;
     }
+
+    private static bool IsSafeLinkedRoot(Uri siteUri, Uri rootUri) =>
+        string.IsNullOrEmpty(rootUri.UserInfo) &&
+        rootUri.Scheme.Equals(siteUri.Scheme, StringComparison.OrdinalIgnoreCase) &&
+        rootUri.Host.Equals(siteUri.Host, StringComparison.OrdinalIgnoreCase) &&
+        rootUri.Port == siteUri.Port;
 
     private async Task<WordPressRoot?> ProbeRootAsync(
         Uri rootUri,

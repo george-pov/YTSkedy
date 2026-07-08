@@ -1,9 +1,7 @@
 using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
@@ -22,7 +20,7 @@ public sealed class WordPressPublisher : IPlatformPublisher
     private readonly WordPressEndpointResolver endpointResolver;
     private readonly ILogger<WordPressPublisher> logger;
 
-    internal WordPressPublisher(
+    public WordPressPublisher(
         HttpClient httpClient,
         WordPressEndpointResolver endpointResolver,
         ILogger<WordPressPublisher> logger)
@@ -61,7 +59,8 @@ public sealed class WordPressPublisher : IPlatformPublisher
                         settings.PostStatus),
                     options: JsonOptions)
             };
-            httpRequest.Headers.Authorization = CreateAuthorizationHeader(settings);
+            httpRequest.Headers.Authorization =
+                WordPressRequestSecurity.CreateAuthorizationHeader(settings);
 
             using var response = await httpClient.SendAsync(httpRequest, cancellationToken);
             if (!response.IsSuccessStatusCode)
@@ -114,7 +113,7 @@ public sealed class WordPressPublisher : IPlatformPublisher
                 "and platform {PlatformId} at host {WordPressHost}.",
                 request.CalendarEventId,
                 request.PlatformId,
-                GetLogHost(settings, endpoint));
+                WordPressRequestSecurity.GetLogHost(settings, endpoint));
 
             throw new PlatformPublishException(
                 $"WordPress returned malformed JSON while publishing calendar event '{request.CalendarEventId}'.",
@@ -132,33 +131,12 @@ public sealed class WordPressPublisher : IPlatformPublisher
                 "and platform {PlatformId} at host {WordPressHost}.",
                 request.CalendarEventId,
                 request.PlatformId,
-                GetLogHost(settings, endpoint));
+                WordPressRequestSecurity.GetLogHost(settings, endpoint));
 
             throw new PlatformPublishException(
                 $"Failed to publish calendar event '{request.CalendarEventId}' to WordPress.",
                 exception);
         }
-    }
-
-    private static AuthenticationHeaderValue CreateAuthorizationHeader(
-        WordPressSettings settings)
-    {
-        var credentials = $"{settings.Username}:{settings.ApplicationPassword}";
-        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(credentials));
-
-        return new AuthenticationHeaderValue("Basic", encoded);
-    }
-
-    private static string GetLogHost(WordPressSettings settings, Uri? endpoint)
-    {
-        if (endpoint is not null)
-        {
-            return endpoint.Host;
-        }
-
-        return Uri.TryCreate(settings.SiteUrl.Trim(), UriKind.Absolute, out var siteUri)
-            ? siteUri.Host
-            : "(invalid)";
     }
 
     private void LogProviderFailure(

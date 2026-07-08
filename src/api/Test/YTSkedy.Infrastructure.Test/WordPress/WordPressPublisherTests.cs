@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Logging;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using YTSkedy.Infrastructure.WordPress;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
+using static YTSkedy.Infrastructure.Test.WordPress.WordPressTestResponses;
 
 namespace YTSkedy.Infrastructure.Test.WordPress;
 
@@ -290,23 +290,6 @@ public class WordPressPublisherTests
                 ? new HttpResponseMessage(HttpStatusCode.OK)
                 : JsonResponse("""{"namespaces":["oembed/1.0"]}"""));
 
-    private static HttpResponseMessage LinkResponse(string linkHeader)
-    {
-        var response = new HttpResponseMessage(HttpStatusCode.OK);
-        response.Headers.TryAddWithoutValidation("Link", linkHeader);
-
-        return response;
-    }
-
-    private static HttpResponseMessage JsonIndexResponse() =>
-        JsonResponse("""{"namespaces":["wp/v2"]}""");
-
-    private static HttpResponseMessage JsonResponse(string json) =>
-        new(HttpStatusCode.OK)
-        {
-            Content = new StringContent(json, Encoding.UTF8, "application/json")
-        };
-
     private static PlatformPublishRequest Request(
         PublishSettings? settings = null,
         string? description = "English description") =>
@@ -325,54 +308,11 @@ public class WordPressPublisherTests
     private static void AssertDiscoveryRequestsAreAnonymous(FakeHttpMessageHandler handler)
     {
         var discoveryRequests = handler.Requests.Where(request =>
-            request.Method is "HEAD" or "GET");
+            request.Method == HttpMethod.Head || request.Method == HttpMethod.Get);
 
         Assert.All(discoveryRequests, request => Assert.Null(request.Authorization));
     }
 
     private static string LogText(CapturingLogger<WordPressPublisher> logger) =>
         string.Join(Environment.NewLine, logger.Entries.Select(entry => entry.Message));
-
-    private sealed class FakeHttpMessageHandler(
-        Func<HttpRequestMessage, HttpResponseMessage> handler) : HttpMessageHandler
-    {
-        public int CallCount { get; private set; }
-
-        public List<RequestSnapshot> Requests { get; } = [];
-
-        protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request,
-            CancellationToken cancellationToken)
-        {
-            CallCount++;
-            Requests.Add(new RequestSnapshot(
-                request.Method.Method,
-                request.RequestUri!,
-                request.Headers.Authorization));
-
-            return Task.FromResult(handler(request));
-        }
-    }
-
-    private sealed record RequestSnapshot(
-        string Method,
-        Uri RequestUri,
-        AuthenticationHeaderValue? Authorization);
-
-    private sealed class CapturingLogger<T> : ILogger<T>
-    {
-        public List<(LogLevel Level, string Message)> Entries { get; } = [];
-
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter) =>
-            Entries.Add((logLevel, formatter(state, exception)));
-    }
 }

@@ -1,8 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Net;
-using System.Net.Http.Headers;
-using System.Text;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
 
@@ -20,7 +18,7 @@ public sealed class WordPressPublicationDeleter : IPlatformPublicationDeleter
     private readonly WordPressEndpointResolver endpointResolver;
     private readonly ILogger<WordPressPublicationDeleter> logger;
 
-    internal WordPressPublicationDeleter(
+    public WordPressPublicationDeleter(
         HttpClient httpClient,
         WordPressEndpointResolver endpointResolver,
         ILogger<WordPressPublicationDeleter> logger)
@@ -70,7 +68,8 @@ public sealed class WordPressPublicationDeleter : IPlatformPublicationDeleter
                 $"/wp/v2/posts/{postId.ToString(CultureInfo.InvariantCulture)}",
                 new Dictionary<string, string> { ["force"] = "true" });
             using var httpRequest = new HttpRequestMessage(HttpMethod.Delete, endpoint);
-            httpRequest.Headers.Authorization = CreateAuthorizationHeader(settings);
+            httpRequest.Headers.Authorization =
+                WordPressRequestSecurity.CreateAuthorizationHeader(settings);
 
             using var response = await httpClient.SendAsync(httpRequest, cancellationToken);
 
@@ -116,7 +115,7 @@ public sealed class WordPressPublicationDeleter : IPlatformPublicationDeleter
                 "and platform {PlatformId} at host {WordPressHost}.",
                 request.CalendarEventId,
                 request.PlatformId,
-                GetLogHost(settings, endpoint));
+                WordPressRequestSecurity.GetLogHost(settings, endpoint));
 
             return PublicationDeleteResult.Failed;
         }
@@ -129,27 +128,6 @@ public sealed class WordPressPublicationDeleter : IPlatformPublicationDeleter
             CultureInfo.InvariantCulture,
             out postId) &&
         postId > 0;
-
-    private static AuthenticationHeaderValue CreateAuthorizationHeader(
-        WordPressSettings settings)
-    {
-        var credentials = $"{settings.Username}:{settings.ApplicationPassword}";
-        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(credentials));
-
-        return new AuthenticationHeaderValue("Basic", encoded);
-    }
-
-    private static string GetLogHost(WordPressSettings settings, Uri? endpoint)
-    {
-        if (endpoint is not null)
-        {
-            return endpoint.Host;
-        }
-
-        return Uri.TryCreate(settings.SiteUrl.Trim(), UriKind.Absolute, out var siteUri)
-            ? siteUri.Host
-            : "(invalid)";
-    }
 
     private void LogProviderFailure(
         PublicationDeleteRequest request,
