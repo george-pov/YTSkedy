@@ -1,5 +1,4 @@
 using YTSkedy.Scheduling.Application.Platforms;
-using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.Domain.Templates;
 
@@ -8,10 +7,7 @@ namespace YTSkedy.Scheduling.Application.Test;
 public class CreatePlatformHandlerTests
 {
     private static readonly YouTubeSettings Settings =
-        new(
-            new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
-            "private",
-            false);
+        ApplicationTestData.YouTubeSettings();
 
     [Fact]
     public async Task HandleAsync_ValidCommand_CreatesPlatformAndReturnsCreatedWithId()
@@ -20,12 +16,8 @@ public class CreatePlatformHandlerTests
         {
             CreateResult = CreatePlatformResult.Created("p1")
         };
-        var templates = new FakeTemplateReader(
-            (TemplateType.YouTube, "title-template"),
-            (TemplateType.YouTube, "description-template"));
-        var publishingContent = new PublishingContent(
-            "title-template",
-            "description-template");
+        var templates = ApplicationTestAdapters.DefaultTemplateReader();
+        var publishingContent = ApplicationTestData.PublishingContent();
         var handler = new CreatePlatformHandler(modifier, templates);
         var command = new CreatePlatformCommand(
             "Main channel",
@@ -46,7 +38,10 @@ public class CreatePlatformHandlerTests
         Assert.Equal("main-youtube", modifier.CreatedPlatform.ReferenceKey);
         Assert.Same(publishingContent, modifier.CreatedPlatform.PublishingContent);
         Assert.Equal(
-            [(TemplateType.YouTube, "title-template"), (TemplateType.YouTube, "description-template")],
+            [
+                (TemplateType.YouTube, ApplicationTestData.TitleTemplateId),
+                (TemplateType.YouTube, ApplicationTestData.DescriptionTemplateId)
+            ],
             templates.GetCalls);
     }
 
@@ -57,20 +52,23 @@ public class CreatePlatformHandlerTests
         {
             CreateResult = CreatePlatformResult.NameAlreadyExists()
         };
-        var templates = RequiredTemplates();
+        var templates = ApplicationTestAdapters.DefaultTemplateReader();
         var handler = new CreatePlatformHandler(modifier, templates);
         var command = new CreatePlatformCommand(
             "Main channel",
             PlatformType.YouTube,
             Settings,
-            RequiredPublishingContent());
+            ApplicationTestData.PublishingContent());
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(CreatePlatformStatus.NameAlreadyExists, result.Status);
         Assert.Null(result.PlatformId);
         Assert.Equal(
-            [(TemplateType.YouTube, "title-template"), (TemplateType.YouTube, "description-template")],
+            [
+                (TemplateType.YouTube, ApplicationTestData.TitleTemplateId),
+                (TemplateType.YouTube, ApplicationTestData.DescriptionTemplateId)
+            ],
             templates.GetCalls);
     }
 
@@ -81,12 +79,14 @@ public class CreatePlatformHandlerTests
         {
             CreateResult = CreatePlatformResult.ReferenceKeyAlreadyExists()
         };
-        var handler = new CreatePlatformHandler(modifier, RequiredTemplates());
+        var handler = new CreatePlatformHandler(
+            modifier,
+            ApplicationTestAdapters.DefaultTemplateReader());
         var command = new CreatePlatformCommand(
             "Main channel",
             PlatformType.YouTube,
             Settings,
-            RequiredPublishingContent(),
+            ApplicationTestData.PublishingContent(),
             "main-youtube");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -104,7 +104,7 @@ public class CreatePlatformHandlerTests
             "Main channel",
             PlatformType.YouTube,
             Settings,
-            new PublishingContent("missing-template", "description-template"));
+            ApplicationTestData.PublishingContent("missing-template"));
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -151,42 +151,6 @@ public class CreatePlatformHandlerTests
 
         public Task<DeletePlatformResult> DeleteAsync(
             string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
-
-    private static PublishingContent RequiredPublishingContent() =>
-        new("title-template", "description-template");
-
-    private static FakeTemplateReader RequiredTemplates() =>
-        new(
-            (TemplateType.YouTube, "title-template"),
-            (TemplateType.YouTube, "description-template"));
-
-    private sealed class FakeTemplateReader(params (TemplateType Type, string Id)[] availableTemplates) :
-        ITemplateReader
-    {
-        private readonly HashSet<(TemplateType Type, string Id)> _templates =
-            [.. availableTemplates];
-
-        public List<(TemplateType Type, string Id)> GetCalls { get; } = [];
-
-        public Task<TemplateView?> GetAsync(
-            TemplateType type,
-            string templateId,
-            CancellationToken cancellationToken)
-        {
-            GetCalls.Add((type, templateId));
-
-            var view = _templates.Contains((type, templateId))
-                ? new TemplateView(templateId, "Template", type, "content")
-                : null;
-
-            return Task.FromResult(view);
-        }
-
-        public Task<IReadOnlyList<TemplateView>> ListAsync(
-            TemplateType? type,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }

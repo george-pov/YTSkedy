@@ -16,10 +16,10 @@ public class GetCalendarEventDetailsHandlerTests
     public async Task HandleAsync_MissingEvent_ReturnsNull()
     {
         var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(null),
+            new FakeCalendarEventReader(getResult: null),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
@@ -32,10 +32,10 @@ public class GetCalendarEventDetailsHandlerTests
     {
         var calendarEvent = CreateEvent();
         var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(calendarEvent),
+            new FakeCalendarEventReader(getResult: calendarEvent),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
@@ -48,10 +48,10 @@ public class GetCalendarEventDetailsHandlerTests
     public async Task HandleAsync_NoPublicationRows_AllowsUpdateAndDelete()
     {
         var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(CreateEvent()),
+            new FakeCalendarEventReader(getResult: CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
@@ -66,7 +66,7 @@ public class GetCalendarEventDetailsHandlerTests
     public async Task HandleAsync_PublicationRowsExist_DisallowsUpdateAndDelete()
     {
         var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(CreateEvent()),
+            new FakeCalendarEventReader(getResult: CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([
                 CreatePublication(
@@ -75,7 +75,7 @@ public class GetCalendarEventDetailsHandlerTests
                     PublishStatus.Published,
                     externalResourceId: "abc123youtubeid")
             ]),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
@@ -91,10 +91,10 @@ public class GetCalendarEventDetailsHandlerTests
     {
         var thumbnail = CreateThumbnail();
         var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(CreateEvent()),
+            new FakeCalendarEventReader(getResult: CreateEvent()),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             new FakeThumbnailReader(thumbnail));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
@@ -106,10 +106,10 @@ public class GetCalendarEventDetailsHandlerTests
     public async Task HandleAsync_NoActivePlatforms_ReturnsEmptyPlatforms()
     {
         var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(CreateEvent()),
+            new FakeCalendarEventReader(getResult: CreateEvent()),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
@@ -122,10 +122,10 @@ public class GetCalendarEventDetailsHandlerTests
     public async Task HandleAsync_ActivePlatformWithNoRow_ComputesNotPublished()
     {
         var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(CreateEvent()),
+            new FakeCalendarEventReader(getResult: CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
@@ -155,10 +155,10 @@ public class GetCalendarEventDetailsHandlerTests
             publishedUtc: publishedUtc,
             contentSnapshot: new ContentSnapshot("Rendered title", "Rendered description"));
         var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(CreateEvent()),
+            new FakeCalendarEventReader(getResult: CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([publication]),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
@@ -183,11 +183,11 @@ public class GetCalendarEventDetailsHandlerTests
             externalResourceId: "abc123youtubeid",
             publishedUtc: new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero));
         var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(CreateEvent(
+            new FakeCalendarEventReader(getResult: CreateEvent(
                 new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero))),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([publication]),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
@@ -211,10 +211,10 @@ public class GetCalendarEventDetailsHandlerTests
             platformDeletedUtc: deletedUtc,
             contentSnapshot: new ContentSnapshot("Rendered title", null));
         var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(CreateEvent()),
+            new FakeCalendarEventReader(getResult: CreateEvent()),
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([orphan]),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             new FakeThumbnailReader(null));
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
@@ -240,12 +240,12 @@ public class GetCalendarEventDetailsHandlerTests
     [Fact]
     public async Task HandleAsync_ReadsCalendarEventExactlyOnce()
     {
-        var reader = new FakeCalendarEventReader(CreateEvent());
+        var reader = new FakeCalendarEventReader(getResult: CreateEvent());
         var handler = new GetCalendarEventDetailsHandler(
             reader,
             new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             new FakeThumbnailReader(null));
 
         await handler.HandleAsync(CalendarEventId, CancellationToken.None);
@@ -259,10 +259,10 @@ public class GetCalendarEventDetailsHandlerTests
     public async Task HandleAsync_BlankId_Throws(string calendarEventId)
     {
         var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(CreateEvent()),
+            new FakeCalendarEventReader(getResult: CreateEvent()),
             new FakePlatformReader([]),
             new FakePlatformPublicationReader([]),
-            new FixedTimeProvider(Now),
+            new FakeTimeProvider(Now),
             new FakeThumbnailReader(null));
 
         await Assert.ThrowsAsync<ArgumentException>(
@@ -273,11 +273,11 @@ public class GetCalendarEventDetailsHandlerTests
         CreateEvent(new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero));
 
     private static CalendarEventView CreateEvent(DateTimeOffset scheduledStartUtc) =>
-        new(
-            CalendarEventId,
-            new ScheduledStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
-            scheduledStartUtc,
-            EventTextSnapshot.Create(
+        ApplicationTestData.CalendarEvent(
+            calendarEventId: CalendarEventId,
+            start: new ScheduledStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
+            scheduledStartUtc: scheduledStartUtc,
+            text: EventTextSnapshot.Create(
                 EventTextFields.Default,
                 [
                     new EventTextValue("text1", "English stream 1"),
@@ -285,19 +285,7 @@ public class GetCalendarEventDetailsHandlerTests
                 ]));
 
     private static PlatformView CreatePlatform(string platformId, string name) =>
-        new(
-            platformId,
-            name,
-            null,
-            PlatformType.YouTube,
-            YouTubeSettings(),
-            RequiredPublishingContent());
-
-    private static YouTubeSettings YouTubeSettings() =>
-        new(new YouTubeCredentials("client-id", "client-secret", "refresh-token"), "private", false);
-
-    private static PublishingContent RequiredPublishingContent() =>
-        new("title-template", "description-template");
+        ApplicationTestData.Platform(platformId: platformId, name: name);
 
     private static PlatformPublication CreatePublication(
         string platformId,
@@ -307,97 +295,18 @@ public class GetCalendarEventDetailsHandlerTests
         DateTimeOffset? publishedUtc = null,
         DateTimeOffset? platformDeletedUtc = null,
         ContentSnapshot? contentSnapshot = null) =>
-        new(
-            CalendarEventId,
-            platformId,
-            platformName,
-            PlatformType.YouTube,
+        ApplicationTestData.Publication(
             status,
-            externalResourceId,
-            publishedUtc,
-            platformDeletedUtc,
-            new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
-            TargetSnapshot: null,
-            ContentSnapshot: contentSnapshot);
+            calendarEventId: CalendarEventId,
+            platformId: platformId,
+            platformName: platformName,
+            externalResourceId: externalResourceId,
+            publishedUtc: publishedUtc,
+            platformDeletedUtc: platformDeletedUtc,
+            contentSnapshot: contentSnapshot);
 
     private static Thumbnail CreateThumbnail() =>
-        new(
-            "stream.png",
-            "image/png",
-            123,
-            1280,
-            720,
-            new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero),
-            $"calendar-events/{CalendarEventId}/thumbnail");
-
-    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now;
-    }
-
-    private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent)
-        : ICalendarEventReader
-    {
-        public int GetByIdCallCount { get; private set; }
-
-        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
-            CalendarEventMonthCriteria? criteria,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<CalendarEventView?> GetByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken)
-        {
-            GetByIdCallCount++;
-
-            return Task.FromResult(calendarEvent);
-        }
-    }
-
-    private sealed class FakePlatformReader(IReadOnlyList<PlatformView> platforms) : IPlatformReader
-    {
-        public Task<IReadOnlyList<PlatformView>> ListAsync(
-            PlatformType? type,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(platforms);
-
-        public Task<PlatformView?> GetAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class FakePlatformPublicationReader(IReadOnlyList<PlatformPublication> publications)
-        : IPlatformPublicationReader
-    {
-        public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(publications);
-
-        public Task<bool> HasAnyForEventAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(publications.Count > 0);
-
-        public Task<PlatformPublication?> GetAsync(
-            string calendarEventId,
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<PlatformPublication>> ListPublishingByPlatformAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class FakeThumbnailReader(Thumbnail? thumbnail) : ICalendarEventThumbnailReader
-    {
-        public Task<Thumbnail?> GetThumbnailAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(thumbnail);
-    }
+        ApplicationTestData.Thumbnail(
+            calendarEventId: CalendarEventId,
+            updatedUtc: new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 }

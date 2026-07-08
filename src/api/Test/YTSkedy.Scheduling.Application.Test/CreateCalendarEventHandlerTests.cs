@@ -1,5 +1,4 @@
 using YTSkedy.Scheduling.Application.CalendarEvents;
-using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Scheduling.Application.Test;
@@ -108,19 +107,6 @@ public class CreateCalendarEventHandlerTests
 
         Assert.Equal(CreateCalendarEventStatus.DuplicateScheduledStart, result.Status);
         Assert.Equal(scheduledStartUtc, result.ScheduledStartUtc);
-    }
-
-    private sealed class FakeEventTextFieldsReader(EventTextFields eventTextFields) :
-        IEventTextFieldsReader
-    {
-        public bool WasCalled { get; private set; }
-
-        public Task<EventTextFields> GetAsync(CancellationToken cancellationToken)
-        {
-            WasCalled = true;
-
-            return Task.FromResult(eventTextFields);
-        }
     }
 
     private sealed class FakeCalendarEventModifier(string calendarEventId) : ICalendarEventModifier
