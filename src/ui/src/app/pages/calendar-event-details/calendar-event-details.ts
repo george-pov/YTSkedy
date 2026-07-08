@@ -13,7 +13,7 @@ import {
 import { HttpErrorResponse } from '@angular/common/http';
 import { form } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize, map, Observable, switchMap, tap } from 'rxjs';
+import { finalize, map, Observable, of, switchMap, tap } from 'rxjs';
 
 import {
   CalendarEventsService,
@@ -168,6 +168,7 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
   protected readonly publishErrorMessage = signal<string | null>(null);
   protected readonly deletingPublicationPlatformId = signal<string | null>(null);
   protected readonly deletePublicationErrorMessage = signal<string | null>(null);
+  protected readonly platformActionBlockedMessage = signal<string | null>(null);
   protected readonly previewingPlatformId = signal<string | null>(null);
   protected readonly previewErrorMessage = signal<string | null>(null);
   protected readonly previewedPublishingContent = signal<PublishingContentPreview | null>(null);
@@ -284,6 +285,7 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
           this.platforms.set([]);
           this.publishErrorMessage.set(null);
           this.deletePublicationErrorMessage.set(null);
+          this.platformActionBlockedMessage.set(null);
           this.previewErrorMessage.set(null);
           this.previewedPublishingContent.set(null);
           this.thumbnailEditor.resetAfterLoadFailure();
@@ -391,6 +393,27 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
   }
 
   protected deleteEvent(): void {
+    if (
+      this.hasActiveMutation() ||
+      !this.canDelete()
+    ) {
+      return;
+    }
+
+    const deleteConfirmed = this.hasPendingEventChanges()
+      ? this.confirmDiscardEventChanges().pipe(
+          switchMap((discard) => (discard ? this.confirmDeleteEvent() : of(false))),
+        )
+      : this.confirmDeleteEvent();
+
+    deleteConfirmed.subscribe((confirmed) => {
+      if (confirmed) {
+        this.deleteEventAfterConfirmation();
+      }
+    });
+  }
+
+  private deleteEventAfterConfirmation(): void {
     // Page operations are mutually exclusive here so row preview, save, and row
     // mutations cannot race event delete. The backend owns final delete eligibility.
     if (
@@ -442,6 +465,11 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
       return;
     }
 
+    if (this.blockPlatformActionWhenEventChangesPending()) {
+      return;
+    }
+
+    this.platformActionBlockedMessage.set(null);
     this.publishErrorMessage.set(null);
     this.publishingPlatformId.set(platform.platformId);
 
@@ -468,6 +496,11 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
       return;
     }
 
+    if (this.blockPlatformActionWhenEventChangesPending()) {
+      return;
+    }
+
+    this.platformActionBlockedMessage.set(null);
     this.confirmation
       .confirm<'cancel' | 'delete'>({
         kind: 'warning',
@@ -516,6 +549,7 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
       return;
     }
 
+    this.platformActionBlockedMessage.set(null);
     this.previewErrorMessage.set(null);
     this.previewedPublishingContent.set(null);
     this.previewingPlatformId.set(platform.platformId);
@@ -555,6 +589,29 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
         ],
       })
       .pipe(map((result) => result === 'discard'));
+  }
+
+  private confirmDeleteEvent(): Observable<boolean> {
+    return this.confirmation
+      .confirm<'cancel' | 'delete'>({
+        kind: 'warning',
+        title: 'Delete calendar event?',
+        body: 'This removes the calendar event from YTSkedy. Published provider resources are not removed by this action.',
+        actions: [
+          { id: 'cancel', label: 'Cancel' },
+          { id: 'delete', label: 'Delete event', primary: true },
+        ],
+      })
+      .pipe(map((result) => result === 'delete'));
+  }
+
+  private blockPlatformActionWhenEventChangesPending(): boolean {
+    if (!this.hasPendingEventChanges()) {
+      return false;
+    }
+
+    this.platformActionBlockedMessage.set('Save or discard event changes before publishing.');
+    return true;
   }
 
   private refreshEventDetailsAfterPlatformMutation(

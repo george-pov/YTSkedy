@@ -16,6 +16,11 @@ The Angular frontend lives under `src/ui/`.
 - Styling uses SCSS.
 - Routing is configured through Angular router.
 - Routed pages render through the `AppLayout` route shell.
+- Shared route-exit protection lives under `src/ui/src/app/shared/routing/`.
+  The `pendingChangesGuard` defines a `PendingChangesAware` contract and
+  delegates route-exit decisions to page-owned state and confirmation copy.
+  The current use is the calendar event details edit route for pending
+  scheduled-start and event-text changes.
 - Runtime API base URL configuration is loaded from
   `src/ui/public/config/app-config.json`.
 - The `calendar-events` page route loads one server-side sorted page of events
@@ -78,6 +83,7 @@ src/ui/src/app/shared/api/platforms/
 src/ui/src/app/shared/api/settings/
 src/ui/src/app/shared/api/templates/
 src/ui/src/app/shared/config/
+src/ui/src/app/shared/routing/
 src/ui/src/app/shared/components/button/
 src/ui/src/app/shared/components/data-table/
 src/ui/src/app/shared/components/toolbar/

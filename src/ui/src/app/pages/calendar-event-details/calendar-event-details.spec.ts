@@ -1052,6 +1052,12 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
       api().form.texts[0].value().value.set('Unsaved English title');
+      platformPublishHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        'Save or discard event changes before publishing.',
+      );
 
       platformPreviewHosts()[0].dispatchEvent(new Event('click'));
       fixture.detectChanges();
@@ -1063,6 +1069,12 @@ describe('CalendarEventDetails', () => {
       expect(fixture.nativeElement.textContent).toContain('Preview');
       expect(fixture.nativeElement.textContent).toContain('Rendered title');
       expect(fixture.nativeElement.textContent).toContain('Rendered description');
+      expect(fixture.nativeElement.textContent).toContain(
+        'Preview uses stored event values. Unsaved event changes are not included.',
+      );
+      expect(fixture.nativeElement.textContent).not.toContain(
+        'Save or discard event changes before publishing.',
+      );
       expect(api().model().texts[0].value).toBe('Unsaved English title');
     });
 
@@ -1141,6 +1153,25 @@ describe('CalendarEventDetails', () => {
       expect(platformDeletePublicationButton()!.disabled).toBe(true);
     });
 
+    it('blocks platform publish when event changes are pending', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Unsaved English title');
+
+      platformPublishHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(service.publishPlatform).not.toHaveBeenCalled();
+      expect(service.getById).toHaveBeenCalledTimes(1);
+      expect(fixture.nativeElement.textContent).toContain(
+        'Save or discard event changes before publishing.',
+      );
+      expect(api().model().texts[0].value).toBe('Unsaved English title');
+    });
+
     it('refreshes event details after publish and locks event update and delete from API flags', async () => {
       service.getById
         .mockReturnValueOnce(of(sampleEvent()))
@@ -1158,7 +1189,6 @@ describe('CalendarEventDetails', () => {
       );
 
       createEditComponent();
-      api().form.texts[0].value().value.set('Unsaved English title');
 
       platformPublishHosts()[0].dispatchEvent(new Event('click'));
       fixture.detectChanges();
@@ -1278,6 +1308,26 @@ describe('CalendarEventDetails', () => {
       expect(service.deletePlatformPublication).not.toHaveBeenCalled();
     });
 
+    it('blocks platform publication delete when event changes are pending', async () => {
+      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Unsaved English title');
+
+      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(confirmation.confirm).not.toHaveBeenCalled();
+      expect(service.deletePlatformPublication).not.toHaveBeenCalled();
+      expect(service.getById).toHaveBeenCalledTimes(1);
+      expect(fixture.nativeElement.textContent).toContain(
+        'Save or discard event changes before publishing.',
+      );
+      expect(api().model().texts[0].value).toBe('Unsaved English title');
+    });
+
     it('deletes a platform publication after confirmation', async () => {
       service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
       service.deletePlatformPublication.mockReturnValue(new Subject<CalendarEventPlatform>());
@@ -1339,7 +1389,6 @@ describe('CalendarEventDetails', () => {
       );
 
       createEditComponent();
-      api().form.texts[0].value().value.set('Unsaved English title');
 
       platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
       fixture.detectChanges();
@@ -1705,10 +1754,12 @@ describe('CalendarEventDetails', () => {
       await fixture.whenStable();
 
       expect(service.delete).not.toHaveBeenCalled();
+      expect(confirmation.confirm).not.toHaveBeenCalled();
       expect(navigations).toEqual([]);
     });
 
-    it('deletes a draft, notifies, and navigates to the list', async () => {
+    it('does not delete a draft when delete confirmation is cancelled', async () => {
+      confirmation.confirm.mockReturnValueOnce(of('cancel'));
       service.getById.mockReturnValue(of(sampleEvent()));
       service.delete.mockReturnValue(of<void>(undefined));
 
@@ -1718,9 +1769,129 @@ describe('CalendarEventDetails', () => {
       fixture.detectChanges();
       await fixture.whenStable();
 
+      expect(confirmation.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'warning',
+          title: 'Delete calendar event?',
+          body: 'This removes the calendar event from YTSkedy. Published provider resources are not removed by this action.',
+          actions: [
+            { id: 'cancel', label: 'Cancel' },
+            { id: 'delete', label: 'Delete event', primary: true },
+          ],
+        }),
+      );
+      expect(service.delete).not.toHaveBeenCalled();
+      expect(navigations).toEqual([]);
+    });
+
+    it('deletes a draft after delete confirmation, notifies, and navigates to the list', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.delete.mockReturnValue(of<void>(undefined));
+
+      createEditComponent();
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(confirmation.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'warning',
+          title: 'Delete calendar event?',
+          body: 'This removes the calendar event from YTSkedy. Published provider resources are not removed by this action.',
+          actions: [
+            { id: 'cancel', label: 'Cancel' },
+            { id: 'delete', label: 'Delete event', primary: true },
+          ],
+        }),
+      );
       expect(service.delete).toHaveBeenCalledWith(editId);
       expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event deleted.');
       expect(navigations).toEqual(['/calendar-events']);
+    });
+
+    it('does not show delete confirmation when pending changes are kept', async () => {
+      confirmation.confirm.mockReturnValueOnce(of('keep-editing'));
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(confirmation.confirm).toHaveBeenCalledTimes(1);
+      expect(confirmation.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'warning',
+          title: 'Discard unsaved event changes?',
+        }),
+      );
+      expect(service.delete).not.toHaveBeenCalled();
+      expect(navigations).toEqual([]);
+    });
+
+    it('deletes after pending changes are discarded and delete is confirmed', async () => {
+      confirmation.confirm
+        .mockReturnValueOnce(of('discard'))
+        .mockReturnValueOnce(of('delete'));
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.delete.mockReturnValue(of<void>(undefined));
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(confirmation.confirm).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          kind: 'warning',
+          title: 'Discard unsaved event changes?',
+        }),
+      );
+      expect(confirmation.confirm).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          kind: 'warning',
+          title: 'Delete calendar event?',
+        }),
+      );
+      expect(service.delete).toHaveBeenCalledWith(editId);
+      expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event deleted.');
+      expect(navigations).toEqual(['/calendar-events']);
+    });
+
+    it('does not delete after pending changes are discarded and delete is cancelled', async () => {
+      confirmation.confirm
+        .mockReturnValueOnce(of('discard'))
+        .mockReturnValueOnce(of('cancel'));
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
+
+      deleteButtonHost()!.dispatchEvent(new Event('click'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(confirmation.confirm).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          title: 'Discard unsaved event changes?',
+        }),
+      );
+      expect(confirmation.confirm).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          title: 'Delete calendar event?',
+        }),
+      );
+      expect(service.delete).not.toHaveBeenCalled();
+      expect(navigations).toEqual([]);
     });
 
     it('deletes through the backend without event-level publish state', async () => {
