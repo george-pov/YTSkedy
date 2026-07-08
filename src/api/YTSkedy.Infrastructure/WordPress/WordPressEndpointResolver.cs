@@ -1,0 +1,388 @@
+using Microsoft.Extensions.Logging;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json;
+using YTSkedy.Scheduling.Domain.Platforms;
+
+namespace YTSkedy.Infrastructure.WordPress;
+
+internal sealed class WordPressEndpointResolver(
+    HttpClient httpClient,
+    ILogger<WordPressEndpointResolver> logger)
+{
+    private const string ApiRel = "https://api.w.org/";
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    public async Task<WordPressRoot> ResolveAsync(
+        WordPressSettings settings,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        var siteUri = CreateSiteUri(settings);
+        var candidates = new List<Uri>();
+
+        var linkedRoot = await TryGetRootFromSiteAsync(siteUri, cancellationToken);
+        AddCandidate(candidates, linkedRoot);
+        AddCandidate(candidates, BuildPrettyRoot(siteUri));
+        AddCandidate(candidates, BuildRouteRoot(siteUri));
+
+        foreach (var candidate in candidates)
+        {
+            var root = await ProbeRootAsync(candidate, cancellationToken);
+            if (root is not null)
+            {
+                return root;
+            }
+        }
+
+        logger.LogError(
+            "WordPress REST API discovery failed for host {WordPressHost}.",
+            siteUri.Host);
+
+        throw new HttpRequestException(
+            $"WordPress REST API discovery failed for host '{siteUri.Host}'.");
+    }
+
+    private async Task<Uri?> TryGetRootFromSiteAsync(
+        Uri siteUri,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Head, siteUri);
+
+        try
+        {
+            using var response = await httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+
+            return TryGetRootFromLinkHeaders(siteUri, response.Headers);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogInformation(
+                exception,
+                "WordPress REST API discovery HEAD request failed for host {WordPressHost}.",
+                siteUri.Host);
+
+            return null;
+        }
+    }
+
+    private static Uri? TryGetRootFromLinkHeaders(
+        Uri siteUri,
+        HttpResponseHeaders headers)
+    {
+        if (!headers.TryGetValues("Link", out var linkHeaders))
+        {
+            return null;
+        }
+
+        foreach (var link in linkHeaders.SelectMany(SplitLinkHeaderValue))
+        {
+            var uriEnd = link.IndexOf('>', StringComparison.Ordinal);
+            if (!link.StartsWith('<') || uriEnd <= 1)
+            {
+                continue;
+            }
+
+            var parameters = link[(uriEnd + 1)..];
+            if (!HasApiRel(parameters))
+            {
+                continue;
+            }
+
+            var value = link[1..uriEnd];
+            if (Uri.TryCreate(siteUri, value, out var rootUri))
+            {
+                return rootUri;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<WordPressRoot?> ProbeRootAsync(
+        Uri rootUri,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, rootUri);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        try
+        {
+            using var response = await httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode || !IsJsonResponse(response))
+            {
+                return null;
+            }
+
+            var index = await response.Content.ReadFromJsonAsync<WordPressIndex>(
+                JsonOptions,
+                cancellationToken);
+
+            return IsSupportedApiIndex(index) ? new WordPressRoot(rootUri) : null;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (JsonException exception)
+        {
+            logger.LogInformation(
+                exception,
+                "WordPress REST API discovery returned invalid JSON for host {WordPressHost}.",
+                rootUri.Host);
+
+            return null;
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogInformation(
+                exception,
+                "WordPress REST API root probe failed for host {WordPressHost}.",
+                rootUri.Host);
+
+            return null;
+        }
+    }
+
+    private static bool IsSupportedApiIndex(WordPressIndex? index)
+    {
+        if (index is null)
+        {
+            return false;
+        }
+
+        return index.Namespaces?.Contains("wp/v2", StringComparer.Ordinal) is true ||
+            index.Routes?.Keys.Any(static route =>
+                route.Equals("/wp/v2", StringComparison.Ordinal) ||
+                route.StartsWith("/wp/v2/", StringComparison.Ordinal)) is true;
+    }
+
+    private static bool IsJsonResponse(HttpResponseMessage response)
+    {
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        return mediaType?.Contains("json", StringComparison.OrdinalIgnoreCase) is true;
+    }
+
+    private static bool HasApiRel(string parameters)
+    {
+        foreach (var parameter in parameters.Split(';', StringSplitOptions.TrimEntries))
+        {
+            var separator = parameter.IndexOf('=', StringComparison.Ordinal);
+            if (separator <= 0)
+            {
+                continue;
+            }
+
+            var name = parameter[..separator];
+            var value = parameter[(separator + 1)..].Trim('"');
+            if (name.Equals("rel", StringComparison.OrdinalIgnoreCase) &&
+                value.Equals(ApiRel, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<string> SplitLinkHeaderValue(string header)
+    {
+        var start = 0;
+        var inQuotes = false;
+        for (var index = 0; index < header.Length; index++)
+        {
+            if (header[index] == '"')
+            {
+                inQuotes = !inQuotes;
+            }
+            else if (header[index] == ',' && !inQuotes)
+            {
+                yield return header[start..index].Trim();
+                start = index + 1;
+            }
+        }
+
+        yield return header[start..].Trim();
+    }
+
+    private static Uri CreateSiteUri(WordPressSettings settings)
+    {
+        if (!WordPressSettings.IsValidSiteUrl(settings.SiteUrl) ||
+            !Uri.TryCreate(settings.SiteUrl.Trim(), UriKind.Absolute, out var siteUri))
+        {
+            throw new HttpRequestException(
+                "WordPress REST API discovery requires a safe absolute site URL.");
+        }
+
+        return siteUri;
+    }
+
+    private static Uri BuildPrettyRoot(Uri siteUri)
+    {
+        var builder = new UriBuilder(siteUri)
+        {
+            Fragment = string.Empty,
+            Query = string.Empty,
+            Path = $"{siteUri.AbsolutePath.TrimEnd('/')}/wp-json/"
+        };
+
+        return builder.Uri;
+    }
+
+    private static Uri BuildRouteRoot(Uri siteUri)
+    {
+        var builder = new UriBuilder(siteUri)
+        {
+            Fragment = string.Empty,
+            Query = "rest_route=/",
+            Path = $"{siteUri.AbsolutePath.TrimEnd('/')}/index.php"
+        };
+
+        return builder.Uri;
+    }
+
+    private static void AddCandidate(List<Uri> candidates, Uri? candidate)
+    {
+        if (candidate is null ||
+            candidates.Any(existing =>
+                string.Equals(
+                    existing.AbsoluteUri,
+                    candidate.AbsoluteUri,
+                    StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        candidates.Add(candidate);
+    }
+
+    private sealed record WordPressIndex(
+        string[]? Namespaces,
+        Dictionary<string, JsonElement>? Routes);
+}
+
+internal sealed record WordPressRoot(Uri RootUri)
+{
+    public Uri BuildRoute(
+        string route,
+        IReadOnlyDictionary<string, string>? query = null)
+    {
+        var normalizedRoute = NormalizeRoute(route);
+
+        return HasRouteQuery()
+            ? BuildRouteQuery(normalizedRoute, query)
+            : BuildPrettyRoute(normalizedRoute, query);
+    }
+
+    private static string NormalizeRoute(string route)
+    {
+        if (string.IsNullOrWhiteSpace(route) ||
+            !route.StartsWith("/", StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                "WordPress REST API routes must be non-empty and start with '/'.",
+                nameof(route));
+        }
+
+        return route;
+    }
+
+    private Uri BuildPrettyRoute(
+        string route,
+        IReadOnlyDictionary<string, string>? query)
+    {
+        var builder = new UriBuilder(RootUri)
+        {
+            Path = $"{RootUri.AbsolutePath.TrimEnd('/')}/{route.TrimStart('/')}",
+            Query = BuildQuery(query)
+        };
+
+        return builder.Uri;
+    }
+
+    private Uri BuildRouteQuery(
+        string route,
+        IReadOnlyDictionary<string, string>? query)
+    {
+        var values = ParseQuery(RootUri.Query)
+            .Where(parameter => !parameter.Name.Equals("rest_route", StringComparison.Ordinal))
+            .ToList();
+
+        values.Insert(0, new QueryParameter("rest_route", route));
+        if (query is not null)
+        {
+            values.AddRange(query.Select(parameter =>
+                new QueryParameter(parameter.Key, parameter.Value)));
+        }
+
+        var builder = new UriBuilder(RootUri)
+        {
+            Query = BuildQuery(values)
+        };
+
+        return builder.Uri;
+    }
+
+    private bool HasRouteQuery() =>
+        ParseQuery(RootUri.Query).Any(parameter =>
+            parameter.Name.Equals("rest_route", StringComparison.Ordinal));
+
+    private static string BuildQuery(IReadOnlyDictionary<string, string>? query) =>
+        query is null || query.Count == 0
+            ? string.Empty
+            : BuildQuery(query.Select(parameter =>
+                new QueryParameter(parameter.Key, parameter.Value)));
+
+    private static string BuildQuery(IEnumerable<QueryParameter> query) =>
+        string.Join(
+            "&",
+            query.Select(parameter =>
+                $"{Escape(parameter.Name)}={EscapeQueryValue(parameter.Value)}"));
+
+    private static IReadOnlyList<QueryParameter> ParseQuery(string query)
+    {
+        var trimmed = query.TrimStart('?');
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return [];
+        }
+
+        return trimmed
+            .Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Select(parameter =>
+            {
+                var separator = parameter.IndexOf('=', StringComparison.Ordinal);
+                if (separator < 0)
+                {
+                    return new QueryParameter(Uri.UnescapeDataString(parameter), string.Empty);
+                }
+
+                return new QueryParameter(
+                    Uri.UnescapeDataString(parameter[..separator]),
+                    Uri.UnescapeDataString(parameter[(separator + 1)..]));
+            })
+            .ToArray();
+    }
+
+    private static string Escape(string value) =>
+        Uri.EscapeDataString(value);
+
+    private static string EscapeQueryValue(string value) =>
+        value.StartsWith("/", StringComparison.Ordinal)
+            ? value
+            : Escape(value);
+
+    private sealed record QueryParameter(string Name, string Value);
+}
