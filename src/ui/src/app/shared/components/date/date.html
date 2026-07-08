@@ -6,12 +6,13 @@
     matInput
     [matDatepicker]="picker"
     [value]="selectedDate()"
+    [disabled]="disabled()"
     [errorStateMatcher]="errorStateMatcher"
     (dateInput)="onDateInput($event)"
     (blur)="markAsTouched()">
   <mat-hint>YYYY-MM-DD</mat-hint>
-  <mat-datepicker-toggle matIconSuffix [for]="picker" />
-  <mat-datepicker #picker />
+  <mat-datepicker-toggle matIconSuffix [for]="picker" [disabled]="disabled()" />
+  <mat-datepicker #picker [disabled]="disabled()" />
   @if (errorMessage(); as message) {
     <mat-error>{{ message }}</mat-error>
   }

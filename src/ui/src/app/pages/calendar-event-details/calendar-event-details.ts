@@ -36,10 +36,6 @@ import { Input } from 'src/app/shared/components/input/input';
 import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
 import { Select } from 'src/app/shared/components/select/select';
-import {
-  StatusPill,
-  type StatusPillVariant,
-} from 'src/app/shared/components/status-pill/status-pill';
 import { TimeField } from 'src/app/shared/components/time/time';
 import {
   applyCalendarEventDetailsRules,
@@ -71,8 +67,6 @@ interface CreateCalendarEventSubmissionResult {
   thumbnailErrorMessage: string | null;
 }
 
-export type EventFormSaveStatus = 'saving' | 'failed' | 'locked' | 'pending' | 'stored';
-
 @Component({
   selector: 'app-calendar-event-details',
   imports: [
@@ -85,7 +79,6 @@ export type EventFormSaveStatus = 'saving' | 'failed' | 'locked' | 'pending' | '
     TimeField,
     Select,
     ProgressBar,
-    StatusPill,
     ThumbnailEditor,
   ],
   templateUrl: './calendar-event-details.html',
@@ -142,27 +135,6 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
       !sameUpdateCalendarEventRequest(toUpdateCalendarEventRequest(this.model()), saved)
     );
   });
-  protected readonly eventFormSaveStatus = computed<EventFormSaveStatus>(() => {
-    if (this.isSubmitting()) {
-      return 'saving';
-    }
-
-    if (this.saveErrorMessage() !== null) {
-      return 'failed';
-    }
-
-    if (this.isEditMode && !this.canUpdate()) {
-      return 'locked';
-    }
-
-    if (this.hasPendingEventChanges()) {
-      return 'pending';
-    }
-
-    return 'stored';
-  });
-  protected readonly eventFormSaveStatusText = eventFormSaveStatusText;
-  protected readonly eventFormSaveStatusVariant = eventFormSaveStatusVariant;
   protected readonly platforms = signal<CalendarEventPlatform[]>([]);
   protected readonly publishingPlatformId = signal<string | null>(null);
   protected readonly publishErrorMessage = signal<string | null>(null);
@@ -633,36 +605,6 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
     this.canUpdate.set(event.canUpdate);
     this.canDelete.set(event.canDelete);
     this.thumbnailEditor.applyEventDetails(event);
-  }
-}
-
-export function eventFormSaveStatusText(status: EventFormSaveStatus): string {
-  switch (status) {
-    case 'saving':
-      return 'Saving...';
-    case 'failed':
-      return 'Save failed';
-    case 'locked':
-      return 'Published changes locked';
-    case 'pending':
-      return 'Not saved';
-    case 'stored':
-      return 'Stored';
-  }
-}
-
-export function eventFormSaveStatusVariant(
-  status: EventFormSaveStatus,
-): StatusPillVariant {
-  switch (status) {
-    case 'stored':
-      return 'success';
-    case 'failed':
-    case 'pending':
-      return 'warning';
-    case 'saving':
-    case 'locked':
-      return 'neutral';
   }
 }
 

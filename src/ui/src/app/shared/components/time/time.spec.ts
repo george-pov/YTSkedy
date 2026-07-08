@@ -1,6 +1,6 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { form, required } from '@angular/forms/signals';
+import { disabled, form, required } from '@angular/forms/signals';
 import { MatDateFormats } from '@angular/material/core';
 import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -25,10 +25,12 @@ const testDateFormats: MatDateFormats = {
   template: `<app-time [field]="form.time" label="Start time" />`,
 })
 class TimeHost {
+  readonly disabled = signal(false);
   readonly model = signal({ time: '' });
-  readonly form = form(this.model, (path) =>
-    required(path.time, { message: 'Start time is required.' }),
-  );
+  readonly form = form(this.model, (path) => {
+    required(path.time, { message: 'Start time is required.' });
+    disabled(path.time, { when: () => this.disabled() });
+  });
 }
 
 describe('TimeField', () => {
@@ -84,5 +86,19 @@ describe('TimeField', () => {
     expect(
       fixture.nativeElement.querySelector('mat-error')?.textContent?.trim(),
     ).toBe('Start time is required.');
+  });
+
+  it('disables the Material input and timepicker toggle when the field is disabled', async () => {
+    host.disabled.set(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(
+      (fixture.nativeElement.querySelector('input') as HTMLInputElement).disabled,
+    ).toBe(true);
+    expect(
+      (fixture.nativeElement.querySelector('mat-timepicker-toggle button') as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
 });

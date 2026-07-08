@@ -116,15 +116,14 @@ uses the stored `scheduledStartUtc`. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with `start` and text values and
 stays on the edit page on success. A successful edit-mode save updates the
 saved baseline, clears any save error, shows `Calendar event updated.`, and
-returns the event-form status to `Stored`. The event-form summary shows
-`Stored`, `Not saved`, `Saving...`, `Save failed`, or
-`Published changes locked`. `Not saved` is based on normalized
+keeps the user on the edit route. Pending changes are based on normalized
 `UpdateCalendarEventRequest` values for scheduled start and event text, not raw
 form whitespace. `Save changes` is disabled until scheduled start or event text
 differs from the saved baseline. The page shows that Save changes updates
 scheduled start and event text only. If `canUpdate` is false, the
 scheduled-start controls, event text controls, and Save action are disabled,
-and the event-form status is `Published changes locked`.
+and an inline info alert explains that platform publications must be deleted
+before the event can be changed or deleted.
 
 In edit mode the page also shows a Delete action; it is hidden in create mode.
 If the API-provided `canDelete` flag is false, Delete is disabled. Delete calls

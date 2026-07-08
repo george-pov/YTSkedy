@@ -20,17 +20,9 @@
     } @else {
       <form class="app-grid app-gap-6" (submit)="onSubmit($event)">
         @if (isEditMode) {
-          <div class="event-form-summary">
-            <div class="event-form-status" aria-live="polite">
-              <span>Event form</span>
-              <app-status-pill [variant]="eventFormSaveStatusVariant(eventFormSaveStatus())">
-                {{ eventFormSaveStatusText(eventFormSaveStatus()) }}
-              </app-status-pill>
-            </div>
-            <p class="save-scope-note">
-              Save changes updates scheduled start and event text only.
-            </p>
-          </div>
+          <p class="save-scope-note">
+            Save changes updates scheduled start and event text only.
+          </p>
         }
 
         <fieldset class="section">

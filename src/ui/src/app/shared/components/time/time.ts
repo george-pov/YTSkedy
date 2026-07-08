@@ -29,6 +29,7 @@ export class TimeField {
   protected readonly selectedTime = computed(() =>
     parseTimeFieldValue(this.field()().value()),
   );
+  protected readonly disabled = computed(() => this.field()().disabled());
 
   protected readonly errorStateMatcher: ErrorStateMatcher = {
     isErrorState: () => this.errorMessage() !== null,

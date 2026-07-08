@@ -224,14 +224,8 @@ describe('CalendarEventDetails', () => {
     return fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement;
   }
 
-  function eventFormStatus(): string {
-    return (
-      fixture.nativeElement.querySelector('.event-form-status app-status-pill') as HTMLElement
-    ).textContent!.trim();
-  }
-
-  function eventFormStatusHost(): HTMLElement {
-    return fixture.nativeElement.querySelector('.event-form-status app-status-pill') as HTMLElement;
+  function statusPills(): HTMLElement[] {
+    return Array.from(fixture.nativeElement.querySelectorAll('app-status-pill'));
   }
 
   async function routeExitDecision(): Promise<boolean> {
@@ -251,6 +245,14 @@ describe('CalendarEventDetails', () => {
     return Array.from(
       fixture.nativeElement.querySelectorAll('app-input input, app-input textarea'),
     ) as Array<HTMLInputElement | HTMLTextAreaElement>;
+  }
+
+  function startDateInput(): HTMLInputElement {
+    return fixture.nativeElement.querySelector('app-date input') as HTMLInputElement;
+  }
+
+  function startTimeInput(): HTMLInputElement {
+    return fixture.nativeElement.querySelector('app-time input') as HTMLInputElement;
   }
 
   function platformPublishHosts(): HTMLElement[] {
@@ -625,30 +627,29 @@ describe('CalendarEventDetails', () => {
       expect(text).toContain('2030-07-04 08:30');
     });
 
-    it('shows Stored for the initial edit form save status', () => {
+    it('shows edit-mode save scope copy without status pills', () => {
       service.getById.mockReturnValue(of(sampleEvent()));
 
       createEditComponent();
 
-      expect(eventFormStatus()).toBe('Stored');
-      expect(eventFormStatusHost().classList.contains('success')).toBe(true);
       expect(fixture.nativeElement.textContent).toContain(
         'Save changes updates scheduled start and event text only.',
       );
+      expect(statusPills()).toHaveLength(0);
     });
 
-    it('shows Not saved when event text changes from the saved baseline', () => {
+    it('enables Save without showing a status pill when event text changes from the saved baseline', () => {
       service.getById.mockReturnValue(of(sampleEvent()));
 
       createEditComponent();
       api().form.texts[0].value().value.set('Updated English title');
       fixture.detectChanges();
 
-      expect(eventFormStatus()).toBe('Not saved');
-      expect(eventFormStatusHost().classList.contains('warning')).toBe(true);
+      expect(saveButton().disabled).toBe(false);
+      expect(statusPills()).toHaveLength(0);
     });
 
-    it('shows Saving while an edit-mode save is in flight', () => {
+    it('disables Save while an edit-mode save is in flight without showing a status pill', () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.update.mockReturnValue(new Subject<UpdateCalendarEventResponse>());
 
@@ -658,10 +659,11 @@ describe('CalendarEventDetails', () => {
       fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
       fixture.detectChanges();
 
-      expect(eventFormStatus()).toBe('Saving...');
+      expect(saveButton().disabled).toBe(true);
+      expect(statusPills()).toHaveLength(0);
     });
 
-    it('shows Save failed with the existing save error alert', async () => {
+    it('shows save failures with the existing save error alert', async () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.update.mockReturnValue(throwError(() => new Error('boom')));
 
@@ -674,12 +676,12 @@ describe('CalendarEventDetails', () => {
       fixture.detectChanges();
 
       const alert = fixture.nativeElement.querySelector('[role="alert"]');
-      expect(eventFormStatus()).toBe('Save failed');
       expect(alert).not.toBeNull();
       expect(alert.textContent).toContain('The event could not be saved.');
+      expect(statusPills()).toHaveLength(0);
     });
 
-    it('shows Published changes locked when event updates are locked', () => {
+    it('shows the locked-state alert without a status pill when event updates are locked', () => {
       service.getById.mockReturnValue(
         of(
           sampleEvent({
@@ -692,10 +694,10 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
 
-      expect(eventFormStatus()).toBe('Published changes locked');
       expect(fixture.nativeElement.textContent).toContain(
         'Delete platform publications before changing this event or deleting it.',
       );
+      expect(statusPills()).toHaveLength(0);
     });
 
     it('navigates away on clean edit-mode Cancel without confirmation', async () => {
@@ -810,6 +812,7 @@ describe('CalendarEventDetails', () => {
       );
       expect(fixture.nativeElement.textContent).toContain('stream.png');
       expect(fixture.nativeElement.textContent).toContain('1280 x 720');
+      expect(statusPills()).toHaveLength(0);
     });
 
     it('replaces the thumbnail without discarding unsaved event text', async () => {
@@ -832,6 +835,7 @@ describe('CalendarEventDetails', () => {
       );
       expect(api().model().texts[0].value).toBe('Unsaved English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Thumbnail updated.');
+      expect(statusPills()).toHaveLength(0);
     });
 
     it('deletes the thumbnail without discarding unsaved event text', async () => {
@@ -1400,7 +1404,6 @@ describe('CalendarEventDetails', () => {
       expect(platformDeletePublicationHosts()).toHaveLength(0);
       expect(platformPublishHosts()).toHaveLength(1);
       expect(saveButton().disabled).toBe(true);
-      expect(eventFormStatus()).toBe('Stored');
       expect(deleteButton()!.disabled).toBe(false);
       expect(api().form.start().disabled()).toBe(false);
       expect(eventTextControls().every((control) => !control.disabled)).toBe(true);
@@ -1513,6 +1516,8 @@ describe('CalendarEventDetails', () => {
       expect(api().form.start.date().disabled()).toBe(false);
       expect(api().form.start.time().disabled()).toBe(false);
       expect(api().form.start.timeZoneId().disabled()).toBe(false);
+      expect(startDateInput().disabled).toBe(false);
+      expect(startTimeInput().disabled).toBe(false);
     });
 
     it('disables scheduled start controls in edit mode when API canUpdate is false', () => {
@@ -1532,6 +1537,8 @@ describe('CalendarEventDetails', () => {
       expect(api().form.start.date().disabled()).toBe(true);
       expect(api().form.start.time().disabled()).toBe(true);
       expect(api().form.start.timeZoneId().disabled()).toBe(true);
+      expect(startDateInput().disabled).toBe(true);
+      expect(startTimeInput().disabled).toBe(true);
     });
 
     it('previews the edited scheduled start UTC in edit mode when API canUpdate is true', () => {
@@ -1556,7 +1563,7 @@ describe('CalendarEventDetails', () => {
       createEditComponent();
 
       expect(saveButton().disabled).toBe(true);
-      expect(eventFormStatus()).toBe('Stored');
+      expect(statusPills()).toHaveLength(0);
     });
 
     it('does not update when an unchanged edit form is submitted programmatically', async () => {
@@ -1589,7 +1596,6 @@ describe('CalendarEventDetails', () => {
       fixture.detectChanges();
 
       expect(saveButton().disabled).toBe(false);
-      expect(eventFormStatus()).toBe('Not saved');
 
       fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
       fixture.detectChanges();
@@ -1615,8 +1621,8 @@ describe('CalendarEventDetails', () => {
       );
       expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event updated.');
       expect(navigations).toEqual([]);
-      expect(eventFormStatus()).toBe('Stored');
       expect(saveButton().disabled).toBe(true);
+      expect(statusPills()).toHaveLength(0);
     });
 
     it('disables event text save and delete when API canUpdate and canDelete are false', () => {
@@ -1635,6 +1641,8 @@ describe('CalendarEventDetails', () => {
       expect(saveButton().disabled).toBe(true);
       expect(deleteButton()!.disabled).toBe(true);
       expect(api().form.start().disabled()).toBe(true);
+      expect(startDateInput().disabled).toBe(true);
+      expect(startTimeInput().disabled).toBe(true);
       expect(eventTextControls().every((control) => control.disabled)).toBe(true);
       expect(fixture.nativeElement.textContent).toContain(
         'Delete platform publications before changing this event or deleting it.',

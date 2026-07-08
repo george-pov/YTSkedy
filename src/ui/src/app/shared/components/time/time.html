@@ -6,11 +6,12 @@
     matInput
     [matTimepicker]="picker"
     [value]="selectedTime()"
+    [disabled]="disabled()"
     [errorStateMatcher]="errorStateMatcher"
     (valueChange)="onTimeChange($event)"
     (blur)="markAsTouched()">
   <mat-hint>HH:mm</mat-hint>
-  <mat-timepicker-toggle matIconSuffix [for]="picker" />
+  <mat-timepicker-toggle matIconSuffix [for]="picker" [disabled]="disabled()" />
   <mat-timepicker #picker interval="15m" />
   @if (errorMessage(); as message) {
     <mat-error>{{ message }}</mat-error>
