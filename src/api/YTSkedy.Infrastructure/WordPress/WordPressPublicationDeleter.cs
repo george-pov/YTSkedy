@@ -14,10 +14,22 @@ namespace YTSkedy.Infrastructure.WordPress;
 /// the WordPress REST API using Application Password Basic Auth. Secrets and
 /// authorization headers are never logged.
 /// </summary>
-public sealed class WordPressPublicationDeleter(
-    HttpClient httpClient,
-    ILogger<WordPressPublicationDeleter> logger) : IPlatformPublicationDeleter
+public sealed class WordPressPublicationDeleter : IPlatformPublicationDeleter
 {
+    private readonly HttpClient httpClient;
+    private readonly WordPressEndpointResolver endpointResolver;
+    private readonly ILogger<WordPressPublicationDeleter> logger;
+
+    internal WordPressPublicationDeleter(
+        HttpClient httpClient,
+        WordPressEndpointResolver endpointResolver,
+        ILogger<WordPressPublicationDeleter> logger)
+    {
+        this.httpClient = httpClient;
+        this.endpointResolver = endpointResolver;
+        this.logger = logger;
+    }
+
     public PlatformType Type => PlatformType.WordPress;
 
     public async Task<PublicationDeleteResult> DeleteAsync(
@@ -49,12 +61,17 @@ public sealed class WordPressPublicationDeleter(
             return PublicationDeleteResult.StateConflict;
         }
 
-        var endpoint = BuildPostDeleteEndpoint(settings, postId);
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Delete, endpoint);
-        httpRequest.Headers.Authorization = CreateAuthorizationHeader(settings);
+        Uri? endpoint = null;
 
         try
         {
+            var root = await endpointResolver.ResolveAsync(settings, cancellationToken);
+            endpoint = root.BuildRoute(
+                $"/wp/v2/posts/{postId.ToString(CultureInfo.InvariantCulture)}",
+                new Dictionary<string, string> { ["force"] = "true" });
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Delete, endpoint);
+            httpRequest.Headers.Authorization = CreateAuthorizationHeader(settings);
+
             using var response = await httpClient.SendAsync(httpRequest, cancellationToken);
 
             if (response.IsSuccessStatusCode)
@@ -99,7 +116,7 @@ public sealed class WordPressPublicationDeleter(
                 "and platform {PlatformId} at host {WordPressHost}.",
                 request.CalendarEventId,
                 request.PlatformId,
-                endpoint.Host);
+                GetLogHost(settings, endpoint));
 
             return PublicationDeleteResult.Failed;
         }
@@ -113,20 +130,6 @@ public sealed class WordPressPublicationDeleter(
             out postId) &&
         postId > 0;
 
-    private static Uri BuildPostDeleteEndpoint(WordPressSettings settings, long postId)
-    {
-        if (!WordPressSettings.IsValidSiteUrl(settings.SiteUrl) ||
-            !Uri.TryCreate(settings.SiteUrl.Trim(), UriKind.Absolute, out var siteUri))
-        {
-            throw new InvalidOperationException(
-                "A WordPress publication delete requires a safe absolute site URL.");
-        }
-
-        var baseUrl = siteUri.ToString().TrimEnd('/');
-        return new Uri(
-            $"{baseUrl}/wp-json/wp/v2/posts/{postId.ToString(CultureInfo.InvariantCulture)}?force=true");
-    }
-
     private static AuthenticationHeaderValue CreateAuthorizationHeader(
         WordPressSettings settings)
     {
@@ -134,6 +137,18 @@ public sealed class WordPressPublicationDeleter(
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(credentials));
 
         return new AuthenticationHeaderValue("Basic", encoded);
+    }
+
+    private static string GetLogHost(WordPressSettings settings, Uri? endpoint)
+    {
+        if (endpoint is not null)
+        {
+            return endpoint.Host;
+        }
+
+        return Uri.TryCreate(settings.SiteUrl.Trim(), UriKind.Absolute, out var siteUri)
+            ? siteUri.Host
+            : "(invalid)";
     }
 
     private void LogProviderFailure(

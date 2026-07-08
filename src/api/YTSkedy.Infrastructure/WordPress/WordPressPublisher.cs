@@ -15,11 +15,22 @@ namespace YTSkedy.Infrastructure.WordPress;
 /// post through the WordPress REST API using Application Password Basic Auth.
 /// Secrets and authorization headers are never logged.
 /// </summary>
-public sealed class WordPressPublisher(
-    HttpClient httpClient,
-    ILogger<WordPressPublisher> logger) : IPlatformPublisher
+public sealed class WordPressPublisher : IPlatformPublisher
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly HttpClient httpClient;
+    private readonly WordPressEndpointResolver endpointResolver;
+    private readonly ILogger<WordPressPublisher> logger;
+
+    internal WordPressPublisher(
+        HttpClient httpClient,
+        WordPressEndpointResolver endpointResolver,
+        ILogger<WordPressPublisher> logger)
+    {
+        this.httpClient = httpClient;
+        this.endpointResolver = endpointResolver;
+        this.logger = logger;
+    }
 
     public PlatformType Type => PlatformType.WordPress;
 
@@ -35,20 +46,23 @@ public sealed class WordPressPublisher(
                 "A WordPress publish requires WordPress publish settings.");
         }
 
-        var endpoint = BuildPostsEndpoint(settings);
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
-        {
-            Content = JsonContent.Create(
-                new WordPressPostRequest(
-                    request.Title,
-                    request.Description ?? string.Empty,
-                    settings.PostStatus),
-                options: JsonOptions)
-        };
-        httpRequest.Headers.Authorization = CreateAuthorizationHeader(settings);
+        Uri? endpoint = null;
 
         try
         {
+            var root = await endpointResolver.ResolveAsync(settings, cancellationToken);
+            endpoint = root.BuildRoute("/wp/v2/posts");
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            {
+                Content = JsonContent.Create(
+                    new WordPressPostRequest(
+                        request.Title,
+                        request.Description ?? string.Empty,
+                        settings.PostStatus),
+                    options: JsonOptions)
+            };
+            httpRequest.Headers.Authorization = CreateAuthorizationHeader(settings);
+
             using var response = await httpClient.SendAsync(httpRequest, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
@@ -100,7 +114,7 @@ public sealed class WordPressPublisher(
                 "and platform {PlatformId} at host {WordPressHost}.",
                 request.CalendarEventId,
                 request.PlatformId,
-                endpoint.Host);
+                GetLogHost(settings, endpoint));
 
             throw new PlatformPublishException(
                 $"WordPress returned malformed JSON while publishing calendar event '{request.CalendarEventId}'.",
@@ -118,25 +132,12 @@ public sealed class WordPressPublisher(
                 "and platform {PlatformId} at host {WordPressHost}.",
                 request.CalendarEventId,
                 request.PlatformId,
-                endpoint.Host);
+                GetLogHost(settings, endpoint));
 
             throw new PlatformPublishException(
                 $"Failed to publish calendar event '{request.CalendarEventId}' to WordPress.",
                 exception);
         }
-    }
-
-    private static Uri BuildPostsEndpoint(WordPressSettings settings)
-    {
-        if (!WordPressSettings.IsValidSiteUrl(settings.SiteUrl) ||
-            !Uri.TryCreate(settings.SiteUrl.Trim(), UriKind.Absolute, out var siteUri))
-        {
-            throw new PlatformPublishException(
-                "A WordPress publish requires a safe absolute site URL.");
-        }
-
-        var baseUrl = siteUri.ToString().TrimEnd('/');
-        return new Uri($"{baseUrl}/wp-json/wp/v2/posts");
     }
 
     private static AuthenticationHeaderValue CreateAuthorizationHeader(
@@ -146,6 +147,18 @@ public sealed class WordPressPublisher(
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(credentials));
 
         return new AuthenticationHeaderValue("Basic", encoded);
+    }
+
+    private static string GetLogHost(WordPressSettings settings, Uri? endpoint)
+    {
+        if (endpoint is not null)
+        {
+            return endpoint.Host;
+        }
+
+        return Uri.TryCreate(settings.SiteUrl.Trim(), UriKind.Absolute, out var siteUri)
+            ? siteUri.Host
+            : "(invalid)";
     }
 
     private void LogProviderFailure(
@@ -167,5 +180,5 @@ public sealed class WordPressPublisher(
         string Content,
         string Status);
 
-    private sealed record WordPressPostResponse(long? Id);
+    private sealed record WordPressPostResponse(long? Id, string? Link);
 }

@@ -285,12 +285,11 @@ builder.Services.AddScoped<IPlatformPublicationRepository>(
 builder.Services.AddScoped<IPlatformPublicationReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
 
-// Platform publishing: providers are selected by platform type and use settings
+// Platform provider adapters are selected by platform type and use settings
 // stored on the platform row.
 builder.Services.AddSingleton<IPlatformPublisher, YouTubePublisher>();
-builder.Services.AddHttpClient<WordPressPublisher>();
-builder.Services.AddSingleton<IPlatformPublisher>(
-    serviceProvider => serviceProvider.GetRequiredService<WordPressPublisher>());
+builder.Services.AddSingleton<IPlatformPublicationDeleter, YouTubePublicationDeleter>();
+builder.Services.AddWordPressPlatformAdapters();
 builder.Services.AddSingleton<IPlatformPublisherSelector, PlatformPublisherSelector>();
 builder.Services.AddSingleton<IThumbnailPublisher, YouTubeThumbnailPublisher>();
 builder.Services.AddSingleton<IThumbnailPublisherSelector, ThumbnailPublisherSelector>();
@@ -298,10 +297,6 @@ builder.Services.AddScoped<PublishHandler>();
 
 // Platform publication cleanup: providers are selected by platform type and use
 // current settings stored on the platform row.
-builder.Services.AddSingleton<IPlatformPublicationDeleter, YouTubePublicationDeleter>();
-builder.Services.AddHttpClient<WordPressPublicationDeleter>();
-builder.Services.AddSingleton<IPlatformPublicationDeleter>(
-    serviceProvider => serviceProvider.GetRequiredService<WordPressPublicationDeleter>());
 builder.Services.AddSingleton<IPublicationDeleterSelector, PublicationDeleterSelector>();
 builder.Services.AddScoped<DeletePublicationHandler>();
 

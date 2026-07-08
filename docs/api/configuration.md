@@ -105,14 +105,14 @@ This is a proof-of-concept integration with deliberate limitations:
 
 ## WordPress Publish Settings
 
-Publishing a calendar event to a WordPress platform creates a post through the
-WordPress REST API. WordPress does not use API host configuration keys in this
-slice. Operators enter WordPress connection details through platform create or
-update requests:
+Publishing a calendar event to a WordPress platform discovers the site's
+WordPress REST API root, then creates a post through the WordPress REST API.
+WordPress does not use API host configuration keys in this slice. Operators
+enter WordPress connection details through platform create or update requests:
 
 | Field | Classification | Purpose |
 | --- | --- | --- |
-| `publishSettings.siteUrl` | Non-secret | WordPress site root used to build `/wp-json/wp/v2/posts`. |
+| `publishSettings.siteUrl` | Non-secret | WordPress site root used for REST API discovery. |
 | `publishSettings.username` | Personal configuration | WordPress username used with an Application Password. |
 | `publishSettings.applicationPassword` | Secret | WordPress Application Password sent through Basic Auth to the WordPress REST API. |
 | `publishSettings.postStatus` | Non-secret | Initial WordPress post status, currently `draft` or `publish`. |

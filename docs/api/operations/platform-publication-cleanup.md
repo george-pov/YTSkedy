@@ -70,14 +70,17 @@ Recovery:
 ## WordPress Cleanup
 
 For WordPress, `externalResourceId` is the numeric WordPress post id returned by
-publish. Cleanup calls:
+publish. Cleanup discovers the WordPress REST API root from the active
+platform's site URL and calls logical route:
 
 ```text
-DELETE /wp-json/wp/v2/posts/{id}?force=true
+DELETE /wp/v2/posts/{id}
 ```
 
-The request uses Basic Auth with the platform's stored WordPress username and
-Application Password. `force=true` bypasses Trash and hard-deletes the post.
+with `force=true`. The resolved provider URL may use a pretty REST root or
+WordPress' `rest_route` query form. The request uses Basic Auth with the
+platform's stored WordPress username and Application Password. `force=true`
+bypasses Trash and hard-deletes the post.
 
 Provider outcomes:
 

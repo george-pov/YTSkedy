@@ -48,8 +48,9 @@ Authorization: Bearer {{accessToken}}
 # Prereqs for a real publish:
 # - The WordPress platform was created with a local-only username and
 #   Application Password in `http-client.env.json.user`.
-# - The platform site URL points at a WordPress site whose
-#   `/wp-json/wp/v2/posts` endpoint returns JSON.
+# - The platform site URL points at a WordPress site whose REST API is
+#   discoverable through the Link-header route, `/wp-json/`, or
+#   `index.php?rest_route=/`.
 # - The platform references title and description templates that render from
 #   event text tokens such as {{ text1 }} and {{ text2 }}.
 # - The calendar event has a FUTURE start and required event text values.

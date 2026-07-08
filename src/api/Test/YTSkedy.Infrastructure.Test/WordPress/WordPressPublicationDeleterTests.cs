@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using YTSkedy.Infrastructure.WordPress;
 using YTSkedy.Scheduling.Application.Platforms;
@@ -16,16 +17,16 @@ public class WordPressPublicationDeleterTests
     [Fact]
     public void Type_IsWordPress()
     {
-        var deleter = CreateDeleter(new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        var deleter = CreateDeleter(PrettyRootHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
 
         Assert.Equal(PlatformType.WordPress, deleter.Type);
     }
 
     [Fact]
-    public async Task DeleteAsync_Success_DeletesExpectedPostWithForceAndReturnsDeleted()
+    public async Task DeleteAsync_DiscoveredPrettyRoot_DeletesExpectedPostWithForce()
     {
         HttpRequestMessage? capturedRequest = null;
-        var handler = new FakeHttpMessageHandler(request =>
+        var handler = PrettyRootHandler(request =>
         {
             capturedRequest = request;
             return new HttpResponseMessage(HttpStatusCode.OK);
@@ -45,13 +46,53 @@ public class WordPressPublicationDeleterTests
         var expectedAuth = Convert.ToBase64String(
             Encoding.UTF8.GetBytes($"editor:{ApplicationPassword}"));
         Assert.Equal(expectedAuth, capturedRequest.Headers.Authorization.Parameter);
+        AssertDiscoveryRequestsAreAnonymous(handler);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_DiscoveredRouteRoot_DeletesExpectedPostWithForce()
+    {
+        HttpRequestMessage? capturedRequest = null;
+        var handler = RouteRootHandler(request =>
+        {
+            capturedRequest = request;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+        var deleter = CreateDeleter(handler);
+
+        var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
+
+        Assert.Equal(PublicationDeleteStatus.Deleted, result.Status);
+        Assert.NotNull(capturedRequest);
+        Assert.Equal(HttpMethod.Delete, capturedRequest.Method);
+        Assert.Equal(
+            "https://example.com/index.php?rest_route=/wp/v2/posts/74&force=true",
+            capturedRequest.RequestUri!.ToString());
+        Assert.Equal("Basic", capturedRequest.Headers.Authorization!.Scheme);
+        AssertDiscoveryRequestsAreAnonymous(handler);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_DiscoveryFailure_ReturnsFailed()
+    {
+        var logger = new CapturingLogger<WordPressPublicationDeleter>();
+        var handler = UnsupportedDiscoveryHandler();
+        var deleter = CreateDeleter(handler, logger);
+
+        var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
+
+        Assert.Equal(PublicationDeleteStatus.Failed, result.Status);
+        var logText = LogText(logger);
+        Assert.Contains("example.com", logText);
+        Assert.DoesNotContain(ApplicationPassword, logText);
+        Assert.Equal(3, handler.CallCount);
     }
 
     [Fact]
     public async Task DeleteAsync_NotFound_ReturnsAlreadyGone()
     {
         var deleter = CreateDeleter(
-            new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound)));
+            PrettyRootHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound)));
 
         var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
 
@@ -67,7 +108,7 @@ public class WordPressPublicationDeleterTests
     {
         var logger = new CapturingLogger<WordPressPublicationDeleter>();
         var deleter = CreateDeleter(
-            new FakeHttpMessageHandler(_ => new HttpResponseMessage(statusCode)),
+            PrettyRootHandler(_ => new HttpResponseMessage(statusCode)),
             logger);
 
         var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
@@ -99,9 +140,10 @@ public class WordPressPublicationDeleterTests
     }
 
     [Fact]
-    public async Task DeleteAsync_NonWordPressSettings_ReturnsFailed()
+    public async Task DeleteAsync_NonWordPressSettings_ReturnsFailedWithoutProviderCall()
     {
-        var deleter = CreateDeleter(new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        var handler = new FakeHttpMessageHandler(_ => throw new InvalidOperationException());
+        var deleter = CreateDeleter(handler);
 
         var result = await deleter.DeleteAsync(
             Request(
@@ -112,6 +154,7 @@ public class WordPressPublicationDeleterTests
             CancellationToken.None);
 
         Assert.Equal(PublicationDeleteStatus.Failed, result.Status);
+        Assert.Equal(0, handler.CallCount);
     }
 
     [Fact]
@@ -119,7 +162,7 @@ public class WordPressPublicationDeleterTests
     {
         var logger = new CapturingLogger<WordPressPublicationDeleter>();
         var deleter = CreateDeleter(
-            new FakeHttpMessageHandler(_ => throw new HttpRequestException("network down")),
+            PrettyRootHandler(_ => throw new HttpRequestException("network down")),
             logger);
 
         var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
@@ -143,8 +186,74 @@ public class WordPressPublicationDeleterTests
 
     private static WordPressPublicationDeleter CreateDeleter(
         FakeHttpMessageHandler handler,
-        ILogger<WordPressPublicationDeleter>? logger = null) =>
-        new(new HttpClient(handler), logger ?? new CapturingLogger<WordPressPublicationDeleter>());
+        ILogger<WordPressPublicationDeleter>? logger = null)
+    {
+        var resolver = new WordPressEndpointResolver(
+            new HttpClient(handler),
+            new CapturingLogger<WordPressEndpointResolver>());
+
+        return new WordPressPublicationDeleter(
+            new HttpClient(handler),
+            resolver,
+            logger ?? new CapturingLogger<WordPressPublicationDeleter>());
+    }
+
+    private static FakeHttpMessageHandler PrettyRootHandler(
+        Func<HttpRequestMessage, HttpResponseMessage> deleteHandler) =>
+        new(request =>
+        {
+            if (request.Method == HttpMethod.Head)
+            {
+                return LinkResponse("<https://example.com/wp-json/>; rel=\"https://api.w.org/\"");
+            }
+
+            if (request.Method == HttpMethod.Get)
+            {
+                return JsonIndexResponse();
+            }
+
+            return deleteHandler(request);
+        });
+
+    private static FakeHttpMessageHandler RouteRootHandler(
+        Func<HttpRequestMessage, HttpResponseMessage> deleteHandler) =>
+        new(request =>
+        {
+            if (request.Method == HttpMethod.Head)
+            {
+                return LinkResponse("<https://example.com/index.php?rest_route=/>; rel=\"https://api.w.org/\"");
+            }
+
+            if (request.Method == HttpMethod.Get)
+            {
+                return JsonIndexResponse();
+            }
+
+            return deleteHandler(request);
+        });
+
+    private static FakeHttpMessageHandler UnsupportedDiscoveryHandler() =>
+        new(request =>
+            request.Method == HttpMethod.Head
+                ? new HttpResponseMessage(HttpStatusCode.OK)
+                : JsonResponse("""{"namespaces":["oembed/1.0"]}"""));
+
+    private static HttpResponseMessage LinkResponse(string linkHeader)
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK);
+        response.Headers.TryAddWithoutValidation("Link", linkHeader);
+
+        return response;
+    }
+
+    private static HttpResponseMessage JsonIndexResponse() =>
+        JsonResponse("""{"namespaces":["wp/v2"]}""");
+
+    private static HttpResponseMessage JsonResponse(string json) =>
+        new(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
 
     private static PublicationDeleteRequest Request(
         PublishSettings? settings = null,
@@ -159,6 +268,14 @@ public class WordPressPublicationDeleterTests
                 "publish"),
             externalResourceId);
 
+    private static void AssertDiscoveryRequestsAreAnonymous(FakeHttpMessageHandler handler)
+    {
+        var discoveryRequests = handler.Requests.Where(request =>
+            request.Method is "HEAD" or "GET");
+
+        Assert.All(discoveryRequests, request => Assert.Null(request.Authorization));
+    }
+
     private static string LogText(CapturingLogger<WordPressPublicationDeleter> logger) =>
         string.Join(Environment.NewLine, logger.Entries.Select(entry => entry.Message));
 
@@ -167,15 +284,26 @@ public class WordPressPublicationDeleterTests
     {
         public int CallCount { get; private set; }
 
+        public List<RequestSnapshot> Requests { get; } = [];
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
             CallCount++;
+            Requests.Add(new RequestSnapshot(
+                request.Method.Method,
+                request.RequestUri!,
+                request.Headers.Authorization));
 
             return Task.FromResult(handler(request));
         }
     }
+
+    private sealed record RequestSnapshot(
+        string Method,
+        Uri RequestUri,
+        AuthenticationHeaderValue? Authorization);
 
     private sealed class CapturingLogger<T> : ILogger<T>
     {

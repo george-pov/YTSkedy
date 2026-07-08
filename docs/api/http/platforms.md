@@ -115,9 +115,9 @@ A WordPress platform is returned as:
   original length and are not accepted in create or update request bodies.
   `privacyStatus` is `private`, `public`, or `unlisted`;
   `selfDeclaredMadeForKids` defaults to `false` on create when omitted.
-- WordPress `publishSettings.siteUrl` is the WordPress site root. Non-local
-  site URLs must use HTTPS. `http://localhost` and `http://127.0.0.1` are
-  allowed for local development only.
+- WordPress `publishSettings.siteUrl` is the WordPress site root used for REST
+  API discovery. Non-local site URLs must use HTTPS. `http://localhost` and
+  `http://127.0.0.1` are allowed for local development only.
 - WordPress `publishSettings.username` is the WordPress username used with an
   Application Password.
 - WordPress `publishSettings.postStatus` is `draft` or `publish`.
@@ -450,12 +450,13 @@ broadcast id on the local publication row first, then applies the thumbnail to
 that YouTube broadcast. Thumbnail application is a separate YouTube API call
 from broadcast creation.
 
-For a WordPress platform this creates a post through
-`POST /wp-json/wp/v2/posts` using Basic Auth with the configured WordPress
-username and Application Password. The request maps the rendered title to
-`title`, the optional rendered description to `content`, and the platform's
-`postStatus` to `status`. The numeric WordPress post id is returned as the
-provider-neutral `externalResourceId`.
+For a WordPress platform this discovers the WordPress REST API root from the
+configured site URL, then creates a post through logical route
+`POST /wp/v2/posts` using Basic Auth with the configured WordPress username and
+Application Password. The request maps the rendered title to `title`, the
+optional rendered description to `content`, and the platform's `postStatus` to
+`status`. The numeric WordPress post id is returned as the provider-neutral
+`externalResourceId`.
 
 YouTube success response (`200 OK`):
 
@@ -561,11 +562,11 @@ holds. A YouTube state conflict, such as a broadcast that cannot be deleted in
 its current provider status, maps to `409 Conflict`.
 
 For a WordPress platform, the provider cleanup treats `externalResourceId` as
-the numeric WordPress post id and calls
-`DELETE /wp-json/wp/v2/posts/{id}?force=true` with Basic Auth using the stored
-WordPress username and Application Password. A WordPress not-found result is
-success-equivalent. Authorization or other provider failures map to
-`502 Bad Gateway`.
+the numeric WordPress post id, discovers the WordPress REST API root from the
+configured site URL, and calls logical route `DELETE /wp/v2/posts/{id}` with
+`force=true` using Basic Auth with the stored WordPress username and
+Application Password. A WordPress not-found result is success-equivalent.
+Authorization or other provider failures map to `502 Bad Gateway`.
 
 Success response (`200 OK`) is the recomputed event-platform row, using the
 same shape as `GET /api/calendar-events/{calendarEventId}`:
