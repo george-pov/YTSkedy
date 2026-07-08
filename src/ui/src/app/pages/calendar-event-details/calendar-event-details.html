@@ -106,7 +106,7 @@
                       iconButton
                       icon="visibility"
                       [ariaLabel]="'Preview publishing content for ' + platform.platformName"
-                      [disabled]="hasActiveMutation() || previewingPlatformId() !== null"
+                      [disabled]="hasActiveMutation()"
                       (click)="previewPublishingContent(platform)"
                     />
                   }

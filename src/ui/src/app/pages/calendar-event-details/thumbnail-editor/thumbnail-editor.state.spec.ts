@@ -1,3 +1,4 @@
+import { type DestroyRef } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
@@ -24,6 +25,7 @@ describe('ThumbnailEditorState', () => {
     deleteThumbnail: Mock<(calendarEventId: string) => Observable<void>>;
   };
   let notifications: { showSuccess: Mock<(message: string) => void> };
+  let destroyRef: DestroyRef;
   let hasActiveMutation: boolean;
 
   beforeEach(() => {
@@ -34,6 +36,10 @@ describe('ThumbnailEditorState', () => {
       deleteThumbnail: vi.fn<(calendarEventId: string) => Observable<void>>(),
     };
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
+    destroyRef = {
+      destroyed: false,
+      onDestroy: vi.fn(() => () => undefined),
+    };
     hasActiveMutation = false;
 
     let objectUrlIndex = 0;
@@ -56,6 +62,7 @@ describe('ThumbnailEditorState', () => {
       notifications as unknown as NotificationService,
       calendarEventId,
       isEditMode,
+      destroyRef,
       () => hasActiveMutation,
     );
   }

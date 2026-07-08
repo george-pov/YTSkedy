@@ -1,7 +1,9 @@
 <fieldset class="thumbnail-section">
   <legend>Thumbnail</legend>
 
-  @if (state().errorMessage(); as message) {
+  @let editor = state();
+
+  @if (editor.errorMessage(); as message) {
     <app-alert variant="error">
       {{ message }}
     </app-alert>
@@ -9,7 +11,7 @@
 
   @if (currentThumbnail(); as currentThumbnail) {
     <div class="app-grid app-gap-4">
-      @if (state().previewUrl(); as previewUrl) {
+      @if (editor.previewUrl(); as previewUrl) {
         <img
           class="thumbnail-preview app-col-md-4"
           [src]="previewUrl"
@@ -42,10 +44,10 @@
             type="button"
             appearance="outlined"
             icon="delete"
-            [disabled]="!state().canMutate()"
-            (click)="state().deleteThumbnail()"
+            [disabled]="!editor.canMutate()"
+            (click)="editor.deleteThumbnail()"
           >
-            {{ state().isDeleting() ? 'Deleting thumbnail...' : 'Delete thumbnail' }}
+            {{ editor.isDeleting() ? 'Deleting thumbnail...' : 'Delete thumbnail' }}
           </app-button>
         </div>
       </div>
@@ -53,7 +55,7 @@
   }
 
   @if (showPicker()) {
-    <div class="thumbnail-picker" [class.thumbnail-control-disabled]="!state().canMutate()">
+    <div class="thumbnail-picker" [class.thumbnail-control-disabled]="!editor.canMutate()">
       <div class="thumbnail-picker-content">
         <strong>No thumbnail selected.</strong>
         <span class="thumbnail-picker-help">
@@ -63,15 +65,15 @@
           class="thumbnail-select-input"
           [label]="pickerLabel()"
           icon="upload"
-          [accept]="state().acceptedFileTypes"
-          [disabled]="!state().canMutate()"
+          [accept]="editor.acceptedFileTypes"
+          [disabled]="!editor.canMutate()"
           (fileSelected)="selectFromPicker($event)"
         />
       </div>
     </div>
   }
 
-  @if (state().selectedPreviewUrl(); as selectedPreviewUrl) {
+  @if (editor.selectedPreviewUrl(); as selectedPreviewUrl) {
     <div
       class="app-grid app-gap-4"
       [class.thumbnail-pending]="isEditMode()"
@@ -86,7 +88,7 @@
         <header class="thumbnail-details-header">
           <h2>Selected thumbnail</h2>
         </header>
-        <p class="thumbnail-file-name">{{ state().selectedFile()?.name }}</p>
+        <p class="thumbnail-file-name">{{ editor.selectedFile()?.name }}</p>
 
         @if (!isEditMode()) {
           <div class="app-actions">
@@ -94,17 +96,17 @@
               class="thumbnail-select-input"
               label="Choose different image"
               icon="upload"
-              [accept]="state().acceptedFileTypes"
-              [disabled]="!state().canMutate()"
-              (fileSelected)="state().selectThumbnail($event)"
+              [accept]="editor.acceptedFileTypes"
+              [disabled]="!editor.canMutate()"
+              (fileSelected)="editor.selectThumbnail($event)"
             />
             <app-button
               class="thumbnail-clear-button"
               type="button"
               appearance="outlined"
               icon="close"
-              [disabled]="!state().canMutate()"
-              (click)="state().clearSelectedThumbnail()"
+              [disabled]="!editor.canMutate()"
+              (click)="editor.clearSelectedThumbnail()"
             >
               Clear thumbnail
             </app-button>

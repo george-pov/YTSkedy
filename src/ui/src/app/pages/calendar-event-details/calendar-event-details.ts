@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   ElementRef,
   inject,
@@ -10,6 +11,7 @@ import {
   type Signal,
   viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { form } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -92,6 +94,7 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
   private readonly eventTextFieldsService = inject(EventTextFieldsService);
   private readonly confirmation = inject(ConfirmationDialogService);
   private readonly notifications = inject(NotificationService);
+  private readonly destroyRef = inject(DestroyRef);
 
   // The edit route carries the calendar event id; the create route does not. A
   // non-null id puts the page in edit mode: it loads the stored event snapshot
@@ -106,6 +109,7 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
     this.notifications,
     this.editingId,
     this.isEditMode,
+    this.destroyRef,
     (): boolean => this.hasActiveMutation(),
   );
 
@@ -166,8 +170,8 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
   // backend-provided UTC instant instead of deriving a local preview.
   private readonly loadedScheduledStartUtc = signal<string | null>(null);
   protected readonly scheduledStartUtcDisplay = computed(() => {
-    const start = this.model().start;
     if (!this.isEditMode || this.canUpdate()) {
+      const start = this.model().start;
       return scheduledStartUtcPreview(start.date, start.time, start.timeZoneId);
     }
 
@@ -218,7 +222,10 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
 
     this.eventTextFieldsService
       .get()
-      .pipe(finalize(() => this.isLoading.set(false)))
+      .pipe(
+        finalize(() => this.isLoading.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (response) => {
           this.model.set(
@@ -240,7 +247,10 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
 
     this.calendarEventsService
       .getById(calendarEventId)
-      .pipe(finalize(() => this.isLoading.set(false)))
+      .pipe(
+        finalize(() => this.isLoading.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (event) => {
           this.applyEventDetails(event);
@@ -308,6 +318,7 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
             ),
           ),
           finalize(() => this.isSubmitting.set(false)),
+          takeUntilDestroyed(this.destroyRef),
         )
         .subscribe({
           next: (result) => {
@@ -334,7 +345,10 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
 
     this.calendarEventsService
       .update(this.editingId, request)
-      .pipe(finalize(() => this.isSubmitting.set(false)))
+      .pipe(
+        finalize(() => this.isSubmitting.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: () => {
           this.savedEventRequest.set(request);
@@ -357,11 +371,13 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
       return;
     }
 
-    this.confirmDiscardEventChanges().subscribe((discard) => {
-      if (discard) {
-        this.router.navigateByUrl('/calendar-events');
-      }
-    });
+    this.confirmDiscardEventChanges()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((discard) => {
+        if (discard) {
+          this.router.navigateByUrl('/calendar-events');
+        }
+      });
   }
 
   protected deleteEvent(): void {
@@ -378,11 +394,13 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
         )
       : this.confirmDeleteEvent();
 
-    deleteConfirmed.subscribe((confirmed) => {
-      if (confirmed) {
-        this.deleteEventAfterConfirmation();
-      }
-    });
+    deleteConfirmed
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((confirmed) => {
+        if (confirmed) {
+          this.deleteEventAfterConfirmation();
+        }
+      });
   }
 
   private deleteEventAfterConfirmation(): void {
@@ -400,7 +418,10 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
 
     this.calendarEventsService
       .delete(this.editingId!)
-      .pipe(finalize(() => this.isDeleting.set(false)))
+      .pipe(
+        finalize(() => this.isDeleting.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: () => {
           this.notifications.showSuccess('Calendar event deleted.');
@@ -452,6 +473,7 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
           this.refreshEventDetailsAfterPlatformMutation(response.platformId),
         ),
         finalize(() => this.publishingPlatformId.set(null)),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
         next: () => {
@@ -483,6 +505,7 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
           { id: 'delete', label: 'Delete publication', primary: true },
         ],
       })
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((result) => {
         if (result !== 'delete' || this.hasActiveMutation()) {
           return;
@@ -499,6 +522,7 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
               this.refreshEventDetailsAfterPlatformMutation(response.platformId),
             ),
             finalize(() => this.deletingPublicationPlatformId.set(null)),
+            takeUntilDestroyed(this.destroyRef),
           )
           .subscribe({
             next: () => {
@@ -515,8 +539,7 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
     if (
       this.editingId === null ||
       !platform.canPreviewPublishingContent ||
-      this.hasActiveMutation() ||
-      this.previewingPlatformId() !== null
+      this.hasActiveMutation()
     ) {
       return;
     }
@@ -528,7 +551,10 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
 
     this.calendarEventsService
       .getPublishingContent(this.editingId, platform.platformId)
-      .pipe(finalize(() => this.previewingPlatformId.set(null)))
+      .pipe(
+        finalize(() => this.previewingPlatformId.set(null)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (content) => {
           this.previewedPublishingContent.set({

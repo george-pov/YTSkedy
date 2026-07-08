@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, signal, type Signal } from '@angular/core';
+import { computed, signal, type DestroyRef, type Signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, finalize, map, Observable, of } from 'rxjs';
 
 import {
@@ -17,40 +18,49 @@ const supportedThumbnailTypes = new Set(['image/jpeg', 'image/png']);
 const supportedThumbnailExtensions = new Set(['.jpg', '.jpeg', '.png']);
 
 export class ThumbnailEditorState {
-  readonly acceptedFileTypes = thumbnailAccept;
-  readonly thumbnail = signal<CalendarEventThumbnail | null>(null);
-  readonly previewUrl = signal<string | null>(null);
-  readonly selectedFile = signal<File | null>(null);
-  readonly selectedPreviewUrl = signal<string | null>(null);
-  readonly errorMessage = signal<string | null>(null);
-  readonly canUpdate = signal(true);
-  readonly isUploading = signal(false);
-  readonly isDeleting = signal(false);
-  readonly canMutate: Signal<boolean>;
-
+  private readonly _thumbnail = signal<CalendarEventThumbnail | null>(null);
+  private readonly _previewUrl = signal<string | null>(null);
+  private readonly _selectedFile = signal<File | null>(null);
+  private readonly _selectedPreviewUrl = signal<string | null>(null);
+  private readonly _errorMessage = signal<string | null>(null);
+  private readonly _canUpdate = signal(true);
+  private readonly _isUploading = signal(false);
+  private readonly _isDeleting = signal(false);
   private isDestroyed = false;
   private previewRequestId = 0;
+
+  readonly acceptedFileTypes = thumbnailAccept;
+  readonly thumbnail = this._thumbnail.asReadonly();
+  readonly previewUrl = this._previewUrl.asReadonly();
+  readonly selectedFile = this._selectedFile.asReadonly();
+  readonly selectedPreviewUrl = this._selectedPreviewUrl.asReadonly();
+  readonly errorMessage = this._errorMessage.asReadonly();
+  readonly canUpdate = this._canUpdate.asReadonly();
+  readonly isUploading = this._isUploading.asReadonly();
+  readonly isDeleting = this._isDeleting.asReadonly();
+  readonly canMutate: Signal<boolean>;
 
   constructor(
     private readonly calendarEventsService: CalendarEventsService,
     private readonly notifications: NotificationService,
     private readonly calendarEventId: string | null,
     private readonly isEditMode: boolean,
+    private readonly destroyRef: DestroyRef,
     private readonly hasActiveMutation: () => boolean,
   ) {
-    this.canUpdate.set(!isEditMode);
+    this._canUpdate.set(!isEditMode);
     this.canMutate = computed(
-      () => !this.hasActiveMutation() && (!this.isEditMode || this.canUpdate()),
+      () => !this.hasActiveMutation() && (!this.isEditMode || this._canUpdate()),
     );
   }
 
   applyEventDetails(
     event: Pick<CalendarEventDetailsResponse, 'thumbnail' | 'canUpdateThumbnail'>,
   ): void {
-    this.thumbnail.set(event.thumbnail);
-    this.canUpdate.set(event.canUpdateThumbnail);
+    this._thumbnail.set(event.thumbnail);
+    this._canUpdate.set(event.canUpdateThumbnail);
     this.clearSelectedThumbnail();
-    this.errorMessage.set(null);
+    this._errorMessage.set(null);
 
     if (event.thumbnail === null) {
       this.cancelPreviewLoad();
@@ -62,16 +72,16 @@ export class ThumbnailEditorState {
   }
 
   resetAfterLoadFailure(): void {
-    this.thumbnail.set(null);
-    this.canUpdate.set(false);
-    this.errorMessage.set(null);
+    this._thumbnail.set(null);
+    this._canUpdate.set(false);
+    this._errorMessage.set(null);
     this.clearSelectedThumbnail();
     this.cancelPreviewLoad();
     this.setPreviewUrl(null);
   }
 
   setError(message: string | null): void {
-    this.errorMessage.set(message);
+    this._errorMessage.set(message);
   }
 
   selectThumbnail(file: File): void {
@@ -79,29 +89,30 @@ export class ThumbnailEditorState {
   }
 
   clearSelectedThumbnail(): void {
-    this.selectedFile.set(null);
+    this._selectedFile.set(null);
     this.revokeSelectedPreview();
   }
 
   uploadAfterCreate(calendarEventId: string): Observable<string | null> {
-    const file = this.selectedFile();
+    const file = this._selectedFile();
     if (file === null) {
       return of(null);
     }
 
-    this.isUploading.set(true);
+    this._isUploading.set(true);
 
     return this.calendarEventsService.uploadThumbnail(calendarEventId, file).pipe(
       map(() => null),
       catchError((error: unknown) => of(describeThumbnailError(error))),
-      finalize(() => this.isUploading.set(false)),
+      finalize(() => this._isUploading.set(false)),
+      takeUntilDestroyed(this.destroyRef),
     );
   }
 
   uploadThumbnail(file: File): void {
     if (
       this.calendarEventId === null ||
-      this.thumbnail() !== null ||
+      this._thumbnail() !== null ||
       !this.canMutate()
     ) {
       return;
@@ -111,22 +122,25 @@ export class ThumbnailEditorState {
       return;
     }
 
-    this.isUploading.set(true);
+    this._isUploading.set(true);
 
     this.calendarEventsService
       .uploadThumbnail(this.calendarEventId, file)
-      .pipe(finalize(() => this.isUploading.set(false)))
+      .pipe(
+        finalize(() => this._isUploading.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (thumbnail) => {
           this.cancelPreviewLoad();
-          this.thumbnail.set(thumbnail);
+          this._thumbnail.set(thumbnail);
           this.promoteSelectedPreview();
-          this.selectedFile.set(null);
-          this.errorMessage.set(null);
+          this._selectedFile.set(null);
+          this._errorMessage.set(null);
           this.notifications.showSuccess('Thumbnail uploaded.');
         },
         error: (error: unknown) => {
-          this.errorMessage.set(describeThumbnailError(error));
+          this._errorMessage.set(describeThumbnailError(error));
         },
       });
   }
@@ -134,28 +148,31 @@ export class ThumbnailEditorState {
   deleteThumbnail(): void {
     if (
       this.calendarEventId === null ||
-      this.thumbnail() === null ||
+      this._thumbnail() === null ||
       !this.canMutate()
     ) {
       return;
     }
 
-    this.isDeleting.set(true);
-    this.errorMessage.set(null);
+    this._isDeleting.set(true);
+    this._errorMessage.set(null);
 
     this.calendarEventsService
       .deleteThumbnail(this.calendarEventId)
-      .pipe(finalize(() => this.isDeleting.set(false)))
+      .pipe(
+        finalize(() => this._isDeleting.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: () => {
           this.cancelPreviewLoad();
-          this.thumbnail.set(null);
+          this._thumbnail.set(null);
           this.setPreviewUrl(null);
           this.clearSelectedThumbnail();
           this.notifications.showSuccess('Thumbnail deleted.');
         },
         error: (error: unknown) => {
-          this.errorMessage.set(describeThumbnailError(error));
+          this._errorMessage.set(describeThumbnailError(error));
         },
       });
   }
@@ -168,23 +185,23 @@ export class ThumbnailEditorState {
   }
 
   private setSelectedThumbnail(file: File): boolean {
-    this.errorMessage.set(null);
+    this._errorMessage.set(null);
 
     const error = describeClientThumbnailError(file);
     if (error !== null) {
       this.clearSelectedThumbnail();
-      this.errorMessage.set(error);
+      this._errorMessage.set(error);
       return false;
     }
 
-    this.selectedFile.set(file);
+    this._selectedFile.set(file);
     this.revokeSelectedPreview();
-    this.selectedPreviewUrl.set(URL.createObjectURL(file));
+    this._selectedPreviewUrl.set(URL.createObjectURL(file));
     return true;
   }
 
   private loadPreview(): void {
-    const expectedThumbnail = this.thumbnail();
+    const expectedThumbnail = this._thumbnail();
     if (this.calendarEventId === null || expectedThumbnail === null) {
       this.cancelPreviewLoad();
       this.setPreviewUrl(null);
@@ -194,32 +211,35 @@ export class ThumbnailEditorState {
     const requestId = ++this.previewRequestId;
     const expectedUpdatedUtc = expectedThumbnail.updatedUtc;
 
-    this.calendarEventsService.getThumbnail(this.calendarEventId).subscribe({
-      next: (content) => {
-        if (!this.isCurrentPreviewRequest(requestId, expectedUpdatedUtc)) {
-          return;
-        }
+    this.calendarEventsService
+      .getThumbnail(this.calendarEventId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (content) => {
+          if (!this.isCurrentPreviewRequest(requestId, expectedUpdatedUtc)) {
+            return;
+          }
 
-        this.setPreviewUrl(URL.createObjectURL(content));
-      },
-      error: () => {
-        if (!this.isCurrentPreviewRequest(requestId, expectedUpdatedUtc)) {
-          return;
-        }
+          this.setPreviewUrl(URL.createObjectURL(content));
+        },
+        error: () => {
+          if (!this.isCurrentPreviewRequest(requestId, expectedUpdatedUtc)) {
+            return;
+          }
 
-        this.setPreviewUrl(null);
-        this.errorMessage.set(
-          'The thumbnail preview could not be loaded. Reload the page and try again.',
-        );
-      },
-    });
+          this.setPreviewUrl(null);
+          this._errorMessage.set(
+            'The thumbnail preview could not be loaded. Reload the page and try again.',
+          );
+        },
+      });
   }
 
   private isCurrentPreviewRequest(requestId: number, updatedUtc: string): boolean {
     return (
       !this.isDestroyed &&
       requestId === this.previewRequestId &&
-      this.thumbnail()?.updatedUtc === updatedUtc
+      this._thumbnail()?.updatedUtc === updatedUtc
     );
   }
 
@@ -228,30 +248,30 @@ export class ThumbnailEditorState {
   }
 
   private promoteSelectedPreview(): void {
-    const previewUrl = this.selectedPreviewUrl();
+    const previewUrl = this._selectedPreviewUrl();
     this.revokePreview();
-    this.previewUrl.set(previewUrl);
-    this.selectedPreviewUrl.set(null);
+    this._previewUrl.set(previewUrl);
+    this._selectedPreviewUrl.set(null);
   }
 
   private setPreviewUrl(value: string | null): void {
     this.revokePreview();
-    this.previewUrl.set(value);
+    this._previewUrl.set(value);
   }
 
   private revokeSelectedPreview(): void {
-    const previewUrl = this.selectedPreviewUrl();
+    const previewUrl = this._selectedPreviewUrl();
     if (previewUrl !== null) {
       URL.revokeObjectURL(previewUrl);
-      this.selectedPreviewUrl.set(null);
+      this._selectedPreviewUrl.set(null);
     }
   }
 
   private revokePreview(): void {
-    const previewUrl = this.previewUrl();
+    const previewUrl = this._previewUrl();
     if (previewUrl !== null) {
       URL.revokeObjectURL(previewUrl);
-      this.previewUrl.set(null);
+      this._previewUrl.set(null);
     }
   }
 }
