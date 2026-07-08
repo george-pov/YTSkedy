@@ -5,15 +5,12 @@ namespace YTSkedy.Scheduling.Domain.Test.Platforms;
 public class PlatformTests
 {
     private static readonly YouTubeSettings Settings =
-        new(
-            new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
-            "private",
-            false);
+        PlatformSamples.YouTubeSettings();
 
     [Fact]
     public void Constructor_ValidInput_SetsProperties()
     {
-        var publishingContent = RequiredPublishingContent();
+        var publishingContent = PlatformSamples.PublishingContent();
         var platform = new Platform(
             "Main YouTube channel",
             PlatformType.YouTube,
@@ -31,9 +28,7 @@ public class PlatformTests
     [Fact]
     public void Constructor_PublishingContent_SetsProperty()
     {
-        var publishingContent = new PublishingContent(
-            "title-template",
-            "description-template");
+        var publishingContent = PlatformSamples.PublishingContent();
 
         var platform = new Platform(
             "Main YouTube channel",
@@ -52,7 +47,7 @@ public class PlatformTests
             "  Main channel  ",
             PlatformType.YouTube,
             Settings,
-            publishingContent: RequiredPublishingContent());
+            publishingContent: PlatformSamples.PublishingContent());
 
         Assert.Equal("Main channel", platform.Name);
     }
@@ -66,7 +61,7 @@ public class PlatformTests
             name,
             PlatformType.YouTube,
             Settings,
-            publishingContent: RequiredPublishingContent());
+            publishingContent: PlatformSamples.PublishingContent());
 
         Assert.Equal(name, platform.Name);
     }
@@ -82,7 +77,7 @@ public class PlatformTests
                 name!,
                 PlatformType.YouTube,
                 Settings,
-                publishingContent: RequiredPublishingContent()));
+                publishingContent: PlatformSamples.PublishingContent()));
     }
 
     [Fact]
@@ -95,7 +90,7 @@ public class PlatformTests
                 name,
                 PlatformType.YouTube,
                 Settings,
-                publishingContent: RequiredPublishingContent()));
+                publishingContent: PlatformSamples.PublishingContent()));
     }
 
     [Fact]
@@ -106,7 +101,7 @@ public class PlatformTests
                 "Main channel",
                 PlatformType.YouTube,
                 null!,
-                publishingContent: RequiredPublishingContent()));
+                publishingContent: PlatformSamples.PublishingContent()));
     }
 
     [Fact]
@@ -123,7 +118,7 @@ public class PlatformTests
             "Main channel",
             PlatformType.YouTube,
             Settings,
-            RequiredPublishingContent(),
+            PlatformSamples.PublishingContent(),
             "   ");
 
         Assert.Null(platform.ReferenceKey);
@@ -136,7 +131,7 @@ public class PlatformTests
             "Main channel",
             PlatformType.YouTube,
             Settings,
-            RequiredPublishingContent(),
+            PlatformSamples.PublishingContent(),
             "  youTube1  ");
 
         Assert.Equal("youTube1", platform.ReferenceKey);
@@ -151,7 +146,7 @@ public class PlatformTests
             "Main channel",
             PlatformType.YouTube,
             Settings,
-            RequiredPublishingContent(),
+            PlatformSamples.PublishingContent(),
             referenceKey);
 
         Assert.Equal(referenceKey, platform.ReferenceKey);
@@ -170,7 +165,7 @@ public class PlatformTests
                 "Main channel",
                 PlatformType.YouTube,
                 Settings,
-                RequiredPublishingContent(),
+                PlatformSamples.PublishingContent(),
                 referenceKey));
 
         Assert.Equal("referenceKey", exception.ParamName);
@@ -233,6 +228,4 @@ public class PlatformTests
         Assert.Equal("youtube1", Platform.ToReferenceKeyLookupValue("  youTube1  "));
     }
 
-    private static PublishingContent RequiredPublishingContent() =>
-        new("title-template", "description-template");
 }

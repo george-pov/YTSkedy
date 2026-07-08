@@ -50,7 +50,7 @@ public class PlatformPublicationTests
     public void Constructor_ContentSnapshotProvided_SetsSnapshot()
     {
         var snapshot = new ContentSnapshot("Published title", "Published description");
-        var publication = CreatePublication(
+        var publication = PlatformSamples.PlatformPublication(
             PublishStatus.Published,
             platformDeletedUtc: null,
             contentSnapshot: snapshot);
@@ -61,7 +61,7 @@ public class PlatformPublicationTests
     [Fact]
     public void Constructor_ThumbnailStatusProvided_SetsThumbnailStatus()
     {
-        var publication = CreatePublication(
+        var publication = PlatformSamples.PlatformPublication(
             PublishStatus.Published,
             platformDeletedUtc: null,
             thumbnailStatus: ThumbnailPublishStatus.Applied);
@@ -72,7 +72,7 @@ public class PlatformPublicationTests
     [Fact]
     public void IsOrphaned_PlatformDeletedUtcSet_ReturnsTrue()
     {
-        var publication = CreatePublication(
+        var publication = PlatformSamples.PlatformPublication(
             PublishStatus.Published,
             platformDeletedUtc: new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero));
 
@@ -82,26 +82,10 @@ public class PlatformPublicationTests
     [Fact]
     public void IsOrphaned_PlatformDeletedUtcNull_ReturnsFalse()
     {
-        var publication = CreatePublication(PublishStatus.Published, platformDeletedUtc: null);
+        var publication = PlatformSamples.PlatformPublication(
+            PublishStatus.Published,
+            platformDeletedUtc: null);
 
         Assert.False(publication.IsOrphaned);
     }
-
-    private static PlatformPublication CreatePublication(
-        PublishStatus status,
-        DateTimeOffset? platformDeletedUtc,
-        ContentSnapshot? contentSnapshot = null,
-        ThumbnailPublishStatus? thumbnailStatus = null) =>
-        new(
-            "f81d4fae7dec11d0a76500a0c91e6bf6",
-            "4fb4a32f3f344de1a7c3a9f4a2f94918",
-            "Main YouTube channel",
-            PlatformType.YouTube,
-            status,
-            "abc123youtubeid",
-            new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
-            platformDeletedUtc,
-            new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
-            ContentSnapshot: contentSnapshot,
-            ThumbnailStatus: thumbnailStatus);
 }

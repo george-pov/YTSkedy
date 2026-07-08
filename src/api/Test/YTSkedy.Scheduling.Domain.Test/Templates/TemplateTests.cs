@@ -18,6 +18,28 @@ public class TemplateTests
     }
 
     [Fact]
+    public void Constructor_NameWithSurroundingWhitespace_PreservesValue()
+    {
+        var template = new Template(
+            "  Weeknight stream  ",
+            TemplateType.YouTube,
+            "content");
+
+        Assert.Equal("  Weeknight stream  ", template.Name);
+    }
+
+    [Fact]
+    public void Constructor_ContentWithSurroundingWhitespace_PreservesValue()
+    {
+        var template = new Template(
+            "name",
+            TemplateType.YouTube,
+            "  Live on {{ longDateEn }}  ");
+
+        Assert.Equal("  Live on {{ longDateEn }}  ", template.Content);
+    }
+
+    [Fact]
     public void Constructor_NameAtMaxLength_IsAccepted()
     {
         var name = new string('n', Template.MaxNameLength);
@@ -89,6 +111,14 @@ public class TemplateTests
         Assert.True(Template.IsValidName(new string('n', Template.MaxNameLength)));
     }
 
+    [Fact]
+    public void IsValidName_MaxLengthPlusSurroundingWhitespace_ReturnsFalse()
+    {
+        var name = $"  {new string('n', Template.MaxNameLength)}  ";
+
+        Assert.False(Template.IsValidName(name));
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -108,6 +138,14 @@ public class TemplateTests
     public void IsValidContent_AtMaxLength_ReturnsTrue()
     {
         Assert.True(Template.IsValidContent(new string('c', Template.MaxContentLength)));
+    }
+
+    [Fact]
+    public void IsValidContent_MaxLengthPlusSurroundingWhitespace_ReturnsFalse()
+    {
+        var content = $"  {new string('c', Template.MaxContentLength)}  ";
+
+        Assert.False(Template.IsValidContent(content));
     }
 
     [Theory]

@@ -4,46 +4,151 @@ namespace YTSkedy.Scheduling.Domain.Test.Platforms;
 
 public class PlatformActionPolicyTests
 {
-    [Theory]
-    [InlineData(PublishStatus.NotPublished, false, true, true)]
-    [InlineData(PublishStatus.NotPublished, false, false, false)]
-    [InlineData(PublishStatus.NotPublished, true, true, false)]
-    [InlineData(PublishStatus.Publishing, false, true, false)]
-    [InlineData(PublishStatus.Publishing, true, true, false)]
-    [InlineData(PublishStatus.Published, false, true, false)]
-    [InlineData(PublishStatus.Published, true, true, false)]
-    public void CanPublish_State_ReturnsExpected(
-        PublishStatus status,
-        bool isOrphaned,
-        bool isFuture,
-        bool expected)
+    public static TheoryData<CanPublishCase> CanPublishCases => new()
     {
-        var actual = PlatformActionPolicy.CanPublish(status, isOrphaned, isFuture);
+        new(
+            "FutureActiveNotPublished",
+            PublishStatus.NotPublished,
+            IsOrphaned: false,
+            IsFuture: true,
+            Expected: true),
+        new(
+            "PastActiveNotPublished",
+            PublishStatus.NotPublished,
+            IsOrphaned: false,
+            IsFuture: false,
+            Expected: false),
+        new(
+            "FutureOrphanNotPublished",
+            PublishStatus.NotPublished,
+            IsOrphaned: true,
+            IsFuture: true,
+            Expected: false),
+        new(
+            "FutureActivePublishing",
+            PublishStatus.Publishing,
+            IsOrphaned: false,
+            IsFuture: true,
+            Expected: false),
+        new(
+            "FutureOrphanPublishing",
+            PublishStatus.Publishing,
+            IsOrphaned: true,
+            IsFuture: true,
+            Expected: false),
+        new(
+            "FutureActivePublished",
+            PublishStatus.Published,
+            IsOrphaned: false,
+            IsFuture: true,
+            Expected: false),
+        new(
+            "FutureOrphanPublished",
+            PublishStatus.Published,
+            IsOrphaned: true,
+            IsFuture: true,
+            Expected: false)
+    };
 
-        Assert.Equal(expected, actual);
+    public static TheoryData<CanDeletePublicationCase> CanDeletePublicationCases => new()
+    {
+        new(
+            "PublishedActiveFutureWithResource",
+            PublishStatus.Published,
+            IsOrphaned: false,
+            HasExternalResourceId: true,
+            IsFuture: true,
+            Expected: true),
+        new(
+            "PublishedActiveFutureMissingResource",
+            PublishStatus.Published,
+            IsOrphaned: false,
+            HasExternalResourceId: false,
+            IsFuture: true,
+            Expected: false),
+        new(
+            "PublishedActivePastWithResource",
+            PublishStatus.Published,
+            IsOrphaned: false,
+            HasExternalResourceId: true,
+            IsFuture: false,
+            Expected: false),
+        new(
+            "PublishedOrphanFutureWithResource",
+            PublishStatus.Published,
+            IsOrphaned: true,
+            HasExternalResourceId: true,
+            IsFuture: true,
+            Expected: false),
+        new(
+            "PublishingActiveFutureWithResource",
+            PublishStatus.Publishing,
+            IsOrphaned: false,
+            HasExternalResourceId: true,
+            IsFuture: true,
+            Expected: false),
+        new(
+            "NotPublishedActiveFutureWithResource",
+            PublishStatus.NotPublished,
+            IsOrphaned: false,
+            HasExternalResourceId: true,
+            IsFuture: true,
+            Expected: false)
+    };
+
+    public static TheoryData<CanPreviewPublishingContentCase>
+        CanPreviewPublishingContentCases => new()
+        {
+            new(
+                "ActiveNotPublishedWithoutSnapshot",
+                PublishStatus.NotPublished,
+                IsOrphaned: false,
+                HasContentSnapshot: false,
+                Expected: true),
+            new(
+                "ActivePublishingWithSnapshot",
+                PublishStatus.Publishing,
+                IsOrphaned: false,
+                HasContentSnapshot: true,
+                Expected: true),
+            new(
+                "OrphanPublishedWithSnapshot",
+                PublishStatus.Published,
+                IsOrphaned: true,
+                HasContentSnapshot: true,
+                Expected: true),
+            new(
+                "ActivePublishedWithoutSnapshot",
+                PublishStatus.Published,
+                IsOrphaned: false,
+                HasContentSnapshot: false,
+                Expected: false)
+        };
+
+    [Theory]
+    [MemberData(nameof(CanPublishCases))]
+    public void CanPublish_State_ReturnsExpected(CanPublishCase scenario)
+    {
+        var actual = PlatformActionPolicy.CanPublish(
+            scenario.Status,
+            scenario.IsOrphaned,
+            scenario.IsFuture);
+
+        Assert.Equal(scenario.Expected, actual);
     }
 
     [Theory]
-    [InlineData(PublishStatus.Published, false, true, true, true)]
-    [InlineData(PublishStatus.Published, false, true, false, false)]
-    [InlineData(PublishStatus.Published, false, false, true, false)]
-    [InlineData(PublishStatus.Published, true, true, true, false)]
-    [InlineData(PublishStatus.Publishing, false, true, true, false)]
-    [InlineData(PublishStatus.NotPublished, false, true, true, false)]
+    [MemberData(nameof(CanDeletePublicationCases))]
     public void CanDeletePublication_State_ReturnsExpected(
-        PublishStatus status,
-        bool isOrphaned,
-        bool hasExternalResourceId,
-        bool isFuture,
-        bool expected)
+        CanDeletePublicationCase scenario)
     {
         var actual = PlatformActionPolicy.CanDeletePublication(
-            status,
-            isOrphaned,
-            hasExternalResourceId,
-            isFuture);
+            scenario.Status,
+            scenario.IsOrphaned,
+            scenario.HasExternalResourceId,
+            scenario.IsFuture);
 
-        Assert.Equal(expected, actual);
+        Assert.Equal(scenario.Expected, actual);
     }
 
     [Theory]
@@ -58,21 +163,46 @@ public class PlatformActionPolicyTests
     }
 
     [Theory]
-    [InlineData(PublishStatus.NotPublished, false, false, true)]
-    [InlineData(PublishStatus.Publishing, false, true, true)]
-    [InlineData(PublishStatus.Published, true, true, true)]
-    [InlineData(PublishStatus.Published, false, false, false)]
+    [MemberData(nameof(CanPreviewPublishingContentCases))]
     public void CanPreviewPublishingContent_State_ReturnsExpected(
-        PublishStatus status,
-        bool isOrphaned,
-        bool hasContentSnapshot,
-        bool expected)
+        CanPreviewPublishingContentCase scenario)
     {
         var actual = PlatformActionPolicy.CanPreviewPublishingContent(
-            status,
-            isOrphaned,
-            hasContentSnapshot);
+            scenario.Status,
+            scenario.IsOrphaned,
+            scenario.HasContentSnapshot);
 
-        Assert.Equal(expected, actual);
+        Assert.Equal(scenario.Expected, actual);
+    }
+
+    public sealed record CanPublishCase(
+        string Name,
+        PublishStatus Status,
+        bool IsOrphaned,
+        bool IsFuture,
+        bool Expected)
+    {
+        public override string ToString() => Name;
+    }
+
+    public sealed record CanDeletePublicationCase(
+        string Name,
+        PublishStatus Status,
+        bool IsOrphaned,
+        bool HasExternalResourceId,
+        bool IsFuture,
+        bool Expected)
+    {
+        public override string ToString() => Name;
+    }
+
+    public sealed record CanPreviewPublishingContentCase(
+        string Name,
+        PublishStatus Status,
+        bool IsOrphaned,
+        bool HasContentSnapshot,
+        bool Expected)
+    {
+        public override string ToString() => Name;
     }
 }

@@ -7,10 +7,7 @@ public class YouTubeSettingsTests
     [Fact]
     public void Constructor_ValidInput_SetsProperties()
     {
-        var credentials = new YouTubeCredentials(
-            "client-id",
-            "client-secret",
-            "refresh-token");
+        var credentials = PlatformSamples.YouTubeCredentials();
 
         var settings = new YouTubeSettings(credentials, "unlisted", true);
 
@@ -34,7 +31,10 @@ public class YouTubeSettingsTests
     public void Constructor_InvalidPrivacyStatus_Throws(string privacyStatus)
     {
         Assert.Throws<ArgumentException>(
-            () => new YouTubeSettings(Credentials(), privacyStatus, false));
+            () => new YouTubeSettings(
+                PlatformSamples.YouTubeCredentials(),
+                privacyStatus,
+                false));
     }
 
     [Theory]
@@ -99,7 +99,4 @@ public class YouTubeSettingsTests
         Assert.Throws<ArgumentException>(
             () => new YouTubeCredentials("client-id", "client-secret", refreshToken!));
     }
-
-    private static YouTubeCredentials Credentials() =>
-        new("client-id", "client-secret", "refresh-token");
 }

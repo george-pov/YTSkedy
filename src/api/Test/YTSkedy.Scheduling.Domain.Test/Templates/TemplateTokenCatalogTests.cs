@@ -18,17 +18,7 @@ public class TemplateTokenCatalogTests
         var names = TemplateTokenCatalog.From(fields, []).Select(token => token.Name).ToArray();
 
         Assert.Equal(
-            [
-                "text1",
-                "text2",
-                "text3",
-                "longDateEn",
-                "shortDateEn",
-                "longDateRu",
-                "shortDateRu",
-                "longDateFr",
-                "shortDateFr"
-            ],
+            ExpectedTokenNames(["text1", "text2", "text3"]),
             names);
     }
 
@@ -43,18 +33,7 @@ public class TemplateTokenCatalogTests
             .ToArray();
 
         Assert.Equal(
-            [
-                "text1",
-                "text2",
-                "longDateEn",
-                "shortDateEn",
-                "longDateRu",
-                "shortDateRu",
-                "longDateFr",
-                "shortDateFr",
-                "blog-1",
-                "privateYouTube"
-            ],
+            ExpectedTokenNames(["text1", "text2"], ["blog-1", "privateYouTube"]),
             names);
     }
 
@@ -71,8 +50,28 @@ public class TemplateTokenCatalogTests
     }
 
     [Fact]
-    public void DateTokens_HasSixTokens()
+    public void DateTokens_ReturnsExpectedNamesInOrder()
     {
-        Assert.Equal(6, TemplateTokenCatalog.DateTokens.Count);
+        Assert.Equal(
+            ExpectedDateTokenNames(),
+            TemplateTokenCatalog.DateTokens.Select(token => token.Name));
     }
+
+    private static string[] ExpectedTokenNames(
+        string[] textTokenNames,
+        string[]? referenceKeyTokenNames = null) =>
+        textTokenNames
+            .Concat(ExpectedDateTokenNames())
+            .Concat(referenceKeyTokenNames ?? [])
+            .ToArray();
+
+    private static string[] ExpectedDateTokenNames() =>
+        [
+            "longDateEn",
+            "shortDateEn",
+            "longDateRu",
+            "shortDateRu",
+            "longDateFr",
+            "shortDateFr"
+        ];
 }

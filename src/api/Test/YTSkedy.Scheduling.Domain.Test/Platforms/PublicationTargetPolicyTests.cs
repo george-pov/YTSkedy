@@ -7,7 +7,8 @@ public class PublicationTargetPolicyTests
     [Fact]
     public void Matches_YouTubeClientIdMatches_ReturnsTrue()
     {
-        var platform = YouTubePlatform("client-id");
+        var platform = PlatformSamples.PlatformView(
+            publishSettings: PlatformSamples.YouTubeSettings(clientId: "client-id"));
         var snapshot = new PublicationTargetSnapshot(
             PlatformType.YouTube,
             WordPressSiteUrl: null,
@@ -19,7 +20,8 @@ public class PublicationTargetPolicyTests
     [Fact]
     public void Matches_YouTubeClientIdChanged_ReturnsFalse()
     {
-        var platform = YouTubePlatform("client-id");
+        var platform = PlatformSamples.PlatformView(
+            publishSettings: PlatformSamples.YouTubeSettings(clientId: "client-id"));
         var snapshot = new PublicationTargetSnapshot(
             PlatformType.YouTube,
             WordPressSiteUrl: null,
@@ -31,17 +33,10 @@ public class PublicationTargetPolicyTests
     [Fact]
     public void Matches_WordPressSiteUrlMatches_ReturnsTrue()
     {
-        var platform = new PlatformView(
-            "p1",
-            "Company blog",
-            null,
-            PlatformType.WordPress,
-            new WordPressSettings(
-                "https://example.com/",
-                "editor",
-                "application-password",
-                "publish"),
-            RequiredPublishingContent());
+        var platform = PlatformSamples.PlatformView(
+            name: "Company blog",
+            type: PlatformType.WordPress,
+            publishSettings: PlatformSamples.WordPressSettings());
         var snapshot = new PublicationTargetSnapshot(
             PlatformType.WordPress,
             WordPressSiteUrl: "https://example.com",
@@ -53,7 +48,8 @@ public class PublicationTargetPolicyTests
     [Fact]
     public void Matches_TypeChanged_ReturnsFalse()
     {
-        var platform = YouTubePlatform("client-id");
+        var platform = PlatformSamples.PlatformView(
+            publishSettings: PlatformSamples.YouTubeSettings(clientId: "client-id"));
         var snapshot = new PublicationTargetSnapshot(
             PlatformType.WordPress,
             WordPressSiteUrl: "https://example.com",
@@ -61,19 +57,4 @@ public class PublicationTargetPolicyTests
 
         Assert.False(PublicationTargetPolicy.Matches(platform, snapshot));
     }
-
-    private static PlatformView YouTubePlatform(string clientId) =>
-        new(
-            "p1",
-            "Main YouTube channel",
-            null,
-            PlatformType.YouTube,
-            new YouTubeSettings(
-                new YouTubeCredentials(clientId, "client-secret", "refresh-token"),
-                "private",
-                false),
-            RequiredPublishingContent());
-
-    private static PublishingContent RequiredPublishingContent() =>
-        new("title-template", "description-template");
 }
