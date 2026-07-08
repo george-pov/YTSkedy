@@ -15,13 +15,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { form } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize, map, Observable, of, switchMap, tap } from 'rxjs';
+import { finalize, map, Observable, of, switchMap } from 'rxjs';
 
 import {
   CalendarEventsService,
   type CalendarEventDetailsResponse,
-  type CalendarEventPlatform,
-  type EventPlatformPublishingContent,
   type UpdateCalendarEventRequest,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { type PendingChangesAware } from 'src/app/shared/routing/pending-changes-guard';
@@ -30,9 +28,6 @@ import { NotificationService } from 'src/app/shared/notifications/notification-s
 import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from 'src/app/shared/components/button/button';
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
-import { DataTable } from 'src/app/shared/components/data-table/data-table';
-import { DataTableCell } from 'src/app/shared/components/data-table/data-table-cell';
-import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { DateField } from 'src/app/shared/components/date/date';
 import { Input } from 'src/app/shared/components/input/input';
 import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
@@ -52,17 +47,14 @@ import {
   toCreateCalendarEventRequest,
   toUpdateCalendarEventRequest,
 } from './calendar-event-details.form';
+import { CalendarEventPlatforms } from './calendar-event-platforms/calendar-event-platforms';
+import { CalendarEventPlatformsState } from './calendar-event-platforms/calendar-event-platforms.state';
 import { ThumbnailEditor } from './thumbnail-editor/thumbnail-editor';
 import {
   ThumbnailEditorState,
   thumbnailErrorFromNavigationState,
   thumbnailErrorNavigationStateKey,
 } from './thumbnail-editor/thumbnail-editor.state';
-
-interface PublishingContentPreview extends EventPlatformPublishingContent {
-  platformId: string;
-  platformName: string;
-}
 
 interface CreateCalendarEventSubmissionResult {
   calendarEventId: string;
@@ -74,14 +66,13 @@ interface CreateCalendarEventSubmissionResult {
   imports: [
     Alert,
     Button,
-    DataTable,
-    DataTableCell,
     Input,
     DateField,
     TimeField,
     Select,
     ProgressBar,
     ThumbnailEditor,
+    CalendarEventPlatforms,
   ],
   templateUrl: './calendar-event-details.html',
   styleUrl: './calendar-event-details.scss',
@@ -120,6 +111,17 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
     applyCalendarEventDetailsRules(path, () => this.isEditMode, () => this.canUpdate()),
   );
   protected readonly timeZoneOptions = timeZoneOptions;
+  protected readonly pageTitle = computed(() =>
+    this.isEditMode ? 'Edit Calendar Event' : 'Add Calendar Event',
+  );
+  protected readonly pageDescription = computed(() =>
+    this.isEditMode
+      ? 'Update this stream, scheduled start, and text fields.'
+      : 'Schedule a new stream and its text fields.',
+  );
+  protected readonly showLockedEventAlert = computed(
+    () => this.isEditMode && (!this.canUpdate() || !this.canDelete()),
+  );
 
   protected readonly isSubmitting = signal(false);
   protected readonly saveErrorMessage = signal<string | null>(null);
@@ -139,32 +141,33 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
       !sameUpdateCalendarEventRequest(toUpdateCalendarEventRequest(this.model()), saved)
     );
   });
-  protected readonly platforms = signal<CalendarEventPlatform[]>([]);
-  protected readonly publishingPlatformId = signal<string | null>(null);
-  protected readonly publishErrorMessage = signal<string | null>(null);
-  protected readonly deletingPublicationPlatformId = signal<string | null>(null);
-  protected readonly deletePublicationErrorMessage = signal<string | null>(null);
-  protected readonly platformActionBlockedMessage = signal<string | null>(null);
-  protected readonly previewingPlatformId = signal<string | null>(null);
-  protected readonly previewErrorMessage = signal<string | null>(null);
-  protected readonly previewedPublishingContent = signal<PublishingContentPreview | null>(null);
-  protected readonly hasActiveMutation: Signal<boolean> = computed(
+  protected readonly platformsState = new CalendarEventPlatformsState(
+    this.calendarEventsService,
+    this.confirmation,
+    this.notifications,
+    this.editingId,
+    this.destroyRef,
+    (): boolean => this.hasActivePageMutation(),
+    (): boolean => this.hasPendingEventChanges(),
+    (event): void => this.applyEventDetails(event),
+  );
+  private readonly hasActivePageMutation: Signal<boolean> = computed(
     (): boolean =>
       this.isSubmitting() ||
       this.isDeleting() ||
       this.thumbnailEditor.isUploading() ||
-      this.thumbnailEditor.isDeleting() ||
-      this.publishingPlatformId() !== null ||
-      this.deletingPublicationPlatformId() !== null ||
-      this.previewingPlatformId() !== null,
+      this.thumbnailEditor.isDeleting(),
   );
-  protected readonly platformColumns: readonly DataTableColumn<CalendarEventPlatform>[] = [
-    { key: 'type', header: 'Type', value: (platform) => platform.platformType },
-    { key: 'name', header: 'Name', value: (platform) => platform.platformName, truncate: true },
-    { key: 'status', header: 'Status', value: (platform) => platform.status },
-    { key: 'actions', header: 'Actions' },
-  ];
-  protected readonly thumbnailStatusText = thumbnailStatusText;
+  protected readonly hasActiveMutation: Signal<boolean> = computed(
+    (): boolean => this.hasActivePageMutation() || this.platformsState.hasActiveMutation(),
+  );
+  protected readonly deleteDisabled = computed(() => !this.canDelete() || this.hasActiveMutation());
+  protected readonly cancelDisabled = computed(() => this.hasActiveMutation());
+  protected readonly saveDisabled = computed(
+    () =>
+      this.hasActiveMutation() ||
+      (this.isEditMode && (!this.canUpdate() || !this.hasPendingEventChanges())),
+  );
 
   // Editable starts use a live UTC preview. Locked edit-mode events keep the
   // backend-provided UTC instant instead of deriving a local preview.
@@ -254,8 +257,6 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
       .subscribe({
         next: (event) => {
           this.applyEventDetails(event);
-          this.previewErrorMessage.set(null);
-          this.previewedPublishingContent.set(null);
           if (this.initialThumbnailErrorMessage !== null) {
             this.thumbnailEditor.setError(this.initialThumbnailErrorMessage);
           }
@@ -264,12 +265,7 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
           this.canUpdate.set(false);
           this.canDelete.set(false);
           this.savedEventRequest.set(null);
-          this.platforms.set([]);
-          this.publishErrorMessage.set(null);
-          this.deletePublicationErrorMessage.set(null);
-          this.platformActionBlockedMessage.set(null);
-          this.previewErrorMessage.set(null);
-          this.previewedPublishingContent.set(null);
+          this.platformsState.resetAfterLoadFailure();
           this.thumbnailEditor.resetAfterLoadFailure();
           this.loadFailed.set(true);
         },
@@ -449,132 +445,6 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
       });
   }
 
-  protected publishPlatform(platform: CalendarEventPlatform): void {
-    if (
-      this.editingId === null ||
-      !platform.canPublish ||
-      this.hasActiveMutation()
-    ) {
-      return;
-    }
-
-    if (this.blockPlatformActionWhenEventChangesPending()) {
-      return;
-    }
-
-    this.platformActionBlockedMessage.set(null);
-    this.publishErrorMessage.set(null);
-    this.publishingPlatformId.set(platform.platformId);
-
-    this.calendarEventsService
-      .publishPlatform(this.editingId, platform.platformId)
-      .pipe(
-        switchMap((response) =>
-          this.refreshEventDetailsAfterPlatformMutation(response.platformId),
-        ),
-        finalize(() => this.publishingPlatformId.set(null)),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe({
-        next: () => {
-          this.notifications.showSuccess('Calendar event published.');
-        },
-        error: (error: unknown) => {
-          this.publishErrorMessage.set(describePublishError(error));
-        },
-      });
-  }
-
-  protected deletePlatformPublication(platform: CalendarEventPlatform): void {
-    if (this.editingId === null || !platform.canDeletePublication || this.hasActiveMutation()) {
-      return;
-    }
-
-    if (this.blockPlatformActionWhenEventChangesPending()) {
-      return;
-    }
-
-    this.platformActionBlockedMessage.set(null);
-    this.confirmation
-      .confirm<'cancel' | 'delete'>({
-        kind: 'warning',
-        title: `Delete publication for ${platform.platformName}?`,
-        body: 'This removes the provider publication and clears this platform row so it can be published again.',
-        actions: [
-          { id: 'cancel', label: 'Cancel' },
-          { id: 'delete', label: 'Delete publication', primary: true },
-        ],
-      })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((result) => {
-        if (result !== 'delete' || this.hasActiveMutation()) {
-          return;
-        }
-
-        this.publishErrorMessage.set(null);
-        this.deletePublicationErrorMessage.set(null);
-        this.deletingPublicationPlatformId.set(platform.platformId);
-
-        this.calendarEventsService
-          .deletePlatformPublication(this.editingId!, platform.platformId)
-          .pipe(
-            switchMap((response) =>
-              this.refreshEventDetailsAfterPlatformMutation(response.platformId),
-            ),
-            finalize(() => this.deletingPublicationPlatformId.set(null)),
-            takeUntilDestroyed(this.destroyRef),
-          )
-          .subscribe({
-            next: () => {
-              this.notifications.showSuccess('Platform publication deleted.');
-            },
-            error: (error: unknown) => {
-              this.deletePublicationErrorMessage.set(describeDeletePublicationError(error));
-            },
-          });
-      });
-  }
-
-  protected previewPublishingContent(platform: CalendarEventPlatform): void {
-    if (
-      this.editingId === null ||
-      !platform.canPreviewPublishingContent ||
-      this.hasActiveMutation()
-    ) {
-      return;
-    }
-
-    this.platformActionBlockedMessage.set(null);
-    this.previewErrorMessage.set(null);
-    this.previewedPublishingContent.set(null);
-    this.previewingPlatformId.set(platform.platformId);
-
-    this.calendarEventsService
-      .getPublishingContent(this.editingId, platform.platformId)
-      .pipe(
-        finalize(() => this.previewingPlatformId.set(null)),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe({
-        next: (content) => {
-          this.previewedPublishingContent.set({
-            ...content,
-            platformId: platform.platformId,
-            platformName: platform.platformName,
-          });
-        },
-        error: (error: unknown) => {
-          this.previewErrorMessage.set(describePreviewError(error));
-        },
-      });
-  }
-
-  private clearPreview(platformId: string): void {
-    if (this.previewedPublishingContent()?.platformId === platformId) {
-      this.previewedPublishingContent.set(null);
-    }
-  }
-
   private confirmDiscardEventChanges(): Observable<boolean> {
     return this.confirmation
       .confirm<'keep-editing' | 'discard'>({
@@ -603,34 +473,14 @@ export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
       .pipe(map((result) => result === 'delete'));
   }
 
-  private blockPlatformActionWhenEventChangesPending(): boolean {
-    if (!this.hasPendingEventChanges()) {
-      return false;
-    }
-
-    this.platformActionBlockedMessage.set('Save or discard event changes before publishing.');
-    return true;
-  }
-
-  private refreshEventDetailsAfterPlatformMutation(
-    platformId: string,
-  ): Observable<CalendarEventDetailsResponse> {
-    return this.calendarEventsService.getById(this.editingId!).pipe(
-      tap((event) => {
-        this.applyEventDetails(event);
-        this.clearPreview(platformId);
-      }),
-    );
-  }
-
   private applyEventDetails(event: CalendarEventDetailsResponse): void {
     patchCalendarEventDetailsModel(this.model, event);
     this.savedEventRequest.set(toUpdateCalendarEventRequest(this.model()));
     this.loadedScheduledStartUtc.set(event.scheduledStartUtc);
-    this.platforms.set(event.platforms);
     this.canUpdate.set(event.canUpdate);
     this.canDelete.set(event.canDelete);
     this.thumbnailEditor.applyEventDetails(event);
+    this.platformsState.applyEventDetails(event);
   }
 }
 
@@ -641,52 +491,6 @@ function describeSaveError(error: unknown): string {
   }
 
   return 'The event could not be saved. Check your connection and try again.';
-}
-
-function describePublishError(error: unknown): string {
-  if (error instanceof HttpErrorResponse && error.status === 403) {
-    return 'You do not have permission to publish calendar events.';
-  }
-
-  if (error instanceof HttpErrorResponse && error.status === 409) {
-    return 'The platform can no longer publish this event. Reload the page and try again.';
-  }
-
-  if (error instanceof HttpErrorResponse && error.status === 502) {
-    return 'The platform could not publish this event. Try again later.';
-  }
-
-  return 'The platform could not publish this event. Check your connection and try again.';
-}
-
-function describeDeletePublicationError(error: unknown): string {
-  if (error instanceof HttpErrorResponse && error.status === 409) {
-    return 'The publication can no longer be deleted. Reload the page and try again.';
-  }
-
-  if (error instanceof HttpErrorResponse && error.status === 502) {
-    return 'The provider publication could not be deleted. Try again later.';
-  }
-
-  return 'The publication could not be deleted. Check your connection and try again.';
-}
-
-function describePreviewError(error: unknown): string {
-  if (error instanceof HttpErrorResponse && error.status === 404) {
-    return 'Publishing content is no longer available. Reload the page and try again.';
-  }
-
-  if (error instanceof HttpErrorResponse && error.status === 409) {
-    return 'Publishing content cannot be previewed. Reload the page and try again.';
-  }
-
-  return 'Publishing content could not be loaded. Check your connection and try again.';
-}
-
-export function thumbnailStatusText(platform: CalendarEventPlatform): string | null {
-  return platform.thumbnailStatus === 'Failed'
-    ? 'YouTube broadcast was created, but the thumbnail was not applied. Update it in YouTube Studio.'
-    : null;
 }
 
 function calendarEventEditPath(calendarEventId: string): string {

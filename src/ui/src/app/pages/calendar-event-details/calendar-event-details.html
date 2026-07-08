@@ -1,13 +1,7 @@
 <section class="layout">
   <header class="header">
-    <h1>{{ isEditMode ? 'Edit Calendar Event' : 'Add Calendar Event' }}</h1>
-    <p>
-      {{
-        isEditMode
-          ? 'Update this stream, scheduled start, and text fields.'
-          : 'Schedule a new stream and its text fields.'
-      }}
-    </p>
+    <h1>{{ pageTitle() }}</h1>
+    <p>{{ pageDescription() }}</p>
   </header>
 
   @if (showLoading()) {
@@ -19,7 +13,7 @@
       </app-alert>
     } @else {
       <form class="app-grid app-gap-6" (submit)="onSubmit($event)">
-        @if (isEditMode && (!canUpdate() || !canDelete())) {
+        @if (showLockedEventAlert()) {
           <app-alert variant="info">
             Delete platform publications before changing this event or deleting it.
           </app-alert>
@@ -80,108 +74,7 @@
         <app-thumbnail-editor [state]="thumbnailEditor" [isEditMode]="isEditMode" />
 
         @if (isEditMode) {
-          <section class="section" aria-labelledby="platforms-heading">
-            <h2 id="platforms-heading" class="section-title">Platforms</h2>
-            <app-data-table
-              [data]="platforms()"
-              [columns]="platformColumns"
-              [showPaginator]="false"
-              caption="Calendar event platforms"
-              emptyText="No platforms found."
-            >
-              <ng-template appDataTableCell="status" let-platform>
-                <div class="platform-status">
-                  <span>{{ platform.status }}</span>
-                  @if (thumbnailStatusText(platform); as thumbnailMessage) {
-                    <p>{{ thumbnailMessage }}</p>
-                  }
-                </div>
-              </ng-template>
-
-              <ng-template appDataTableCell="actions" let-platform>
-                <div class="app-actions">
-                  @if (platform.canPreviewPublishingContent) {
-                    <app-button
-                      class="platform-preview-button"
-                      iconButton
-                      icon="visibility"
-                      [ariaLabel]="'Preview publishing content for ' + platform.platformName"
-                      [disabled]="hasActiveMutation()"
-                      (click)="previewPublishingContent(platform)"
-                    />
-                  }
-                  @if (platform.canPublish) {
-                    <app-button
-                      class="platform-publish-button"
-                      iconButton
-                      icon="publish"
-                      [ariaLabel]="'Publish ' + platform.platformName"
-                      [disabled]="hasActiveMutation()"
-                      (click)="publishPlatform(platform)"
-                    />
-                  }
-                  @if (platform.canDeletePublication) {
-                    <app-button
-                      class="platform-delete-publication-button"
-                      iconButton
-                      icon="delete"
-                      [ariaLabel]="'Delete publication for ' + platform.platformName"
-                      [disabled]="hasActiveMutation()"
-                      (click)="deletePlatformPublication(platform)"
-                    />
-                  }
-                </div>
-              </ng-template>
-            </app-data-table>
-
-            @if (platformActionBlockedMessage(); as message) {
-              <app-alert variant="warning">
-                {{ message }}
-              </app-alert>
-            }
-
-            @if (previewedPublishingContent(); as content) {
-              <article class="publishing-content-preview" aria-live="polite">
-                <header>
-                  <h3>{{ content.platformName }}</h3>
-                  <span>{{ content.type }}</span>
-                </header>
-                @if (hasPendingEventChanges()) {
-                  <p class="publishing-content-preview-note">
-                    Preview uses stored event values. Unsaved event changes are not included.
-                  </p>
-                }
-                <dl>
-                  <div>
-                    <dt>Title</dt>
-                    <dd>{{ content.title }}</dd>
-                  </div>
-                  <div>
-                    <dt>Description</dt>
-                    <dd>{{ content.description || 'No description' }}</dd>
-                  </div>
-                </dl>
-              </article>
-            }
-
-            @if (previewErrorMessage(); as message) {
-              <app-alert variant="error">
-                {{ message }}
-              </app-alert>
-            }
-
-            @if (publishErrorMessage(); as message) {
-              <app-alert variant="error">
-                {{ message }}
-              </app-alert>
-            }
-
-            @if (deletePublicationErrorMessage(); as message) {
-              <app-alert variant="error">
-                {{ message }}
-              </app-alert>
-            }
-          </section>
+          <app-calendar-event-platforms [state]="platformsState" />
         }
 
         @if (saveErrorMessage(); as message) {
@@ -203,10 +96,7 @@
                 type="button"
                 appearance="outlined"
                 icon="delete"
-                [disabled]="
-                  !canDelete() ||
-                  hasActiveMutation()
-                "
+                [disabled]="deleteDisabled()"
                 (click)="deleteEvent()"
               >
                 {{ isDeleting() ? 'Deleting...' : 'Delete' }}
@@ -215,17 +105,14 @@
             <app-button
               type="button"
               appearance="outlined"
-              [disabled]="hasActiveMutation()"
+              [disabled]="cancelDisabled()"
               (click)="cancel()"
             >
               Cancel
             </app-button>
             <app-button
               type="submit"
-              [disabled]="
-                hasActiveMutation() ||
-                (isEditMode && (!canUpdate() || !hasPendingEventChanges()))
-              "
+              [disabled]="saveDisabled()"
             >
               {{ isEditMode ? 'Save changes' : 'Save event' }}
             </app-button>
