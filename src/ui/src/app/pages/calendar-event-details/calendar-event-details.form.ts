@@ -223,6 +223,17 @@ export function toUpdateCalendarEventRequest(
   };
 }
 
+export function sameUpdateCalendarEventRequest(
+  left: UpdateCalendarEventRequest,
+  right: UpdateCalendarEventRequest,
+): boolean {
+  return (
+    left.start.localDateTime === right.start.localDateTime &&
+    left.start.timeZoneId === right.start.timeZoneId &&
+    sameEventTextValues(left.texts, right.texts)
+  );
+}
+
 export function eventTextFieldsToModel(fields: readonly EventTextField[]): EventTextFieldModel[] {
   return fields.map((field) => ({
     ...field,
@@ -245,6 +256,20 @@ function toEventTextValues(model: CalendarEventDetailsModel) {
     fieldKey: text.fieldKey,
     value: text.value.trim(),
   }));
+}
+
+function sameEventTextValues(
+  left: UpdateCalendarEventRequest['texts'],
+  right: UpdateCalendarEventRequest['texts'],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every(
+      (text, index) =>
+        text.fieldKey === right[index].fieldKey &&
+        text.value.trim() === right[index].value.trim(),
+    )
+  );
 }
 
 // Formats an epoch-milliseconds instant as `YYYY-MM-DD HH:mm` in UTC, matching

@@ -20,7 +20,9 @@ import {
   type CalendarEventDetailsResponse,
   type CalendarEventPlatform,
   type EventPlatformPublishingContent,
+  type UpdateCalendarEventRequest,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import { type PendingChangesAware } from 'src/app/shared/routing/pending-changes-guard';
 import { EventTextFieldsService } from 'src/app/shared/api/settings/event-text-fields-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Alert } from 'src/app/shared/components/alert/alert';
@@ -34,6 +36,10 @@ import { Input } from 'src/app/shared/components/input/input';
 import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
 import { Select } from 'src/app/shared/components/select/select';
+import {
+  StatusPill,
+  type StatusPillVariant,
+} from 'src/app/shared/components/status-pill/status-pill';
 import { TimeField } from 'src/app/shared/components/time/time';
 import {
   applyCalendarEventDetailsRules,
@@ -42,6 +48,7 @@ import {
   eventTextFieldsToModel,
   formatScheduledStartUtcIso,
   patchCalendarEventDetailsModel,
+  sameUpdateCalendarEventRequest,
   scheduledStartUtcPreview,
   timeZoneOptions,
   toCreateCalendarEventRequest,
@@ -64,6 +71,8 @@ interface CreateCalendarEventSubmissionResult {
   thumbnailErrorMessage: string | null;
 }
 
+export type EventFormSaveStatus = 'saving' | 'failed' | 'locked' | 'pending' | 'stored';
+
 @Component({
   selector: 'app-calendar-event-details',
   imports: [
@@ -76,13 +85,14 @@ interface CreateCalendarEventSubmissionResult {
     TimeField,
     Select,
     ProgressBar,
+    StatusPill,
     ThumbnailEditor,
   ],
   templateUrl: './calendar-event-details.html',
   styleUrl: './calendar-event-details.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CalendarEventDetails implements OnDestroy {
+export class CalendarEventDetails implements OnDestroy, PendingChangesAware {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly calendarEventsService = inject(CalendarEventsService);
@@ -122,6 +132,37 @@ export class CalendarEventDetails implements OnDestroy {
 
   protected readonly isDeleting = signal(false);
   protected readonly deleteErrorMessage = signal<string | null>(null);
+  protected readonly savedEventRequest = signal<UpdateCalendarEventRequest | null>(null);
+  protected readonly hasPendingEventChanges = computed(() => {
+    const saved = this.savedEventRequest();
+    return (
+      this.isEditMode &&
+      this.canUpdate() &&
+      saved !== null &&
+      !sameUpdateCalendarEventRequest(toUpdateCalendarEventRequest(this.model()), saved)
+    );
+  });
+  protected readonly eventFormSaveStatus = computed<EventFormSaveStatus>(() => {
+    if (this.isSubmitting()) {
+      return 'saving';
+    }
+
+    if (this.saveErrorMessage() !== null) {
+      return 'failed';
+    }
+
+    if (this.isEditMode && !this.canUpdate()) {
+      return 'locked';
+    }
+
+    if (this.hasPendingEventChanges()) {
+      return 'pending';
+    }
+
+    return 'stored';
+  });
+  protected readonly eventFormSaveStatusText = eventFormSaveStatusText;
+  protected readonly eventFormSaveStatusVariant = eventFormSaveStatusVariant;
   protected readonly platforms = signal<CalendarEventPlatform[]>([]);
   protected readonly publishingPlatformId = signal<string | null>(null);
   protected readonly publishErrorMessage = signal<string | null>(null);
@@ -190,6 +231,14 @@ export class CalendarEventDetails implements OnDestroy {
     this.thumbnailEditor.destroy();
   }
 
+  canDeactivateWithPendingChanges(): boolean | Observable<boolean> {
+    if (!this.hasPendingEventChanges() || this.hasActiveMutation()) {
+      return true;
+    }
+
+    return this.confirmDiscardEventChanges();
+  }
+
   private loadCurrentFields(): void {
     this.isLoading.set(true);
     this.loadFailed.set(false);
@@ -231,6 +280,7 @@ export class CalendarEventDetails implements OnDestroy {
         error: () => {
           this.canUpdate.set(false);
           this.canDelete.set(false);
+          this.savedEventRequest.set(null);
           this.platforms.set([]);
           this.publishErrorMessage.set(null);
           this.deletePublicationErrorMessage.set(null);
@@ -253,6 +303,10 @@ export class CalendarEventDetails implements OnDestroy {
     }
 
     if (this.isEditMode && !this.canUpdate()) {
+      return;
+    }
+
+    if (this.isEditMode && !this.hasPendingEventChanges()) {
       return;
     }
 
@@ -302,13 +356,16 @@ export class CalendarEventDetails implements OnDestroy {
       return;
     }
 
+    const request = toUpdateCalendarEventRequest(this.model());
+
     this.calendarEventsService
-      .update(this.editingId, toUpdateCalendarEventRequest(this.model()))
+      .update(this.editingId, request)
       .pipe(finalize(() => this.isSubmitting.set(false)))
       .subscribe({
         next: () => {
+          this.savedEventRequest.set(request);
+          this.saveErrorMessage.set(null);
           this.notifications.showSuccess('Calendar event updated.');
-          this.router.navigateByUrl('/calendar-events');
         },
         error: (error: unknown) => {
           this.saveErrorMessage.set(describeSaveError(error));
@@ -317,7 +374,20 @@ export class CalendarEventDetails implements OnDestroy {
   }
 
   protected cancel(): void {
-    this.router.navigateByUrl('/calendar-events');
+    if (this.hasActiveMutation()) {
+      return;
+    }
+
+    if (!this.hasPendingEventChanges()) {
+      this.router.navigateByUrl('/calendar-events');
+      return;
+    }
+
+    this.confirmDiscardEventChanges().subscribe((discard) => {
+      if (discard) {
+        this.router.navigateByUrl('/calendar-events');
+      }
+    });
   }
 
   protected deleteEvent(): void {
@@ -473,6 +543,20 @@ export class CalendarEventDetails implements OnDestroy {
     }
   }
 
+  private confirmDiscardEventChanges(): Observable<boolean> {
+    return this.confirmation
+      .confirm<'keep-editing' | 'discard'>({
+        kind: 'warning',
+        title: 'Discard unsaved event changes?',
+        body: 'Scheduled start and event text changes have not been saved.',
+        actions: [
+          { id: 'keep-editing', label: 'Keep editing' },
+          { id: 'discard', label: 'Discard changes', primary: true },
+        ],
+      })
+      .pipe(map((result) => result === 'discard'));
+  }
+
   private refreshEventDetailsAfterPlatformMutation(
     platformId: string,
   ): Observable<CalendarEventDetailsResponse> {
@@ -486,11 +570,42 @@ export class CalendarEventDetails implements OnDestroy {
 
   private applyEventDetails(event: CalendarEventDetailsResponse): void {
     patchCalendarEventDetailsModel(this.model, event);
+    this.savedEventRequest.set(toUpdateCalendarEventRequest(this.model()));
     this.loadedScheduledStartUtc.set(event.scheduledStartUtc);
     this.platforms.set(event.platforms);
     this.canUpdate.set(event.canUpdate);
     this.canDelete.set(event.canDelete);
     this.thumbnailEditor.applyEventDetails(event);
+  }
+}
+
+export function eventFormSaveStatusText(status: EventFormSaveStatus): string {
+  switch (status) {
+    case 'saving':
+      return 'Saving...';
+    case 'failed':
+      return 'Save failed';
+    case 'locked':
+      return 'Published changes locked';
+    case 'pending':
+      return 'Not saved';
+    case 'stored':
+      return 'Stored';
+  }
+}
+
+export function eventFormSaveStatusVariant(
+  status: EventFormSaveStatus,
+): StatusPillVariant {
+  switch (status) {
+    case 'stored':
+      return 'success';
+    case 'failed':
+    case 'pending':
+      return 'warning';
+    case 'saving':
+    case 'locked':
+      return 'neutral';
   }
 }
 

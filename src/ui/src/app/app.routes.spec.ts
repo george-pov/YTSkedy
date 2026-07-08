@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { routes } from './app.routes';
 import { AppLayout } from './layout/app-layout/app-layout';
+import { CalendarEventDetails } from './pages/calendar-event-details/calendar-event-details';
 import { CalendarEvents } from './pages/calendar-events/calendar-events';
 import { ComponentLab } from './pages/component-lab/component-lab';
 import { Home } from './pages/home/home';
@@ -9,6 +10,7 @@ import { Platforms } from './pages/platforms/platforms';
 import { SignedOut } from './pages/signed-out/signed-out';
 import { authenticatedGuard } from './shared/auth/authenticated-guard';
 import { redirectAuthenticatedGuard } from './shared/auth/redirect-authenticated-guard';
+import { pendingChangesGuard } from './shared/routing/pending-changes-guard';
 
 describe('routes', () => {
   it('uses the app layout as the route shell', () => {
@@ -38,6 +40,27 @@ describe('routes', () => {
       path: 'calendar-events',
       component: CalendarEvents,
       canActivate: [authenticatedGuard],
+    });
+  });
+
+  it('keeps calendar event create available without pending-change route protection', () => {
+    const layoutRoute = routes.find(({ path }) => path === '');
+
+    expect(layoutRoute?.children).toContainEqual({
+      path: 'calendar-events/new',
+      component: CalendarEventDetails,
+      canActivate: [authenticatedGuard],
+    });
+  });
+
+  it('guards calendar event edit route exit against pending changes', () => {
+    const layoutRoute = routes.find(({ path }) => path === '');
+
+    expect(layoutRoute?.children).toContainEqual({
+      path: 'calendar-events/:calendarEventId/edit',
+      component: CalendarEventDetails,
+      canActivate: [authenticatedGuard],
+      canDeactivate: [pendingChangesGuard],
     });
   });
 

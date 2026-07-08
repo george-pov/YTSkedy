@@ -7,6 +7,7 @@ import { Home } from './pages/home/home';
 import { SignedOut } from './pages/signed-out/signed-out';
 import { authenticatedGuard } from './shared/auth/authenticated-guard';
 import { redirectAuthenticatedGuard } from './shared/auth/redirect-authenticated-guard';
+import { pendingChangesGuard } from './shared/routing/pending-changes-guard';
 import { CalendarEventDetails } from './pages/calendar-event-details/calendar-event-details';
 import { Templates } from './pages/templates/templates';
 import { Platforms } from './pages/platforms/platforms';
@@ -36,7 +37,8 @@ export const routes: Routes = [
       {
         path: 'calendar-events/:calendarEventId/edit',
         component: CalendarEventDetails,
-        canActivate: [authenticatedGuard]
+        canActivate: [authenticatedGuard],
+        canDeactivate: [pendingChangesGuard],
       },
       {
         path: 'templates',

@@ -10,6 +10,7 @@ import {
   createCalendarEventDetailsModel,
   eventTextFieldsToModel,
   patchCalendarEventDetailsModel,
+  sameUpdateCalendarEventRequest,
   toCreateCalendarEventRequest,
   toUpdateCalendarEventRequest,
   type CalendarEventDetailsModel,
@@ -103,6 +104,80 @@ describe('calendar event details form mapping', () => {
     });
   });
 
+  it('treats equal update requests as the same', () => {
+    expect(sameUpdateCalendarEventRequest(updateRequest(), updateRequest())).toBe(true);
+  });
+
+  it('detects a changed scheduled start in update requests', () => {
+    expect(
+      sameUpdateCalendarEventRequest(updateRequest(), {
+        ...updateRequest(),
+        start: {
+          ...updateRequest().start,
+          localDateTime: '2999-01-02T10:00:00',
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it('detects a changed time zone in update requests', () => {
+    expect(
+      sameUpdateCalendarEventRequest(updateRequest(), {
+        ...updateRequest(),
+        start: {
+          ...updateRequest().start,
+          timeZoneId: 'America/Vancouver',
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it('detects a changed text value in update requests', () => {
+    expect(
+      sameUpdateCalendarEventRequest(updateRequest(), {
+        ...updateRequest(),
+        texts: [
+          {
+            fieldKey: 'text1',
+            value: 'Updated English title',
+          },
+          {
+            fieldKey: 'text2',
+            value: 'English description',
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it('detects changed text order in update requests', () => {
+    expect(
+      sameUpdateCalendarEventRequest(updateRequest(), {
+        ...updateRequest(),
+        texts: [...updateRequest().texts].reverse(),
+      }),
+    ).toBe(false);
+  });
+
+  it('treats whitespace-only raw form changes as unchanged after update mapping', () => {
+    const stored = toUpdateCalendarEventRequest(model());
+    const edited = toUpdateCalendarEventRequest({
+      ...model(),
+      texts: [
+        {
+          ...model().texts[0],
+          value: ' English title ',
+        },
+        {
+          ...model().texts[1],
+          value: '  English description  ',
+        },
+      ],
+    });
+
+    expect(sameUpdateCalendarEventRequest(edited, stored)).toBe(true);
+  });
+
   it('enables start controls in edit mode when canUpdate returns true', () => {
     const detailsForm = TestBed.runInInjectionContext(() =>
       form(signal(model()), (path) =>
@@ -190,5 +265,9 @@ describe('calendar event details form mapping', () => {
       type,
       maxLength,
     }));
+  }
+
+  function updateRequest() {
+    return toUpdateCalendarEventRequest(model());
   }
 });

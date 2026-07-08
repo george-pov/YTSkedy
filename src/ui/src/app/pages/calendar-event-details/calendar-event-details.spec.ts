@@ -5,7 +5,7 @@ import { type FieldTree } from '@angular/forms/signals';
 import { MatDateFormats } from '@angular/material/core';
 import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import { Observable, of, Subject, throwError } from 'rxjs';
+import { firstValueFrom, Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -222,6 +222,29 @@ describe('CalendarEventDetails', () => {
 
   function saveButton(): HTMLButtonElement {
     return fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement;
+  }
+
+  function eventFormStatus(): string {
+    return (
+      fixture.nativeElement.querySelector('.event-form-status app-status-pill') as HTMLElement
+    ).textContent!.trim();
+  }
+
+  function eventFormStatusHost(): HTMLElement {
+    return fixture.nativeElement.querySelector('.event-form-status app-status-pill') as HTMLElement;
+  }
+
+  async function routeExitDecision(): Promise<boolean> {
+    const result = fixture.componentInstance.canDeactivateWithPendingChanges();
+    if (typeof result === 'boolean') {
+      return result;
+    }
+
+    if (result instanceof Observable) {
+      return firstValueFrom(result);
+    }
+
+    return result;
   }
 
   function eventTextControls(): Array<HTMLInputElement | HTMLTextAreaElement> {
@@ -602,6 +625,177 @@ describe('CalendarEventDetails', () => {
       expect(text).toContain('2030-07-04 08:30');
     });
 
+    it('shows Stored for the initial edit form save status', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+
+      expect(eventFormStatus()).toBe('Stored');
+      expect(eventFormStatusHost().classList.contains('success')).toBe(true);
+      expect(fixture.nativeElement.textContent).toContain(
+        'Save changes updates scheduled start and event text only.',
+      );
+    });
+
+    it('shows Not saved when event text changes from the saved baseline', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
+      fixture.detectChanges();
+
+      expect(eventFormStatus()).toBe('Not saved');
+      expect(eventFormStatusHost().classList.contains('warning')).toBe(true);
+    });
+
+    it('shows Saving while an edit-mode save is in flight', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.update.mockReturnValue(new Subject<UpdateCalendarEventResponse>());
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
+
+      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+      fixture.detectChanges();
+
+      expect(eventFormStatus()).toBe('Saving...');
+    });
+
+    it('shows Save failed with the existing save error alert', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.update.mockReturnValue(throwError(() => new Error('boom')));
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
+
+      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const alert = fixture.nativeElement.querySelector('[role="alert"]');
+      expect(eventFormStatus()).toBe('Save failed');
+      expect(alert).not.toBeNull();
+      expect(alert.textContent).toContain('The event could not be saved.');
+    });
+
+    it('shows Published changes locked when event updates are locked', () => {
+      service.getById.mockReturnValue(
+        of(
+          sampleEvent({
+            canUpdate: false,
+            canDelete: false,
+            platforms: [publishedPlatform()],
+          }),
+        ),
+      );
+
+      createEditComponent();
+
+      expect(eventFormStatus()).toBe('Published changes locked');
+      expect(fixture.nativeElement.textContent).toContain(
+        'Delete platform publications before changing this event or deleting it.',
+      );
+    });
+
+    it('navigates away on clean edit-mode Cancel without confirmation', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+
+      cancelButton()!.click();
+      await fixture.whenStable();
+
+      expect(confirmation.confirm).not.toHaveBeenCalled();
+      expect(navigations).toEqual(['/calendar-events']);
+    });
+
+    it('keeps editing on pending edit-mode Cancel when discard is rejected', async () => {
+      confirmation.confirm.mockReturnValueOnce(of('keep-editing'));
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
+      fixture.detectChanges();
+
+      cancelButton()!.click();
+      await fixture.whenStable();
+
+      expect(confirmation.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'warning',
+          title: 'Discard unsaved event changes?',
+          body: 'Scheduled start and event text changes have not been saved.',
+          actions: [
+            { id: 'keep-editing', label: 'Keep editing' },
+            { id: 'discard', label: 'Discard changes', primary: true },
+          ],
+        }),
+      );
+      expect(navigations).toEqual([]);
+    });
+
+    it('navigates away on pending edit-mode Cancel when discard is confirmed', async () => {
+      confirmation.confirm.mockReturnValueOnce(of('discard'));
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
+      fixture.detectChanges();
+
+      cancelButton()!.click();
+      await fixture.whenStable();
+
+      expect(navigations).toEqual(['/calendar-events']);
+    });
+
+    it('allows clean route exit without confirmation', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+
+      await expect(routeExitDecision()).resolves.toBe(true);
+      expect(confirmation.confirm).not.toHaveBeenCalled();
+    });
+
+    it('blocks pending route exit when discard is rejected', async () => {
+      confirmation.confirm.mockReturnValueOnce(of('keep-editing'));
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
+
+      await expect(routeExitDecision()).resolves.toBe(false);
+      expect(confirmation.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Discard unsaved event changes?',
+        }),
+      );
+    });
+
+    it('allows pending route exit when discard is confirmed', async () => {
+      confirmation.confirm.mockReturnValueOnce(of('discard'));
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
+
+      await expect(routeExitDecision()).resolves.toBe(true);
+    });
+
+    it('allows route exit during an active mutation without confirmation', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+      service.update.mockReturnValue(new Subject<UpdateCalendarEventResponse>());
+
+      createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
+      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+      fixture.detectChanges();
+
+      await expect(routeExitDecision()).resolves.toBe(true);
+      expect(confirmation.confirm).not.toHaveBeenCalled();
+    });
+
     it('loads the current thumbnail preview through the API client', () => {
       service.getById.mockReturnValue(of(sampleEvent({ thumbnail: thumbnailResponse() })));
       const content = new Blob(['image-bytes'], { type: 'image/png' });
@@ -659,7 +853,7 @@ describe('CalendarEventDetails', () => {
       expect(notifications.showSuccess).toHaveBeenCalledWith('Thumbnail deleted.');
     });
 
-    it('uses canUpdateThumbnail from the API to lock thumbnail controls only', () => {
+    it('uses canUpdateThumbnail from the API without locking event form controls', () => {
       service.getById.mockReturnValue(
         of(
           sampleEvent({
@@ -680,6 +874,9 @@ describe('CalendarEventDetails', () => {
       );
       expect(thumbnailReplaceInput()!.disabled).toBe(true);
       expect(thumbnailDeleteButton()!.disabled).toBe(true);
+      expect(saveButton().disabled).toBe(true);
+      api().form.texts[0].value().value.set('Updated English title');
+      fixture.detectChanges();
       expect(saveButton().disabled).toBe(false);
       expect(deleteButton()!.disabled).toBe(false);
     });
@@ -689,6 +886,7 @@ describe('CalendarEventDetails', () => {
       service.update.mockReturnValue(new Subject<UpdateCalendarEventResponse>());
 
       createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
       fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
       fixture.detectChanges();
 
@@ -1152,7 +1350,8 @@ describe('CalendarEventDetails', () => {
       expect(service.getById).toHaveBeenCalledTimes(2);
       expect(platformDeletePublicationHosts()).toHaveLength(0);
       expect(platformPublishHosts()).toHaveLength(1);
-      expect(saveButton().disabled).toBe(false);
+      expect(saveButton().disabled).toBe(true);
+      expect(eventFormStatus()).toBe('Stored');
       expect(deleteButton()!.disabled).toBe(false);
       expect(api().form.start().disabled()).toBe(false);
       expect(eventTextControls().every((control) => !control.disabled)).toBe(true);
@@ -1302,16 +1501,35 @@ describe('CalendarEventDetails', () => {
       expect(fixture.nativeElement.textContent).toContain('2030-07-05 17:00');
     });
 
-    it('keeps Save enabled and updates start and text values on submit', async () => {
+    it('disables unchanged edit-mode Save', () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+
+      expect(saveButton().disabled).toBe(true);
+      expect(eventFormStatus()).toBe('Stored');
+    });
+
+    it('does not update when an unchanged edit form is submitted programmatically', async () => {
+      service.getById.mockReturnValue(of(sampleEvent()));
+
+      createEditComponent();
+
+      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(service.update).not.toHaveBeenCalled();
+      expect(navigations).toEqual([]);
+    });
+
+    it('enables changed edit-mode Save and updates start and text values on submit', async () => {
       service.getById.mockReturnValue(of(sampleEvent()));
       service.update.mockReturnValue(of({ calendarEventId: editId }));
 
       createEditComponent();
 
-      const save = fixture.nativeElement.querySelector(
-        'button[type="submit"]',
-      ) as HTMLButtonElement;
-      expect(save.disabled).toBe(false);
+      expect(saveButton().disabled).toBe(true);
 
       api().form.texts[0].value().value.set('  Updated English title  ');
       api().form.start().value.set({
@@ -1319,10 +1537,15 @@ describe('CalendarEventDetails', () => {
         time: '10:00',
         timeZoneId: 'America/Vancouver',
       });
+      fixture.detectChanges();
+
+      expect(saveButton().disabled).toBe(false);
+      expect(eventFormStatus()).toBe('Not saved');
 
       fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
       fixture.detectChanges();
       await fixture.whenStable();
+      fixture.detectChanges();
 
       expect(service.create).not.toHaveBeenCalled();
       expect(service.update).toHaveBeenCalledTimes(1);
@@ -1342,7 +1565,9 @@ describe('CalendarEventDetails', () => {
         }),
       );
       expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event updated.');
-      expect(navigations).toEqual(['/calendar-events']);
+      expect(navigations).toEqual([]);
+      expect(eventFormStatus()).toBe('Stored');
+      expect(saveButton().disabled).toBe(true);
     });
 
     it('disables event text save and delete when API canUpdate and canDelete are false', () => {
@@ -1393,6 +1618,7 @@ describe('CalendarEventDetails', () => {
       service.update.mockReturnValue(throwError(() => new Error('boom')));
 
       createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
 
       fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
       fixture.detectChanges();
@@ -1409,6 +1635,7 @@ describe('CalendarEventDetails', () => {
       service.update.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
 
       createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
 
       fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
       fixture.detectChanges();
@@ -1597,6 +1824,7 @@ describe('CalendarEventDetails', () => {
       service.update.mockReturnValue(new Subject<UpdateCalendarEventResponse>());
 
       createEditComponent();
+      api().form.texts[0].value().value.set('Updated English title');
 
       fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
       fixture.detectChanges();
