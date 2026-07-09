@@ -1,13 +1,14 @@
 <app-lab-page titleId="data-table-lab-title" title="Data Table">
   <app-lab-example
     titleId="data-table-basic-example-title"
-    title="Sortable and paginated"
+    title="Sortable, paginated, and hover-highlighted"
   >
     <app-data-table
       [data]="rows"
       [columns]="columns"
       caption="Demo recordings"
       [pageSize]="10"
+      [highlightRowsOnHover]="true"
       emptyText="No recordings to show."
     >
       <ng-template appDataTableCell="actions" let-row>

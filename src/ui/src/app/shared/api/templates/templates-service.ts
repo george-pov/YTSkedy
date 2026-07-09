@@ -3,18 +3,15 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { APP_CONFIG } from 'src/app/shared/config/app-config';
-import {
-  templateByKeyUrl,
-  templatesUrl,
-  templateTokensUrl,
-} from './templates-endpoint';
+import type { PlatformType } from 'src/app/shared/platforms/platform-types';
+import { templateByKeyUrl, templatesUrl, templateTokensUrl } from './templates-endpoint';
 
 /**
  * The platform a template targets. The backend supports exactly these two types
  * and treats the type as immutable after create because it drives storage
  * partitioning. See `docs/api/http/templates.md`.
  */
-export type TemplateType = 'YouTube' | 'WordPress';
+export type TemplateType = PlatformType;
 
 /** A stored template as returned by the list endpoint. */
 export interface Template {
@@ -71,8 +68,7 @@ export class TemplatesService {
   private readonly appConfig = inject(APP_CONFIG);
 
   list(type?: TemplateType): Observable<TemplateListResponse> {
-    const options =
-      type === undefined ? {} : { params: new HttpParams().set('type', type) };
+    const options = type === undefined ? {} : { params: new HttpParams().set('type', type) };
 
     return this.http.get<TemplateListResponse>(templatesUrl(this.appConfig.api), options);
   }

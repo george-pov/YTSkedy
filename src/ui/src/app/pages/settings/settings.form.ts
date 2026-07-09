@@ -5,6 +5,7 @@ import {
   EventTextType,
   UpdateEventTextFieldsRequest,
 } from 'src/app/shared/api/settings/event-text-fields-service';
+import { sameRequest } from 'src/app/shared/forms/request-comparison';
 
 export interface EventTextFieldEditor {
   fieldKey: string;
@@ -55,6 +56,13 @@ export function toUpdateEventTextFieldsRequest(model: SettingsModel): UpdateEven
   return {
     fields: model.fields.map(toEventTextField),
   };
+}
+
+export function sameUpdateEventTextFieldsRequest(
+  left: UpdateEventTextFieldsRequest,
+  right: UpdateEventTextFieldsRequest,
+): boolean {
+  return sameRequest(left, right);
 }
 
 export function applySettingsRules(path: SchemaPathTree<SettingsModel>): void {

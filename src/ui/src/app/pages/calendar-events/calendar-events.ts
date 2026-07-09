@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, type OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  type OnInit,
+  signal,
+} from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { finalize } from 'rxjs';
 
@@ -15,11 +21,11 @@ import { DataTableCell } from 'src/app/shared/components/data-table/data-table-c
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-calendar-events',
-  imports: [Alert, Button, DataTable, DataTableCell, ProgressBar],
+  imports: [Alert, Button, DataTable, DataTableCell, ProgressBar, RouterLink],
   templateUrl: './calendar-events.html',
   styleUrl: './calendar-events.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -59,10 +65,6 @@ export class CalendarEvents implements OnInit {
       sortable: true,
       truncate: true,
     },
-    {
-      key: 'actions',
-      header: 'Actions',
-    },
   ];
 
   ngOnInit(): void {
@@ -74,8 +76,6 @@ export class CalendarEvents implements OnInit {
   }
 
   protected editEvent(event: CalendarEvent): void {
-    // Edit mode is not implemented yet; this only routes to the details page
-    // with the calendar event id so the future edit form can load that event.
     this.router.navigateByUrl(`/calendar-events/${event.calendarEventId}/edit`);
   }
 

@@ -10,7 +10,7 @@
   align-items: center;
   padding: $app-space-1 $app-space-3;
   border: 1px solid var(--status-pill-border);
-  border-radius: 999px;
+  border-radius: $app-radius-pill;
   background: var(--status-pill-surface);
   color: var(--status-pill-text);
   font-size: 0.8rem;

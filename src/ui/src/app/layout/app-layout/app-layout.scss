@@ -11,11 +11,11 @@
 }
 
 .header {
-  border-bottom: 1px solid $app-color-border;
+  border-bottom: $app-border-default;
 }
 
 .nav {
-  border-bottom: 1px solid $app-color-border;
+  border-bottom: $app-border-default;
 }
 
 .header-row {
@@ -37,7 +37,7 @@
     height: 2.25rem;
     align-items: center;
     justify-content: center;
-    border-radius: $app-space-2;
+    border-radius: $app-radius-md;
     background: $app-color-action-accent;
     color: $app-color-white;
     font-size: 0.81rem;

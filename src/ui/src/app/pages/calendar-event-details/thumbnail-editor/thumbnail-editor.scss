@@ -1,20 +1,11 @@
 @use 'src/styles/variables' as *;
+@use 'src/styles/mixins' as app;
 
-:host {
-  display: block;
-}
+@include app.page-host;
 
 .thumbnail-section {
-  margin: 0;
-  padding: 1.25rem;
-  border: 1px solid $app-color-border;
-  border-radius: 8px;
-
-  legend {
-    padding: 0 $app-space-2;
-    font-weight: 600;
-    color: $app-color-text;
-  }
+  @include app.fieldset-panel;
+  @include app.stack($app-space-4);
 }
 
 .thumbnail-preview {
@@ -34,11 +25,8 @@
   text-align: center;
 }
 
-.thumbnail-section,
 .thumbnail-details {
-  display: flex;
-  flex-direction: column;
-  gap: $app-space-4;
+  @include app.stack($app-space-4);
 }
 
 .thumbnail-details-header {
@@ -61,10 +49,7 @@
   margin: 0;
 
   div {
-    padding: $app-space-3;
-    border: 1px solid $app-color-border;
-    border-radius: 8px;
-    background: $app-color-background;
+    @include app.panel($app-space-3, $app-color-background);
   }
 
   dt {
@@ -95,17 +80,16 @@
   justify-content: center;
   padding: $app-space-6;
   border: 1px dashed $app-color-muted;
-  border-radius: 8px;
+  border-radius: $app-radius-md;
   background: $app-color-background;
   text-align: center;
 }
 
 .thumbnail-picker-content {
-  display: flex;
-  flex-direction: column;
+  @include app.stack($app-space-2);
+
   max-width: 26rem;
   align-items: center;
-  gap: $app-space-2;
 
   strong {
     color: $app-color-text;

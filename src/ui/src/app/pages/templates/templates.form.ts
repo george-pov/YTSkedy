@@ -1,15 +1,12 @@
-import {
-  maxLength,
-  required,
-  validate,
-  type SchemaPathTree,
-} from '@angular/forms/signals';
+import { maxLength, required, validate, type SchemaPathTree } from '@angular/forms/signals';
 
 import {
   CreateTemplateRequest,
   TemplateType,
   UpdateTemplateRequest,
 } from 'src/app/shared/api/templates/templates-service';
+import { sameRequest } from 'src/app/shared/forms/request-comparison';
+import { defaultPlatformType } from 'src/app/shared/platforms/platform-types';
 
 // Mirror the backend domain limits in `Template.cs` so the UI rejects oversized
 // input before the request. The backend remains the durable validator.
@@ -25,7 +22,7 @@ export interface TemplateFormModel {
 
 // New templates default to YouTube so the type select starts on a valid option.
 export function createTemplateFormModel(): TemplateFormModel {
-  return { type: 'YouTube', name: '', content: '' };
+  return { type: defaultPlatformType, name: '', content: '' };
 }
 
 // Signal Forms validation rules for the template editor. Type is required (the
@@ -36,18 +33,14 @@ export function applyTemplateRules(path: SchemaPathTree<TemplateFormModel>): voi
   required(path.type, { message: 'Type is required.' });
 
   validate(path.name, ({ value }) =>
-    value().trim().length === 0
-      ? { kind: 'required', message: 'Name is required.' }
-      : undefined,
+    value().trim().length === 0 ? { kind: 'required', message: 'Name is required.' } : undefined,
   );
   maxLength(path.name, nameMaxLength, {
     message: `Name must be at most ${nameMaxLength} characters.`,
   });
 
   validate(path.content, ({ value }) =>
-    value().trim().length === 0
-      ? { kind: 'required', message: 'Content is required.' }
-      : undefined,
+    value().trim().length === 0 ? { kind: 'required', message: 'Content is required.' } : undefined,
   );
   maxLength(path.content, contentMaxLength, {
     message: `Content must be at most ${contentMaxLength} characters.`,
@@ -65,9 +58,20 @@ export function toCreateTemplateRequest(model: TemplateFormModel): CreateTemplat
   };
 }
 
+export function toTemplateEditorRequest(model: TemplateFormModel): CreateTemplateRequest {
+  return toCreateTemplateRequest(model);
+}
+
 export function toUpdateTemplateRequest(model: TemplateFormModel): UpdateTemplateRequest {
   return {
     name: model.name.trim(),
     content: model.content,
   };
+}
+
+export function sameTemplateEditorRequest(
+  left: CreateTemplateRequest,
+  right: CreateTemplateRequest,
+): boolean {
+  return sameRequest(left, right);
 }

@@ -1,7 +1,3 @@
-:host {
-  display: block;
-}
+@use 'src/styles/mixins' as app;
 
-mat-form-field {
-  width: 100%;
-}
+@include app.full-width-form-field;

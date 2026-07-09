@@ -47,7 +47,9 @@
     <tr
       mat-row
       *matRowDef="let row; columns: displayedColumns()"
+      [class.clickable]="rowClickable()"
       [class.selectable]="selectable()"
+      [class.highlight-on-hover]="highlightRowsOnHover()"
       [class.selected]="isSelected(row)"
       [attr.role]="selectable() ? 'button' : null"
       [attr.tabindex]="selectable() ? 0 : null"

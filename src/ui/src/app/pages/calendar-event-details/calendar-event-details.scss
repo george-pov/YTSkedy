@@ -1,44 +1,19 @@
 @use 'src/styles/variables' as *;
+@use 'src/styles/mixins' as app;
 
-:host {
-  display: block;
-}
+@include app.page-host;
 
 .layout {
-  display: flex;
-  flex-direction: column;
-  gap: $app-space-4;
+  @include app.stack($app-space-4);
 }
 
 .header {
-  display: flex;
-  flex-direction: column;
-  gap: $app-space-1;
-
-  h1,
-  p {
-    margin: 0;
-  }
-
-  p {
-    color: $app-color-muted;
-  }
+  @include app.page-title-header;
 }
 
 .section {
-  display: flex;
-  flex-direction: column;
-  gap: $app-space-4;
-  margin: 0;
-  padding: 1.25rem;
-  border: 1px solid $app-color-border;
-  border-radius: 8px;
-
-  legend {
-    padding: 0 $app-space-2;
-    font-weight: 600;
-    color: $app-color-text;
-  }
+  @include app.fieldset-panel;
+  @include app.stack($app-space-4);
 }
 
 .section-title {
@@ -49,9 +24,8 @@
 }
 
 .text-item {
-  display: flex;
-  flex-direction: column;
-  gap: $app-space-4;
+  @include app.stack($app-space-4);
+
   padding: $app-space-4;
   background: $app-color-surface;
 
@@ -72,7 +46,7 @@
 
   span {
     color: $app-color-muted;
-    font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+    font-family: $app-font-mono;
     font-size: 0.85rem;
   }
 }
@@ -83,12 +57,5 @@
 }
 
 .utc-preview {
-  display: flex;
-  gap: $app-space-2;
-  margin: 0;
-  color: $app-color-muted;
-
-  strong {
-    color: $app-color-text;
-  }
+  @include app.readonly-row;
 }

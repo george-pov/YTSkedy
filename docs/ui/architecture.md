@@ -19,17 +19,18 @@ The Angular frontend lives under `src/ui/`.
 - Shared route-exit protection lives under `src/ui/src/app/shared/routing/`.
   The `pendingChangesGuard` defines a `PendingChangesAware` contract and
   delegates route-exit decisions to page-owned state and confirmation copy.
-  The current use is the calendar event details edit route for pending
-  scheduled-start and event-text changes.
+  The current use is the calendar event details edit route plus the Templates,
+  Platforms, and Settings editor routes.
 - Runtime API base URL configuration is loaded from
   `src/ui/public/config/app-config.json`.
 - The `calendar-events` page route loads one server-side sorted page of events
   through the calendar events API service and renders the result through the
   shared `app-data-table` component in server mode. It defaults to the first
   page sorted by scheduled start descending, re-fetches on each sort, page, or
-  page-size change. The Scheduled Start (UTC) and Title columns are sortable,
-  and the Actions column projects the Edit button. The title display uses the
-  backend `displayTitle` field, which is also the source for `title` sorting.
+  page-size change. The Scheduled Start (UTC) and Title columns are sortable.
+  Rows use the data table hover-highlight option and activate the details/edit
+  route. The title display uses the backend `displayTitle` field, is also a
+  link to the details/edit route, and is the source for `title` sorting.
   The scheduled start is rendered as the UTC instant; local time and zone are
   shown on the create/edit form. Publishing is platform-scoped and is exposed
   from the calendar event details edit route.
@@ -129,6 +130,10 @@ Inputs:
 - `pageIndex` (default `0`): active zero-based page index, bound to the
   paginator in server mode.
 - `emptyText` (default `''`): optional empty-state text.
+- `clickableRows` (default `false`): when true, mouse row clicks emit
+  `rowClick` without adding selectable row semantics.
+- `highlightRowsOnHover` (default `false`): when true, rows show a hover
+  background highlight without becoming clickable.
 
 Output:
 
@@ -138,6 +143,9 @@ Output:
   mode. In server mode the headers only toggle ascending/descending (sort
   clearing is disabled). The page maps the column key to its API sort field and
   fetches the matching page.
+- `rowClick`: emitted with the row when `clickableRows` or `selectable` is
+  true and the row is clicked. `selectable` also makes rows keyboard
+  activatable and supports selected-row styling.
 
 `DataTableColumn<T>` carries `key`, `header`, `sortable?`, `value?`,
 `cellClass?`, `align?`, and `truncate?`. A text column renders `value(row)`; a

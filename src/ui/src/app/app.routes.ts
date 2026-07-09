@@ -27,12 +27,12 @@ export const routes: Routes = [
       {
         path: 'calendar-events',
         component: CalendarEvents,
-        canActivate: [authenticatedGuard]        
+        canActivate: [authenticatedGuard],
       },
       {
         path: 'calendar-events/new',
         component: CalendarEventDetails,
-        canActivate: [authenticatedGuard]
+        canActivate: [authenticatedGuard],
       },
       {
         path: 'calendar-events/:calendarEventId/edit',
@@ -44,16 +44,19 @@ export const routes: Routes = [
         path: 'templates',
         component: Templates,
         canActivate: [authenticatedGuard],
+        canDeactivate: [pendingChangesGuard],
       },
       {
         path: 'platforms',
         component: Platforms,
         canActivate: [authenticatedGuard],
+        canDeactivate: [pendingChangesGuard],
       },
       {
         path: 'settings',
         component: Settings,
         canActivate: [authenticatedGuard],
+        canDeactivate: [pendingChangesGuard],
       },
       {
         path: 'signed-out',

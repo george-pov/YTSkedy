@@ -50,8 +50,16 @@
         }
 
         <div class="app-actions app-actions-end">
-          <app-button type="submit" [disabled]="isSaving()">
-            {{ isSaving() ? 'Saving...' : 'Save settings' }}
+          <app-button
+            type="button"
+            appearance="outlined"
+            [disabled]="isSaving()"
+            (click)="cancel()"
+          >
+            Cancel
+          </app-button>
+          <app-button type="submit" [disabled]="saveDisabled()">
+            {{ isSaving() ? 'Saving...' : 'Save changes' }}
           </app-button>
         </div>
       </form>

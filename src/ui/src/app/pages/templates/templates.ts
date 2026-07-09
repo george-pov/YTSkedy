@@ -1,23 +1,39 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, inject, type OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  type OnInit,
+  signal,
+} from '@angular/core';
 import { form } from '@angular/forms/signals';
-import { finalize } from 'rxjs';
+import { finalize, map, Observable } from 'rxjs';
 
-import { Template, TemplatesService } from 'src/app/shared/api/templates/templates-service';
+import {
+  CreateTemplateRequest,
+  Template,
+  TemplatesService,
+} from 'src/app/shared/api/templates/templates-service';
 import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from 'src/app/shared/components/button/button';
+import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { DataTable } from 'src/app/shared/components/data-table/data-table';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { Input } from 'src/app/shared/components/input/input';
 import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
-import { Select, SelectOption } from 'src/app/shared/components/select/select';
+import { Select } from 'src/app/shared/components/select/select';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
+import { platformTypeOptions } from 'src/app/shared/platforms/platform-types';
+import { type PendingChangesAware } from 'src/app/shared/routing/pending-changes-guard';
 import {
   applyTemplateRules,
   createTemplateFormModel,
+  sameTemplateEditorRequest,
   TemplateFormModel,
   toCreateTemplateRequest,
+  toTemplateEditorRequest,
   toUpdateTemplateRequest,
 } from './templates.form';
 
@@ -33,8 +49,9 @@ type EditorMode = 'none' | 'create' | 'edit';
   styleUrl: './templates.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Templates implements OnInit {
+export class Templates implements OnInit, PendingChangesAware {
   private readonly templatesService = inject(TemplatesService);
+  private readonly confirmation = inject(ConfirmationDialogService);
   private readonly notifications = inject(NotificationService);
 
   protected readonly templates = signal<Template[]>([]);
@@ -54,39 +71,86 @@ export class Templates implements OnInit {
     { key: 'name', header: 'Name', value: (template) => template.name },
   ];
 
-  protected readonly typeOptions: readonly SelectOption[] = [
-    { value: 'YouTube', label: 'YouTube' },
-    { value: 'WordPress', label: 'WordPress' },
-  ];
+  protected readonly typeOptions = platformTypeOptions;
 
   protected readonly model = signal<TemplateFormModel>(createTemplateFormModel());
   protected readonly form = form(this.model, applyTemplateRules);
+  protected readonly templateBaseline = signal<CreateTemplateRequest | null>(null);
+  protected readonly hasPendingTemplateChanges = computed(() => {
+    const baseline = this.templateBaseline();
+    return (
+      this.editorMode() !== 'none' &&
+      baseline !== null &&
+      !sameTemplateEditorRequest(toTemplateEditorRequest(this.model()), baseline)
+    );
+  });
+  protected readonly saveDisabled = computed(
+    () =>
+      this.isSaving() ||
+      this.isDeleting() ||
+      this.editorMode() === 'none' ||
+      !this.hasPendingTemplateChanges(),
+  );
 
   ngOnInit(): void {
     this.loadTemplates();
   }
 
+  canDeactivateWithPendingChanges(): boolean | Observable<boolean> {
+    if (!this.hasPendingTemplateChanges() || this.isSaving() || this.isDeleting()) {
+      return true;
+    }
+
+    return this.confirmDiscardTemplateChanges();
+  }
+
   protected select(id: string): void {
+    if (this.editorMode() === 'edit' && this.selected()?.id === id) {
+      return;
+    }
+
     const template = this.templates().find((entry) => entry.id === id);
     if (template === undefined) {
       return;
     }
 
-    this.errorMessage.set(null);
-    this.selected.set(template);
-    this.editorMode.set('edit');
-    this.model.set({
-      type: template.type,
-      name: template.name,
-      content: template.content,
-    });
+    this.discardTemplateChangesBefore(() => this.openTemplate(template));
   }
 
   protected newTemplate(): void {
+    this.discardTemplateChangesBefore(() => this.openNewTemplate());
+  }
+
+  protected cancel(): void {
+    if (this.isSaving() || this.isDeleting() || this.editorMode() === 'none') {
+      return;
+    }
+
+    this.discardTemplateChangesBefore(() => this.closeEditor());
+  }
+
+  private openTemplate(template: Template): void {
+    const model: TemplateFormModel = {
+      type: template.type,
+      name: template.name,
+      content: template.content,
+    };
+
+    this.errorMessage.set(null);
+    this.selected.set(template);
+    this.editorMode.set('edit');
+    this.model.set(model);
+    this.templateBaseline.set(toTemplateEditorRequest(model));
+  }
+
+  private openNewTemplate(): void {
+    const model = createTemplateFormModel();
+
     this.errorMessage.set(null);
     this.selected.set(null);
     this.editorMode.set('create');
-    this.model.set(createTemplateFormModel());
+    this.model.set(model);
+    this.templateBaseline.set(toTemplateEditorRequest(model));
   }
 
   protected onSubmit(event: Event): void {
@@ -95,7 +159,7 @@ export class Templates implements OnInit {
   }
 
   protected save(): void {
-    if (this.isSaving() || this.isDeleting() || this.editorMode() === 'none') {
+    if (this.saveDisabled()) {
       return;
     }
 
@@ -112,6 +176,14 @@ export class Templates implements OnInit {
   }
 
   protected deleteSelected(): void {
+    if (this.isSaving() || this.isDeleting()) {
+      return;
+    }
+
+    this.discardTemplateChangesBefore(() => this.deleteSelectedAfterDiscard());
+  }
+
+  private deleteSelectedAfterDiscard(): void {
     const current = this.selected();
     if (current === null || this.isSaving() || this.isDeleting()) {
       return;
@@ -143,6 +215,33 @@ export class Templates implements OnInit {
       });
   }
 
+  private confirmDiscardTemplateChanges(): Observable<boolean> {
+    return this.confirmation
+      .confirm<'keep-editing' | 'discard'>({
+        kind: 'warning',
+        title: 'Discard unsaved template changes?',
+        body: 'Template edits have not been saved.',
+        actions: [
+          { id: 'keep-editing', label: 'Keep editing' },
+          { id: 'discard', label: 'Discard changes', primary: true },
+        ],
+      })
+      .pipe(map((result) => result === 'discard'));
+  }
+
+  private discardTemplateChangesBefore(action: () => void): void {
+    if (!this.hasPendingTemplateChanges()) {
+      action();
+      return;
+    }
+
+    this.confirmDiscardTemplateChanges().subscribe((discard) => {
+      if (discard) {
+        action();
+      }
+    });
+  }
+
   private loadTemplates(): void {
     this.isLoading.set(true);
     this.loadFailed.set(false);
@@ -152,7 +251,11 @@ export class Templates implements OnInit {
       .pipe(finalize(() => this.isLoading.set(false)))
       .subscribe({
         next: (response) => {
-          this.templates.set(sortTemplates(response.templates));
+          const templates = sortTemplates(response.templates);
+          this.templates.set(templates);
+          if (this.editorMode() === 'none' && templates.length > 0) {
+            this.openTemplate(templates[0]);
+          }
         },
         error: () => {
           this.templates.set([]);
@@ -184,6 +287,12 @@ export class Templates implements OnInit {
           this.templates.update((list) => sortTemplates([created, ...list]));
           this.selected.set(created);
           this.editorMode.set('edit');
+          this.model.set({
+            type: created.type,
+            name: created.name,
+            content: created.content,
+          });
+          this.templateBaseline.set(toTemplateEditorRequest(this.model()));
           this.notifications.showSuccess('Template created.');
         },
         error: (error: unknown) => {
@@ -219,6 +328,12 @@ export class Templates implements OnInit {
             sortTemplates(list.map((entry) => (entry.id === current.id ? updated : entry))),
           );
           this.selected.set(updated);
+          this.model.set({
+            type: updated.type,
+            name: updated.name,
+            content: updated.content,
+          });
+          this.templateBaseline.set(toTemplateEditorRequest(this.model()));
           this.notifications.showSuccess('Template saved.');
         },
         error: (error: unknown) => {
@@ -229,8 +344,15 @@ export class Templates implements OnInit {
 
   private removeFromList(id: string): void {
     this.templates.update((list) => list.filter((entry) => entry.id !== id));
+    this.closeEditor();
+  }
+
+  private closeEditor(): void {
     this.selected.set(null);
     this.editorMode.set('none');
+    this.model.set(createTemplateFormModel());
+    this.templateBaseline.set(null);
+    this.errorMessage.set(null);
   }
 }
 
