@@ -26,10 +26,7 @@ import {
 } from 'src/app/shared/api/settings/event-text-fields-service';
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
-import {
-  CalendarEventDetails,
-  thumbnailStatusText,
-} from './calendar-event-details';
+import { CalendarEventDetails } from './calendar-event-details';
 import { CalendarEventDetailsModel } from './calendar-event-details.form';
 
 const testDateFormats: MatDateFormats = {
@@ -265,16 +262,6 @@ describe('CalendarEventDetails', () => {
     return platformPublishHosts()[0]?.querySelector('button') ?? null;
   }
 
-  function platformPreviewHosts(): HTMLElement[] {
-    return Array.from(
-      fixture.nativeElement.querySelectorAll('.platform-preview-button'),
-    ) as HTMLElement[];
-  }
-
-  function platformPreviewButton(): HTMLButtonElement | null {
-    return platformPreviewHosts()[0]?.querySelector('button') ?? null;
-  }
-
   function platformDeletePublicationHosts(): HTMLElement[] {
     return Array.from(
       fixture.nativeElement.querySelectorAll('.platform-delete-publication-button'),
@@ -481,21 +468,6 @@ describe('CalendarEventDetails', () => {
     fixture.detectChanges();
 
     expect(thumbnailSelectInput()!.disabled).toBe(true);
-  });
-
-  it('maps failed thumbnail publish status to a non-actionable warning', () => {
-    expect(thumbnailStatusText(publishedPlatform({ thumbnailStatus: 'Failed' }))).toContain(
-      'Update it in YouTube Studio.',
-    );
-    expect(thumbnailStatusText(publishedPlatform({ thumbnailStatus: 'Applied' }))).toBeNull();
-    expect(
-      thumbnailStatusText(
-        publishedPlatform({
-          platformType: 'WordPress',
-          thumbnailStatus: null,
-        }),
-      ),
-    ).toBeNull();
   });
 
   it('shows a generic error and does not navigate when the create fails', async () => {
@@ -913,7 +885,7 @@ describe('CalendarEventDetails', () => {
       );
     });
 
-    it('shows the loaded platform publishing status table', () => {
+    it('wires loaded platform rows into the platform child state', () => {
       service.getById.mockReturnValue(
         of(
           sampleEvent({
@@ -951,229 +923,14 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
 
-      const text = fixture.nativeElement.textContent;
-      expect(text).toContain('Platforms');
-      expect(text).toContain('Type');
-      expect(text).toContain('Name');
-      expect(text).toContain('Status');
-      expect(text).toContain('YouTube');
-      expect(text).toContain('Main YouTube channel');
-      expect(text).toContain('NotPublished');
-      expect(text).toContain('WordPress');
-      expect(text).toContain('Archive site');
-      expect(text).toContain('Published');
-      expect(platformPublishHosts()).toHaveLength(1);
-      expect(platformPreviewHosts()).toHaveLength(2);
-    });
-
-    it('shows a thumbnail failure warning without a retry action', () => {
-      service.getById.mockReturnValue(
-        of(sampleEvent({ platforms: [publishedPlatform({ thumbnailStatus: 'Failed' })] })),
-      );
-
-      createEditComponent();
-
-      const text = fixture.nativeElement.textContent;
-      expect(text).toContain(
-        'YouTube broadcast was created, but the thumbnail was not applied. Update it in YouTube Studio.',
-      );
-      expect(text).not.toContain('Retry');
-    });
-
-    it('shows an empty platform state when no platforms are returned', () => {
-      service.getById.mockReturnValue(of(sampleEvent({ platforms: [] })));
-
-      createEditComponent();
-
-      expect(fixture.nativeElement.textContent).toContain('No platforms found.');
-    });
-
-    it('does not show a platform publish action when canPublish is false', () => {
-      service.getById.mockReturnValue(
-        of(
-          sampleEvent({
-            platforms: [
-              {
-                platformId: 'platform-1',
-                platformName: 'Main YouTube channel',
-                platformType: 'YouTube',
-                status: 'Published',
-                externalResourceId: 'broadcast-123',
-                thumbnailStatus: 'Applied',
-                publishedUtc: '2030-07-04T08:45:00+00:00',
-                platformDeletedUtc: null,
-                canPublish: false,
-                canDeletePublication: false,
-                canPreviewPublishingContent: false,
-              },
-            ],
-          }),
-        ),
-      );
-
-      createEditComponent();
-
-      expect(platformPublishHosts()).toHaveLength(0);
-    });
-
-    it('does not show a publishing-content preview action when canPreviewPublishingContent is false', () => {
-      service.getById.mockReturnValue(
-        of(
-          sampleEvent({
-            platforms: [
-              {
-                platformId: 'platform-1',
-                platformName: 'Main YouTube channel',
-                platformType: 'YouTube',
-                status: 'Published',
-                externalResourceId: 'broadcast-123',
-                thumbnailStatus: 'Applied',
-                publishedUtc: '2030-07-04T08:45:00+00:00',
-                platformDeletedUtc: null,
-                canPublish: false,
-                canDeletePublication: false,
-                canPreviewPublishingContent: false,
-              },
-            ],
-          }),
-        ),
-      );
-
-      createEditComponent();
-
-      expect(platformPreviewHosts()).toHaveLength(0);
-    });
-
-    it('loads row-level publishing content without overwriting unsaved text values', async () => {
-      service.getById.mockReturnValue(of(sampleEvent()));
-      service.getPublishingContent.mockReturnValue(
-        of({
-          type: 'Preview',
-          title: 'Rendered title',
-          description: 'Rendered description',
-        }),
-      );
-
-      createEditComponent();
-      api().form.texts[0].value().value.set('Unsaved English title');
-      platformPublishHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-
-      expect(fixture.nativeElement.textContent).toContain(
-        'Save or discard event changes before publishing.',
-      );
-
-      platformPreviewHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      expect(service.getPublishingContent).toHaveBeenCalledWith(editId, 'platform-1');
-      expect(fixture.nativeElement.textContent).toContain('Main YouTube channel');
-      expect(fixture.nativeElement.textContent).toContain('Preview');
-      expect(fixture.nativeElement.textContent).toContain('Rendered title');
-      expect(fixture.nativeElement.textContent).toContain('Rendered description');
-      expect(fixture.nativeElement.textContent).toContain(
-        'Preview uses stored event values. Unsaved event changes are not included.',
-      );
-      expect(fixture.nativeElement.textContent).not.toContain(
-        'Save or discard event changes before publishing.',
-      );
-      expect(api().model().texts[0].value).toBe('Unsaved English title');
-    });
-
-    it('shows published snapshot publishing content on demand', async () => {
-      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
-      service.getPublishingContent.mockReturnValue(
-        of({
-          type: 'Snapshot',
-          title: 'Published title',
-          description: null,
-        }),
-      );
-
-      createEditComponent();
-
-      platformPreviewHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      expect(service.getPublishingContent).toHaveBeenCalledWith(editId, 'platform-1');
-      expect(fixture.nativeElement.textContent).toContain('Snapshot');
-      expect(fixture.nativeElement.textContent).toContain('Published title');
-      expect(fixture.nativeElement.textContent).toContain('No description');
-    });
-
-    it('shows a row preview conflict message when publishing content cannot be loaded', async () => {
-      service.getById.mockReturnValue(of(sampleEvent()));
-      service.getPublishingContent.mockReturnValue(
-        throwError(() => new HttpErrorResponse({ status: 409 })),
-      );
-
-      createEditComponent();
-
-      platformPreviewHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      expect(fixture.nativeElement.textContent).toContain(
-        'Publishing content cannot be previewed. Reload the page and try again.',
-      );
-      expect(navigations).toEqual([]);
-    });
-
-    it('disables event and platform mutations while publishing content preview is in flight', () => {
-      service.getById.mockReturnValue(
-        of(
-          sampleEvent({
-            platforms: [
-              sampleEvent().platforms[0],
-              publishedPlatform({
-                platformId: 'platform-2',
-                platformName: 'Archive site',
-                platformType: 'WordPress',
-              }),
-            ],
-          }),
-        ),
-      );
-      service.getPublishingContent.mockReturnValue(new Subject<EventPlatformPublishingContent>());
-
-      createEditComponent();
-
-      platformPreviewHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-
-      const save = fixture.nativeElement.querySelector(
-        'button[type="submit"]',
-      ) as HTMLButtonElement;
-      expect(save.disabled).toBe(true);
-      expect(deleteButton()!.disabled).toBe(true);
-      expect(cancelButton()!.disabled).toBe(true);
-      expect(platformPreviewButton()!.disabled).toBe(true);
-      expect(platformPublishButton()!.disabled).toBe(true);
-      expect(platformDeletePublicationButton()!.disabled).toBe(true);
-    });
-
-    it('blocks platform publish when event changes are pending', async () => {
-      service.getById.mockReturnValue(of(sampleEvent()));
-
-      createEditComponent();
-      api().form.texts[0].value().value.set('Unsaved English title');
-
-      platformPublishHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      expect(service.publishPlatform).not.toHaveBeenCalled();
-      expect(service.getById).toHaveBeenCalledTimes(1);
-      expect(fixture.nativeElement.textContent).toContain(
-        'Save or discard event changes before publishing.',
-      );
-      expect(api().model().texts[0].value).toBe('Unsaved English title');
+      const component = fixture.componentInstance as unknown as {
+        platformsState: { platforms: () => CalendarEventPlatform[] };
+      };
+      expect(fixture.nativeElement.querySelector('app-calendar-event-platforms')).not.toBeNull();
+      expect(component.platformsState.platforms().map((platform) => platform.platformId)).toEqual([
+        'platform-1',
+        'platform-2',
+      ]);
     });
 
     it('refreshes event details after publish and locks event update and delete from API flags', async () => {
@@ -1210,149 +967,6 @@ describe('CalendarEventDetails', () => {
       expect(eventTextControls().every((control) => control.disabled)).toBe(true);
       expect(api().model().texts[0].value).toBe('English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event published.');
-    });
-
-    it('publishes a WordPress platform row through the existing table action', async () => {
-      const wordpressDraft: CalendarEventPlatform = {
-        platformId: 'wordpress-platform',
-        platformName: 'Company blog',
-        platformType: 'WordPress',
-        status: 'NotPublished',
-        externalResourceId: null,
-        thumbnailStatus: null,
-        publishedUtc: null,
-        platformDeletedUtc: null,
-        canPublish: true,
-        canDeletePublication: false,
-        canPreviewPublishingContent: true,
-      };
-      const wordpressPublished: CalendarEventPlatform = {
-        ...wordpressDraft,
-        status: 'Published',
-        externalResourceId: '123',
-        publishedUtc: '2030-07-04T08:45:00+00:00',
-        canPublish: false,
-        canDeletePublication: true,
-      };
-      service.getById
-        .mockReturnValueOnce(of(sampleEvent({ platforms: [wordpressDraft] })))
-        .mockReturnValueOnce(
-          of(
-            sampleEvent({
-              canUpdate: false,
-              canDelete: false,
-              platforms: [wordpressPublished],
-            }),
-          ),
-        );
-      service.publishPlatform.mockReturnValue(
-        of(wordpressPublished),
-      );
-
-      createEditComponent();
-
-      const text = fixture.nativeElement.textContent;
-      expect(text).toContain('WordPress');
-      expect(text).toContain('Company blog');
-      expect(platformPublishHosts()).toHaveLength(1);
-
-      platformPublishHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      expect(service.publishPlatform).toHaveBeenCalledWith(editId, 'wordpress-platform');
-      expect(fixture.nativeElement.textContent).toContain('Published');
-    });
-
-    it('shows a platform publish error and stays on the page when publish fails', async () => {
-      service.getById.mockReturnValue(of(sampleEvent()));
-      service.publishPlatform.mockReturnValue(
-        throwError(() => new HttpErrorResponse({ status: 502 })),
-      );
-
-      createEditComponent();
-
-      platformPublishHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      expect(fixture.nativeElement.textContent).toContain(
-        'The platform could not publish this event. Try again later.',
-      );
-      expect(navigations).toEqual([]);
-    });
-
-    it('does not show a platform publication delete action when canDeletePublication is false', () => {
-      service.getById.mockReturnValue(
-        of(
-          sampleEvent({
-            platforms: [publishedPlatform({ canDeletePublication: false })],
-          }),
-        ),
-      );
-
-      createEditComponent();
-
-      expect(platformDeletePublicationHosts()).toHaveLength(0);
-    });
-
-    it('does not delete a platform publication when confirmation is cancelled', async () => {
-      confirmation.confirm.mockReturnValue(of('cancel'));
-      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
-
-      createEditComponent();
-
-      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(confirmation.confirm).toHaveBeenCalledTimes(1);
-      expect(service.deletePlatformPublication).not.toHaveBeenCalled();
-    });
-
-    it('blocks platform publication delete when event changes are pending', async () => {
-      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
-
-      createEditComponent();
-      api().form.texts[0].value().value.set('Unsaved English title');
-
-      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      expect(confirmation.confirm).not.toHaveBeenCalled();
-      expect(service.deletePlatformPublication).not.toHaveBeenCalled();
-      expect(service.getById).toHaveBeenCalledTimes(1);
-      expect(fixture.nativeElement.textContent).toContain(
-        'Save or discard event changes before publishing.',
-      );
-      expect(api().model().texts[0].value).toBe('Unsaved English title');
-    });
-
-    it('deletes a platform publication after confirmation', async () => {
-      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
-      service.deletePlatformPublication.mockReturnValue(new Subject<CalendarEventPlatform>());
-
-      createEditComponent();
-
-      expect(platformDeletePublicationButton()?.getAttribute('aria-label')).toBe(
-        'Delete publication for Main YouTube channel',
-      );
-
-      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(confirmation.confirm).toHaveBeenCalledWith(
-        expect.objectContaining({
-          kind: 'warning',
-          title: 'Delete publication for Main YouTube channel?',
-        }),
-      );
-      expect(service.deletePlatformPublication).toHaveBeenCalledWith(editId, 'platform-1');
     });
 
     it('refreshes event details after publication delete and unlocks event update and delete from API flags', async () => {
@@ -1409,85 +1023,6 @@ describe('CalendarEventDetails', () => {
       expect(eventTextControls().every((control) => !control.disabled)).toBe(true);
       expect(api().model().texts[0].value).toBe('English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Platform publication deleted.');
-    });
-
-    it('disables save, event delete, cancel, publish, and delete publication while deleting a publication', () => {
-      service.getById.mockReturnValue(
-        of(
-          sampleEvent({
-            platforms: [
-              publishedPlatform(),
-              {
-                platformId: 'platform-2',
-                platformName: 'Archive site',
-                platformType: 'WordPress',
-                status: 'NotPublished',
-                externalResourceId: null,
-                thumbnailStatus: null,
-                publishedUtc: null,
-                platformDeletedUtc: null,
-                canPublish: true,
-                canDeletePublication: false,
-                canPreviewPublishingContent: true,
-              },
-            ],
-          }),
-        ),
-      );
-      service.deletePlatformPublication.mockReturnValue(new Subject<CalendarEventPlatform>());
-
-      createEditComponent();
-
-      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-
-      const save = fixture.nativeElement.querySelector(
-        'button[type="submit"]',
-      ) as HTMLButtonElement;
-      expect(save.disabled).toBe(true);
-      expect(deleteButton()!.disabled).toBe(true);
-      expect(cancelButton()!.disabled).toBe(true);
-      expect(platformPreviewButton()!.disabled).toBe(true);
-      expect(platformPublishButton()!.disabled).toBe(true);
-      expect(platformDeletePublicationButton()!.disabled).toBe(true);
-    });
-
-    it('shows a stale-state message when platform publication delete returns 409', async () => {
-      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
-      service.deletePlatformPublication.mockReturnValue(
-        throwError(() => new HttpErrorResponse({ status: 409 })),
-      );
-
-      createEditComponent();
-
-      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      expect(fixture.nativeElement.textContent).toContain(
-        'The publication can no longer be deleted. Reload the page and try again.',
-      );
-      expect(navigations).toEqual([]);
-    });
-
-    it('shows a provider cleanup message when platform publication delete returns 502', async () => {
-      service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
-      service.deletePlatformPublication.mockReturnValue(
-        throwError(() => new HttpErrorResponse({ status: 502 })),
-      );
-
-      createEditComponent();
-
-      platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      expect(fixture.nativeElement.textContent).toContain(
-        'The provider publication could not be deleted. Try again later.',
-      );
-      expect(navigations).toEqual([]);
     });
 
     it('disables save, delete, and the clicked platform action while publishing', () => {

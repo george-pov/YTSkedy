@@ -1,0 +1,101 @@
+@let platformState = state();
+
+<app-data-table
+  [data]="platformState.platforms()"
+  [columns]="platformColumns"
+  [showPaginator]="false"
+  caption="Calendar event platforms"
+  emptyText="No platforms found."
+>
+  <ng-template appDataTableCell="status" let-platform>
+    <div class="platform-status">
+      <span>{{ platform.status }}</span>
+      @if (thumbnailStatusText(platform); as thumbnailMessage) {
+        <p>{{ thumbnailMessage }}</p>
+      }
+    </div>
+  </ng-template>
+
+  <ng-template appDataTableCell="actions" let-platform>
+    <div class="app-actions">
+      @if (platform.canPreviewPublishingContent) {
+        <app-button
+          class="platform-preview-button"
+          iconButton
+          icon="visibility"
+          [ariaLabel]="'Preview publishing content for ' + platform.platformName"
+          [disabled]="platformState.actionsDisabled()"
+          (click)="platformState.previewPublishingContent(platform)"
+        />
+      }
+      @if (platform.canPublish) {
+        <app-button
+          class="platform-publish-button"
+          iconButton
+          icon="publish"
+          [ariaLabel]="'Publish ' + platform.platformName"
+          [disabled]="platformState.actionsDisabled()"
+          (click)="platformState.publishPlatform(platform)"
+        />
+      }
+      @if (platform.canDeletePublication) {
+        <app-button
+          class="platform-delete-publication-button"
+          iconButton
+          icon="delete"
+          [ariaLabel]="'Delete publication for ' + platform.platformName"
+          [disabled]="platformState.actionsDisabled()"
+          (click)="platformState.deletePlatformPublication(platform)"
+        />
+      }
+    </div>
+  </ng-template>
+</app-data-table>
+
+@if (platformState.platformActionBlockedMessage(); as message) {
+  <app-alert variant="warning">
+    {{ message }}
+  </app-alert>
+}
+
+@if (platformState.previewedPublishingContent(); as content) {
+  <article class="publishing-content-preview" aria-live="polite">
+    <header>
+      <h3>{{ content.platformName }}</h3>
+      <span>{{ content.type }}</span>
+    </header>
+    @if (platformState.showStoredValuesPreviewNote()) {
+      <p class="publishing-content-preview-note">
+        Preview uses stored event values. Unsaved event changes are not included.
+      </p>
+    }
+    <dl>
+      <div>
+        <dt>Title</dt>
+        <dd>{{ content.title }}</dd>
+      </div>
+      <div>
+        <dt>Description</dt>
+        <dd>{{ content.description || 'No description' }}</dd>
+      </div>
+    </dl>
+  </article>
+}
+
+@if (platformState.previewErrorMessage(); as message) {
+  <app-alert variant="error">
+    {{ message }}
+  </app-alert>
+}
+
+@if (platformState.publishErrorMessage(); as message) {
+  <app-alert variant="error">
+    {{ message }}
+  </app-alert>
+}
+
+@if (platformState.deletePublicationErrorMessage(); as message) {
+  <app-alert variant="error">
+    {{ message }}
+  </app-alert>
+}
