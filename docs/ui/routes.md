@@ -27,7 +27,7 @@ placeholder.
 | Path | Auth | Behavior |
 | --- | --- | --- |
 | `/` | Public | Renders `Home` with a sign-in button. Auto-redirects signed-in visitors to `/calendar-events`. |
-| `/calendar-events` | Protected | Renders `CalendarEvents` and loads one server-side sorted page of events through `GET /api/calendar-events`. The scheduled start is shown as the UTC instant (`scheduledStartUtc`), and the Title column displays the backend `displayTitle` field that also drives `title` sorting. Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`. |
+| `/calendar-events` | Protected | Renders `CalendarEvents` and loads one server-side sorted page of events through `GET /api/calendar-events`. The scheduled start is shown as the UTC instant (`scheduledStartUtc`), and the Title column displays the backend `displayTitle` field as a link to the details/edit route and drives `title` sorting. Rows use hover highlighting, and clicking either the row or the title link opens the details/edit route. Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`. |
 | `/calendar-events/new` | Protected | Renders `CalendarEventDetails` in create mode. Loads current event text fields with `GET /api/settings/event-text-fields`, renders one control per configured field, optionally selects and previews one thumbnail, creates via `POST /api/calendar-events`, uploads the selected thumbnail after create succeeds, and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`. |
 | `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, renders the stored scheduled start, `texts` snapshot, current thumbnail metadata, and protected thumbnail preview, and shows the response `platforms` array as a Type, Name, Status, and Actions table. The page uses backend-computed root `canUpdate`, `canDelete`, and `canUpdateThumbnail` from the details response to enable scheduled-start controls, event text Save, thumbnail upload/delete, and event Delete. Save changes updates scheduled start and event text in place when the normalized form differs from the saved baseline. Cancel and route exit ask before discarding pending scheduled-start or event-text changes. Platform preview remains available with pending changes and identifies that it uses stored values; platform publish and publication-delete are blocked until pending event-form changes are saved or discarded. Event Delete asks for confirmation and, when event-form changes are pending, asks to keep or discard those changes before showing the delete confirmation. Guarded by `authenticatedGuard` and `pendingChangesGuard`. |
 | `/templates` | Protected | Renders `Templates`, a single-page CRUD for reusable social-post templates backed by the `templates` API through a typed `TemplatesService`. On load it lists templates with `GET /api/templates` and shows each template's type (platform) and name. New Template opens an unsaved editor whose type is selectable and creates via `POST /api/templates`. Selecting a row opens the editor with the type read-only (immutable after create) and saves name and content via `PUT /api/templates/{type}/{id}`; Delete calls `DELETE /api/templates/{type}/{id}`. A failed load, save, or delete shows an inline error, and a duplicate name surfaces the `409` conflict. Guarded by `authenticatedGuard`. |
@@ -43,10 +43,11 @@ through the shared API service. It requests one server-side sorted page at a
 time (the first page defaults to scheduled start descending) and drives the
 shared `app-data-table` in server mode from the returned
 `{ items, page, pageSize, totalCount, sort, direction }` envelope. Each row
-shows an Edit icon that opens the details/edit view. In edit mode, event Save
-and Delete use root `canUpdate` and `canDelete` from the details response, while
-platform-scoped Publish and Delete publication use row action flags. The HTTP
-client attaches an Entra External ID access token via the YTSkedy-owned
+uses hover highlighting and opens the details/edit view, while each title link
+also opens that same view. In edit mode, event Save and Delete use root
+`canUpdate` and `canDelete` from the details response, while platform-scoped
+Publish and Delete publication use row action flags. The HTTP client attaches
+an Entra External ID access token via the YTSkedy-owned
 `AuthFacade` and bearer interceptor (see
 [`development/end-to-end-testing.md`](development/end-to-end-testing.md) and
 [`../architecture/integration-contracts.md`](../architecture/integration-contracts.md)).

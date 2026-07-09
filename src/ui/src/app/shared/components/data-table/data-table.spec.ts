@@ -39,7 +39,9 @@ function makeRows(): SampleRow[] {
       [caption]="caption"
       [pageSize]="pageSize"
       [selectable]="selectable()"
+      [clickableRows]="clickableRows()"
       [selectedRow]="selectedRow()"
+      [highlightRowsOnHover]="highlightRowsOnHover()"
       [showPaginator]="showPaginator()"
       (rowClick)="onRowClick($event)"
     >
@@ -55,7 +57,9 @@ class DataTableHost {
   pageSize = 10;
 
   readonly selectable = signal(false);
+  readonly clickableRows = signal(false);
   readonly selectedRow = signal<SampleRow | null>(null);
+  readonly highlightRowsOnHover = signal(false);
   readonly showPaginator = signal(true);
   readonly clicked: SampleRow[] = [];
 
@@ -180,7 +184,20 @@ describe('DataTable', () => {
     );
   });
 
-  it('does not emit rowClick when the table is not selectable', () => {
+  it('emits rowClick for a clickable row without making it selectable', () => {
+    fixture.componentInstance.clickableRows.set(true);
+    fixture.detectChanges();
+
+    dataRows(fixture)[0].dispatchEvent(new Event('click'));
+
+    expect(fixture.componentInstance.clicked).toHaveLength(1);
+    expect(dataRows(fixture)[0].classList.contains('clickable')).toBe(true);
+    expect(dataRows(fixture)[0].classList.contains('selectable')).toBe(false);
+    expect(dataRows(fixture)[0].getAttribute('role')).toBeNull();
+    expect(dataRows(fixture)[0].getAttribute('tabindex')).toBeNull();
+  });
+
+  it('does not emit rowClick when rows are not clickable', () => {
     dataRows(fixture)[0].dispatchEvent(new Event('click'));
 
     expect(fixture.componentInstance.clicked).toHaveLength(0);
@@ -195,6 +212,19 @@ describe('DataTable', () => {
 
     expect(dataRows(fixture)[0].classList.contains('selected')).toBe(true);
     expect(dataRows(fixture)[1].classList.contains('selected')).toBe(false);
+  });
+
+  it('marks rows for hover highlighting only when enabled', () => {
+    expect(dataRows(fixture)[0].classList.contains('highlight-on-hover')).toBe(
+      false,
+    );
+
+    fixture.componentInstance.highlightRowsOnHover.set(true);
+    fixture.detectChanges();
+
+    expect(dataRows(fixture)[0].classList.contains('highlight-on-hover')).toBe(
+      true,
+    );
   });
 
   it('hides the paginator and renders all rows when showPaginator is false', () => {

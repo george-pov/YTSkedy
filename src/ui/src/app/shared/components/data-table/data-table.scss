@@ -37,12 +37,13 @@ table {
   color: #475467;
 }
 
-.mat-mdc-row.selectable {
+.mat-mdc-row.clickable {
   cursor: pointer;
 }
 
-.mat-mdc-row.selectable:hover {
-  background: #f5f7fb;
+.mat-mdc-row.selectable:not(.selected):hover,
+.mat-mdc-row.highlight-on-hover:not(.selected):hover {
+  background: #eef2f7;
 }
 
 .mat-mdc-row.selected {

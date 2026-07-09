@@ -23,18 +23,19 @@
       [pageSize]="pageSize()"
       [sortActive]="sortActive()"
       [sortDirection]="sortDirection()"
+      [highlightRowsOnHover]="true"
+      [clickableRows]="true"
       (stateChange)="onTableStateChange($event)"
+      (rowClick)="editEvent($event)"
     >
-      <ng-template appDataTableCell="actions" let-event>
-        <div class="app-actions">
-          <app-button
-            class="edit-button"
-            iconButton
-            icon="edit"
-            ariaLabel="Edit"
-            (click)="editEvent(event)"
-          />
-        </div>
+      <ng-template appDataTableCell="title" let-event>
+        <a
+          class="event-title-link"
+          [routerLink]="['/calendar-events', event.calendarEventId, 'edit']"
+          (click)="$event.stopPropagation()"
+        >
+          {{ event.displayTitle }}
+        </a>
       </ng-template>
     </app-data-table>
   }

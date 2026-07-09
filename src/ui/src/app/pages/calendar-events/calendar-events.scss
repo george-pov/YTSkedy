@@ -1,3 +1,5 @@
+@use 'src/styles/variables' as *;
+
 :host {
   display: block;
 }
@@ -18,4 +20,20 @@
   h1 {
     margin: 0;
   }
+}
+
+.event-title-link {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  color: $app-color-action-primary;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.event-title-link:hover,
+.event-title-link:focus-visible {
+  text-decoration-thickness: 2px;
 }

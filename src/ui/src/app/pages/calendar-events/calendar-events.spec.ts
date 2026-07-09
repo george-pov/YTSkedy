@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
-import { provideRouter, Router } from '@angular/router';
+import { provideRouter, Router, UrlTree } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { Observable, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
@@ -21,7 +21,7 @@ describe('CalendarEvents', () => {
   let service: {
     list: Mock<(query: CalendarEventListQuery) => Observable<CalendarEventListPage>>;
   };
-  let navigations: string[];
+  let navigations: Array<string | UrlTree>;
 
   beforeEach(() => {
     navigations = [];
@@ -64,6 +64,15 @@ describe('CalendarEvents', () => {
     expect(text).not.toContain('Description for stream 1');
   });
 
+  it('does not render an Actions column for a single edit affordance', async () => {
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)])));
+
+    await createComponent();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Actions');
+    expect(fixture.nativeElement.querySelector('.edit-button')).toBeNull();
+  });
+
   it('renders the display title returned by the API', async () => {
     service.list.mockReturnValue(
       of(
@@ -89,6 +98,24 @@ describe('CalendarEvents', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Backend display title');
     expect(text).not.toContain('Text value that should not render');
+  });
+
+  it('renders the display title as a link in a hover-highlighted clickable row', async () => {
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)])));
+
+    await createComponent();
+
+    const titleLink = fixture.nativeElement.querySelector(
+      '.event-title-link',
+    ) as HTMLAnchorElement;
+    expect(titleLink).not.toBeNull();
+    expect(titleLink.textContent?.trim()).toBe('Stream title 1');
+    expect(titleLink.getAttribute('href')).toBe(
+      `/calendar-events/${calendarEventId}/edit`,
+    );
+    expect(dataRows()[0].classList.contains('highlight-on-hover')).toBe(true);
+    expect(dataRows()[0].classList.contains('clickable')).toBe(true);
+    expect(dataRows()[0].classList.contains('selectable')).toBe(false);
   });
 
   it('renders an empty state when the page has no items', async () => {
@@ -144,17 +171,33 @@ describe('CalendarEvents', () => {
     expect(navigations).toEqual(['/calendar-events/new']);
   });
 
-  it('navigates to the edit form for the row when "Edit" is clicked', async () => {
+  it('navigates to the edit form when a non-link part of the row is clicked', async () => {
     service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)])));
 
     await createComponent();
 
-    const editButton = fixture.nativeElement.querySelector('.edit-button');
-    expect(editButton).not.toBeNull();
-
-    editButton.dispatchEvent(new Event('click'));
+    dataRows()[0].dispatchEvent(new Event('click'));
 
     expect(navigations).toEqual([`/calendar-events/${calendarEventId}/edit`]);
+  });
+
+  it('keeps title link clicks from bubbling to the row click handler', async () => {
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)])));
+
+    await createComponent();
+
+    const titleLink = fixture.nativeElement.querySelector(
+      '.event-title-link',
+    ) as HTMLAnchorElement;
+    const click = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+    });
+    titleLink.dispatchEvent(click);
+
+    expect(navigations).toHaveLength(1);
+    expect(typeof navigations[0]).not.toBe('string');
   });
 
   it('falls back to scheduled start when a table state has no API sort field', async () => {
@@ -166,7 +209,7 @@ describe('CalendarEvents', () => {
     emitTableState({
       pageIndex: 0,
       pageSize: 10,
-      sortActive: 'actions',
+      sortActive: 'unknown',
       sortDirection: 'asc',
     });
 
@@ -260,20 +303,18 @@ describe('CalendarEvents', () => {
     expect(fixture.nativeElement.querySelector('.publish-button')).toBeNull();
   });
 
-  it('keeps the Edit icon enabled and navigable from provider-neutral list rows', async () => {
+  it('keeps the title link available from provider-neutral list rows', async () => {
     service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)])));
 
     await createComponent();
 
-    const editButton = fixture.nativeElement.querySelector(
-      '.edit-button button',
-    ) as HTMLButtonElement;
-    expect(editButton).not.toBeNull();
-    expect(editButton.disabled).toBe(false);
-
-    fixture.nativeElement.querySelector('.edit-button').dispatchEvent(new Event('click'));
-
-    expect(navigations).toEqual([`/calendar-events/${calendarEventId}/edit`]);
+    const titleLink = fixture.nativeElement.querySelector(
+      '.event-title-link',
+    ) as HTMLAnchorElement;
+    expect(titleLink).not.toBeNull();
+    expect(titleLink.getAttribute('href')).toBe(
+      `/calendar-events/${calendarEventId}/edit`,
+    );
   });
 
   function emitTableState(state: DataTableState): void {
@@ -281,6 +322,13 @@ describe('CalendarEvents', () => {
       .componentInstance as DataTable<CalendarEvent>;
     table.stateChange.emit(state);
     fixture.detectChanges();
+  }
+
+  function dataRows(): HTMLTableRowElement[] {
+    const rows = Array.from(
+      fixture.nativeElement.querySelectorAll('tr'),
+    ) as HTMLTableRowElement[];
+    return rows.filter((row) => row.querySelector('td') !== null);
   }
 
   function draftEvent(
@@ -339,7 +387,7 @@ describe('CalendarEvents', () => {
     }).compileComponents();
 
     const router = TestBed.inject(Router);
-    router.navigateByUrl = ((url: string) => {
+    router.navigateByUrl = ((url: string | UrlTree) => {
       navigations.push(url);
       return Promise.resolve(true);
     }) as Router['navigateByUrl'];

@@ -86,8 +86,14 @@ export class DataTable<T> {
    */
   readonly selectable = input(false, { transform: booleanAttribute });
 
+  /** When true, mouse row clicks emit {@link rowClick}. */
+  readonly clickableRows = input(false, { transform: booleanAttribute });
+
   /** The currently selected row. Highlighted when {@link selectable} is true. */
   readonly selectedRow = input<T | null>(null);
+
+  /** When true, rows show a hover highlight without becoming clickable. */
+  readonly highlightRowsOnHover = input(false, { transform: booleanAttribute });
 
   /**
    * When false, the paginator is hidden and every supplied row renders without
@@ -101,7 +107,7 @@ export class DataTable<T> {
    */
   readonly stateChange = output<DataTableState>();
 
-  /** Emitted when a row is activated while {@link selectable} is true. */
+  /** Emitted when a row is activated while rows are clickable or selectable. */
   readonly rowClick = output<T>();
 
   protected readonly dataSource = new MatTableDataSource<T>([]);
@@ -116,6 +122,10 @@ export class DataTable<T> {
 
   protected readonly paginatorLength = computed(() =>
     this.mode() === 'server' ? this.totalCount() : this.data().length,
+  );
+
+  protected readonly rowClickable = computed(
+    () => this.selectable() || this.clickableRows(),
   );
 
   private readonly cellTemplates = computed(() => {
@@ -203,7 +213,7 @@ export class DataTable<T> {
   }
 
   protected onRowClick(row: T): void {
-    if (this.selectable()) {
+    if (this.rowClickable()) {
       this.rowClick.emit(row);
     }
   }
