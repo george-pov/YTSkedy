@@ -163,7 +163,20 @@ public sealed class WordPressPublisher : IPlatformPublisher
         string? dateGmt = null;
         if (settings.PostStatus == WordPressSettings.ScheduledPostStatus)
         {
-            var scheduledPostUtc = GetScheduledPostUtc(request, settings);
+            if (!settings.TryGetScheduledPostUtc(
+                    request.ScheduledStartUtc,
+                    out var scheduledPostUtc))
+            {
+                logger.LogWarning(
+                    "WordPress scheduled post offset for calendar event {CalendarEventId} " +
+                    "and platform {PlatformId} is invalid.",
+                    request.CalendarEventId,
+                    request.PlatformId);
+
+                throw new PlatformPublishValidationException(
+                    "WordPress scheduled post offset is invalid.");
+            }
+
             if (scheduledPostUtc <= timeProvider.GetUtcNow())
             {
                 logger.LogWarning(
@@ -187,12 +200,6 @@ public sealed class WordPressPublisher : IPlatformPublisher
             settings.Sticky,
             dateGmt);
     }
-
-    private static DateTimeOffset GetScheduledPostUtc(
-        PlatformPublishRequest request,
-        WordPressSettings settings) =>
-        request.ScheduledStartUtc -
-        TimeSpan.FromHours(settings.ScheduleOffsetHours!.Value);
 
     private static string FormatDateGmt(DateTimeOffset scheduledPostUtc) =>
         scheduledPostUtc

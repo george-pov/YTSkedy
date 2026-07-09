@@ -10,6 +10,8 @@ public sealed record WordPressSettings : PublishSettings
 {
     public const string ScheduledPostStatus = "future";
 
+    public const int MaxScheduleOffsetHours = 168;
+
     public static readonly IReadOnlyList<string> AllowedPostStatuses =
         ["draft", "pending", "private", ScheduledPostStatus, "publish"];
 
@@ -49,25 +51,26 @@ public sealed record WordPressSettings : PublishSettings
                 nameof(postStatus));
         }
 
-        if (RequiresScheduleOffsetHours(postStatus))
+        switch (ValidateScheduleOffsetHours(postStatus, scheduleOffsetHours))
         {
-            if (scheduleOffsetHours is null)
-            {
+            case WordPressScheduleOffsetValidationResult.Valid:
+                break;
+            case WordPressScheduleOffsetValidationResult.Missing:
                 throw new ArgumentException(
                     "Schedule offset hours are required for scheduled posts.",
                     nameof(scheduleOffsetHours));
-            }
-
-            if (scheduleOffsetHours <= 0)
-            {
+            case WordPressScheduleOffsetValidationResult.Unsupported:
+                throw new ArgumentException(
+                    "Schedule offset hours are only supported for scheduled posts.",
+                    nameof(scheduleOffsetHours));
+            case WordPressScheduleOffsetValidationResult.NonPositive:
+            case WordPressScheduleOffsetValidationResult.AboveMaximum:
+                throw new ArgumentOutOfRangeException(
+                    nameof(scheduleOffsetHours),
+                    scheduleOffsetHours,
+                    $"Schedule offset hours must be between 1 and {MaxScheduleOffsetHours}.");
+            default:
                 throw new ArgumentOutOfRangeException(nameof(scheduleOffsetHours));
-            }
-        }
-        else if (scheduleOffsetHours is not null)
-        {
-            throw new ArgumentException(
-                "Schedule offset hours are only supported for scheduled posts.",
-                nameof(scheduleOffsetHours));
         }
 
         SiteUrl = siteUrl.Trim();
@@ -128,7 +131,83 @@ public sealed record WordPressSettings : PublishSettings
     public static bool RequiresScheduleOffsetHours(string? postStatus) =>
         string.Equals(postStatus, ScheduledPostStatus, StringComparison.Ordinal);
 
+    public static WordPressScheduleOffsetValidationResult ValidateScheduleOffsetHours(
+        string? postStatus,
+        int? scheduleOffsetHours)
+    {
+        if (!RequiresScheduleOffsetHours(postStatus))
+        {
+            return scheduleOffsetHours is null
+                ? WordPressScheduleOffsetValidationResult.Valid
+                : WordPressScheduleOffsetValidationResult.Unsupported;
+        }
+
+        if (scheduleOffsetHours is null)
+        {
+            return WordPressScheduleOffsetValidationResult.Missing;
+        }
+
+        if (scheduleOffsetHours <= 0)
+        {
+            return WordPressScheduleOffsetValidationResult.NonPositive;
+        }
+
+        if (scheduleOffsetHours > MaxScheduleOffsetHours)
+        {
+            return WordPressScheduleOffsetValidationResult.AboveMaximum;
+        }
+
+        return WordPressScheduleOffsetValidationResult.Valid;
+    }
+
+    public bool TryGetScheduledPostUtc(
+        DateTimeOffset scheduledStartUtc,
+        out DateTimeOffset scheduledPostUtc)
+    {
+        scheduledPostUtc = default;
+        return RequiresScheduleOffsetHours(PostStatus) &&
+            ScheduleOffsetHours is not null &&
+            TryComputeScheduledPostUtc(
+                scheduledStartUtc,
+                ScheduleOffsetHours.Value,
+                out scheduledPostUtc);
+    }
+
+    public static bool TryComputeScheduledPostUtc(
+        DateTimeOffset scheduledStartUtc,
+        int scheduleOffsetHours,
+        out DateTimeOffset scheduledPostUtc)
+    {
+        scheduledPostUtc = default;
+
+        if (ValidateScheduleOffsetHours(ScheduledPostStatus, scheduleOffsetHours) !=
+            WordPressScheduleOffsetValidationResult.Valid)
+        {
+            return false;
+        }
+
+        try
+        {
+            scheduledPostUtc =
+                scheduledStartUtc - TimeSpan.FromHours(scheduleOffsetHours);
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
     private static bool IsLocalHost(string host) =>
         string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
         host == "127.0.0.1";
+}
+
+public enum WordPressScheduleOffsetValidationResult
+{
+    Valid,
+    Missing,
+    Unsupported,
+    NonPositive,
+    AboveMaximum
 }

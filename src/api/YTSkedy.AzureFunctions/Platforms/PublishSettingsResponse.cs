@@ -26,7 +26,44 @@ internal sealed record PublishSettingsResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     bool? ApplicationPasswordConfigured,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    string? PasswordDisplayValue);
+    string? PasswordDisplayValue)
+{
+    internal static PublishSettingsResponse ForYouTube(
+        YouTubeCredentialsResponse credentials,
+        string privacyStatus,
+        bool selfDeclaredMadeForKids) =>
+        new(
+            credentials,
+            privacyStatus,
+            selfDeclaredMadeForKids,
+            SiteUrl: null,
+            Username: null,
+            PostStatus: null,
+            Sticky: null,
+            ScheduleOffsetHours: null,
+            ApplicationPasswordConfigured: null,
+            PasswordDisplayValue: null);
+
+    internal static PublishSettingsResponse ForWordPress(
+        string siteUrl,
+        string username,
+        string postStatus,
+        bool sticky,
+        int? scheduleOffsetHours,
+        bool applicationPasswordConfigured,
+        string? passwordDisplayValue) =>
+        new(
+            Credentials: null,
+            PrivacyStatus: null,
+            SelfDeclaredMadeForKids: null,
+            SiteUrl: siteUrl,
+            Username: username,
+            PostStatus: postStatus,
+            Sticky: sticky,
+            ScheduleOffsetHours: scheduleOffsetHours,
+            ApplicationPasswordConfigured: applicationPasswordConfigured,
+            PasswordDisplayValue: passwordDisplayValue);
+}
 
 internal sealed record YouTubeCredentialsResponse(
     string ClientId,
