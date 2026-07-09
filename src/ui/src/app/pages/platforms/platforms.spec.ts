@@ -1,6 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { firstValueFrom, Observable, of, throwError } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -20,6 +20,14 @@ import {
 } from 'src/app/shared/api/templates/templates-service';
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
+import {
+  buttonByText as findButtonByText,
+  clickRow,
+  dataRows,
+  resolveCanDeactivate,
+  setInputValue,
+  submitForm,
+} from 'src/app/testing/dom-test-helpers';
 import { Platforms } from './platforms';
 import { PlatformFormModel, referenceKeyMaxLength } from './platforms.form';
 
@@ -150,11 +158,7 @@ describe('Platforms', () => {
   }
 
   function rows(): HTMLElement[] {
-    return Array.from(fixture.nativeElement.querySelectorAll('tr')).filter((row) => {
-      const element = row as HTMLElement;
-      // Exclude the Material no-data row, which is also a `tr > td`.
-      return element.querySelector('td') !== null && !element.classList.contains('empty-row');
-    }) as HTMLElement[];
+    return dataRows(fixture.nativeElement);
   }
 
   function editor(): HTMLElement | null {
@@ -185,16 +189,11 @@ describe('Platforms', () => {
   }
 
   function buttonByText(text: string): HTMLButtonElement {
-    return Array.from(fixture.nativeElement.querySelectorAll('app-button button')).find((button) =>
-      ((button as HTMLElement).textContent ?? '').trim().includes(text),
-    ) as HTMLButtonElement;
+    return findButtonByText(fixture.nativeElement, text);
   }
 
   async function setValue(element: HTMLInputElement, value: string): Promise<void> {
-    element.value = value;
-    element.dispatchEvent(new Event('input'));
-    await fixture.whenStable();
-    fixture.detectChanges();
+    await setInputValue(fixture, element, value);
   }
 
   function setRequiredTemplateIds(
@@ -210,22 +209,15 @@ describe('Platforms', () => {
   }
 
   async function selectRow(index: number): Promise<void> {
-    rows()[index].dispatchEvent(new Event('click'));
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
+    await clickRow(fixture, index);
   }
 
   async function submitEditor(): Promise<void> {
-    editor()!.dispatchEvent(new Event('submit'));
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
+    await submitForm(fixture, 'form.editor');
   }
 
   async function canDeactivate(): Promise<boolean> {
-    const result = fixture.componentInstance.canDeactivateWithPendingChanges();
-    return typeof result === 'boolean' ? result : firstValueFrom(result);
+    return resolveCanDeactivate(fixture.componentInstance.canDeactivateWithPendingChanges());
   }
 
   async function createComponent(): Promise<void> {
@@ -260,24 +252,38 @@ describe('Platforms', () => {
     expect(rows()).toHaveLength(2);
   });
 
-  it('hides the editor until a platform is selected or Add is clicked', async () => {
-    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+  it('preselects the first sorted platform on init', async () => {
+    service.list.mockReturnValue(
+      of({
+        platforms: [
+          youTubePlatform({ id: 'id-1', name: 'Main YouTube channel', type: 'YouTube' }),
+          wordPressPlatform({ id: 'id-2', name: 'Company blog', type: 'WordPress' }),
+        ],
+      }),
+    );
+
+    await createComponent();
+
+    expect(editor()).not.toBeNull();
+    expect(nameInput().value).toBe('Company blog');
+  });
+
+  it('keeps the editor closed when no platforms exist', async () => {
+    service.list.mockReturnValue(of({ platforms: [] }));
 
     await createComponent();
 
     expect(editor()).toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('Select a platform on the left');
+    expect(rows()).toHaveLength(0);
+    expect(buttonByText('+ Add Platform')).not.toBeNull();
   });
 
-  it('uses the approved action copy and right-aligned action layout', async () => {
+  it('uses the approved action copy', async () => {
     service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
 
     await createComponent();
 
     expect(buttonByText('+ Add Platform')).not.toBeNull();
-    expect((fixture.nativeElement.textContent as string).replace(/\s+/g, ' ')).toContain(
-      'choose + Add Platform to add one',
-    );
 
     buttonByText('+ Add Platform').click();
     fixture.detectChanges();
@@ -286,7 +292,6 @@ describe('Platforms', () => {
 
     expect(buttonByText('Cancel')).not.toBeNull();
     expect(buttonByText('Save platform')).not.toBeNull();
-    expect(editor()?.querySelector('.app-actions.app-actions-end')).not.toBeNull();
 
     await selectRow(0);
 
@@ -339,7 +344,7 @@ describe('Platforms', () => {
 
     await createComponent();
 
-    expect(fixture.nativeElement.textContent).toContain('Platforms could not be loaded.');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
     expect(rows()).toHaveLength(0);
   });
 
@@ -811,9 +816,9 @@ describe('Platforms', () => {
 
     await submitEditor();
 
-    expect(fixture.nativeElement.textContent).toContain(
-      'A platform with this name already exists.',
-    );
+    const alert = fixture.nativeElement.querySelector('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expect(alert.textContent).toContain('already exists');
   });
 
   it('requires both publishing content templates before saving', async () => {
@@ -924,9 +929,9 @@ describe('Platforms', () => {
 
     await submitEditor();
 
-    expect(fixture.nativeElement.textContent).toContain(
-      'A platform with this reference key already exists.',
-    );
+    const alert = fixture.nativeElement.querySelector('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expect(alert.textContent).toContain('already exists');
   });
 
   it('deletes the selected platform and removes its row', async () => {

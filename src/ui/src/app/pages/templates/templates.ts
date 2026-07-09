@@ -253,7 +253,11 @@ export class Templates implements OnInit, PendingChangesAware {
       .pipe(finalize(() => this.isLoading.set(false)))
       .subscribe({
         next: (response) => {
-          this.templates.set(sortTemplates(response.templates));
+          const templates = sortTemplates(response.templates);
+          this.templates.set(templates);
+          if (this.editorMode() === 'none' && templates.length > 0) {
+            this.openTemplate(templates[0]);
+          }
         },
         error: () => {
           this.templates.set([]);

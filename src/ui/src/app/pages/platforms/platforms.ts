@@ -309,7 +309,11 @@ export class Platforms implements OnInit, PendingChangesAware {
       .pipe(finalize(() => this.isLoading.set(false)))
       .subscribe({
         next: (response) => {
-          this.platforms.set(sortPlatforms(response.platforms));
+          const platforms = sortPlatforms(response.platforms);
+          this.platforms.set(platforms);
+          if (this.editorMode() === 'none' && platforms.length > 0) {
+            this.openPlatform(platforms[0]);
+          }
         },
         error: () => {
           this.platforms.set([]);

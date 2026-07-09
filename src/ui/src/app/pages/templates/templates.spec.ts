@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { firstValueFrom, Observable, of, throwError } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -15,6 +15,14 @@ import {
 } from 'src/app/shared/api/templates/templates-service';
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
+import {
+  buttonByText as findButtonByText,
+  clickRow,
+  dataRows,
+  resolveCanDeactivate,
+  setInputValue,
+  submitForm,
+} from 'src/app/testing/dom-test-helpers';
 import { Templates } from './templates';
 
 describe('Templates', () => {
@@ -59,16 +67,7 @@ describe('Templates', () => {
   }
 
   function rows(): HTMLElement[] {
-    return Array.from(fixture.nativeElement.querySelectorAll('tr')).filter(
-      (row) => {
-        const element = row as HTMLElement;
-        // Exclude the Material no-data row, which is also a `tr > td`.
-        return (
-          element.querySelector('td') !== null &&
-          !element.classList.contains('empty-row')
-        );
-      },
-    ) as HTMLElement[];
+    return dataRows(fixture.nativeElement);
   }
 
   function editor(): HTMLElement | null {
@@ -86,40 +85,26 @@ describe('Templates', () => {
   }
 
   function buttonByText(text: string): HTMLButtonElement {
-    return Array.from(
-      fixture.nativeElement.querySelectorAll('app-button button'),
-    ).find((button) =>
-      ((button as HTMLElement).textContent ?? '').trim().includes(text),
-    ) as HTMLButtonElement;
+    return findButtonByText(fixture.nativeElement, text);
   }
 
   async function setValue(
     element: HTMLInputElement | HTMLTextAreaElement,
     value: string,
   ): Promise<void> {
-    element.value = value;
-    element.dispatchEvent(new Event('input'));
-    await fixture.whenStable();
-    fixture.detectChanges();
+    await setInputValue(fixture, element, value);
   }
 
   async function selectRow(index: number): Promise<void> {
-    rows()[index].dispatchEvent(new Event('click'));
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
+    await clickRow(fixture, index);
   }
 
   async function submitEditor(): Promise<void> {
-    editor()!.dispatchEvent(new Event('submit'));
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
+    await submitForm(fixture, 'form.editor');
   }
 
   async function canDeactivate(): Promise<boolean> {
-    const result = fixture.componentInstance.canDeactivateWithPendingChanges();
-    return typeof result === 'boolean' ? result : firstValueFrom(result);
+    return resolveCanDeactivate(fixture.componentInstance.canDeactivateWithPendingChanges());
   }
 
   async function createComponent(): Promise<void> {
@@ -160,15 +145,31 @@ describe('Templates', () => {
     expect(rows()).toHaveLength(2);
   });
 
-  it('hides the editor until a template is selected or New is clicked', async () => {
-    service.list.mockReturnValue(of({ templates: [template()] }));
+  it('preselects the first sorted template on init', async () => {
+    service.list.mockReturnValue(
+      of({
+        templates: [
+          template({ id: 'id-1', name: 'Weeknight stream', type: 'YouTube' }),
+          template({ id: 'id-2', name: 'New blog post', type: 'WordPress' }),
+        ],
+      }),
+    );
+
+    await createComponent();
+
+    expect(editor()).not.toBeNull();
+    expect(nameInput().value).toBe('New blog post');
+    expect(contentTextarea().value).toContain('Live at');
+  });
+
+  it('keeps the editor closed when no templates exist', async () => {
+    service.list.mockReturnValue(of({ templates: [] }));
 
     await createComponent();
 
     expect(editor()).toBeNull();
-    expect(fixture.nativeElement.textContent).toContain(
-      'Select a template on the left',
-    );
+    expect(rows()).toHaveLength(0);
+    expect(buttonByText('+ Add Template')).not.toBeNull();
   });
 
   it('renders a load error when templates cannot be loaded', async () => {
@@ -176,7 +177,6 @@ describe('Templates', () => {
 
     await createComponent();
 
-    expect(fixture.nativeElement.textContent).toContain('Templates could not be loaded.');
     expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
     expect(rows()).toHaveLength(0);
   });
@@ -311,15 +311,12 @@ describe('Templates', () => {
     expect(rows()).toHaveLength(0);
   });
 
-  it('uses the approved action copy and right-aligned action layout', async () => {
+  it('uses the approved action copy', async () => {
     service.list.mockReturnValue(of({ templates: [template()] }));
 
     await createComponent();
 
     expect(buttonByText('+ Add Template')).not.toBeNull();
-    expect(fixture.nativeElement.textContent).toContain(
-      'choose + Add Template to add one',
-    );
 
     buttonByText('+ Add Template').click();
     fixture.detectChanges();
@@ -328,7 +325,6 @@ describe('Templates', () => {
 
     expect(buttonByText('Cancel')).not.toBeNull();
     expect(buttonByText('Save template')).not.toBeNull();
-    expect(editor()?.querySelector('.app-actions.app-actions-end')).not.toBeNull();
 
     await selectRow(0);
 

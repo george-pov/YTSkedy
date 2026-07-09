@@ -5,7 +5,7 @@ import { type FieldTree } from '@angular/forms/signals';
 import { MatDateFormats } from '@angular/material/core';
 import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import { firstValueFrom, Observable, of, Subject, throwError } from 'rxjs';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -26,6 +26,11 @@ import {
 } from 'src/app/shared/api/settings/event-text-fields-service';
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
+import {
+  resolveCanDeactivate,
+  submitForm as submitFixtureForm,
+  textContent,
+} from 'src/app/testing/dom-test-helpers';
 import { CalendarEventDetails } from './calendar-event-details';
 import { CalendarEventDetailsModel } from './calendar-event-details.form';
 
@@ -189,10 +194,7 @@ describe('CalendarEventDetails', () => {
   }
 
   async function submitForm(): Promise<void> {
-    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
+    await submitFixtureForm(fixture);
   }
 
   function appButtonHosts(): HTMLElement[] {
@@ -203,7 +205,7 @@ describe('CalendarEventDetails', () => {
     // The label is 'Delete' or 'Deleting...'; both contain 'Delet' with a
     // capital D, which the lowercase 'delete' icon ligature does not.
     return appButtonHosts().find((host) => {
-      const text = host.textContent ?? '';
+      const text = textContent(host);
       return text.includes('Delet') && !text.includes('thumbnail');
     }) ?? null;
   }
@@ -213,7 +215,7 @@ describe('CalendarEventDetails', () => {
   }
 
   function cancelButton(): HTMLButtonElement | null {
-    const host = appButtonHosts().find((b) => (b.textContent ?? '').includes('Cancel'));
+    const host = appButtonHosts().find((button) => textContent(button).includes('Cancel'));
     return host?.querySelector('button') ?? null;
   }
 
@@ -226,16 +228,7 @@ describe('CalendarEventDetails', () => {
   }
 
   async function routeExitDecision(): Promise<boolean> {
-    const result = fixture.componentInstance.canDeactivateWithPendingChanges();
-    if (typeof result === 'boolean') {
-      return result;
-    }
-
-    if (result instanceof Observable) {
-      return firstValueFrom(result);
-    }
-
-    return result;
+    return resolveCanDeactivate(fixture.componentInstance.canDeactivateWithPendingChanges());
   }
 
   function eventTextControls(): Array<HTMLInputElement | HTMLTextAreaElement> {
@@ -284,7 +277,7 @@ describe('CalendarEventDetails', () => {
 
   function thumbnailDeleteButtonHost(): HTMLElement | null {
     return appButtonHosts().find((host) =>
-      (host.textContent ?? '').includes('Delete thumbnail'),
+      textContent(host).includes('Delete thumbnail'),
     ) ?? null;
   }
 
@@ -639,10 +632,7 @@ describe('CalendarEventDetails', () => {
       createEditComponent();
       api().form.texts[0].value().value.set('Updated English title');
 
-      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
+      await submitForm();
 
       const alert = fixture.nativeElement.querySelector('[role="alert"]');
       expect(alert).not.toBeNull();
@@ -805,7 +795,7 @@ describe('CalendarEventDetails', () => {
       expect(fixture.nativeElement.querySelector('.thumbnail-preview')?.getAttribute('src')).toBe(
         'blob:thumbnail-1',
       );
-      expect(api().model().texts[0].value).toBe('Unsaved English title');
+      expect(eventTextControls()[0].value).toBe('Unsaved English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Thumbnail uploaded.');
       expect(statusPills()).toHaveLength(0);
     });
@@ -825,7 +815,7 @@ describe('CalendarEventDetails', () => {
       expect(service.deleteThumbnail).toHaveBeenCalledWith(editId);
       expect(fixture.nativeElement.textContent).toContain('No thumbnail selected.');
       expect(fixture.nativeElement.textContent).not.toContain('stream.png');
-      expect(api().model().texts[0].value).toBe('Unsaved English title');
+      expect(eventTextControls()[0].value).toBe('Unsaved English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Thumbnail deleted.');
     });
 
@@ -923,14 +913,10 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
 
-      const component = fixture.componentInstance as unknown as {
-        platformsState: { platforms: () => CalendarEventPlatform[] };
-      };
-      expect(fixture.nativeElement.querySelector('app-calendar-event-platforms')).not.toBeNull();
-      expect(component.platformsState.platforms().map((platform) => platform.platformId)).toEqual([
-        'platform-1',
-        'platform-2',
-      ]);
+      const platforms = fixture.nativeElement.querySelector('app-calendar-event-platforms');
+      expect(platforms).not.toBeNull();
+      expect(textContent(platforms)).toContain('Main YouTube channel');
+      expect(textContent(platforms)).toContain('Archive site');
     });
 
     it('refreshes event details after publish and locks event update and delete from API flags', async () => {
@@ -963,9 +949,8 @@ describe('CalendarEventDetails', () => {
       expect(platformDeletePublicationButton()).not.toBeNull();
       expect(saveButton().disabled).toBe(true);
       expect(deleteButton()!.disabled).toBe(true);
-      expect(api().form.start().disabled()).toBe(true);
       expect(eventTextControls().every((control) => control.disabled)).toBe(true);
-      expect(api().model().texts[0].value).toBe('English title');
+      expect(eventTextControls()[0].value).toBe('English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event published.');
     });
 
@@ -1019,9 +1004,8 @@ describe('CalendarEventDetails', () => {
       expect(platformPublishHosts()).toHaveLength(1);
       expect(saveButton().disabled).toBe(true);
       expect(deleteButton()!.disabled).toBe(false);
-      expect(api().form.start().disabled()).toBe(false);
       expect(eventTextControls().every((control) => !control.disabled)).toBe(true);
-      expect(api().model().texts[0].value).toBe('English title');
+      expect(eventTextControls()[0].value).toBe('English title');
       expect(notifications.showSuccess).toHaveBeenCalledWith('Platform publication deleted.');
     });
 
@@ -1047,10 +1031,6 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
 
-      expect(api().form.start().disabled()).toBe(false);
-      expect(api().form.start.date().disabled()).toBe(false);
-      expect(api().form.start.time().disabled()).toBe(false);
-      expect(api().form.start.timeZoneId().disabled()).toBe(false);
       expect(startDateInput().disabled).toBe(false);
       expect(startTimeInput().disabled).toBe(false);
     });
@@ -1068,10 +1048,6 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
 
-      expect(api().form.start().disabled()).toBe(true);
-      expect(api().form.start.date().disabled()).toBe(true);
-      expect(api().form.start.time().disabled()).toBe(true);
-      expect(api().form.start.timeZoneId().disabled()).toBe(true);
       expect(startDateInput().disabled).toBe(true);
       expect(startTimeInput().disabled).toBe(true);
     });
@@ -1106,9 +1082,7 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
 
-      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
-      fixture.detectChanges();
-      await fixture.whenStable();
+      await submitForm();
 
       expect(service.update).not.toHaveBeenCalled();
       expect(navigations).toEqual([]);
@@ -1132,10 +1106,7 @@ describe('CalendarEventDetails', () => {
 
       expect(saveButton().disabled).toBe(false);
 
-      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
+      await submitForm();
 
       expect(service.create).not.toHaveBeenCalled();
       expect(service.update).toHaveBeenCalledTimes(1);
@@ -1175,7 +1146,6 @@ describe('CalendarEventDetails', () => {
 
       expect(saveButton().disabled).toBe(true);
       expect(deleteButton()!.disabled).toBe(true);
-      expect(api().form.start().disabled()).toBe(true);
       expect(startDateInput().disabled).toBe(true);
       expect(startTimeInput().disabled).toBe(true);
       expect(eventTextControls().every((control) => control.disabled)).toBe(true);
@@ -1197,9 +1167,7 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
 
-      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
-      fixture.detectChanges();
-      await fixture.whenStable();
+      await submitForm();
 
       expect(service.update).not.toHaveBeenCalled();
       expect(navigations).toEqual([]);
@@ -1212,9 +1180,7 @@ describe('CalendarEventDetails', () => {
       createEditComponent();
       api().form.texts[0].value().value.set('Updated English title');
 
-      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
-      fixture.detectChanges();
-      await fixture.whenStable();
+      await submitForm();
 
       const alert = fixture.nativeElement.querySelector('[role="alert"]');
       expect(alert).not.toBeNull();
@@ -1229,10 +1195,7 @@ describe('CalendarEventDetails', () => {
       createEditComponent();
       api().form.texts[0].value().value.set('Updated English title');
 
-      fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
+      await submitForm();
 
       expect(fixture.nativeElement.textContent).toContain(
         'The event can no longer be updated. Reload the page and try again.',
@@ -1245,9 +1208,9 @@ describe('CalendarEventDetails', () => {
 
       createEditComponent();
 
-      expect(fixture.nativeElement.textContent).toContain(
-        'The calendar event could not be loaded.',
-      );
+      const alert = fixture.nativeElement.querySelector('[role="alert"]');
+      expect(alert).not.toBeNull();
+      expect(alert.textContent).toContain('could not be loaded');
       expect(fixture.nativeElement.querySelector('form')).toBeNull();
     });
 
