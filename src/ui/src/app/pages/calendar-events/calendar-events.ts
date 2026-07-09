@@ -19,7 +19,7 @@ import { Button } from 'src/app/shared/components/button/button';
 import { DataTable, DataTableState } from 'src/app/shared/components/data-table/data-table';
 import { DataTableCell } from 'src/app/shared/components/data-table/data-table-cell';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
-import { formatUtcDateTime } from 'src/app/shared/date-time/date-time-format';
+import { formatLocalDateTime } from 'src/app/shared/date-time/date-time-format';
 import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
 import { Router, RouterLink } from '@angular/router';
@@ -55,8 +55,8 @@ export class CalendarEvents implements OnInit {
   protected readonly columns: DataTableColumn<CalendarEvent>[] = [
     {
       key: 'start',
-      header: 'Scheduled Start (UTC)',
-      value: (event) => formatScheduledStartUtc(event.scheduledStartUtc),
+      header: 'Scheduled Start',
+      value: (event) => formatScheduledStart(event),
       sortable: true,
     },
     {
@@ -121,12 +121,14 @@ export class CalendarEvents implements OnInit {
   }
 }
 
-// Presentation-only formatting of the API's ISO-8601 scheduled-start instant.
-// The shared formatter renders in UTC regardless of the browser's local zone.
-// Sorting is server-side and unaffected; see `toSortField` and the data-table
-// `server` mode. Falls back to the raw value if it cannot be parsed.
-function formatScheduledStartUtc(scheduledStartUtc: string): string {
-  return formatUtcDateTime(Date.parse(scheduledStartUtc)) || scheduledStartUtc;
+// Presentation uses the submitted wall-clock start and its explicit time-zone
+// id. Sorting stays server-side by the UTC instant through the `scheduledStart`
+// API sort field; see `toSortField` and the data-table `server` mode.
+function formatScheduledStart(event: CalendarEvent): string {
+  const localDateTime =
+    formatLocalDateTime(event.start.localDateTime) || event.start.localDateTime;
+
+  return `${localDateTime} - ${event.start.timeZoneId}`;
 }
 
 // Maps a table column key to its API sort field. Only the sortable columns are

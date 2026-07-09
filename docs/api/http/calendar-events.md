@@ -224,8 +224,9 @@ Success response (`200 OK`) is a paged envelope:
   candidate count across all pages and drives the client paginator.
 - Each item carries both `start` (the submitted wall-clock `localDateTime` and
   `timeZoneId`) and `scheduledStartUtc`, the same instant as a UTC ISO-8601
-  offset string. The UI list renders `scheduledStartUtc`; the create/edit form
-  works in local time and zone.
+  offset string. The UI list renders the submitted local date-time and time-zone
+  id while its scheduled-start sort continues to use `scheduledStartUtc`; the
+  create/edit form works in local time and zone.
 - `displayTitle` is the backend-defined representative title for list display
   and `title` sorting. It is the first `ShortText` value in the stored event
   snapshot, falling back to the first text value when the snapshot has no short

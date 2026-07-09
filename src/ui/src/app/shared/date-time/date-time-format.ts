@@ -8,5 +8,18 @@ export function formatUtcDateTime(epochMs: number): string {
     zone: 'utc',
   });
 
-  return instant.isValid ? instant.toFormat(DEFAULT_DATE_TIME_FORMAT) : '';
+  return formatDateTime(instant);
+}
+
+export function formatLocalDateTime(localDateTime: string): string {
+  const value = DateTime.fromISO(localDateTime, {
+    locale: 'en-US',
+    zone: 'utc',
+  });
+
+  return formatDateTime(value);
+}
+
+function formatDateTime(value: DateTime): string {
+  return value.isValid ? value.toFormat(DEFAULT_DATE_TIME_FORMAT) : '';
 }
