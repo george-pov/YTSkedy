@@ -74,7 +74,9 @@ A WordPress platform is returned as:
   "publishSettings": {
     "siteUrl": "https://blog.example.test/",
     "username": "publisher",
-    "postStatus": "draft",
+    "postStatus": "future",
+    "sticky": true,
+    "scheduleOffsetHours": 25,
     "applicationPasswordConfigured": true,
     "passwordDisplayValue": "*******"
   }
@@ -118,7 +120,14 @@ A WordPress platform is returned as:
   `http://127.0.0.1` are allowed for local development only.
 - WordPress `publishSettings.username` is the WordPress username used with an
   Application Password.
-- WordPress `publishSettings.postStatus` is `draft` or `publish`.
+- WordPress `publishSettings.postStatus` is `draft`, `pending`, `private`,
+  `future`, or `publish`. `future` is the API value for a scheduled WordPress
+  post.
+- WordPress `publishSettings.sticky` is optional on create and update and
+  defaults to `false`.
+- WordPress `publishSettings.scheduleOffsetHours` is required when
+  `postStatus` is `future`, must be greater than zero, and must be omitted or
+  `null` for every other WordPress post status.
 - WordPress create and update requests can include
   `publishSettings.applicationPassword`, but responses never return it.
   Responses return `applicationPasswordConfigured` and `passwordDisplayValue`
@@ -230,7 +239,9 @@ WordPress request body:
     "siteUrl": "https://blog.example.test/",
     "username": "publisher",
     "applicationPassword": "<wordpress-application-password>",
-    "postStatus": "draft"
+    "postStatus": "future",
+    "sticky": true,
+    "scheduleOffsetHours": 25
   }
 }
 ```
@@ -264,7 +275,11 @@ Status codes:
   `private`, `public`, or `unlisted`.
 - `400 Bad Request` for invalid WordPress settings: missing `siteUrl`, invalid
   or insecure `siteUrl`, missing `username`, missing `applicationPassword`, or
-  `postStatus` not `draft` or `publish`.
+  `postStatus` not `draft`, `pending`, `private`, `future`, or `publish`.
+- `400 Bad Request` when WordPress `postStatus` is `future` and
+  `scheduleOffsetHours` is missing, zero, or negative.
+- `400 Bad Request` when WordPress `scheduleOffsetHours` is supplied for any
+  non-`future` post status.
 - `409 Conflict` when another platform already uses the same name.
 - `409 Conflict` when another platform already uses the same non-empty
   `referenceKey`, compared case-insensitively.
@@ -321,7 +336,9 @@ WordPress request body that preserves the stored Application Password:
   "publishSettings": {
     "siteUrl": "https://blog.example.test/",
     "username": "publisher",
-    "postStatus": "draft"
+    "postStatus": "future",
+    "sticky": true,
+    "scheduleOffsetHours": 25
   }
 }
 ```
@@ -340,7 +357,8 @@ WordPress request body that replaces the stored Application Password:
     "siteUrl": "https://blog.example.test/",
     "username": "publisher",
     "applicationPassword": "<replacement-wordpress-application-password>",
-    "postStatus": "publish"
+    "postStatus": "publish",
+    "sticky": false
   }
 }
 ```
@@ -453,8 +471,13 @@ configured site URL, then creates a post through logical route
 `POST /wp/v2/posts` using Basic Auth with the configured WordPress username and
 Application Password. The request maps the rendered title to `title`, the
 optional rendered description to `content`, and the platform's `postStatus` to
-`status`. The numeric WordPress post id is returned as the provider-neutral
-`externalResourceId`.
+`status`. It maps `sticky` to the WordPress REST `sticky` field. When
+`postStatus` is `future`, it computes `date_gmt` by subtracting
+`scheduleOffsetHours` from the calendar event's `scheduledStartUtc`; other
+statuses omit `date_gmt`. The numeric WordPress post id is returned as the
+provider-neutral `externalResourceId`. A local `Published` row means the
+provider resource was created; YTSkedy does not track the later WordPress
+transition from `future` to `publish`.
 
 YouTube success response (`200 OK`):
 
@@ -511,6 +534,8 @@ Status codes:
   including when a concurrent request wins the start-publishing race.
 - `409 Conflict` when the publication is orphaned because the platform was
   deleted; orphan history is read-only.
+- `409 Conflict` when a scheduled WordPress post's computed `date_gmt` is not
+  still in the future at publish time.
 - `501 Not Implemented` when no provider adapter serves the platform type.
 - `502 Bad Gateway` when the provider call fails.
 - `500 Internal Server Error` when the external resource was created but the

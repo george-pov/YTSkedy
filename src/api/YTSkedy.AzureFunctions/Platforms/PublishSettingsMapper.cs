@@ -33,6 +33,8 @@ internal static class PublishSettingsMapper
                 null,
                 null,
                 null,
+                null,
+                null,
                 null),
             WordPressSettings wordPress => new PublishSettingsResponse(
                 null,
@@ -41,6 +43,8 @@ internal static class PublishSettingsMapper
                 wordPress.SiteUrl,
                 wordPress.Username,
                 wordPress.PostStatus,
+                wordPress.Sticky,
+                wordPress.ScheduleOffsetHours,
                 WordPressSettings.IsValidApplicationPassword(wordPress.ApplicationPassword),
                 WordPressSettings.IsValidApplicationPassword(wordPress.ApplicationPassword)
                     ? RedactSecret(
@@ -270,11 +274,47 @@ internal static class PublishSettingsMapper
             return false;
         }
 
+        if (WordPressSettings.RequiresScheduleOffsetHours(payload.PostStatus))
+        {
+            if (!TryValidateScheduleOffsetHours(payload.ScheduleOffsetHours, out error))
+            {
+                return false;
+            }
+        }
+        else if (payload.ScheduleOffsetHours is not null)
+        {
+            error = UnsupportedScheduleOffsetHoursResult();
+            return false;
+        }
+
         publishSettings = new WordPressSettings(
             payload.SiteUrl!,
             payload.Username!,
             applicationPassword,
-            payload.PostStatus!);
+            payload.PostStatus!,
+            payload.Sticky ?? false,
+            payload.ScheduleOffsetHours);
+        return true;
+    }
+
+    private static bool TryValidateScheduleOffsetHours(
+        int? scheduleOffsetHours,
+        out IActionResult error)
+    {
+        error = new EmptyResult();
+
+        if (scheduleOffsetHours is null)
+        {
+            error = MissingScheduleOffsetHoursResult();
+            return false;
+        }
+
+        if (scheduleOffsetHours <= 0)
+        {
+            error = InvalidScheduleOffsetHoursResult();
+            return false;
+        }
+
         return true;
     }
 
@@ -341,5 +381,18 @@ internal static class PublishSettingsMapper
         new BadRequestObjectResult("Publish settings Application Password is required.");
 
     private static IActionResult InvalidWordPressPostStatusResult() =>
-        new BadRequestObjectResult("Publish settings post status must be 'publish' or 'draft'.");
+        new BadRequestObjectResult(
+            "Publish settings post status must be 'draft', 'pending', 'private', 'future', or 'publish'.");
+
+    private static IActionResult MissingScheduleOffsetHoursResult() =>
+        new BadRequestObjectResult(
+            "Publish settings schedule offset hours must be provided when post status is 'future'.");
+
+    private static IActionResult UnsupportedScheduleOffsetHoursResult() =>
+        new BadRequestObjectResult(
+            "Publish settings schedule offset hours must be omitted unless post status is 'future'.");
+
+    private static IActionResult InvalidScheduleOffsetHoursResult() =>
+        new BadRequestObjectResult(
+            "Publish settings schedule offset hours must be greater than zero.");
 }

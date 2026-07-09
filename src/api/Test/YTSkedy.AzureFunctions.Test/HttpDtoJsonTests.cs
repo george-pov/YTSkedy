@@ -152,7 +152,9 @@ public sealed class HttpDtoJsonTests
                 "siteUrl": "https://example.com",
                 "username": "editor",
                 "applicationPassword": "application-password",
-                "postStatus": "publish"
+                "postStatus": "future",
+                "sticky": true,
+                "scheduleOffsetHours": 25
               }
             }
             """;
@@ -169,7 +171,9 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("https://example.com", request.PublishSettings.SiteUrl);
         Assert.Equal("editor", request.PublishSettings.Username);
         Assert.Equal("application-password", request.PublishSettings.ApplicationPassword);
-        Assert.Equal("publish", request.PublishSettings.PostStatus);
+        Assert.Equal("future", request.PublishSettings.PostStatus);
+        Assert.True(request.PublishSettings.Sticky);
+        Assert.Equal(25, request.PublishSettings.ScheduleOffsetHours);
     }
 
     [Fact]
@@ -291,7 +295,9 @@ public sealed class HttpDtoJsonTests
                 "https://example.com",
                 "editor",
                 "local-test-password",
-                "publish"),
+                WordPressSettings.ScheduledPostStatus,
+                sticky: true,
+                scheduleOffsetHours: 25),
             new PublishingContent(
                 "title-template",
                 "description-template"));
@@ -309,7 +315,9 @@ public sealed class HttpDtoJsonTests
             "description-template",
             publishingContent.GetProperty("descriptionTemplateId").GetString());
         Assert.Equal("editor", settings.GetProperty("username").GetString());
-        Assert.Equal("publish", settings.GetProperty("postStatus").GetString());
+        Assert.Equal(WordPressSettings.ScheduledPostStatus, settings.GetProperty("postStatus").GetString());
+        Assert.True(settings.GetProperty("sticky").GetBoolean());
+        Assert.Equal(25, settings.GetProperty("scheduleOffsetHours").GetInt32());
         Assert.True(settings.GetProperty("applicationPasswordConfigured").GetBoolean());
         Assert.Equal("*******", settings.GetProperty("passwordDisplayValue").GetString());
         Assert.DoesNotContain("applicationPassword\":\"", json);

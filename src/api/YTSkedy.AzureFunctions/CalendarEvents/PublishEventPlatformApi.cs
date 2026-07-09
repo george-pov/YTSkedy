@@ -38,9 +38,10 @@ public sealed class PublishEventPlatformApi(PublishHandler publishHandler)
     /// <summary>
     /// Maps a publish outcome to its HTTP result. Published is 200 with the
     /// publish body; not-found is 404; past start is 400; invalid publishing
-    /// content, already-published, publish-in-progress, and platform-deleted
-    /// are 409; an unsupported provider is 501; a provider failure is 502; and
-    /// a finalize failure is 500.
+    /// content, invalid provider publish settings, already-published,
+    /// publish-in-progress, and platform-deleted are 409; an unsupported
+    /// provider is 501; a provider failure is 502; and a finalize failure is
+    /// 500.
     /// </summary>
     internal static IActionResult ToResult(
         PublishResult result,
@@ -63,6 +64,9 @@ public sealed class PublishEventPlatformApi(PublishHandler publishHandler)
                 new ConflictObjectResult(
                     "The resolved publishing content must have a non-empty title and no " +
                     "unresolved placeholders."),
+            PublishResultStatus.InvalidProviderPublishSettings =>
+                new ConflictObjectResult(
+                    "The platform publish settings are not valid for this calendar event."),
             PublishResultStatus.AlreadyPublished =>
                 new ConflictObjectResult(
                     $"Calendar event '{calendarEventId}' is already published to platform '{platformId}'."),

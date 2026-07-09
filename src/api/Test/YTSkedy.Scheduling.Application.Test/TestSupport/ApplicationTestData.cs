@@ -59,8 +59,13 @@ internal static class ApplicationTestData
             selfDeclaredMadeForKids: selfDeclaredMadeForKids);
 
     public static WordPressSettings WordPressSettings(
-        string postStatus = "publish") =>
-        SchedulingSamples.WordPressSettings(postStatus: postStatus);
+        string postStatus = "publish",
+        bool sticky = false,
+        int? scheduleOffsetHours = null) =>
+        SchedulingSamples.WordPressSettings(
+            postStatus: postStatus,
+            sticky: sticky,
+            scheduleOffsetHours: scheduleOffsetHours);
 
     public static PublishingContent PublishingContent(
         string titleTemplateId = TitleTemplateId,

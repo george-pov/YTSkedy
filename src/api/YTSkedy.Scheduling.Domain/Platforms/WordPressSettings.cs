@@ -8,14 +8,18 @@ namespace YTSkedy.Scheduling.Domain.Platforms;
 /// </summary>
 public sealed record WordPressSettings : PublishSettings
 {
+    public const string ScheduledPostStatus = "future";
+
     public static readonly IReadOnlyList<string> AllowedPostStatuses =
-        ["publish", "draft"];
+        ["draft", "pending", "private", ScheduledPostStatus, "publish"];
 
     public WordPressSettings(
         string siteUrl,
         string username,
         string applicationPassword,
-        string postStatus)
+        string postStatus,
+        bool sticky = false,
+        int? scheduleOffsetHours = null)
     {
         if (!IsValidSiteUrl(siteUrl))
         {
@@ -41,14 +45,37 @@ public sealed record WordPressSettings : PublishSettings
         if (!IsValidPostStatus(postStatus))
         {
             throw new ArgumentException(
-                "Post status must be 'publish' or 'draft'.",
+                "Post status must be 'draft', 'pending', 'private', 'future', or 'publish'.",
                 nameof(postStatus));
+        }
+
+        if (RequiresScheduleOffsetHours(postStatus))
+        {
+            if (scheduleOffsetHours is null)
+            {
+                throw new ArgumentException(
+                    "Schedule offset hours are required for scheduled posts.",
+                    nameof(scheduleOffsetHours));
+            }
+
+            if (scheduleOffsetHours <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(scheduleOffsetHours));
+            }
+        }
+        else if (scheduleOffsetHours is not null)
+        {
+            throw new ArgumentException(
+                "Schedule offset hours are only supported for scheduled posts.",
+                nameof(scheduleOffsetHours));
         }
 
         SiteUrl = siteUrl.Trim();
         Username = username;
         ApplicationPassword = applicationPassword;
         PostStatus = postStatus;
+        Sticky = sticky;
+        ScheduleOffsetHours = scheduleOffsetHours;
     }
 
     public string SiteUrl { get; }
@@ -58,6 +85,10 @@ public sealed record WordPressSettings : PublishSettings
     public string ApplicationPassword { get; }
 
     public string PostStatus { get; }
+
+    public bool Sticky { get; }
+
+    public int? ScheduleOffsetHours { get; }
 
     public static bool IsValidSiteUrl(string? siteUrl)
     {
@@ -93,6 +124,9 @@ public sealed record WordPressSettings : PublishSettings
     public static bool IsValidPostStatus(string? postStatus) =>
         postStatus is not null &&
         AllowedPostStatuses.Contains(postStatus, StringComparer.Ordinal);
+
+    public static bool RequiresScheduleOffsetHours(string? postStatus) =>
+        string.Equals(postStatus, ScheduledPostStatus, StringComparison.Ordinal);
 
     private static bool IsLocalHost(string host) =>
         string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||

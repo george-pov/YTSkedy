@@ -78,8 +78,10 @@ public static class SchedulingSamples
         string siteUrl = "https://blog.example.test/",
         string username = "publisher",
         string applicationPassword = "application-password",
-        string postStatus = "publish") =>
-        new(siteUrl, username, applicationPassword, postStatus);
+        string postStatus = "publish",
+        bool sticky = false,
+        int? scheduleOffsetHours = null) =>
+        new(siteUrl, username, applicationPassword, postStatus, sticky, scheduleOffsetHours);
 
     public static PublishingContent PublishingContent(
         string titleTemplateId = SchedulingSampleIds.TitleTemplateId,

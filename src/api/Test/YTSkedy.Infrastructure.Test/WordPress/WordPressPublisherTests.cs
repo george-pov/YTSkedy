@@ -10,6 +10,7 @@ using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Providers;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.TestSupport;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.Infrastructure.Test.WordPress;
 
@@ -67,8 +68,112 @@ public class WordPressPublisherTests
         Assert.Equal("English title", root.GetProperty("title").GetString());
         Assert.Equal("English description", root.GetProperty("content").GetString());
         Assert.Equal("publish", root.GetProperty("status").GetString());
+        Assert.False(root.GetProperty("sticky").GetBoolean());
+        Assert.False(root.TryGetProperty("date_gmt", out _));
 
         AssertDiscoveryRequestsAreAnonymous(handler);
+    }
+
+    [Theory]
+    [InlineData("draft")]
+    [InlineData("pending")]
+    [InlineData("private")]
+    [InlineData("future")]
+    [InlineData("publish")]
+    public async Task PublishAsync_AllowedPostStatus_SendsConfiguredStatus(string postStatus)
+    {
+        string? capturedBody = null;
+        var handler = PrettyRoot(request =>
+        {
+            capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return JsonResponse("""{"id":74}""");
+        });
+        var publisher = CreatePublisher(handler);
+        var settings = new WordPressSettings(
+            "https://example.com",
+            "editor",
+            ApplicationPassword,
+            postStatus,
+            scheduleOffsetHours: postStatus == WordPressSettings.ScheduledPostStatus ? 25 : null);
+
+        await publisher.PublishAsync(Request(settings), CancellationToken.None);
+
+        using var document = JsonDocument.Parse(capturedBody!);
+        Assert.Equal(postStatus, document.RootElement.GetProperty("status").GetString());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PublishAsync_StickySetting_SerializesSticky(bool sticky)
+    {
+        string? capturedBody = null;
+        var handler = PrettyRoot(request =>
+        {
+            capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return JsonResponse("""{"id":74}""");
+        });
+        var publisher = CreatePublisher(handler);
+        var settings = new WordPressSettings(
+            "https://example.com",
+            "editor",
+            ApplicationPassword,
+            "publish",
+            sticky);
+
+        await publisher.PublishAsync(Request(settings), CancellationToken.None);
+
+        using var document = JsonDocument.Parse(capturedBody!);
+        Assert.Equal(sticky, document.RootElement.GetProperty("sticky").GetBoolean());
+    }
+
+    [Fact]
+    public async Task PublishAsync_FutureStatusWithScheduleOffset_SendsDateGmt()
+    {
+        string? capturedBody = null;
+        var handler = PrettyRoot(request =>
+        {
+            capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return JsonResponse("""{"id":74}""");
+        });
+        var publisher = CreatePublisher(handler);
+        var settings = new WordPressSettings(
+            "https://example.com",
+            "editor",
+            ApplicationPassword,
+            WordPressSettings.ScheduledPostStatus,
+            scheduleOffsetHours: 25);
+
+        await publisher.PublishAsync(Request(settings), CancellationToken.None);
+
+        using var document = JsonDocument.Parse(capturedBody!);
+        Assert.Equal(
+            "2026-06-24T16:00:00Z",
+            document.RootElement.GetProperty("date_gmt").GetString());
+    }
+
+    [Fact]
+    public async Task PublishAsync_StaleScheduledPostTime_ThrowsBeforeProviderCall()
+    {
+        var logger = new CapturingLogger<WordPressPublisher>();
+        var handler = PrettyRoot(_ => JsonResponse("""{"id":74}"""));
+        var publisher = CreatePublisher(handler, logger);
+        var settings = new WordPressSettings(
+            "https://example.com",
+            "editor",
+            ApplicationPassword,
+            WordPressSettings.ScheduledPostStatus,
+            scheduleOffsetHours: 80);
+
+        var exception = await Assert.ThrowsAsync<PlatformPublishValidationException>(
+            () => publisher.PublishAsync(Request(settings), CancellationToken.None));
+
+        Assert.Contains("scheduled post time", exception.Message);
+        Assert.DoesNotContain(ApplicationPassword, exception.Message);
+        Assert.DoesNotContain("Basic", exception.Message);
+        Assert.DoesNotContain(ApplicationPassword, logger.Text);
+        Assert.DoesNotContain("Basic", logger.Text);
+        Assert.Equal(0, handler.CallCount);
     }
 
     [Fact]
@@ -118,6 +223,7 @@ public class WordPressPublisherTests
         using var document = JsonDocument.Parse(capturedBody!);
         Assert.Equal("", document.RootElement.GetProperty("content").GetString());
         Assert.Equal("draft", document.RootElement.GetProperty("status").GetString());
+        Assert.False(document.RootElement.TryGetProperty("date_gmt", out _));
     }
 
     [Fact]
@@ -250,6 +356,7 @@ public class WordPressPublisherTests
         return new WordPressPublisher(
             new HttpClient(handler),
             resolver,
+            new FixedTimeProvider(SchedulingSampleTimes.Now),
             logger ?? new CapturingLogger<WordPressPublisher>());
     }
 

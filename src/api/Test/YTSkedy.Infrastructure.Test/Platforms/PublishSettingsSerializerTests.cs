@@ -31,14 +31,38 @@ public class PublishSettingsSerializerTests
                 "https://example.com",
                 "editor",
                 "application-password",
-                "publish"));
+                WordPressSettings.ScheduledPostStatus,
+                sticky: true,
+                scheduleOffsetHours: 25));
 
         var settings = Assert.IsType<WordPressSettings>(
             PublishSettingsSerializer.Deserialize(PlatformType.WordPress, json));
         Assert.Equal("https://example.com", settings.SiteUrl);
         Assert.Equal("editor", settings.Username);
         Assert.Equal("application-password", settings.ApplicationPassword);
+        Assert.Equal(WordPressSettings.ScheduledPostStatus, settings.PostStatus);
+        Assert.True(settings.Sticky);
+        Assert.Equal(25, settings.ScheduleOffsetHours);
+    }
+
+    [Fact]
+    public void Deserialize_WordPressLegacySettingsJson_UsesSafeDefaults()
+    {
+        const string json = """
+            {
+              "siteUrl": "https://example.com",
+              "username": "editor",
+              "applicationPassword": "application-password",
+              "postStatus": "publish"
+            }
+            """;
+
+        var settings = Assert.IsType<WordPressSettings>(
+            PublishSettingsSerializer.Deserialize(PlatformType.WordPress, json));
+
         Assert.Equal("publish", settings.PostStatus);
+        Assert.False(settings.Sticky);
+        Assert.Null(settings.ScheduleOffsetHours);
     }
 
     [Fact]
@@ -131,14 +155,19 @@ public class PublishSettingsSerializerTests
                 "https://example.com",
                 "editor",
                 "application-password",
-                "draft"));
+                WordPressSettings.ScheduledPostStatus,
+                sticky: true,
+                scheduleOffsetHours: 25));
 
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
         Assert.Equal("https://example.com", root.GetProperty("siteUrl").GetString());
         Assert.Equal("editor", root.GetProperty("username").GetString());
-        Assert.Equal("draft", root.GetProperty("postStatus").GetString());
+        Assert.Equal(WordPressSettings.ScheduledPostStatus, root.GetProperty("postStatus").GetString());
+        Assert.True(root.GetProperty("sticky").GetBoolean());
+        Assert.Equal(25, root.GetProperty("scheduleOffsetHours").GetInt32());
         Assert.False(root.TryGetProperty("applicationPassword", out _));
+        Assert.False(root.TryGetProperty("passwordDisplayValue", out _));
         Assert.DoesNotContain("application-password", json);
     }
 

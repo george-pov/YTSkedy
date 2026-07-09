@@ -309,6 +309,7 @@ builder.Services.AddSingleton(serviceProvider =>
     new WordPressPublisher(
         serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(wordPressHttpClientName),
         serviceProvider.GetRequiredService<WordPressEndpointResolver>(),
+        serviceProvider.GetRequiredService<TimeProvider>(),
         serviceProvider.GetRequiredService<ILogger<WordPressPublisher>>()));
 builder.Services.AddSingleton<IPlatformPublisher>(
     serviceProvider => serviceProvider.GetRequiredService<WordPressPublisher>());

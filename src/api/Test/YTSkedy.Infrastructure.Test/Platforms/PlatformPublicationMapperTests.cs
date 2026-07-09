@@ -152,7 +152,9 @@ public class PlatformPublicationMapperTests
                 "https://example.com",
                 "editor",
                 "application-password",
-                "publish"),
+                WordPressSettings.ScheduledPostStatus,
+                sticky: true,
+                scheduleOffsetHours: 25),
             new ContentSnapshot("Rendered title", null));
 
         var entity = PlatformPublicationMapper.ToPublishingEntity(
@@ -163,8 +165,11 @@ public class PlatformPublicationMapperTests
         Assert.Null(entity.ThumbnailStatus);
         Assert.Contains("\"siteUrl\":\"https://example.com\"", entity.PublishSettingsJson);
         Assert.Contains("\"username\":\"editor\"", entity.PublishSettingsJson);
-        Assert.Contains("\"postStatus\":\"publish\"", entity.PublishSettingsJson);
+        Assert.Contains("\"postStatus\":\"future\"", entity.PublishSettingsJson);
+        Assert.Contains("\"sticky\":true", entity.PublishSettingsJson);
+        Assert.Contains("\"scheduleOffsetHours\":25", entity.PublishSettingsJson);
         Assert.DoesNotContain("applicationPassword", entity.PublishSettingsJson);
+        Assert.DoesNotContain("passwordDisplayValue", entity.PublishSettingsJson);
         Assert.DoesNotContain("application-password", entity.PublishSettingsJson);
     }
 

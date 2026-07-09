@@ -17,9 +17,9 @@ namespace YTSkedy.Scheduling.Application.Platforms.Publications;
 /// title without unresolved placeholders. It then starts the publication row
 /// with a content snapshot (a conditional write, so a concurrent
 /// publish yields a conflict), calls the provider, and finalizes the row with the
-/// external resource id. A provider failure releases the attempt and surfaces
-/// an upstream failure; a finalize failure after the external resource was
-/// created is recorded for follow-up.
+/// external resource id. Provider validation and provider failures release the
+/// attempt; a finalize failure after the external resource was created is
+/// recorded for follow-up.
 /// </summary>
 public sealed class PublishHandler(
     ICalendarEventReader calendarEvents,
@@ -163,6 +163,23 @@ public sealed class PublishHandler(
                     renderedContent.Description,
                     calendarEvent.ScheduledStartUtc),
                 cancellationToken);
+        }
+        catch (PlatformPublishValidationException exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Publishing calendar event {CalendarEventId} to platform {PlatformId} " +
+                "failed provider-specific validation.",
+                command.CalendarEventId,
+                command.PlatformId);
+
+            await publicationAttempts.ReleasePublishingAsync(
+                command.CalendarEventId,
+                command.PlatformId,
+                cancellationToken);
+
+            return PublishResult.ForStatus(
+                PublishResultStatus.InvalidProviderPublishSettings);
         }
         catch (PlatformPublishException exception)
         {

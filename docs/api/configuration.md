@@ -114,7 +114,9 @@ enter WordPress connection details through platform create or update requests:
 | `publishSettings.siteUrl` | Non-secret | WordPress site root used for REST API discovery. |
 | `publishSettings.username` | Personal configuration | WordPress username used with an Application Password. |
 | `publishSettings.applicationPassword` | Secret | WordPress Application Password sent through Basic Auth to the WordPress REST API. |
-| `publishSettings.postStatus` | Non-secret | Initial WordPress post status, currently `draft` or `publish`. |
+| `publishSettings.postStatus` | Non-secret | Initial WordPress post status: `draft`, `pending`, `private`, `future`, or `publish`. |
+| `publishSettings.sticky` | Non-secret | Whether WordPress treats the created post as sticky. |
+| `publishSettings.scheduleOffsetHours` | Non-secret | Positive hour offset used only when `postStatus` is `future`; the provider `date_gmt` is computed from the calendar event scheduled start minus this offset. |
 
 `applicationPassword` is accepted on platform create and update but is never
 returned by platform reads. Responses return `applicationPasswordConfigured`
@@ -137,9 +139,10 @@ This is a first-slice integration with deliberate limitations:
 - The WordPress Application Password is stored in the platform row's
   `PublishSettingsJson` so the provider can publish at request time. An app-managed
   secret store is not part of the current implementation.
-- Only the rendered title and optional rendered description are sent.
-  Categories, tags, excerpts, slugs, featured media, and WordPress scheduling
-  are out of scope for this slice.
+- The publish request sends the rendered title, optional rendered description,
+  configured WordPress status, sticky flag, and conditional scheduled
+  `date_gmt`. Categories, tags, excerpts, slugs, and featured media are out of
+  scope for this slice.
 
 ## CORS
 

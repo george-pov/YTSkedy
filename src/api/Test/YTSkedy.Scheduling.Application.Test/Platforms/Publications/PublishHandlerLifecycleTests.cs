@@ -44,6 +44,23 @@ public class PublishHandlerLifecycleTests
     }
 
     [Fact]
+    public async Task HandleAsync_ProviderValidationFailure_ReleasesAttemptAndReturnsInvalidProviderPublishSettings()
+    {
+        var repository = new PublishFakePublicationRepository();
+        var publisher = new PublishFakePublisher
+        {
+            Throws = new PlatformPublishValidationException("invalid provider settings")
+        };
+        var handler = CreateHandler(Event(FutureStart), Platform(), publisher, repository: repository);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.InvalidProviderPublishSettings, result.Status);
+        Assert.True(repository.ReleaseCalled);
+        Assert.False(repository.MarkPublishedCalled);
+    }
+
+    [Fact]
     public async Task HandleAsync_FinalizeReturnsNull_ReturnsFinalizeFailed()
     {
         var repository = new PublishFakePublicationRepository { MarkPublishedResult = null };

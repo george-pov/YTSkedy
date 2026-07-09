@@ -36,8 +36,16 @@ internal static class PlatformSamples
         string siteUrl = "https://example.com/",
         string username = "editor",
         string applicationPassword = "application-password",
-        string postStatus = "publish") =>
-        SchedulingSamples.WordPressSettings(siteUrl, username, applicationPassword, postStatus);
+        string postStatus = "publish",
+        bool sticky = false,
+        int? scheduleOffsetHours = null) =>
+        SchedulingSamples.WordPressSettings(
+            siteUrl,
+            username,
+            applicationPassword,
+            postStatus,
+            sticky,
+            scheduleOffsetHours);
 
     public static PublishingContent PublishingContent(
         string titleTemplateId = "title-template",

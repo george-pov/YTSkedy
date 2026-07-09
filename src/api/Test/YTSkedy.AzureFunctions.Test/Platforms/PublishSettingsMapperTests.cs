@@ -3,6 +3,7 @@ using YTSkedy.AzureFunctions.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.TestSupport;
 using static YTSkedy.AzureFunctions.Test.Platforms.PlatformTestData;
+using DomainWordPressSettings = YTSkedy.Scheduling.Domain.Platforms.WordPressSettings;
 
 namespace YTSkedy.AzureFunctions.Test.Platforms;
 
@@ -104,6 +105,29 @@ public sealed class PublishSettingsMapperTests
             WordPressSettings(applicationPassword: "local-test-password"));
 
         AssertWordPressRedacted(response, rawApplicationPassword: "local-test-password");
+    }
+
+    [Fact]
+    public void ToPublishSettingsResponse_ScheduledWordPressSettings_ReturnsStickyAndScheduleOffset()
+    {
+        var response = PublishSettingsMapper.ToResponse(
+            WordPressSettings(
+                applicationPassword: "local-test-password",
+                postStatus: DomainWordPressSettings.ScheduledPostStatus,
+                sticky: true,
+                scheduleOffsetHours: 25));
+
+        Assert.Equal(DomainWordPressSettings.ScheduledPostStatus, response.PostStatus);
+        Assert.True(response.Sticky);
+        Assert.Equal(25, response.ScheduleOffsetHours);
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        Assert.True(root.GetProperty("sticky").GetBoolean());
+        Assert.Equal(25, root.GetProperty("scheduleOffsetHours").GetInt32());
+        Assert.False(root.TryGetProperty("applicationPassword", out _));
+        Assert.DoesNotContain("local-test-password", json);
     }
 
     [Fact]

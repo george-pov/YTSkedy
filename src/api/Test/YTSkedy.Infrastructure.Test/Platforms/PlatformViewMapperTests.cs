@@ -84,6 +84,27 @@ public class PlatformViewMapperTests
         Assert.IsType<WordPressSettings>(view.PublishSettings);
     }
 
+    [Fact]
+    public void ToView_LegacyWordPressEntity_MapsDefaultStickyAndScheduleOffset()
+    {
+        const string legacyJson = """
+            {
+              "siteUrl": "https://example.com",
+              "username": "editor",
+              "applicationPassword": "application-password",
+              "postStatus": "publish"
+            }
+            """;
+        var entity = CreateEntity("WordPress", legacyJson);
+
+        var view = PlatformViewMapper.ToView(entity);
+
+        var settings = Assert.IsType<WordPressSettings>(view.PublishSettings);
+        Assert.Equal("publish", settings.PostStatus);
+        Assert.False(settings.Sticky);
+        Assert.Null(settings.ScheduleOffsetHours);
+    }
+
     [Theory]
     [InlineData("YouTube", PlatformType.YouTube)]
     [InlineData("youtube", PlatformType.YouTube)]

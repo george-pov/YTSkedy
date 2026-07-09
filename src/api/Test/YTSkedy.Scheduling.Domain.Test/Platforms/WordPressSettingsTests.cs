@@ -11,12 +11,15 @@ public class WordPressSettingsTests
             "  https://example.com/blog  ",
             "editor",
             "application-password",
-            "draft");
+            "draft",
+            sticky: true);
 
         Assert.Equal("https://example.com/blog", settings.SiteUrl);
         Assert.Equal("editor", settings.Username);
         Assert.Equal("application-password", settings.ApplicationPassword);
         Assert.Equal("draft", settings.PostStatus);
+        Assert.True(settings.Sticky);
+        Assert.Null(settings.ScheduleOffsetHours);
     }
 
     [Theory]
@@ -64,7 +67,7 @@ public class WordPressSettingsTests
 
     [Theory]
     [InlineData("Publish")]
-    [InlineData("private")]
+    [InlineData("scheduled")]
     [InlineData("")]
     public void Constructor_InvalidPostStatus_Throws(string postStatus)
     {
@@ -74,6 +77,57 @@ public class WordPressSettingsTests
                 "editor",
                 "password",
                 postStatus));
+    }
+
+    [Fact]
+    public void Constructor_ScheduledPostWithOffset_SetsScheduleOffsetHours()
+    {
+        var settings = new WordPressSettings(
+            "https://example.com",
+            "editor",
+            "password",
+            WordPressSettings.ScheduledPostStatus,
+            scheduleOffsetHours: 25);
+
+        Assert.Equal(WordPressSettings.ScheduledPostStatus, settings.PostStatus);
+        Assert.Equal(25, settings.ScheduleOffsetHours);
+    }
+
+    [Fact]
+    public void Constructor_ScheduledPostWithoutOffset_Throws()
+    {
+        Assert.Throws<ArgumentException>(
+            () => new WordPressSettings(
+                "https://example.com",
+                "editor",
+                "password",
+                WordPressSettings.ScheduledPostStatus));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Constructor_ScheduledPostWithNonPositiveOffset_Throws(int scheduleOffsetHours)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => new WordPressSettings(
+                "https://example.com",
+                "editor",
+                "password",
+                WordPressSettings.ScheduledPostStatus,
+                scheduleOffsetHours: scheduleOffsetHours));
+    }
+
+    [Fact]
+    public void Constructor_NonScheduledPostWithOffset_Throws()
+    {
+        Assert.Throws<ArgumentException>(
+            () => new WordPressSettings(
+                "https://example.com",
+                "editor",
+                "password",
+                "draft",
+                scheduleOffsetHours: 2));
     }
 
     [Theory]
@@ -133,8 +187,11 @@ public class WordPressSettingsTests
     }
 
     [Theory]
-    [InlineData("publish")]
     [InlineData("draft")]
+    [InlineData("pending")]
+    [InlineData("private")]
+    [InlineData("future")]
+    [InlineData("publish")]
     public void IsValidPostStatus_AllowedLowercaseValues_ReturnsTrue(string postStatus)
     {
         Assert.True(WordPressSettings.IsValidPostStatus(postStatus));
@@ -144,9 +201,24 @@ public class WordPressSettingsTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("Publish")]
-    [InlineData("pending")]
+    [InlineData("scheduled")]
     public void IsValidPostStatus_OtherValues_ReturnsFalse(string? postStatus)
     {
         Assert.False(WordPressSettings.IsValidPostStatus(postStatus));
+    }
+
+    [Theory]
+    [InlineData("future", true)]
+    [InlineData("draft", false)]
+    [InlineData("pending", false)]
+    [InlineData("private", false)]
+    [InlineData("publish", false)]
+    [InlineData("scheduled", false)]
+    [InlineData(null, false)]
+    public void RequiresScheduleOffsetHours_Status_ReturnsExpected(
+        string? postStatus,
+        bool expected)
+    {
+        Assert.Equal(expected, WordPressSettings.RequiresScheduleOffsetHours(postStatus));
     }
 }

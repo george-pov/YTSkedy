@@ -3,6 +3,7 @@ using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.TestSupport;
 using YTSkedy.TestSupport;
 using static YTSkedy.AzureFunctions.Test.Platforms.PlatformTestData;
+using DomainWordPressSettings = YTSkedy.Scheduling.Domain.Platforms.WordPressSettings;
 
 namespace YTSkedy.AzureFunctions.Test.Platforms;
 
@@ -97,10 +98,58 @@ public sealed class PlatformsApiCommandTests
         Assert.Equal("editor", settings.Username);
         Assert.Equal("application-password", settings.ApplicationPassword);
         Assert.Equal("publish", settings.PostStatus);
+        Assert.False(settings.Sticky);
+        Assert.Null(settings.ScheduleOffsetHours);
         Assert.Equal(SchedulingSampleIds.TitleTemplateId, command.PublishingContent.TitleTemplateId);
         Assert.Equal(
             SchedulingSampleIds.DescriptionTemplateId,
             command.PublishingContent.DescriptionTemplateId);
+    }
+
+    [Theory]
+    [InlineData("pending")]
+    [InlineData("private")]
+    public void TryBuildCreateCommand_WordPressAllowedNonScheduledPostStatus_BuildsCommand(
+        string postStatus)
+    {
+        var request = new CreatePlatformRequest(
+            "Main WordPress site",
+            "WordPress",
+            null,
+            WordPressPayload(
+                applicationPassword: "application-password",
+                postStatus: postStatus),
+            PublishingPayload());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
+
+        Assert.True(built);
+        var settings = Assert.IsType<WordPressSettings>(command.PublishSettings);
+        Assert.Equal(postStatus, settings.PostStatus);
+        Assert.Null(settings.ScheduleOffsetHours);
+    }
+
+    [Fact]
+    public void TryBuildCreateCommand_WordPressFuturePostStatusWithOffset_BuildsCommand()
+    {
+        var request = new CreatePlatformRequest(
+            "Main WordPress site",
+            "WordPress",
+            null,
+            WordPressPayload(
+                applicationPassword: "application-password",
+                postStatus: DomainWordPressSettings.ScheduledPostStatus,
+                sticky: true,
+                scheduleOffsetHours: 25),
+            PublishingPayload());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
+
+        Assert.True(built);
+        var settings = Assert.IsType<WordPressSettings>(command.PublishSettings);
+        Assert.Equal(DomainWordPressSettings.ScheduledPostStatus, settings.PostStatus);
+        Assert.True(settings.Sticky);
+        Assert.Equal(25, settings.ScheduleOffsetHours);
     }
 
     [Fact]
@@ -199,13 +248,78 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(applicationPassword: "application-password", postStatus: "pending"));
+            WordPressPayload(applicationPassword: "application-password", postStatus: "scheduled"));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
         Assert.False(built);
         Assert.Equal(
-            "Publish settings post status must be 'publish' or 'draft'.",
+            "Publish settings post status must be 'draft', 'pending', 'private', 'future', or 'publish'.",
+            ActionResultAssertions.BadRequestMessage(error));
+    }
+
+    [Fact]
+    public void TryBuildCreateCommand_WordPressFuturePostStatusWithoutOffset_ReturnsBadRequest()
+    {
+        var request = new CreatePlatformRequest(
+            "Main WordPress site",
+            "WordPress",
+            null,
+            WordPressPayload(
+                applicationPassword: "application-password",
+                postStatus: DomainWordPressSettings.ScheduledPostStatus),
+            PublishingPayload());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
+
+        Assert.False(built);
+        Assert.Equal(
+            "Publish settings schedule offset hours must be provided when post status is 'future'.",
+            ActionResultAssertions.BadRequestMessage(error));
+    }
+
+    [Fact]
+    public void TryBuildCreateCommand_WordPressNonFuturePostStatusWithOffset_ReturnsBadRequest()
+    {
+        var request = new CreatePlatformRequest(
+            "Main WordPress site",
+            "WordPress",
+            null,
+            WordPressPayload(
+                applicationPassword: "application-password",
+                postStatus: "draft",
+                scheduleOffsetHours: 1),
+            PublishingPayload());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
+
+        Assert.False(built);
+        Assert.Equal(
+            "Publish settings schedule offset hours must be omitted unless post status is 'future'.",
+            ActionResultAssertions.BadRequestMessage(error));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void TryBuildCreateCommand_WordPressFuturePostStatusWithNonPositiveOffset_ReturnsBadRequest(
+        int scheduleOffsetHours)
+    {
+        var request = new CreatePlatformRequest(
+            "Main WordPress site",
+            "WordPress",
+            null,
+            WordPressPayload(
+                applicationPassword: "application-password",
+                postStatus: DomainWordPressSettings.ScheduledPostStatus,
+                scheduleOffsetHours: scheduleOffsetHours),
+            PublishingPayload());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
+
+        Assert.False(built);
+        Assert.Equal(
+            "Publish settings schedule offset hours must be greater than zero.",
             ActionResultAssertions.BadRequestMessage(error));
     }
 
@@ -280,6 +394,8 @@ public sealed class PlatformsApiCommandTests
         var settings = Assert.IsType<WordPressSettings>(command.PublishSettings);
         Assert.Equal("stored-password", settings.ApplicationPassword);
         Assert.Equal("draft", settings.PostStatus);
+        Assert.False(settings.Sticky);
+        Assert.Null(settings.ScheduleOffsetHours);
         Assert.Equal(SchedulingSampleIds.TitleTemplateId, command.PublishingContent.TitleTemplateId);
         Assert.Equal(
             SchedulingSampleIds.DescriptionTemplateId,

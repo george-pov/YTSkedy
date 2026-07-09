@@ -74,6 +74,7 @@ public sealed class PublishEventPlatformApiTests
     [InlineData(PublishResultStatus.PlatformNotFound, StatusCodes.Status404NotFound)]
     [InlineData(PublishResultStatus.PastStart, StatusCodes.Status400BadRequest)]
     [InlineData(PublishResultStatus.InvalidPublishingContent, StatusCodes.Status409Conflict)]
+    [InlineData(PublishResultStatus.InvalidProviderPublishSettings, StatusCodes.Status409Conflict)]
     [InlineData(PublishResultStatus.AlreadyPublished, StatusCodes.Status409Conflict)]
     [InlineData(PublishResultStatus.PublishInProgress, StatusCodes.Status409Conflict)]
     [InlineData(PublishResultStatus.PlatformDeleted, StatusCodes.Status409Conflict)]
@@ -89,6 +90,20 @@ public sealed class PublishEventPlatformApiTests
             PlatformId);
 
         Assert.Equal(expectedStatusCode, ActionResultAssertions.StatusCode(actionResult));
+    }
+
+    [Fact]
+    public void ToResult_InvalidProviderPublishSettings_Returns409WithConcreteMessage()
+    {
+        var actionResult = PublishEventPlatformApi.ToResult(
+            PublishResult.ForStatus(PublishResultStatus.InvalidProviderPublishSettings),
+            CalendarEventId,
+            PlatformId);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(actionResult);
+        Assert.Equal(
+            "The platform publish settings are not valid for this calendar event.",
+            conflict.Value);
     }
 
     [Fact]

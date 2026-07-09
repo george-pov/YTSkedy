@@ -201,9 +201,16 @@ internal static class PublishSettingsSerializer
     private sealed record WordPressSnapshot(
         string SiteUrl,
         string Username,
-        string PostStatus)
+        string PostStatus,
+        bool Sticky,
+        int? ScheduleOffsetHours)
     {
         internal static WordPressSnapshot From(WordPressSettings settings) =>
-            new(settings.SiteUrl, settings.Username, settings.PostStatus);
+            new(
+                settings.SiteUrl,
+                settings.Username,
+                settings.PostStatus,
+                settings.Sticky,
+                settings.ScheduleOffsetHours);
     }
 }

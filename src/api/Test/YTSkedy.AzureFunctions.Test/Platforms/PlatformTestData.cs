@@ -29,7 +29,9 @@ internal static class PlatformTestData
         string? siteUrl = "https://example.com",
         string? username = "editor",
         string? applicationPassword = null,
-        string? postStatus = "publish") =>
+        string? postStatus = "publish",
+        bool? sticky = null,
+        int? scheduleOffsetHours = null) =>
         new(
             null,
             null,
@@ -37,7 +39,9 @@ internal static class PlatformTestData
             siteUrl,
             username,
             applicationPassword,
-            postStatus);
+            postStatus,
+            sticky,
+            scheduleOffsetHours);
 
     public static PublishingContentPayload PublishingPayload(
         string? titleTemplateId = SchedulingSampleIds.TitleTemplateId,
@@ -67,8 +71,16 @@ internal static class PlatformTestData
 
     public static WordPressSettings WordPressSettings(
         string applicationPassword = "application-password",
-        string postStatus = "publish") =>
-        new("https://example.com", "editor", applicationPassword, postStatus);
+        string postStatus = "publish",
+        bool sticky = false,
+        int? scheduleOffsetHours = null) =>
+        new(
+            "https://example.com",
+            "editor",
+            applicationPassword,
+            postStatus,
+            sticky,
+            scheduleOffsetHours);
 
     public static CreatePlatformCommand WordPressCreateCommand(
         string? referenceKey = "company-blog",
@@ -103,6 +115,8 @@ internal static class PlatformTestData
         Assert.Equal("https://example.com", response.SiteUrl);
         Assert.Equal("editor", response.Username);
         Assert.Equal(postStatus, response.PostStatus);
+        Assert.False(response.Sticky);
+        Assert.Null(response.ScheduleOffsetHours);
         Assert.True(response.ApplicationPasswordConfigured);
         Assert.Equal("*******", response.PasswordDisplayValue);
 

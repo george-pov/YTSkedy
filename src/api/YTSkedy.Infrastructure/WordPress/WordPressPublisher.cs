@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Providers;
 using YTSkedy.Scheduling.Domain.Platforms;
@@ -19,15 +20,18 @@ public sealed class WordPressPublisher : IPlatformPublisher
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient httpClient;
     private readonly WordPressEndpointResolver endpointResolver;
+    private readonly TimeProvider timeProvider;
     private readonly ILogger<WordPressPublisher> logger;
 
     public WordPressPublisher(
         HttpClient httpClient,
         WordPressEndpointResolver endpointResolver,
+        TimeProvider timeProvider,
         ILogger<WordPressPublisher> logger)
     {
         this.httpClient = httpClient;
         this.endpointResolver = endpointResolver;
+        this.timeProvider = timeProvider;
         this.logger = logger;
     }
 
@@ -46,6 +50,7 @@ public sealed class WordPressPublisher : IPlatformPublisher
         }
 
         Uri? endpoint = null;
+        var postRequest = CreatePostRequest(request, settings);
 
         try
         {
@@ -54,10 +59,7 @@ public sealed class WordPressPublisher : IPlatformPublisher
             using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
                 Content = JsonContent.Create(
-                    new WordPressPostRequest(
-                        request.Title,
-                        request.Description ?? string.Empty,
-                        settings.PostStatus),
+                    postRequest,
                     options: JsonOptions)
             };
             httpRequest.Headers.Authorization =
@@ -154,10 +156,57 @@ public sealed class WordPressPublisher : IPlatformPublisher
             host);
     }
 
+    private WordPressPostRequest CreatePostRequest(
+        PlatformPublishRequest request,
+        WordPressSettings settings)
+    {
+        string? dateGmt = null;
+        if (settings.PostStatus == WordPressSettings.ScheduledPostStatus)
+        {
+            var scheduledPostUtc = GetScheduledPostUtc(request, settings);
+            if (scheduledPostUtc <= timeProvider.GetUtcNow())
+            {
+                logger.LogWarning(
+                    "WordPress scheduled post time {ScheduledPostUtc} for calendar event " +
+                    "{CalendarEventId} and platform {PlatformId} is not in the future.",
+                    scheduledPostUtc,
+                    request.CalendarEventId,
+                    request.PlatformId);
+
+                throw new PlatformPublishValidationException(
+                    "WordPress scheduled post time must be in the future.");
+            }
+
+            dateGmt = FormatDateGmt(scheduledPostUtc);
+        }
+
+        return new WordPressPostRequest(
+            request.Title,
+            request.Description ?? string.Empty,
+            settings.PostStatus,
+            settings.Sticky,
+            dateGmt);
+    }
+
+    private static DateTimeOffset GetScheduledPostUtc(
+        PlatformPublishRequest request,
+        WordPressSettings settings) =>
+        request.ScheduledStartUtc -
+        TimeSpan.FromHours(settings.ScheduleOffsetHours!.Value);
+
+    private static string FormatDateGmt(DateTimeOffset scheduledPostUtc) =>
+        scheduledPostUtc
+            .UtcDateTime
+            .ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+
     private sealed record WordPressPostRequest(
         string Title,
         string Content,
-        string Status);
+        string Status,
+        bool Sticky,
+        [property: JsonPropertyName("date_gmt")]
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        string? DateGmt);
 
     private sealed record WordPressPostResponse(long? Id, string? Link);
 }

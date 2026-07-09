@@ -13,7 +13,9 @@ internal sealed record PublishSettingsPayload(
     string? SiteUrl,
     string? Username,
     string? ApplicationPassword,
-    string? PostStatus);
+    string? PostStatus,
+    bool? Sticky = null,
+    int? ScheduleOffsetHours = null);
 
 internal sealed record YouTubeCredentialsPayload(
     string? ClientId,

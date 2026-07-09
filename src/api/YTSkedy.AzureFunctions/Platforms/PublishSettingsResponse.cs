@@ -20,6 +20,10 @@ internal sealed record PublishSettingsResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? PostStatus,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    bool? Sticky,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    int? ScheduleOffsetHours,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     bool? ApplicationPasswordConfigured,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? PasswordDisplayValue);

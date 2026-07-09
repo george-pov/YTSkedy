@@ -2,6 +2,7 @@ using System.Text.Json;
 using YTSkedy.AzureFunctions.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
 using static YTSkedy.AzureFunctions.Test.Platforms.PlatformTestData;
+using DomainWordPressSettings = YTSkedy.Scheduling.Domain.Platforms.WordPressSettings;
 
 namespace YTSkedy.AzureFunctions.Test.Platforms;
 
@@ -17,7 +18,10 @@ public sealed class PlatformJsonContractTests
             "Main WordPress site",
             PlatformType.WordPress,
             "company-blog",
-            WordPressSettings(postStatus: "draft"),
+            WordPressSettings(
+                postStatus: DomainWordPressSettings.ScheduledPostStatus,
+                sticky: true,
+                scheduleOffsetHours: 25),
             RequiredPublishingContent());
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
@@ -27,6 +31,13 @@ public sealed class PlatformJsonContractTests
         Assert.Equal(
             "https://example.com",
             document.RootElement.GetProperty("publishSettings").GetProperty("siteUrl").GetString());
+        Assert.Equal(
+            DomainWordPressSettings.ScheduledPostStatus,
+            document.RootElement.GetProperty("publishSettings").GetProperty("postStatus").GetString());
+        Assert.True(document.RootElement.GetProperty("publishSettings").GetProperty("sticky").GetBoolean());
+        Assert.Equal(
+            25,
+            document.RootElement.GetProperty("publishSettings").GetProperty("scheduleOffsetHours").GetInt32());
         Assert.DoesNotContain("applicationPassword\":\"", json);
         Assert.DoesNotContain("application-password", json);
     }
