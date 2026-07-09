@@ -19,6 +19,7 @@ import { Button } from 'src/app/shared/components/button/button';
 import { DataTable, DataTableState } from 'src/app/shared/components/data-table/data-table';
 import { DataTableCell } from 'src/app/shared/components/data-table/data-table-cell';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
+import { formatUtcDateTime } from 'src/app/shared/date-time/date-time-format';
 import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
 import { Router, RouterLink } from '@angular/router';
@@ -120,26 +121,12 @@ export class CalendarEvents implements OnInit {
   }
 }
 
-// Presentation-only formatting of the UTC scheduled start as
-// `YYYY-MM-DD HH:mm`. The value is the API's ISO-8601 instant; normalizing
-// through Date and reading the UTC components renders the instant in UTC
-// regardless of the browser's local zone. Sorting is server-side and unaffected;
-// see `toSortField` and the data-table `server` mode. Falls back to the raw
-// value if it cannot be parsed.
+// Presentation-only formatting of the API's ISO-8601 scheduled-start instant.
+// The shared formatter renders in UTC regardless of the browser's local zone.
+// Sorting is server-side and unaffected; see `toSortField` and the data-table
+// `server` mode. Falls back to the raw value if it cannot be parsed.
 function formatScheduledStartUtc(scheduledStartUtc: string): string {
-  const instant = new Date(scheduledStartUtc);
-
-  if (Number.isNaN(instant.getTime())) {
-    return scheduledStartUtc;
-  }
-
-  const pad = (value: number): string => value.toString().padStart(2, '0');
-
-  return (
-    `${instant.getUTCFullYear()}-${pad(instant.getUTCMonth() + 1)}-` +
-    `${pad(instant.getUTCDate())} ${pad(instant.getUTCHours())}:` +
-    `${pad(instant.getUTCMinutes())}`
-  );
+  return formatUtcDateTime(Date.parse(scheduledStartUtc)) || scheduledStartUtc;
 }
 
 // Maps a table column key to its API sort field. Only the sortable columns are

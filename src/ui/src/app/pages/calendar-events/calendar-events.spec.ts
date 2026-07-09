@@ -58,7 +58,7 @@ describe('CalendarEvents', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Scheduled Start (UTC)');
     expect(text).toContain('Title');
-    expect(text).toContain('2026-06-06 17:00');
+    expect(text).toContain('Saturday, June 6, 2026 5:00 PM');
     expect(text).not.toContain('Time Zone');
     expect(text).toContain('Stream title 1');
     expect(text).not.toContain('Description for stream 1');

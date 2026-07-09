@@ -31,9 +31,11 @@ The Angular frontend lives under `src/ui/`.
   Rows use the data table hover-highlight option and activate the details/edit
   route. The title display uses the backend `displayTitle` field, is also a
   link to the details/edit route, and is the source for `title` sorting.
-  The scheduled start is rendered as the UTC instant; local time and zone are
-  shown on the create/edit form. Publishing is platform-scoped and is exposed
-  from the calendar event details edit route.
+  The scheduled start is rendered as the UTC instant using the shared long
+  English date-time format, for example
+  `Monday, June 15, 2009 10:15 AM`; local time and zone are shown on the
+  create/edit form. Publishing is platform-scoped and is exposed from the
+  calendar event details edit route.
 - The `platforms` page route lists, creates, updates, and deletes configured
   publishing destinations through the platforms API service. It shows and edits
   each platform's optional Reference key, and exposes YouTube and WordPress

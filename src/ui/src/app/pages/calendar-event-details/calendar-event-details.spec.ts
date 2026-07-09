@@ -495,7 +495,7 @@ describe('CalendarEventDetails', () => {
     // 10:00 in America/Vancouver (PDT, UTC-7) is 17:00 UTC.
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Scheduled start (UTC)');
-    expect(text).toContain('2030-07-04 17:00');
+    expect(text).toContain('Thursday, July 4, 2030 5:00 PM');
   });
 
   it('does not show a delete button in create mode', () => {
@@ -583,7 +583,7 @@ describe('CalendarEventDetails', () => {
       // Local start is 09:30 Europe/London in July (BST, UTC+1) = 08:30 UTC.
       const text = fixture.nativeElement.textContent;
       expect(text).toContain('Scheduled start (UTC)');
-      expect(text).toContain('2030-07-04 08:30');
+      expect(text).toContain('Thursday, July 4, 2030 8:30 AM');
     });
 
     it('does not show edit-mode save scope copy for an editable event', () => {
@@ -1065,7 +1065,9 @@ describe('CalendarEventDetails', () => {
       fixture.detectChanges();
 
       expect(fixture.nativeElement.textContent).toContain('Scheduled start (UTC)');
-      expect(fixture.nativeElement.textContent).toContain('2030-07-05 17:00');
+      expect(fixture.nativeElement.textContent).toContain(
+        'Friday, July 5, 2030 5:00 PM',
+      );
     });
 
     it('disables unchanged edit-mode Save', () => {
