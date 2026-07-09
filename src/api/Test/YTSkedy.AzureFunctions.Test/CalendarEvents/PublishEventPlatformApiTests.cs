@@ -3,13 +3,15 @@ using Microsoft.AspNetCore.Mvc;
 using YTSkedy.AzureFunctions.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.Scheduling.TestSupport;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
 
 public sealed class PublishEventPlatformApiTests
 {
-    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
-    private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
+    private const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
+    private const string PlatformId = SchedulingSampleIds.PlatformId;
 
     [Fact]
     public void ToResult_Published_Returns200WithPublishBody()
@@ -75,7 +77,6 @@ public sealed class PublishEventPlatformApiTests
     [InlineData(PublishResultStatus.PlatformDeleted, StatusCodes.Status409Conflict)]
     [InlineData(PublishResultStatus.ProviderNotSupported, StatusCodes.Status501NotImplemented)]
     [InlineData(PublishResultStatus.ProviderFailed, StatusCodes.Status502BadGateway)]
-    [InlineData(PublishResultStatus.FinalizeFailed, StatusCodes.Status500InternalServerError)]
     public void ToResult_FailureStatus_MapsToStatusCode(
         PublishResultStatus status,
         int expectedStatusCode)
@@ -85,14 +86,23 @@ public sealed class PublishEventPlatformApiTests
             CalendarEventId,
             PlatformId);
 
-        var statusCode = actionResult switch
-        {
-            ObjectResult objectResult => objectResult.StatusCode,
-            StatusCodeResult statusCodeResult => statusCodeResult.StatusCode,
-            _ => null
-        };
+        Assert.Equal(expectedStatusCode, ActionResultAssertions.StatusCode(actionResult));
+    }
 
-        Assert.Equal(expectedStatusCode, statusCode);
+    [Fact]
+    public void ToResult_FinalizeFailed_Returns500WithExplicitMessage()
+    {
+        var actionResult = PublishEventPlatformApi.ToResult(
+            PublishResult.ForStatus(PublishResultStatus.FinalizeFailed),
+            CalendarEventId,
+            PlatformId);
+
+        var body = Assert.IsType<ObjectResult>(actionResult);
+        Assert.Equal(StatusCodes.Status500InternalServerError, body.StatusCode);
+        Assert.Equal(
+            "Publishing calendar event 'f81d4fae7dec11d0a76500a0c91e6bf6' to platform " +
+            "'4fb4a32f3f344de1a7c3a9f4a2f94918' failed while finalizing publication state.",
+            body.Value);
     }
 
     private static PublishResult PublishedResult(

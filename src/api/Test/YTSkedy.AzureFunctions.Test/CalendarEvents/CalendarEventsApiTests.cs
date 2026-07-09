@@ -4,13 +4,14 @@ using YTSkedy.AzureFunctions.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
+using YTSkedy.Scheduling.TestSupport;
 using YTSkedy.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
 
 public sealed class CalendarEventsApiTests
 {
-    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
+    private const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
     private const string InvalidTextsMessage = "Text entries must each have a field key and value.";
 
     public static TheoryData<object, string> InvalidCreateRequests =>
@@ -234,16 +235,15 @@ public sealed class CalendarEventsApiTests
     }
 
     private static CalendarEventView CreateEvent() =>
-        new(
-            CalendarEventId,
-            new ScheduledStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
-            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
-            EventTextSnapshot.Create(
-                EventTextFields.Default,
-                [
-                    new EventTextValue("text1", "English stream 1"),
-                    new EventTextValue("text2", "Event description")
-                ]));
+        SchedulingSamples.CalendarEvent(
+            calendarEventId: CalendarEventId,
+            scheduledStartUtc: new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            start: SchedulingSamples.ScheduledStart(
+                new DateTime(2026, 6, 15, 10, 0, 0),
+                "America/Vancouver"),
+            text: SchedulingSamples.Text(
+                title: "English stream 1",
+                description: "Event description"));
 
     private sealed class FakeCalendarEventReader(
         IReadOnlyList<CalendarEventView> items) : ICalendarEventReader

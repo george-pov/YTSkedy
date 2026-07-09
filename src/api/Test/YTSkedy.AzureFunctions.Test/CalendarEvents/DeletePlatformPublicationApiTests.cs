@@ -3,13 +3,15 @@ using Microsoft.AspNetCore.Mvc;
 using YTSkedy.AzureFunctions.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.Scheduling.TestSupport;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
 
 public sealed class DeletePlatformPublicationApiTests
 {
-    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
-    private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
+    private const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
+    private const string PlatformId = SchedulingSampleIds.PlatformId;
 
     [Theory]
     [InlineData(DeletePublicationStatus.Deleted)]
@@ -51,14 +53,7 @@ public sealed class DeletePlatformPublicationApiTests
             CalendarEventId,
             PlatformId);
 
-        var statusCode = actionResult switch
-        {
-            ObjectResult objectResult => objectResult.StatusCode,
-            StatusCodeResult statusCodeResult => statusCodeResult.StatusCode,
-            _ => null
-        };
-
-        Assert.Equal(expectedStatusCode, statusCode);
+        Assert.Equal(expectedStatusCode, ActionResultAssertions.StatusCode(actionResult));
     }
 
     private static EventPlatformView NotPublishedRow() =>

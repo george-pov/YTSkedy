@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using YTSkedy.AzureFunctions.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
 
 public sealed class UpdateCalendarEventResultTests
 {
-    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
+    private const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
 
     [Fact]
     public void ToUpdateResult_Updated_Returns200()

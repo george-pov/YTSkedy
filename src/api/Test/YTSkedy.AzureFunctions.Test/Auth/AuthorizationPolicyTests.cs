@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Identity.Web.Resource;
 using AuthorizationPolicy = YTSkedy.AzureFunctions.Auth.AuthorizationPolicy;
 using YTSkedy.AzureFunctions.Auth;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.Auth;
 
@@ -18,14 +19,13 @@ public sealed class AuthorizationPolicyTests
     private const string ReadScope = "CalendarEvents.Read";
     private const string WriteScope = "CalendarEvents.Write";
     private const string OperatorRole = "CalendarEvents.Operator";
-    private const string ScopeSchemaClaim = "http://schemas.microsoft.com/identity/claims/scope";
 
     private static readonly string[] ReadOnly = [ReadScope];
 
     [Fact]
     public void Evaluate_PrincipalWithRequiredScopeAndRole_Allow()
     {
-        var user = NewPrincipal(scopeClaim: ReadScope, roles: [OperatorRole]);
+        var user = ClaimsPrincipalFactory.WithRawClaims(ReadScope, OperatorRole);
 
         var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
@@ -35,7 +35,7 @@ public sealed class AuthorizationPolicyTests
     [Fact]
     public void Evaluate_PrincipalWithRoleButMissingScope_InsufficientScope()
     {
-        var user = NewPrincipal(scopeClaim: WriteScope, roles: [OperatorRole]);
+        var user = ClaimsPrincipalFactory.WithRawClaims(WriteScope, OperatorRole);
 
         var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
@@ -45,7 +45,7 @@ public sealed class AuthorizationPolicyTests
     [Fact]
     public void Evaluate_PrincipalWithScopeButNoRole_MissingRole()
     {
-        var user = NewPrincipal(scopeClaim: ReadScope, roles: []);
+        var user = ClaimsPrincipalFactory.WithRawClaims(ReadScope);
 
         var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
@@ -55,7 +55,7 @@ public sealed class AuthorizationPolicyTests
     [Fact]
     public void Evaluate_PrincipalWithScopeButWrongRole_MissingRole()
     {
-        var user = NewPrincipal(scopeClaim: ReadScope, roles: ["CalendarEvents.Reader"]);
+        var user = ClaimsPrincipalFactory.WithRawClaims(ReadScope, "CalendarEvents.Reader");
 
         var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
@@ -82,9 +82,9 @@ public sealed class AuthorizationPolicyTests
     {
         // Entra emits delegated scopes as a single space-separated string
         // in `scp` (e.g. "CalendarEvents.Read CalendarEvents.Write").
-        var user = NewPrincipal(
-            scopeClaim: $"{ReadScope} {WriteScope}",
-            roles: [OperatorRole]);
+        var user = ClaimsPrincipalFactory.WithRawClaims(
+            $"{ReadScope} {WriteScope}",
+            OperatorRole);
 
         var result = AuthorizationPolicy.Evaluate(
             new[] { WriteScope },
@@ -99,10 +99,7 @@ public sealed class AuthorizationPolicyTests
     {
         // Microsoft.Identity.Web's claim mapping can surface scopes under
         // the long schema URL instead of the short `scp` name.
-        var identity = new ClaimsIdentity(authenticationType: "test");
-        identity.AddClaim(new Claim(ScopeSchemaClaim, ReadScope));
-        identity.AddClaim(new Claim("roles", OperatorRole));
-        var user = new ClaimsPrincipal(identity);
+        var user = ClaimsPrincipalFactory.WithSchemaScope(ReadScope, OperatorRole);
 
         var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
@@ -115,7 +112,7 @@ public sealed class AuthorizationPolicyTests
         // Defensive contract: an endpoint that accepts zero scopes (no
         // RequiredScope attribute or an empty AcceptedScope) does not
         // require a scope, but still requires the role.
-        var user = NewPrincipal(scopeClaim: null, roles: [OperatorRole]);
+        var user = ClaimsPrincipalFactory.WithRawClaims(scopeClaim: null, OperatorRole);
 
         var result = AuthorizationPolicy.Evaluate([], OperatorRole, user);
 
@@ -127,7 +124,7 @@ public sealed class AuthorizationPolicyTests
     {
         // Defensive contract: if Auth:RequiredAppRole is unset, only the
         // scope is enforced.
-        var user = NewPrincipal(scopeClaim: ReadScope, roles: []);
+        var user = ClaimsPrincipalFactory.WithRawClaims(ReadScope);
 
         var result = AuthorizationPolicy.Evaluate(ReadOnly, requiredRole: "", user);
 
@@ -139,35 +136,11 @@ public sealed class AuthorizationPolicyTests
     {
         // Microsoft.Identity.Web maps `roles` to ClaimTypes.Role so
         // IsInRole works against a mapped principal.
-        var identity = new ClaimsIdentity(
-            authenticationType: "test",
-            nameType: ClaimsIdentity.DefaultNameClaimType,
-            roleType: ClaimTypes.Role);
-        identity.AddClaim(new Claim("scp", ReadScope));
-        identity.AddClaim(new Claim(ClaimTypes.Role, OperatorRole));
-        var user = new ClaimsPrincipal(identity);
+        var user = ClaimsPrincipalFactory.WithMappedRole(ReadScope, OperatorRole);
 
         var result = AuthorizationPolicy.Evaluate(ReadOnly, OperatorRole, user);
 
         Assert.Equal(AzureFunctions.Auth.AuthorizationResult.Allow, result);
-    }
-
-    private static ClaimsPrincipal NewPrincipal(string? scopeClaim, string[] roles)
-    {
-        // Production tokens land in the worker via Microsoft.Identity.Web's
-        // claim mapping. Force the raw claim names ("scp", "roles") rather
-        // than the mapped ClaimTypes so tests catch any future regression
-        // in the policy's raw-claim fallback.
-        var identity = new ClaimsIdentity(authenticationType: "test");
-        if (scopeClaim is not null)
-        {
-            identity.AddClaim(new Claim("scp", scopeClaim));
-        }
-        foreach (var role in roles)
-        {
-            identity.AddClaim(new Claim("roles", role));
-        }
-        return new ClaimsPrincipal(identity);
     }
 }
 
@@ -209,7 +182,7 @@ public sealed class AuthorizationPolicyMethodInfoTests
         // endpoint's true scope requirement is unknown. Previously the missing
         // [RequiredScope] read as "no scope required" and the request fell
         // through to a role-only check.
-        var user = NewPrincipal(scopeClaim: ReadScope, roles: [OperatorRole]);
+        var user = ClaimsPrincipalFactory.WithRawClaims(ReadScope, OperatorRole);
 
         var result = AuthorizationPolicy.Evaluate(method: null, OperatorRole, user);
 
@@ -221,7 +194,7 @@ public sealed class AuthorizationPolicyMethodInfoTests
     {
         // A future HTTP trigger landing without [RequiredScope] and
         // without [AllowAnonymous] must still pass the role gate.
-        var user = NewPrincipal(scopeClaim: null, roles: []);
+        var user = ClaimsPrincipalFactory.WithRawClaims(scopeClaim: null);
 
         var result = AuthorizationPolicy.Evaluate(
             MethodOf(nameof(SampleEndpoints.Bare)),
@@ -236,7 +209,7 @@ public sealed class AuthorizationPolicyMethodInfoTests
     {
         // The role gate is the only check; a principal with the operator
         // role passes even without any scope claim.
-        var user = NewPrincipal(scopeClaim: null, roles: [OperatorRole]);
+        var user = ClaimsPrincipalFactory.WithRawClaims(scopeClaim: null, OperatorRole);
 
         var result = AuthorizationPolicy.Evaluate(
             MethodOf(nameof(SampleEndpoints.Bare)),
@@ -264,7 +237,7 @@ public sealed class AuthorizationPolicyMethodInfoTests
     {
         // The scope is satisfied but the role is not; the existing
         // contract continues to apply through the MethodInfo overload.
-        var user = NewPrincipal(scopeClaim: ReadScope, roles: []);
+        var user = ClaimsPrincipalFactory.WithRawClaims(ReadScope);
 
         var result = AuthorizationPolicy.Evaluate(
             MethodOf(nameof(SampleEndpoints.ReadOnly)),
@@ -277,7 +250,7 @@ public sealed class AuthorizationPolicyMethodInfoTests
     [Fact]
     public void Evaluate_RequiredScopeMissing_DeniesWithInsufficientScope()
     {
-        var user = NewPrincipal(scopeClaim: WriteScope, roles: [OperatorRole]);
+        var user = ClaimsPrincipalFactory.WithRawClaims(WriteScope, OperatorRole);
 
         var result = AuthorizationPolicy.Evaluate(
             MethodOf(nameof(SampleEndpoints.ReadOnly)),
@@ -290,7 +263,7 @@ public sealed class AuthorizationPolicyMethodInfoTests
     [Fact]
     public void Evaluate_RequiredScopeAndRolePresent_Allows()
     {
-        var user = NewPrincipal(scopeClaim: ReadScope, roles: [OperatorRole]);
+        var user = ClaimsPrincipalFactory.WithRawClaims(ReadScope, OperatorRole);
 
         var result = AuthorizationPolicy.Evaluate(
             MethodOf(nameof(SampleEndpoints.ReadOnly)),
@@ -299,21 +272,6 @@ public sealed class AuthorizationPolicyMethodInfoTests
 
         Assert.Equal(AzureFunctions.Auth.AuthorizationResult.Allow, result);
     }
-
-    private static ClaimsPrincipal NewPrincipal(string? scopeClaim, string[] roles)
-    {
-        var identity = new ClaimsIdentity(authenticationType: "test");
-        if (scopeClaim is not null)
-        {
-            identity.AddClaim(new Claim("scp", scopeClaim));
-        }
-        foreach (var role in roles)
-        {
-            identity.AddClaim(new Claim("roles", role));
-        }
-        return new ClaimsPrincipal(identity);
-    }
-
     // Fixture standing in for handler methods on a Functions class. The
     // policy only reads attributes from the MethodInfo, so the bodies and
     // signatures here are intentionally trivial.

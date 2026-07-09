@@ -84,6 +84,13 @@ public sealed class PublishEventPlatformApi(PublishHandler publishHandler)
                 {
                     StatusCode = StatusCodes.Status502BadGateway
                 },
+            PublishResultStatus.FinalizeFailed =>
+                new ObjectResult(
+                    $"Publishing calendar event '{calendarEventId}' to platform '{platformId}' " +
+                    "failed while finalizing publication state.")
+                {
+                    StatusCode = StatusCodes.Status500InternalServerError
+                },
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
     }

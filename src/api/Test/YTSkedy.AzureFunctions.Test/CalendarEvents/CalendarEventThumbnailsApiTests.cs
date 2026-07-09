@@ -8,13 +8,14 @@ using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.Scheduling.TestSupport;
 using YTSkedy.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
 
 public sealed class CalendarEventThumbnailsApiTests
 {
-    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
+    private const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
     private static readonly DateTimeOffset Now =
         new(2026, 7, 6, 12, 0, 0, TimeSpan.Zero);
 
@@ -170,16 +171,13 @@ public sealed class CalendarEventThumbnailsApiTests
     }
 
     private static CalendarEventView CreateEvent() =>
-        new(
-            CalendarEventId,
-            new ScheduledStart(new DateTime(2026, 7, 10, 10, 0, 0), "UTC"),
-            new DateTimeOffset(2026, 7, 10, 10, 0, 0, TimeSpan.Zero),
-            EventTextSnapshot.Create(
-                EventTextFields.Default,
-                [
-                    new EventTextValue("text1", "Stream"),
-                    new EventTextValue("text2", "Description")
-                ]));
+        SchedulingSamples.CalendarEvent(
+            calendarEventId: CalendarEventId,
+            scheduledStartUtc: new DateTimeOffset(2026, 7, 10, 10, 0, 0, TimeSpan.Zero),
+            start: SchedulingSamples.ScheduledStart(
+                new DateTime(2026, 7, 10, 10, 0, 0),
+                "UTC"),
+            text: SchedulingSamples.Text(title: "Stream", description: "Description"));
 
     private static byte[] Png(int width, int height)
     {

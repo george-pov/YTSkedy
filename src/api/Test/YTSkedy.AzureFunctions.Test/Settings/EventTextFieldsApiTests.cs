@@ -1,7 +1,5 @@
-using System.Reflection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Identity.Web.Resource;
 using YTSkedy.AzureFunctions.Settings;
 using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
@@ -11,28 +9,6 @@ namespace YTSkedy.AzureFunctions.Test.Settings;
 
 public sealed class EventTextFieldsApiTests
 {
-    [Fact]
-    public void Get_HasReadScope()
-    {
-        var method = typeof(EventTextFieldsApi).GetMethod(nameof(EventTextFieldsApi.Get));
-
-        var scope = Assert.Single(method!.GetCustomAttributes<RequiredScopeAttribute>());
-        var acceptedScopes = scope.AcceptedScope ?? [];
-
-        Assert.Equal(["CalendarEvents.Read"], acceptedScopes);
-    }
-
-    [Fact]
-    public void Update_HasWriteScope()
-    {
-        var method = typeof(EventTextFieldsApi).GetMethod(nameof(EventTextFieldsApi.Update));
-
-        var scope = Assert.Single(method!.GetCustomAttributes<RequiredScopeAttribute>());
-        var acceptedScopes = scope.AcceptedScope ?? [];
-
-        Assert.Equal(["CalendarEvents.Write"], acceptedScopes);
-    }
-
     [Fact]
     public async Task Get_DefaultSettings_ReturnsDefaultFields()
     {

@@ -3,14 +3,15 @@ using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.Scheduling.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
 
 public sealed class GetCalendarEventDetailsResponseTests
 {
-    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
-    private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
-    private const string OrphanPlatformId = "8c1d77e0c0a04b2bb0d6f7a9e2c31845";
+    private const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
+    private const string PlatformId = SchedulingSampleIds.PlatformId;
+    private const string OrphanPlatformId = SchedulingSampleIds.OtherPlatformId;
 
     [Fact]
     public void ToDetailsResponse_MapsEventFieldsAndEmptyPlatforms()
@@ -213,14 +214,13 @@ public sealed class GetCalendarEventDetailsResponseTests
     }
 
     private static CalendarEventView CreateEvent() =>
-        new(
-            CalendarEventId,
-            new ScheduledStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
-            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
-            EventTextSnapshot.Create(
-                EventTextFields.Default,
-                [
-                    new EventTextValue("text1", "English stream 1"),
-                    new EventTextValue("text2", "Event description")
-                ]));
+        SchedulingSamples.CalendarEvent(
+            calendarEventId: CalendarEventId,
+            scheduledStartUtc: new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            start: SchedulingSamples.ScheduledStart(
+                new DateTime(2026, 6, 15, 10, 0, 0),
+                "America/Vancouver"),
+            text: SchedulingSamples.Text(
+                title: "English stream 1",
+                description: "Event description"));
 }
