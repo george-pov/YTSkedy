@@ -3,6 +3,7 @@ using System.Net;
 using YTSkedy.Infrastructure.Test.TestSupport;
 using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.TestSupport;
 

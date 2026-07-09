@@ -1,3 +1,4 @@
+using YTSkedy.Scheduling.Application.Platforms.Content;
 using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.Platforms;
 

@@ -16,7 +16,11 @@ using YTSkedy.Infrastructure.Templates;
 using YTSkedy.Infrastructure.WordPress;
 using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Content;
+using YTSkedy.Scheduling.Application.Platforms.Providers;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Application.Templates;
 

@@ -2,6 +2,7 @@ using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 
 namespace YTSkedy.Infrastructure.CalendarEvents;
 

@@ -1,4 +1,5 @@
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Providers;
 
 namespace YTSkedy.Infrastructure.Test;
 

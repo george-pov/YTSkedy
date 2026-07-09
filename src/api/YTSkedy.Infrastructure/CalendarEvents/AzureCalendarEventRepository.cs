@@ -2,6 +2,7 @@ using Azure;
 using Azure.Data.Tables;
 using System.Globalization;
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Infrastructure.CalendarEvents;

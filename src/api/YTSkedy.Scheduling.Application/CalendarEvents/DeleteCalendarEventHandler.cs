@@ -1,4 +1,5 @@
-using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
 
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
 

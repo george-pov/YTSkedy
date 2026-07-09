@@ -1,4 +1,5 @@
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Infrastructure.Platforms;

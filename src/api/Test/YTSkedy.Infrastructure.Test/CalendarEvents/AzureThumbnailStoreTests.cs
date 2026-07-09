@@ -1,5 +1,6 @@
 using YTSkedy.Infrastructure.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 
 namespace YTSkedy.Infrastructure.Test.CalendarEvents;
 

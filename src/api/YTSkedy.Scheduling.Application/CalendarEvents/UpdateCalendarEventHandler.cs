@@ -1,4 +1,5 @@
-using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.CalendarEvents.Starts;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Scheduling.Application.CalendarEvents;

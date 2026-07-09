@@ -1,3 +1,5 @@
+using YTSkedy.Scheduling.Application.Platforms.Publications;
+
 namespace YTSkedy.Scheduling.Application.Platforms;
 
 /// <summary>

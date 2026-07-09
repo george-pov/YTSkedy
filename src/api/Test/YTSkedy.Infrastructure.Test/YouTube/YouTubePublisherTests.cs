@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Providers;
 using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Infrastructure.Test.YouTube;

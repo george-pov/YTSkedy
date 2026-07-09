@@ -1,6 +1,7 @@
 using YTSkedy.Infrastructure.Platforms;
 using YTSkedy.Infrastructure.Test.TestSupport;
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.TestSupport;
 using YTSkedy.TestSupport;

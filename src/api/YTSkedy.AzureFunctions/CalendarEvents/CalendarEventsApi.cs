@@ -5,6 +5,7 @@ using Microsoft.Identity.Web.Resource;
 using YTSkedy.AzureFunctions.Http;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.AzureFunctions.CalendarEvents;

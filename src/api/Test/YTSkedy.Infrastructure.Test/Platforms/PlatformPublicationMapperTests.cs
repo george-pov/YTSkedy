@@ -1,6 +1,7 @@
-using YTSkedy.Scheduling.Application.Platforms;
-using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Infrastructure.Platforms;
+using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
+using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.TestSupport;
 
 namespace YTSkedy.Infrastructure.Test.Platforms;
