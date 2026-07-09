@@ -43,6 +43,9 @@ export class CalendarEventPlatformsState {
       this._deletingPublicationPlatformId() !== null ||
       this._previewingPlatformId() !== null,
   );
+  readonly actionsDisabled = computed(
+    () => this.hasActivePageMutation() || this.hasActiveMutation(),
+  );
   readonly showStoredValuesPreviewNote = computed(() => this.hasPendingEventChanges());
 
   constructor(

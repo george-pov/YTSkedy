@@ -92,7 +92,6 @@ describe('CalendarEventPlatforms', () => {
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Platforms');
     expect(text).toContain('Type');
     expect(text).toContain('Name');
     expect(text).toContain('Status');
@@ -245,6 +244,37 @@ describe('CalendarEventPlatforms', () => {
     expect(platformPreviewButton()!.disabled).toBe(true);
     expect(platformPublishButton()!.disabled).toBe(true);
     expect(platformDeletePublicationButton()!.disabled).toBe(true);
+  });
+
+  it('disables and ignores platform actions while a page mutation is active', async () => {
+    activePageMutation.set(true);
+    state.applyEventDetails(
+      sampleEvent({
+        platforms: [
+          draftPlatform(),
+          publishedPlatform({
+            platformId: 'platform-2',
+            platformName: 'Archive site',
+            platformType: 'WordPress',
+          }),
+        ],
+      }),
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(platformPreviewButton()!.disabled).toBe(true);
+    expect(platformPublishButton()!.disabled).toBe(true);
+    expect(platformDeletePublicationButton()!.disabled).toBe(true);
+
+    platformPreviewHosts()[0].dispatchEvent(new Event('click'));
+    platformPublishHosts()[0].dispatchEvent(new Event('click'));
+    platformDeletePublicationHosts()[0].dispatchEvent(new Event('click'));
+
+    expect(service.getPublishingContent).not.toHaveBeenCalled();
+    expect(service.publishPlatform).not.toHaveBeenCalled();
+    expect(confirmation.confirm).not.toHaveBeenCalled();
+    expect(service.deletePlatformPublication).not.toHaveBeenCalled();
   });
 
   it('exposes the publication-delete action label', async () => {

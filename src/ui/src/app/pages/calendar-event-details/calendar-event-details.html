@@ -74,7 +74,10 @@
         <app-thumbnail-editor [state]="thumbnailEditor" [isEditMode]="isEditMode" />
 
         @if (isEditMode) {
-          <app-calendar-event-platforms [state]="platformsState" />
+          <section class="section" aria-labelledby="platforms-heading">
+            <h2 id="platforms-heading" class="section-title">Platforms</h2>
+            <app-calendar-event-platforms [state]="platformsState" />
+          </section>
         }
 
         @if (saveErrorMessage(); as message) {

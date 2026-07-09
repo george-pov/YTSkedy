@@ -1,20 +1,9 @@
 @use 'src/styles/variables' as *;
 
-.section {
+:host {
   display: flex;
   flex-direction: column;
   gap: $app-space-4;
-  margin: 0;
-  padding: 1.25rem;
-  border: 1px solid $app-color-border;
-  border-radius: 8px;
-}
-
-.section-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: $app-color-text;
 }
 
 .platform-status {
