@@ -68,7 +68,7 @@ bytes. It reuses the same connection string lookup above. Its container name
 lookup is:
 
 1. `AzureStorage:ThumbnailsContainerName`
-2. Default: `CalendarEventThumbnails`
+2. Default: `calendar-event-thumbnails`
 
 For local development, use Azurite with `AzureWebJobsStorage` set to
 `UseDevelopmentStorage=true` in the ignored Azure Functions

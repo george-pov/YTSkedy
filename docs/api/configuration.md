@@ -225,7 +225,7 @@ The host registers a private Blob container client for calendar event thumbnail
 bytes. It uses the same connection string lookup as the table clients:
 
 1. `AzureStorage:ThumbnailsContainerName`
-2. Default: `CalendarEventThumbnails`
+2. Default: `calendar-event-thumbnails`
 
 The `ApplicationSettings` table stores application-owned settings such as the
 current event text fields list. It is not an Azure Functions host settings

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Logging;
 using YTSkedy.AzureFunctions.Auth;
+using YTSkedy.AzureFunctions.Configuration;
 using YTSkedy.Infrastructure.CalendarEvents;
 using YTSkedy.Infrastructure.Platforms;
 using YTSkedy.Infrastructure.Settings;
@@ -136,13 +137,9 @@ builder.Services.AddSingleton(_ =>
             "Azure Blob Storage connection string is not configured.");
     }
 
-    var containerName = builder.Configuration["AzureStorage:ThumbnailsContainerName"];
-    if (string.IsNullOrWhiteSpace(containerName))
-    {
-        containerName = "CalendarEventThumbnails";
-    }
-
-    return new BlobContainerClient(connectionString, containerName);
+    return new BlobContainerClient(
+        connectionString,
+        AzureStorageConfiguration.GetThumbnailsContainerName(builder.Configuration));
 });
 
 builder.Services.AddScoped<IThumbnailStore, AzureThumbnailStore>();
