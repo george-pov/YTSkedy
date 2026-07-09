@@ -1,7 +1,7 @@
 <section class="platforms">
   <header class="header">
     <h1>Platforms</h1>
-    <app-button (click)="newPlatform()">+ Add Platform</app-button>
+    <app-button icon="add" (click)="newPlatform()">Add Platform</app-button>
   </header>
 
   @if (showLoading()) {
@@ -53,9 +53,7 @@
             </div>
 
             @if (templateLoadFailed()) {
-              <app-alert variant="error">
-                Templates could not be loaded.
-              </app-alert>
+              <app-alert variant="error"> Templates could not be loaded. </app-alert>
             }
 
             <h2 class="settings-heading">Settings</h2>
@@ -120,8 +118,8 @@
           </form>
         } @else {
           <p class="app-col-md-7 app-pt-6 editor-empty">
-            Select a platform on the left to view and update its settings, or choose + Add Platform
-            to add one.
+            Select a platform on the left to view and update its settings, or choose Add Platform to
+            add one.
           </p>
         }
       </div>

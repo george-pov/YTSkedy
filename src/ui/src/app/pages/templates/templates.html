@@ -1,7 +1,7 @@
 <section class="templates">
   <header class="header">
     <h1>Templates</h1>
-    <app-button (click)="newTemplate()">+ Add Template</app-button>
+    <app-button icon="add" (click)="newTemplate()">Add Template</app-button>
   </header>
 
   @if (showLoading()) {
@@ -74,7 +74,7 @@
           </form>
         } @else {
           <p class="app-col-md-7 app-pt-6 editor-empty">
-            Select a template on the left to view and edit it, or choose + Add Template to add one.
+            Select a template on the left to view and edit it, or choose Add Template to add one.
           </p>
         }
       </div>

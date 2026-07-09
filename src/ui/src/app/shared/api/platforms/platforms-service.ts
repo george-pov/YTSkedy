@@ -3,13 +3,10 @@ import { inject, Injectable } from '@angular/core';
 import { catchError, map, Observable, throwError } from 'rxjs';
 
 import { APP_CONFIG } from 'src/app/shared/config/app-config';
+import type { PlatformType } from 'src/app/shared/platforms/platform-types';
 import { platformByIdUrl, platformsUrl } from './platforms-endpoint';
 
-/**
- * The external system a platform publishes to. The type is treated as immutable
- * after create because it drives which settings a platform carries.
- */
-export type PlatformType = 'YouTube' | 'WordPress';
+export type { PlatformType } from 'src/app/shared/platforms/platform-types';
 
 /** YouTube broadcast visibility. Mirrors the YouTube Data API privacy values. */
 export type YouTubePrivacyStatus = 'private' | 'public' | 'unlisted';

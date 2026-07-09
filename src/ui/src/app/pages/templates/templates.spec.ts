@@ -79,9 +79,7 @@ describe('Templates', () => {
   }
 
   function contentTextarea(): HTMLTextAreaElement {
-    return fixture.nativeElement.querySelector(
-      'app-input textarea',
-    ) as HTMLTextAreaElement;
+    return fixture.nativeElement.querySelector('app-input textarea') as HTMLTextAreaElement;
   }
 
   function buttonByText(text: string): HTMLButtonElement {
@@ -138,8 +136,8 @@ describe('Templates', () => {
 
     expect(service.list).toHaveBeenCalledTimes(1);
 
-    const headers = Array.from(fixture.nativeElement.querySelectorAll('th')).map(
-      (th) => (th as HTMLElement).textContent?.trim(),
+    const headers = Array.from(fixture.nativeElement.querySelectorAll('th')).map((th) =>
+      (th as HTMLElement).textContent?.trim(),
     );
     expect(headers).toEqual(['Type', 'Name']);
     expect(rows()).toHaveLength(2);
@@ -169,7 +167,7 @@ describe('Templates', () => {
 
     expect(editor()).toBeNull();
     expect(rows()).toHaveLength(0);
-    expect(buttonByText('+ Add Template')).not.toBeNull();
+    expect(buttonByText('Add Template')).not.toBeNull();
   });
 
   it('renders a load error when templates cannot be loaded', async () => {
@@ -201,7 +199,7 @@ describe('Templates', () => {
 
     await createComponent();
 
-    buttonByText('+ Add Template').click();
+    buttonByText('Add Template').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -216,13 +214,11 @@ describe('Templates', () => {
 
   it('creates a template on save and adds it to the list', async () => {
     service.list.mockReturnValue(of({ templates: [] }));
-    service.create.mockReturnValue(
-      of({ id: 'new-id', name: 'Weeknight stream', type: 'YouTube' }),
-    );
+    service.create.mockReturnValue(of({ id: 'new-id', name: 'Weeknight stream', type: 'YouTube' }));
 
     await createComponent();
 
-    buttonByText('+ Add Template').click();
+    buttonByText('Add Template').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -245,14 +241,10 @@ describe('Templates', () => {
   it('updates the selected template without changing its type', async () => {
     service.list.mockReturnValue(
       of({
-        templates: [
-          template({ id: 'id-1', name: 'New blog post', type: 'WordPress' }),
-        ],
+        templates: [template({ id: 'id-1', name: 'New blog post', type: 'WordPress' })],
       }),
     );
-    service.update.mockReturnValue(
-      of({ id: 'id-1', name: 'New blog post', type: 'WordPress' }),
-    );
+    service.update.mockReturnValue(of({ id: 'id-1', name: 'New blog post', type: 'WordPress' }));
 
     await createComponent();
     await selectRow(0);
@@ -270,9 +262,7 @@ describe('Templates', () => {
   });
 
   it('deletes the selected template and closes the editor', async () => {
-    service.list.mockReturnValue(
-      of({ templates: [template({ id: 'id-1', type: 'YouTube' })] }),
-    );
+    service.list.mockReturnValue(of({ templates: [template({ id: 'id-1', type: 'YouTube' })] }));
     service.delete.mockReturnValue(of(undefined));
 
     await createComponent();
@@ -297,7 +287,7 @@ describe('Templates', () => {
 
     await createComponent();
 
-    buttonByText('+ Add Template').click();
+    buttonByText('Add Template').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -316,9 +306,9 @@ describe('Templates', () => {
 
     await createComponent();
 
-    expect(buttonByText('+ Add Template')).not.toBeNull();
+    expect(buttonByText('Add Template')).not.toBeNull();
 
-    buttonByText('+ Add Template').click();
+    buttonByText('Add Template').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -337,7 +327,7 @@ describe('Templates', () => {
 
     await createComponent();
 
-    buttonByText('+ Add Template').click();
+    buttonByText('Add Template').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -445,7 +435,7 @@ describe('Templates', () => {
     await selectRow(0);
     await setValue(nameInput(), 'Dirty name');
 
-    buttonByText('+ Add Template').click();
+    buttonByText('Add Template').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -453,7 +443,7 @@ describe('Templates', () => {
     expect(nameInput().value).toBe('Dirty name');
 
     confirmation.confirm.mockReturnValue(of('discard'));
-    buttonByText('+ Add Template').click();
+    buttonByText('Add Template').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();

@@ -275,7 +275,7 @@ describe('Platforms', () => {
 
     expect(editor()).toBeNull();
     expect(rows()).toHaveLength(0);
-    expect(buttonByText('+ Add Platform')).not.toBeNull();
+    expect(buttonByText('Add Platform')).not.toBeNull();
   });
 
   it('uses the approved action copy', async () => {
@@ -283,9 +283,9 @@ describe('Platforms', () => {
 
     await createComponent();
 
-    expect(buttonByText('+ Add Platform')).not.toBeNull();
+    expect(buttonByText('Add Platform')).not.toBeNull();
 
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -304,7 +304,7 @@ describe('Platforms', () => {
 
     await createComponent();
 
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -374,7 +374,7 @@ describe('Platforms', () => {
     service.list.mockReturnValue(of({ platforms: [] }));
 
     await createComponent();
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -428,7 +428,7 @@ describe('Platforms', () => {
     );
 
     await createComponent();
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -503,7 +503,7 @@ describe('Platforms', () => {
     );
 
     await createComponent();
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -592,7 +592,7 @@ describe('Platforms', () => {
     );
 
     await createComponent();
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -803,7 +803,7 @@ describe('Platforms', () => {
     service.create.mockReturnValue(throwError(() => new PlatformNameConflictError()));
 
     await createComponent();
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -825,7 +825,7 @@ describe('Platforms', () => {
     service.list.mockReturnValue(of({ platforms: [] }));
 
     await createComponent();
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -850,7 +850,7 @@ describe('Platforms', () => {
     service.list.mockReturnValue(of({ platforms: [] }));
 
     await createComponent();
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -889,7 +889,7 @@ describe('Platforms', () => {
     );
 
     await createComponent();
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -915,7 +915,7 @@ describe('Platforms', () => {
     service.create.mockReturnValue(throwError(() => new PlatformReferenceKeyConflictError()));
 
     await createComponent();
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -1028,7 +1028,7 @@ describe('Platforms', () => {
     await selectRow(0);
     await setValue(nameInput(), 'Dirty channel');
 
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -1036,7 +1036,7 @@ describe('Platforms', () => {
     expect(nameInput().value).toBe('Dirty channel');
 
     confirmation.confirm.mockReturnValue(of('discard'));
-    buttonByText('+ Add Platform').click();
+    buttonByText('Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();

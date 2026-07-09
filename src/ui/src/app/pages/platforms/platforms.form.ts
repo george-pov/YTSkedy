@@ -8,25 +8,30 @@ import {
 
 import {
   CreatePlatformRequest,
+  Platform,
   PlatformPublishSettings,
   PublishingContent,
   PlatformType,
   UpdatePlatformRequest,
-  YouTubeCredentials,
-  YouTubePrivacyStatus,
-  WordPressPostStatus,
 } from 'src/app/shared/api/platforms/platforms-service';
 import { sameRequest } from 'src/app/shared/forms/request-comparison';
+import { defaultPlatformType } from 'src/app/shared/platforms/platform-types';
+import {
+  applyWordPressSettingsRules,
+  toWordPressPublishSettings,
+  withWordPressSettingsFormModel,
+  wordpressSettingsFormDefaults,
+} from './wordpress-settings/wordpress-settings.form';
+import {
+  applyYouTubeSettingsRules,
+  toYouTubePublishSettings,
+  withYouTubeSettingsFormModel,
+  youtubeSettingsFormDefaults,
+} from './youtube-settings/youtube-settings.form';
 
 export const nameMaxLength = 50;
 export const referenceKeyMaxLength = 15;
 export const referenceKeyPattern = /^[A-Za-z0-9-]*$/;
-export const youTubeClientIdMaxLength = 256;
-export const youTubeClientSecretMaxLength = 256;
-export const youTubeRefreshTokenMaxLength = 2048;
-export const wordPressSiteUrlMaxLength = 2048;
-export const wordPressUsernameMaxLength = 100;
-export const wordPressApplicationPasswordMaxLength = 512;
 
 /**
  * Editable fields of the platform editor. YouTube settings are flattened here
@@ -61,32 +66,19 @@ export interface PlatformFormModel {
 // valid, fully-supported option.
 export function createPlatformFormModel(): PlatformFormModel {
   return {
-    type: 'YouTube',
+    type: defaultPlatformType,
     name: '',
     referenceKey: '',
     titleTemplateId: '',
     descriptionTemplateId: '',
-    youTubeClientId: '',
-    youTubeClientSecret: '',
-    youTubeRefreshToken: '',
-    youTubeClientSecretConfigured: 'false',
-    youTubeRefreshTokenConfigured: 'false',
-    youTubeClientSecretDisplayValue: '',
-    youTubeRefreshTokenDisplayValue: '',
-    youTubePrivacyStatus: 'private',
-    youTubeMadeForKids: 'false',
-    wordPressSiteUrl: '',
-    wordPressUsername: '',
-    wordPressApplicationPassword: '',
-    wordPressPostStatus: 'draft',
-    wordPressApplicationPasswordConfigured: 'false',
-    wordPressPasswordDisplayValue: '',
+    ...youtubeSettingsFormDefaults,
+    ...wordpressSettingsFormDefaults,
   };
 }
 
-// Signal Forms rules for the platform editor. Type and name always apply; the
-// YouTube settings rules apply only while the selected type is YouTube so other
-// types (whose settings are not built yet) can still be saved.
+// Signal Forms rules for the platform editor. Type, name, reference key, and
+// publishing content always apply; provider settings rules apply only while
+// their platform type is selected.
 export function applyPlatformRules(path: SchemaPathTree<PlatformFormModel>): void {
   required(path.type, { message: 'Platform type is required.' });
 
@@ -122,124 +114,43 @@ export function applyPlatformRules(path: SchemaPathTree<PlatformFormModel>): voi
       : undefined,
   );
 
-  applyWhen(
-    path,
-    ({ value }) => value().type === 'YouTube',
-    (youTubePath) => {
-      validate(youTubePath.youTubeClientId, ({ value }) =>
-        value().trim().length === 0
-          ? { kind: 'required', message: 'Client ID is required.' }
-          : undefined,
-      );
-      maxLength(youTubePath.youTubeClientId, youTubeClientIdMaxLength, {
-        message: `Client ID must be at most ${youTubeClientIdMaxLength} characters.`,
-      });
+  applyWhen(path, ({ value }) => value().type === 'YouTube', applyYouTubeSettingsRules);
 
-      validate(youTubePath.youTubeClientSecret, ({ value, valueOf }) => {
-        const configured = valueOf(youTubePath.youTubeClientSecretConfigured);
-        if (configured !== 'true' && value().trim().length === 0) {
-          return { kind: 'required', message: 'Client secret is required.' };
-        }
-
-        return undefined;
-      });
-      maxLength(youTubePath.youTubeClientSecret, youTubeClientSecretMaxLength, {
-        message: `Client secret must be at most ${youTubeClientSecretMaxLength} characters.`,
-      });
-
-      validate(youTubePath.youTubeRefreshToken, ({ value, valueOf }) => {
-        const configured = valueOf(youTubePath.youTubeRefreshTokenConfigured);
-        if (configured !== 'true' && value().trim().length === 0) {
-          return { kind: 'required', message: 'Refresh token is required.' };
-        }
-
-        return undefined;
-      });
-      maxLength(youTubePath.youTubeRefreshToken, youTubeRefreshTokenMaxLength, {
-        message: `Refresh token must be at most ${youTubeRefreshTokenMaxLength} characters.`,
-      });
-    },
-  );
-
-  applyWhen(
-    path,
-    ({ value }) => value().type === 'WordPress',
-    (wordPressPath) => {
-      validate(wordPressPath.wordPressSiteUrl, ({ value }) =>
-        value().trim().length === 0
-          ? { kind: 'required', message: 'Site URL is required.' }
-          : undefined,
-      );
-      maxLength(wordPressPath.wordPressSiteUrl, wordPressSiteUrlMaxLength, {
-        message: `Site URL must be at most ${wordPressSiteUrlMaxLength} characters.`,
-      });
-
-      validate(wordPressPath.wordPressUsername, ({ value }) =>
-        value().trim().length === 0
-          ? { kind: 'required', message: 'Username is required.' }
-          : undefined,
-      );
-      maxLength(wordPressPath.wordPressUsername, wordPressUsernameMaxLength, {
-        message: `Username must be at most ${wordPressUsernameMaxLength} characters.`,
-      });
-
-      validate(wordPressPath.wordPressApplicationPassword, ({ value, valueOf }) => {
-        const configured = valueOf(wordPressPath.wordPressApplicationPasswordConfigured);
-        if (configured !== 'true' && value().trim().length === 0) {
-          return { kind: 'required', message: 'Application Password is required.' };
-        }
-
-        return undefined;
-      });
-      maxLength(wordPressPath.wordPressApplicationPassword, wordPressApplicationPasswordMaxLength, {
-        message: `Application Password must be at most ${wordPressApplicationPasswordMaxLength} characters.`,
-      });
-
-      validate(wordPressPath.wordPressPostStatus, ({ value }) =>
-        value() === 'publish' || value() === 'draft'
-          ? undefined
-          : { kind: 'required', message: 'Post status is required.' },
-      );
-    },
-  );
+  applyWhen(path, ({ value }) => value().type === 'WordPress', applyWordPressSettingsRules);
 }
 
-// Builds the type-specific settings, or undefined for types without modeled
-// settings yet (currently anything other than YouTube).
+export function toPlatformFormModel(platform: Platform): PlatformFormModel {
+  const model: PlatformFormModel = {
+    ...createPlatformFormModel(),
+    type: platform.type,
+    name: platform.name,
+    referenceKey: platform.referenceKey ?? '',
+    titleTemplateId: platform.publishingContent.titleTemplateId,
+    descriptionTemplateId: platform.publishingContent.descriptionTemplateId,
+  };
+
+  if (platform.type === 'YouTube') {
+    return withYouTubeSettingsFormModel(model, platform.publishSettings);
+  }
+
+  if (platform.type === 'WordPress') {
+    return withWordPressSettingsFormModel(model, platform.publishSettings);
+  }
+
+  return model;
+}
+
+// Builds the type-specific settings, or undefined for unsupported form types.
 function toPublishSettings(model: PlatformFormModel): PlatformPublishSettings | undefined {
   if (model.type === 'YouTube') {
-    const credentials: YouTubeCredentials = {
-      clientId: model.youTubeClientId.trim(),
-    };
-    const clientSecret = model.youTubeClientSecret.trim();
-    if (clientSecret.length > 0) {
-      credentials.clientSecret = clientSecret;
-    }
-
-    const refreshToken = model.youTubeRefreshToken.trim();
-    if (refreshToken.length > 0) {
-      credentials.refreshToken = refreshToken;
-    }
-
-    return {
-      credentials,
-      privacyStatus: model.youTubePrivacyStatus as YouTubePrivacyStatus,
-      selfDeclaredMadeForKids: model.youTubeMadeForKids === 'true',
-    };
+    return toYouTubePublishSettings(model);
   }
 
   if (model.type !== 'WordPress') {
     return undefined;
   }
 
-  const applicationPassword = model.wordPressApplicationPassword.trim();
-  const settings = {
-    siteUrl: model.wordPressSiteUrl.trim(),
-    username: model.wordPressUsername.trim(),
-    postStatus: model.wordPressPostStatus as WordPressPostStatus,
-  };
-
-  return applicationPassword.length === 0 ? settings : { ...settings, applicationPassword };
+  return toWordPressPublishSettings(model);
 }
 
 function toReferenceKey(value: string): string | null {

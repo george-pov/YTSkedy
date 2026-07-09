@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
+import { Platform } from 'src/app/shared/api/platforms/platforms-service';
 import {
   createPlatformFormModel,
   PlatformFormModel,
   sameCreatePlatformRequest,
   sameUpdatePlatformRequest,
   toCreatePlatformRequest,
+  toPlatformFormModel,
   toUpdatePlatformRequest,
 } from './platforms.form';
 
@@ -240,6 +242,93 @@ describe('platforms form request mapping', () => {
     ).toBe(false);
   });
 
+  it('maps YouTube response settings to the form without copying replacement secrets', () => {
+    const model = toPlatformFormModel(
+      platform({
+        publishSettings: {
+          credentials: {
+            clientId: 'client-id',
+            clientSecretConfigured: true,
+            refreshTokenConfigured: true,
+            clientSecretDisplayValue: '*********A3B',
+            refreshTokenDisplayValue: '*********Z9Y',
+          },
+          privacyStatus: 'unlisted',
+          selfDeclaredMadeForKids: true,
+        },
+      }),
+    );
+
+    expect(model).toMatchObject({
+      type: 'YouTube',
+      name: 'Main YouTube channel',
+      referenceKey: 'youTube1',
+      titleTemplateId: 'title-template',
+      descriptionTemplateId: 'description-template',
+      youTubeClientId: 'client-id',
+      youTubeClientSecret: '',
+      youTubeRefreshToken: '',
+      youTubeClientSecretConfigured: 'true',
+      youTubeRefreshTokenConfigured: 'true',
+      youTubeClientSecretDisplayValue: '*********A3B',
+      youTubeRefreshTokenDisplayValue: '*********Z9Y',
+      youTubePrivacyStatus: 'unlisted',
+      youTubeMadeForKids: 'true',
+    });
+  });
+
+  it('maps WordPress response settings to the form without copying replacement secrets', () => {
+    const model = toPlatformFormModel(
+      platform({
+        type: 'WordPress',
+        referenceKey: 'blog-1',
+        publishSettings: {
+          siteUrl: 'https://blog.example.test/',
+          username: 'publisher',
+          postStatus: 'publish',
+          applicationPasswordConfigured: true,
+          passwordDisplayValue: '*******',
+        },
+      }),
+    );
+
+    expect(model).toMatchObject({
+      type: 'WordPress',
+      referenceKey: 'blog-1',
+      wordPressSiteUrl: 'https://blog.example.test/',
+      wordPressUsername: 'publisher',
+      wordPressApplicationPassword: '',
+      wordPressPostStatus: 'publish',
+      wordPressApplicationPasswordConfigured: 'true',
+      wordPressPasswordDisplayValue: '*******',
+    });
+  });
+
+  it('falls back to create defaults when response settings are missing', () => {
+    const youTubeModel = toPlatformFormModel(platform({ publishSettings: undefined }));
+    const wordPressModel = toPlatformFormModel(
+      platform({ type: 'WordPress', publishSettings: undefined }),
+    );
+
+    expect(youTubeModel).toMatchObject({
+      youTubeClientId: '',
+      youTubeClientSecret: '',
+      youTubeRefreshToken: '',
+      youTubeClientSecretConfigured: 'false',
+      youTubeRefreshTokenConfigured: 'false',
+      youTubePrivacyStatus: 'private',
+      youTubeMadeForKids: 'false',
+    });
+    expect(wordPressModel).toMatchObject({
+      wordPressSiteUrl: '',
+      wordPressUsername: '',
+      wordPressApplicationPassword: '',
+      wordPressPostStatus: 'draft',
+      wordPressApplicationPasswordConfigured: 'false',
+      wordPressPasswordDisplayValue: '',
+    });
+  });
+
   function validModel(overrides: Partial<PlatformFormModel>): PlatformFormModel {
     return {
       ...createPlatformFormModel(),
@@ -247,6 +336,29 @@ describe('platforms form request mapping', () => {
       youTubeClientId: 'client-id',
       youTubeClientSecret: 'client-secret',
       youTubeRefreshToken: 'refresh-token',
+      ...overrides,
+    };
+  }
+
+  function platform(overrides: Partial<Platform> = {}): Platform {
+    return {
+      id: 'id-1',
+      name: 'Main YouTube channel',
+      referenceKey: 'youTube1',
+      type: 'YouTube',
+      publishingContent: {
+        titleTemplateId: 'title-template',
+        descriptionTemplateId: 'description-template',
+      },
+      publishSettings: {
+        credentials: {
+          clientId: 'client-id',
+          clientSecretConfigured: true,
+          refreshTokenConfigured: true,
+        },
+        privacyStatus: 'private',
+        selfDeclaredMadeForKids: false,
+      },
       ...overrides,
     };
   }

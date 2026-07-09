@@ -23,8 +23,9 @@ import { DataTableColumn } from 'src/app/shared/components/data-table/data-table
 import { Input } from 'src/app/shared/components/input/input';
 import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
-import { Select, SelectOption } from 'src/app/shared/components/select/select';
+import { Select } from 'src/app/shared/components/select/select';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
+import { platformTypeOptions } from 'src/app/shared/platforms/platform-types';
 import { type PendingChangesAware } from 'src/app/shared/routing/pending-changes-guard';
 import {
   applyTemplateRules,
@@ -70,10 +71,7 @@ export class Templates implements OnInit, PendingChangesAware {
     { key: 'name', header: 'Name', value: (template) => template.name },
   ];
 
-  protected readonly typeOptions: readonly SelectOption[] = [
-    { value: 'YouTube', label: 'YouTube' },
-    { value: 'WordPress', label: 'WordPress' },
-  ];
+  protected readonly typeOptions = platformTypeOptions;
 
   protected readonly model = signal<TemplateFormModel>(createTemplateFormModel());
   protected readonly form = form(this.model, applyTemplateRules);
