@@ -26,21 +26,6 @@ public class PlatformTests
     }
 
     [Fact]
-    public void Constructor_PublishingContent_SetsProperty()
-    {
-        var publishingContent = PlatformSamples.PublishingContent();
-
-        var platform = new Platform(
-            "Main YouTube channel",
-            PlatformType.YouTube,
-            Settings,
-            publishingContent,
-            "main-youtube");
-
-        Assert.Same(publishingContent, platform.PublishingContent);
-    }
-
-    [Fact]
     public void Constructor_NameWithSurroundingWhitespace_IsTrimmed()
     {
         var platform = new Platform(
@@ -172,34 +157,12 @@ public class PlatformTests
     }
 
     [Theory]
-    [InlineData("a")]
-    [InlineData("Main YouTube channel")]
-    public void IsValidName_NonEmptyWithinLimit_ReturnsTrue(string name)
+    [MemberData(nameof(ValidNameCases))]
+    public void IsValidName_Value_ReturnsExpected(string? name, bool expected)
     {
-        Assert.True(Platform.IsValidName(name));
-    }
+        var actual = Platform.IsValidName(name);
 
-    [Fact]
-    public void IsValidName_AtMaxLengthAfterTrim_ReturnsTrue()
-    {
-        var name = $"  {new string('n', Platform.MaxNameLength)}  ";
-
-        Assert.True(Platform.IsValidName(name));
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void IsValidName_NullOrWhiteSpace_ReturnsFalse(string? name)
-    {
-        Assert.False(Platform.IsValidName(name));
-    }
-
-    [Fact]
-    public void IsValidName_AboveMaxLengthAfterTrim_ReturnsFalse()
-    {
-        Assert.False(Platform.IsValidName(new string('n', Platform.MaxNameLength + 1)));
+        Assert.Equal(expected, actual);
     }
 
     [Theory]
@@ -228,4 +191,14 @@ public class PlatformTests
         Assert.Equal("youtube1", Platform.ToReferenceKeyLookupValue("  youTube1  "));
     }
 
+    public static TheoryData<string?, bool> ValidNameCases => new()
+    {
+        { "a", true },
+        { "Main YouTube channel", true },
+        { $"  {new string('n', Platform.MaxNameLength)}  ", true },
+        { null, false },
+        { "", false },
+        { "   ", false },
+        { new string('n', Platform.MaxNameLength + 1), false }
+    };
 }

@@ -4,57 +4,88 @@ namespace YTSkedy.Scheduling.Domain.Test.Platforms;
 
 public class PublicationTargetPolicyTests
 {
-    [Fact]
-    public void Matches_YouTubeClientIdMatches_ReturnsTrue()
+    public static TheoryData<MatchesCase> MatchesCases => new()
     {
-        var platform = PlatformSamples.PlatformView(
-            publishSettings: PlatformSamples.YouTubeSettings(clientId: "client-id"));
-        var snapshot = new PublicationTargetSnapshot(
-            PlatformType.YouTube,
-            WordPressSiteUrl: null,
-            YouTubeClientId: "client-id");
+        new(
+            "YouTubeClientIdMatches",
+            PlatformSamples.PlatformView(
+                publishSettings: PlatformSamples.YouTubeSettings(clientId: "client-id")),
+            new PublicationTargetSnapshot(
+                PlatformType.YouTube,
+                WordPressSiteUrl: null,
+                YouTubeClientId: "client-id"),
+            Expected: true),
+        new(
+            "YouTubeClientIdChanged",
+            PlatformSamples.PlatformView(
+                publishSettings: PlatformSamples.YouTubeSettings(clientId: "client-id")),
+            new PublicationTargetSnapshot(
+                PlatformType.YouTube,
+                WordPressSiteUrl: null,
+                YouTubeClientId: "other-client-id"),
+            Expected: false),
+        new(
+            "WordPressSiteUrlMatches",
+            PlatformSamples.PlatformView(
+                name: "Company blog",
+                type: PlatformType.WordPress,
+                publishSettings: PlatformSamples.WordPressSettings()),
+            new PublicationTargetSnapshot(
+                PlatformType.WordPress,
+                WordPressSiteUrl: "https://example.com",
+                YouTubeClientId: null),
+            Expected: true),
+        new(
+            "TypeChanged",
+            PlatformSamples.PlatformView(
+                publishSettings: PlatformSamples.YouTubeSettings(clientId: "client-id")),
+            new PublicationTargetSnapshot(
+                PlatformType.WordPress,
+                WordPressSiteUrl: "https://example.com",
+                YouTubeClientId: null),
+            Expected: false),
+        new(
+            "NullSnapshot",
+            PlatformSamples.PlatformView(),
+            Snapshot: null,
+            Expected: false),
+        new(
+            "WordPressSiteUrlChanged",
+            PlatformSamples.PlatformView(
+                name: "Company blog",
+                type: PlatformType.WordPress,
+                publishSettings: PlatformSamples.WordPressSettings()),
+            new PublicationTargetSnapshot(
+                PlatformType.WordPress,
+                WordPressSiteUrl: "https://other.example.com",
+                YouTubeClientId: null),
+            Expected: false),
+        new(
+            "BlankProviderIdentity",
+            PlatformSamples.PlatformView(
+                publishSettings: PlatformSamples.YouTubeSettings(clientId: "client-id")),
+            new PublicationTargetSnapshot(
+                PlatformType.YouTube,
+                WordPressSiteUrl: null,
+                YouTubeClientId: " "),
+            Expected: false)
+    };
 
-        Assert.True(PublicationTargetPolicy.Matches(platform, snapshot));
+    [Theory]
+    [MemberData(nameof(MatchesCases))]
+    public void Matches_State_ReturnsExpected(MatchesCase scenario)
+    {
+        var actual = PublicationTargetPolicy.Matches(scenario.Platform, scenario.Snapshot);
+
+        Assert.Equal(scenario.Expected, actual);
     }
 
-    [Fact]
-    public void Matches_YouTubeClientIdChanged_ReturnsFalse()
+    public sealed record MatchesCase(
+        string Name,
+        PlatformView Platform,
+        PublicationTargetSnapshot? Snapshot,
+        bool Expected)
     {
-        var platform = PlatformSamples.PlatformView(
-            publishSettings: PlatformSamples.YouTubeSettings(clientId: "client-id"));
-        var snapshot = new PublicationTargetSnapshot(
-            PlatformType.YouTube,
-            WordPressSiteUrl: null,
-            YouTubeClientId: "other-client-id");
-
-        Assert.False(PublicationTargetPolicy.Matches(platform, snapshot));
-    }
-
-    [Fact]
-    public void Matches_WordPressSiteUrlMatches_ReturnsTrue()
-    {
-        var platform = PlatformSamples.PlatformView(
-            name: "Company blog",
-            type: PlatformType.WordPress,
-            publishSettings: PlatformSamples.WordPressSettings());
-        var snapshot = new PublicationTargetSnapshot(
-            PlatformType.WordPress,
-            WordPressSiteUrl: "https://example.com",
-            YouTubeClientId: null);
-
-        Assert.True(PublicationTargetPolicy.Matches(platform, snapshot));
-    }
-
-    [Fact]
-    public void Matches_TypeChanged_ReturnsFalse()
-    {
-        var platform = PlatformSamples.PlatformView(
-            publishSettings: PlatformSamples.YouTubeSettings(clientId: "client-id"));
-        var snapshot = new PublicationTargetSnapshot(
-            PlatformType.WordPress,
-            WordPressSiteUrl: "https://example.com",
-            YouTubeClientId: null);
-
-        Assert.False(PublicationTargetPolicy.Matches(platform, snapshot));
+        public override string ToString() => Name;
     }
 }

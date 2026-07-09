@@ -4,51 +4,47 @@ namespace YTSkedy.Scheduling.Domain.Test.CalendarEvents;
 
 public sealed class EventTextSnapshotTests
 {
-    [Fact]
-    public void Create_MissingRequiredValue_Throws()
+    public static TheoryData<InvalidCreateCase> InvalidCreateCases => new()
     {
-        Assert.Throws<ArgumentException>(
-            () => EventTextSnapshot.Create(
-                EventTextFields.Default,
-                [new EventTextValue("text1", "Stream title")]));
-    }
+        new(
+            "MissingRequiredValue",
+            EventTextFields.Default,
+            [new EventTextValue("text1", "Stream title")]),
+        new(
+            "BlankRequiredValue",
+            EventTextFields.Default,
+            [
+                new EventTextValue("text1", "Stream title"),
+                new EventTextValue("text2", " ")
+            ]),
+        new(
+            "UnknownFieldKey",
+            EventTextFields.Default,
+            [
+                new EventTextValue("text1", "Stream title"),
+                new EventTextValue("text2", "Detailed description"),
+                new EventTextValue("text3", "Unexpected value")
+            ]),
+        new(
+            "DuplicateFieldKey",
+            EventTextFields.Default,
+            [
+                new EventTextValue("text1", "Stream title"),
+                new EventTextValue("text1", "Duplicate title"),
+                new EventTextValue("text2", "Detailed description")
+            ]),
+        new(
+            "ValueTooLong",
+            new EventTextFields([new EventTextField("Title", EventTextType.ShortText, 5)]),
+            [new EventTextValue("text1", "too long")])
+    };
 
-    [Fact]
-    public void Create_BlankRequiredValue_Throws()
+    [Theory]
+    [MemberData(nameof(InvalidCreateCases))]
+    public void Create_InvalidValues_Throws(InvalidCreateCase scenario)
     {
         Assert.Throws<ArgumentException>(
-            () => EventTextSnapshot.Create(
-                EventTextFields.Default,
-                [
-                    new EventTextValue("text1", "Stream title"),
-                    new EventTextValue("text2", " ")
-                ]));
-    }
-
-    [Fact]
-    public void Create_UnknownFieldKey_Throws()
-    {
-        Assert.Throws<ArgumentException>(
-            () => EventTextSnapshot.Create(
-                EventTextFields.Default,
-                [
-                    new EventTextValue("text1", "Stream title"),
-                    new EventTextValue("text2", "Detailed description"),
-                    new EventTextValue("text3", "Unexpected value")
-                ]));
-    }
-
-    [Fact]
-    public void Create_DuplicateFieldKey_Throws()
-    {
-        Assert.Throws<ArgumentException>(
-            () => EventTextSnapshot.Create(
-                EventTextFields.Default,
-                [
-                    new EventTextValue("text1", "Stream title"),
-                    new EventTextValue("text1", "Duplicate title"),
-                    new EventTextValue("text2", "Detailed description")
-                ]));
+            () => EventTextSnapshot.Create(scenario.Fields, scenario.Values));
     }
 
     [Fact]
@@ -88,18 +84,6 @@ public sealed class EventTextSnapshotTests
     }
 
     [Fact]
-    public void Create_ValueTooLong_Throws()
-    {
-        var fields = new EventTextFields(
-            [new EventTextField("Title", EventTextType.ShortText, 5)]);
-
-        Assert.Throws<ArgumentException>(
-            () => EventTextSnapshot.Create(
-                fields,
-                [new EventTextValue("text1", "too long")]));
-    }
-
-    [Fact]
     public void Create_ValidValues_StoresValuesInFieldOrder()
     {
         var snapshot = EventTextSnapshot.Create(
@@ -113,5 +97,13 @@ public sealed class EventTextSnapshotTests
         Assert.Equal(
             ["Stream title", "Detailed description"],
             snapshot.Values.Select(value => value.Value));
+    }
+
+    public sealed record InvalidCreateCase(
+        string Name,
+        EventTextFields Fields,
+        EventTextValue[] Values)
+    {
+        public override string ToString() => Name;
     }
 }

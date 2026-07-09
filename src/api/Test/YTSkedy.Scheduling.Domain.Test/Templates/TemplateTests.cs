@@ -98,68 +98,38 @@ public class TemplateTests
     }
 
     [Theory]
-    [InlineData("a")]
-    [InlineData("Weeknight stream")]
-    public void IsValidName_NonEmptyWithinLimit_ReturnsTrue(string name)
+    [MemberData(nameof(ValidNameCases))]
+    public void IsValidName_Value_ReturnsExpected(string? name, bool expected)
     {
-        Assert.True(Template.IsValidName(name));
-    }
-
-    [Fact]
-    public void IsValidName_AtMaxLength_ReturnsTrue()
-    {
-        Assert.True(Template.IsValidName(new string('n', Template.MaxNameLength)));
-    }
-
-    [Fact]
-    public void IsValidName_MaxLengthPlusSurroundingWhitespace_ReturnsFalse()
-    {
-        var name = $"  {new string('n', Template.MaxNameLength)}  ";
-
-        Assert.False(Template.IsValidName(name));
+        Assert.Equal(expected, Template.IsValidName(name));
     }
 
     [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void IsValidName_NullOrWhiteSpace_ReturnsFalse(string? name)
+    [MemberData(nameof(ValidContentCases))]
+    public void IsValidContent_Value_ReturnsExpected(string? content, bool expected)
     {
-        Assert.False(Template.IsValidName(name));
+        Assert.Equal(expected, Template.IsValidContent(content));
     }
 
-    [Fact]
-    public void IsValidName_AboveMaxLength_ReturnsFalse()
+    public static TheoryData<string?, bool> ValidNameCases => new()
     {
-        Assert.False(Template.IsValidName(new string('n', Template.MaxNameLength + 1)));
-    }
+        { "a", true },
+        { "Weeknight stream", true },
+        { new string('n', Template.MaxNameLength), true },
+        { $"  {new string('n', Template.MaxNameLength)}  ", false },
+        { null, false },
+        { "", false },
+        { "   ", false },
+        { new string('n', Template.MaxNameLength + 1), false }
+    };
 
-    [Fact]
-    public void IsValidContent_AtMaxLength_ReturnsTrue()
+    public static TheoryData<string?, bool> ValidContentCases => new()
     {
-        Assert.True(Template.IsValidContent(new string('c', Template.MaxContentLength)));
-    }
-
-    [Fact]
-    public void IsValidContent_MaxLengthPlusSurroundingWhitespace_ReturnsFalse()
-    {
-        var content = $"  {new string('c', Template.MaxContentLength)}  ";
-
-        Assert.False(Template.IsValidContent(content));
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void IsValidContent_NullOrWhiteSpace_ReturnsFalse(string? content)
-    {
-        Assert.False(Template.IsValidContent(content));
-    }
-
-    [Fact]
-    public void IsValidContent_AboveMaxLength_ReturnsFalse()
-    {
-        Assert.False(Template.IsValidContent(new string('c', Template.MaxContentLength + 1)));
-    }
+        { new string('c', Template.MaxContentLength), true },
+        { $"  {new string('c', Template.MaxContentLength)}  ", false },
+        { null, false },
+        { "", false },
+        { "   ", false },
+        { new string('c', Template.MaxContentLength + 1), false }
+    };
 }

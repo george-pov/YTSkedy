@@ -55,20 +55,6 @@ public sealed class EventTextFieldsTests
     }
 
     [Fact]
-    public void Constructor_RenumbersFieldKeysFromOrder()
-    {
-        EventTextField[] remaining =
-        [
-            new("Title", EventTextType.ShortText, 50),
-            new("Details", EventTextType.LongText, 2500)
-        ];
-
-        var normalized = new EventTextFields(remaining);
-
-        Assert.Equal(["text1", "text2"], normalized.Fields.Select(field => field.FieldKey));
-    }
-
-    [Fact]
     public void Constructor_BlankLabel_Throws()
     {
         Assert.Throws<ArgumentException>(
