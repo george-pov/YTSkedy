@@ -1,6 +1,7 @@
-:host {
-  display: block;
-}
+@use 'src/styles/variables' as *;
+@use 'src/styles/mixins' as app;
+
+@include app.page-host;
 
 .table-wrap {
   overflow-x: auto;
@@ -15,9 +16,7 @@ table {
 }
 
 .mono {
-  font-family:
-    ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono",
-    monospace;
+  font-family: $app-font-mono;
   white-space: nowrap;
 }
 
@@ -33,8 +32,8 @@ table {
 }
 
 .empty-row td {
-  padding: 1rem;
-  color: #475467;
+  padding: $app-space-4;
+  color: $app-color-muted;
 }
 
 .mat-mdc-row.clickable {
@@ -43,27 +42,18 @@ table {
 
 .mat-mdc-row.selectable:not(.selected):hover,
 .mat-mdc-row.highlight-on-hover:not(.selected):hover {
-  background: #eef2f7;
+  background: $app-color-surface-hover;
 }
 
 .mat-mdc-row.selected {
-  background: #eaf3f8;
+  background: $app-color-action-soft;
 }
 
 .mat-mdc-row.selectable:focus-visible {
-  outline: 2px solid #245b7a;
+  outline: 2px solid $app-color-action-primary;
   outline-offset: -2px;
 }
 
 .visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  border: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
+  @include app.visually-hidden;
 }

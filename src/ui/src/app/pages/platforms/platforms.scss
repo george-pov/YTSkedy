@@ -1,36 +1,18 @@
 @use 'src/styles/variables' as *;
+@use 'src/styles/mixins' as app;
 
-:host {
-  display: block;
-}
+@include app.page-host;
 
 .header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: $app-space-4;
-  margin-bottom: $app-space-6;
-
-  h1 {
-    margin: 0;
-  }
+  @include app.split-header($margin-bottom: $app-space-6);
 }
 
 .editor {
-  display: grid;
-  gap: $app-space-4;
+  @include app.editor-stack;
 }
 
 .readonly-type {
-  display: flex;
-  gap: $app-space-2;
-  margin: 0;
-  color: $app-color-muted;
-
-  strong {
-    color: $app-color-text;
-  }
+  @include app.readonly-row;
 }
 
 .settings-heading {

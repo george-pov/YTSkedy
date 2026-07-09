@@ -1,25 +1,14 @@
 @use 'src/styles/variables' as *;
+@use 'src/styles/mixins' as app;
 
-:host {
-  display: block;
-}
+@include app.page-host;
 
 .layout {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  @include app.stack($app-space-4);
 }
 
 .header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-
-  h1 {
-    margin: 0;
-  }
+  @include app.split-header;
 }
 
 .event-title-link {

@@ -10,7 +10,7 @@
   gap: $app-space-2;
   padding: $app-space-1;
   border: 0;
-  border-radius: 999px;
+  border-radius: $app-radius-pill;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -33,7 +33,7 @@
   height: 2.25rem;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: $app-radius-pill;
   background: $app-color-action-primary;
   color: $app-color-white;
   font-size: 0.81rem;

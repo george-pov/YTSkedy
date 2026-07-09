@@ -6,7 +6,7 @@
   gap: $app-space-3;
   padding: $app-space-3 $app-space-4;
   border: 1px solid;
-  border-radius: 8px;
+  border-radius: $app-radius-md;
 }
 
 .icon {
@@ -25,7 +25,7 @@
   justify-content: center;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: $app-radius-sm;
   background: transparent;
   color: inherit;
   cursor: pointer;

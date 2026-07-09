@@ -1,21 +1,14 @@
 @use 'src/styles/variables' as *;
+@use 'src/styles/mixins' as app;
 
-:host {
-  display: block;
-}
+@include app.page-host;
 
 .settings {
-  display: flex;
-  flex-direction: column;
-  gap: $app-space-6;
+  @include app.stack($app-space-6);
 }
 
 .header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: $app-space-4;
+  @include app.split-header(flex-start);
 
   h1,
   p {
@@ -29,15 +22,11 @@
 }
 
 .editor {
-  display: flex;
-  flex-direction: column;
-  gap: $app-space-4;
+  @include app.stack($app-space-4);
 }
 
 .field-list {
-  display: flex;
-  flex-direction: column;
-  gap: $app-space-3;
+  @include app.stack($app-space-3);
 }
 
 .field-row {
@@ -45,18 +34,15 @@
   grid-template-columns: 5rem minmax(10rem, 1fr) minmax(10rem, 12rem) minmax(8rem, 10rem) auto;
   align-items: start;
   gap: $app-space-3;
-  padding: $app-space-4;
-  border: 1px solid $app-color-border;
-  border-radius: 8px;
-  background: $app-color-surface;
+  @include app.panel($app-space-4, $app-color-surface);
 }
 
 .field-key {
-  min-height: 3.5rem;
   display: flex;
+  min-height: 3.5rem;
   align-items: center;
   color: $app-color-muted;
-  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-family: $app-font-mono;
 }
 
 @media (max-width: $app-breakpoint-md) {

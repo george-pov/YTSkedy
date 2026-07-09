@@ -1,16 +1,14 @@
 @use 'src/styles/variables' as *;
+@use 'src/styles/mixins' as app;
 
 :host {
-  display: flex;
-  flex-direction: column;
-  gap: $app-space-4;
+  @include app.stack($app-space-4);
 }
 
 .platform-status {
-  display: flex;
+  @include app.stack($app-space-1);
+
   max-width: 28rem;
-  flex-direction: column;
-  gap: $app-space-1;
 
   p {
     margin: 0;
@@ -21,13 +19,8 @@
 }
 
 .publishing-content-preview {
-  display: flex;
-  flex-direction: column;
-  gap: $app-space-3;
-  padding: $app-space-4;
-  border: 1px solid $app-color-border;
-  border-radius: 8px;
-  background: $app-color-surface;
+  @include app.panel($app-space-4, $app-color-surface);
+  @include app.stack($app-space-3);
 
   header {
     display: flex;
@@ -55,16 +48,13 @@
   }
 
   dl {
-    display: flex;
-    flex-direction: column;
-    gap: $app-space-3;
+    @include app.stack($app-space-3);
+
     margin: 0;
   }
 
   div {
-    display: flex;
-    flex-direction: column;
-    gap: $app-space-1;
+    @include app.stack($app-space-1);
   }
 
   dt {
