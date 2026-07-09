@@ -20,9 +20,7 @@ Every call must:
 - Carry the `CalendarEvents.Operator` app role in the `roles` claim. Missing
   role returns `403`.
 
-`x-functions-key` is no longer accepted on these endpoints. Local manual
-checks acquire a bearer token via the `az`-based recipe documented in
-`docs/api/development/build-and-test.md`.
+Function keys are not part of authorization for these endpoints.
 
 ## Event Text Fields Setting
 
@@ -637,25 +635,3 @@ documented in [`platforms.md`](platforms.md):
   `GET /api/calendar-events/{calendarEventId}/thumbnail`, and
   `DELETE /api/calendar-events/{calendarEventId}/thumbnail` manage the optional
   event thumbnail while no platform publication rows exist.
-
-## Manual Checks
-
-Manual `.http` checks live under:
-
-```text
-src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/CalendarEvents/
-```
-
-Thumbnail upload, read, and delete checks are in `EventThumbnails.http`.
-
-Before sending local requests:
-
-- Start Azurite or provide an Azure Storage connection string.
-- Start the Azure Functions host.
-- Select the `local` environment in the `.http` editor.
-- Use the host port from the Azure Functions launch profile. The current local
-  default is `http://localhost:7087`.
-
-Keep deployed URLs, bearer access tokens, and personal values in
-`http-client.env.json.user`, not in tracked environment files. Function keys
-no longer apply to these endpoints.

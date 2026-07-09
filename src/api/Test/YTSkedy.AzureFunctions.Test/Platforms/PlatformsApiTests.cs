@@ -4,6 +4,7 @@ using System.Text.Json;
 using YTSkedy.AzureFunctions.Platforms;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.Platforms;
 
@@ -136,7 +137,7 @@ public sealed class PlatformsApiTests
         Assert.False(built);
         Assert.Equal(
             "Publish settings credentials client secret is required.",
-            BadRequestMessage(error));
+            ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Fact]
@@ -175,7 +176,9 @@ public sealed class PlatformsApiTests
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
         Assert.False(built);
-        Assert.Equal("Publish settings site URL is required.", BadRequestMessage(error));
+        Assert.Equal(
+            "Publish settings site URL is required.",
+            ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Fact]
@@ -209,7 +212,7 @@ public sealed class PlatformsApiTests
         Assert.False(built);
         Assert.Equal(
             "Publish settings site URL must use HTTPS unless it targets localhost or 127.0.0.1.",
-            BadRequestMessage(error));
+            ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Fact]
@@ -224,7 +227,7 @@ public sealed class PlatformsApiTests
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
         Assert.False(built);
-        var message = BadRequestMessage(error);
+        var message = ActionResultAssertions.BadRequestMessage(error);
         Assert.Equal(
             "Publish settings site URL must be an absolute HTTP(S) URL without credentials.",
             message);
@@ -245,7 +248,7 @@ public sealed class PlatformsApiTests
         Assert.False(built);
         Assert.Equal(
             "Publish settings Application Password is required.",
-            BadRequestMessage(error));
+            ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Fact]
@@ -262,7 +265,7 @@ public sealed class PlatformsApiTests
         Assert.False(built);
         Assert.Equal(
             "Publish settings post status must be 'publish' or 'draft'.",
-            BadRequestMessage(error));
+            ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Fact]
@@ -311,7 +314,7 @@ public sealed class PlatformsApiTests
         Assert.False(built);
         Assert.Equal(
             "Reference key must be 1 to 15 characters and contain only letters, numbers, or hyphen.",
-            BadRequestMessage(error));
+            ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Fact]
@@ -402,7 +405,7 @@ public sealed class PlatformsApiTests
         Assert.False(built);
         Assert.Equal(
             "Publishing content titleTemplateId and descriptionTemplateId are required.",
-            BadRequestMessage(error));
+            ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Fact]
@@ -439,7 +442,7 @@ public sealed class PlatformsApiTests
             CreatePlatformResult.Created("wp-platform"),
             command);
 
-        var response = AssertPlatformOk(actionResult);
+        var response = ActionResultAssertions.OkObject<PlatformResponse>(actionResult);
         Assert.Equal("wp-platform", response.PlatformId);
         Assert.Equal("company-blog", response.ReferenceKey);
         Assert.Equal("WordPress", response.Type);
@@ -506,7 +509,7 @@ public sealed class PlatformsApiTests
 
         var actionResult = PlatformsApi.ToUpdateResult(UpdatePlatformResult.Updated, command);
 
-        var response = AssertPlatformOk(actionResult);
+        var response = ActionResultAssertions.OkObject<PlatformResponse>(actionResult);
         Assert.Equal("company-blog", response.ReferenceKey);
         Assert.Equal("WordPress", response.Type);
         Assert.Equal("title-template", response.PublishingContent.TitleTemplateId);
@@ -709,18 +712,6 @@ public sealed class PlatformsApiTests
         string clientSecret = "client-secret",
         string refreshToken = "refresh-token") =>
         new(new YouTubeCredentials(clientId, clientSecret, refreshToken), "private", false);
-
-    private static string BadRequestMessage(IActionResult actionResult)
-    {
-        var badRequest = Assert.IsType<BadRequestObjectResult>(actionResult);
-        return Assert.IsType<string>(badRequest.Value);
-    }
-
-    private static PlatformResponse AssertPlatformOk(IActionResult actionResult)
-    {
-        var ok = Assert.IsType<OkObjectResult>(actionResult);
-        return Assert.IsType<PlatformResponse>(ok.Value);
-    }
 
     private static void AssertWordPressRedacted(
         PublishSettingsResponse response,

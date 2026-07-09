@@ -1,11 +1,11 @@
 using System.Reflection;
-using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web.Resource;
 using YTSkedy.AzureFunctions.Settings;
 using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.Settings;
 
@@ -53,7 +53,7 @@ public sealed class EventTextFieldsApiTests
     {
         var store = new FakeEventTextFieldsStore(EventTextFields.Default);
         var api = CreateApi(store);
-        var request = RequestWithBody("""
+        var request = HttpRequestFactory.WithBody("""
             {
               "fields": [
                 {
@@ -92,7 +92,7 @@ public sealed class EventTextFieldsApiTests
         var api = CreateApi(new FakeEventTextFieldsStore(EventTextFields.Default));
 
         var actionResult = await api.Update(
-            RequestWithBody(json),
+            HttpRequestFactory.WithBody(json),
             CancellationToken.None);
 
         Assert.IsType<BadRequestObjectResult>(actionResult);
@@ -146,13 +146,6 @@ public sealed class EventTextFieldsApiTests
         new(
             new GetEventTextFieldsHandler(store),
             new UpdateEventTextFieldsHandler(store));
-
-    private static HttpRequest RequestWithBody(string body)
-    {
-        var context = new DefaultHttpContext();
-        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
-        return context.Request;
-    }
 
     private sealed class FakeEventTextFieldsStore(EventTextFields current) :
         IEventTextFieldsReader,

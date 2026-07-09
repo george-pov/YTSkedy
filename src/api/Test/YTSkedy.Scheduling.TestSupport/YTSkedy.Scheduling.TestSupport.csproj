@@ -1,8 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\YTSkedy.Scheduling.Domain\YTSkedy.Scheduling.Domain.csproj" />
-    <ProjectReference Include="..\YTSkedy.Scheduling.TestSupport\YTSkedy.Scheduling.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>

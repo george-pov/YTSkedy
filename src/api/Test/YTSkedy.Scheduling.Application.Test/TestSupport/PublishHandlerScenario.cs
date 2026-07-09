@@ -4,6 +4,7 @@ using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
@@ -53,7 +54,7 @@ internal static class PublishHandlerScenario
             new PublishPublisherSelector(publisher),
             new PublishThumbnailPublisherSelector(thumbnailPublisher),
             new PublishingContentRenderer(templates ?? DefaultTemplateReader()),
-            new FakeTimeProvider(Now),
+            new FixedTimeProvider(Now),
             NullLogger<PublishHandler>.Instance);
 
     public static CalendarEventView Event(

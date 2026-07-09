@@ -8,11 +8,6 @@ using YTSkedy.Scheduling.Domain.Templates;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
-internal sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider
-{
-    public override DateTimeOffset GetUtcNow() => now;
-}
-
 internal sealed class FakeEventTextFieldsReader(EventTextFields eventTextFields) :
     IEventTextFieldsReader
 {

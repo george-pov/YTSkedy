@@ -1,13 +1,14 @@
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Infrastructure.Platforms;
+using YTSkedy.Scheduling.TestSupport;
 
 namespace YTSkedy.Infrastructure.Test.Platforms;
 
 public class PlatformPublicationMapperTests
 {
-    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
-    private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
+    private const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
+    private const string PlatformId = SchedulingSampleIds.PlatformId;
 
     [Fact]
     public void ToPublication_PublishedEntity_MapsEveryField()
@@ -71,7 +72,7 @@ public class PlatformPublicationMapperTests
         var publishing = CreateEntity(PublishStatus.Publishing);
         publishing.PlatformId = PlatformId;
         var published = CreateEntity(PublishStatus.Published);
-        published.PlatformId = "8c1d77e0c0a04b2bb0d6f7a9e2c31845";
+        published.PlatformId = SchedulingSampleIds.OtherPlatformId;
 
         var publications = PlatformPublicationMapper.ToPublications([publishing, published]);
 
@@ -223,5 +224,5 @@ public class PlatformPublicationMapperTests
         };
 
     private static YouTubeCredentials Credentials() =>
-        new("client-id", "client-secret", "refresh-token");
+        SchedulingSamples.YouTubeCredentials();
 }

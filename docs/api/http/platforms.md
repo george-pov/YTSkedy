@@ -29,9 +29,7 @@ Every call must:
 - Carry the `CalendarEvents.Operator` app role in the `roles` claim. Missing
   role returns `403`.
 
-`x-functions-key` is not accepted on these endpoints. Local manual checks
-acquire a bearer token via the `az`-based recipe documented in
-`docs/api/development/build-and-test.md`.
+Function keys are not part of authorization for these endpoints.
 
 ## Platform Shape
 
@@ -606,38 +604,3 @@ Status codes:
 
 See [`../operations/platform-publication-cleanup.md`](../operations/platform-publication-cleanup.md)
 for provider-specific cleanup behavior and recovery notes.
-
-## Manual Checks
-
-Manual `.http` checks live under:
-
-```text
-src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/Platforms/
-src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/CalendarEvents/
-```
-
-Platform CRUD and platform delete checks are in the `Platforms/` folder. Event
-platform listing, platform-aware publish checks, and platform-publication
-delete checks are in the `CalendarEvents/` folder because they hang off the
-calendar-event route.
-
-Before sending local requests:
-
-- Reset the application-owned tables for the feature environment when starting
-  from a clean state. See the reset note in
-  `src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/Platforms/ResetFeatureData.http`.
-- Start Azurite or provide an Azure Storage connection string.
-- For YouTube publish checks, create a Google OAuth refresh token and put the
-  YouTube client id, client secret, and refresh token only in
-  `http-client.env.json.user`. See
-  [`../operations/youtube-publish-setup.md`](../operations/youtube-publish-setup.md).
-- For WordPress publish checks, create a WordPress Application Password and put
-  the WordPress username, Application Password, and site URL only in
-  `http-client.env.json.user`.
-- Start the Azure Functions host.
-- Select the `local` environment in the `.http` editor and set tokens in
-  `http-client.env.json.user`.
-
-Keep deployed URLs, bearer access tokens, WordPress usernames, WordPress
-Application Passwords, and personal values in `http-client.env.json.user`, not
-in tracked environment files.

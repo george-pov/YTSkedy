@@ -4,14 +4,15 @@ using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.Scheduling.TestSupport;
 
 namespace YTSkedy.Infrastructure.Test.YouTube;
 
 public class YouTubeThumbnailPublisherTests
 {
-    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
-    private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
-    private const string BroadcastId = "yt-broadcast-id";
+    private const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
+    private const string PlatformId = SchedulingSampleIds.PlatformId;
+    private const string BroadcastId = SchedulingSampleIds.YouTubeBroadcastId;
     private const string ClientSecret = "client-secret-value";
     private const string RefreshToken = "refresh-token-value";
 

@@ -78,9 +78,8 @@ value; sending a non-blank value replaces it. Redacted display values are not
 accepted in create or update request bodies. `clientId` is returned because it
 is not secret and is required on create and update.
 
-For local manual checks, keep YouTube client secrets and refresh tokens in
-`http-client.env.json.user`, not tracked `.http` environment files or
-`local.settings.json`. See
+Keep YouTube client secrets and refresh tokens out of tracked files, docs
+samples, logs, and `local.settings.json`. See
 [`../http/platforms.md`](../http/platforms.md) for the platform shape.
 
 For the one-time procedure that creates the Google Cloud project, OAuth client,
@@ -125,10 +124,9 @@ characters and reveals no stored characters. On update, omitting
 non-blank value replaces it. Redacted display values are not accepted in create
 or update request bodies.
 
-For local manual checks, keep WordPress site URLs, usernames, and Application
-Passwords in `http-client.env.json.user`, not tracked `.http` environment
-files. Do not put WordPress Application Passwords in
-`local.settings.sample.json`, tracked docs samples, logs, or source code.
+Keep WordPress site URLs, usernames, and Application Passwords out of tracked
+docs samples, logs, and source code. Do not put WordPress Application
+Passwords in `local.settings.sample.json`.
 
 WordPress site URL validation allows `http://localhost` and
 `http://127.0.0.1` for local development. Every non-local WordPress site URL
@@ -243,13 +241,12 @@ pipeline: `Microsoft.Identity.Web` validates the bearer token,
 check enforces the `CalendarEvents.Operator` app role on every protected
 endpoint.
 
-Local manual checks send `Authorization: Bearer <token>` with an Entra
-External ID access token obtained via the `az`-based recipe in
-`docs/api/development/build-and-test.md`. Function keys do not apply to
-these endpoints; do not pass `x-functions-key`.
+Authenticated requests send `Authorization: Bearer <token>` with an Entra
+External ID access token. Function keys do not apply to these endpoints; do not
+pass `x-functions-key`.
 
-Per-contributor bearer tokens and deployed host URLs belong in
-`http-client.env.json.user`, not in tracked `.http` environment files.
+Per-contributor bearer tokens and deployed host URLs belong outside tracked
+configuration and documentation files.
 
 ## Deployment Configuration Documentation
 

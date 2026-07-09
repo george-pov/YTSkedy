@@ -4,6 +4,7 @@ using YTSkedy.Infrastructure.CalendarEvents;
 using YTSkedy.Infrastructure.Test.TestSupport;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.Infrastructure.Test.CalendarEvents;
 

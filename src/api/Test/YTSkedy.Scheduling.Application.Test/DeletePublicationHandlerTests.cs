@@ -3,6 +3,7 @@ using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
@@ -219,7 +220,7 @@ public class DeletePublicationHandlerTests
             repository ?? new FakePublicationRepository(),
             new FakePublicationDeleterSelector(
                 hasDeleter ? deleter ?? new FakePublicationDeleter() : null),
-            new FakeTimeProvider(Now),
+            new FixedTimeProvider(Now),
             NullLogger<DeletePublicationHandler>.Instance);
 
     private static CalendarEventView Event(DateTimeOffset startUtc) =>

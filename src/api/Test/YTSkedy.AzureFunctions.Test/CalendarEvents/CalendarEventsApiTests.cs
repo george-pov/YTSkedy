@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System.Text;
 using YTSkedy.AzureFunctions.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
 
@@ -113,7 +113,7 @@ public sealed class CalendarEventsApiTests
             out var error);
 
         Assert.False(built);
-        Assert.Equal(expectedMessage, BadRequestMessage(error));
+        Assert.Equal(expectedMessage, ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public sealed class CalendarEventsApiTests
         Assert.False(built);
         Assert.Equal(
             "Start local date-time and time zone id are required.",
-            BadRequestMessage(error));
+            ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Theory]
@@ -174,7 +174,7 @@ public sealed class CalendarEventsApiTests
             out var error);
 
         Assert.False(built);
-        Assert.Equal(expectedMessage, BadRequestMessage(error));
+        Assert.Equal(expectedMessage, ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Fact]
@@ -195,7 +195,7 @@ public sealed class CalendarEventsApiTests
             null!);
 
         var result = await api.CreateCalendarEventAsync(
-            RequestWithBody("""
+            HttpRequestFactory.WithBody("""
                 {
                   "start": {
                     "localDateTime": "2026-06-15T10:00:00",
@@ -233,12 +233,6 @@ public sealed class CalendarEventsApiTests
         Assert.Equal(StatusCodes.Status409Conflict, conflict.StatusCode);
     }
 
-    private static string BadRequestMessage(IActionResult actionResult)
-    {
-        var badRequest = Assert.IsType<BadRequestObjectResult>(actionResult);
-        return Assert.IsType<string>(badRequest.Value);
-    }
-
     private static CalendarEventView CreateEvent() =>
         new(
             CalendarEventId,
@@ -250,13 +244,6 @@ public sealed class CalendarEventsApiTests
                     new EventTextValue("text1", "English stream 1"),
                     new EventTextValue("text2", "Event description")
                 ]));
-
-    private static HttpRequest RequestWithBody(string body)
-    {
-        var context = new DefaultHttpContext();
-        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
-        return context.Request;
-    }
 
     private sealed class FakeCalendarEventReader(
         IReadOnlyList<CalendarEventView> items) : ICalendarEventReader

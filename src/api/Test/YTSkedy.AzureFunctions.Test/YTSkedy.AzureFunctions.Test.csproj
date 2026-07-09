@@ -6,6 +6,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\YTSkedy.AzureFunctions\YTSkedy.AzureFunctions.csproj" />
+    <ProjectReference Include="..\YTSkedy.Scheduling.TestSupport\YTSkedy.Scheduling.TestSupport.csproj" />
+    <ProjectReference Include="..\YTSkedy.TestSupport\YTSkedy.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>

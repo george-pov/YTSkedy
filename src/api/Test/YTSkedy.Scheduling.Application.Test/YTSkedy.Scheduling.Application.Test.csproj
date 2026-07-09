@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\YTSkedy.Scheduling.Application\YTSkedy.Scheduling.Application.csproj" />
+    <ProjectReference Include="..\YTSkedy.Scheduling.TestSupport\YTSkedy.Scheduling.TestSupport.csproj" />
+    <ProjectReference Include="..\YTSkedy.TestSupport\YTSkedy.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>

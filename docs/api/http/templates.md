@@ -247,15 +247,3 @@ Templates persist in a dedicated `Templates` Azure Table, separate from the
 calendar event table and bound through a keyed `TableClient`. The partition key
 is derived from the type (`templates-youtube` or `templates-wordpress`) and the
 row key is the GUID id. See [`../persistence.md`](../persistence.md).
-
-## Manual Checks
-
-These endpoints have no tracked `.http` checks yet. To exercise them locally:
-
-- Start Azurite or provide an Azure Storage connection string.
-- Start the Azure Functions host.
-- Acquire a bearer token via the `az`-based recipe documented in
-  [`../development/build-and-test.md`](../development/build-and-test.md) and
-  send it as `Authorization: Bearer <token>`.
-- Use the host port from the Azure Functions launch profile. The current local
-  default is `http://localhost:7087`.

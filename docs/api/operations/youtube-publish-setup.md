@@ -84,18 +84,8 @@ flow.
 
 ## Part C: Store the values on a platform
 
-1. If you use the manual `.http` checks, keep the OAuth values only in
-   `http-client.env.json.user`:
-
-   ```json
-   {
-     "local": {
-       "youtubeClientId": "your-google-oauth-client-id",
-       "youtubeClientSecret": "your-google-oauth-client-secret",
-       "youtubeRefreshToken": "your-refresh-token-from-the-playground"
-     }
-   }
-   ```
+1. Keep the OAuth values out of tracked files, docs samples, logs, and
+   `local.settings.json`.
 
 2. Create a YouTube platform with those values in
    `publishSettings.credentials`, for example through `POST /api/platforms`:
@@ -166,9 +156,6 @@ implementation.
    before the event start time. On success the platform row returns to
    `NotPublished` and can be published again.
 
-The platform CRUD, event platform listing, and publish manual checks under
-`src/api/Test/YTSkedy.AzureFunctions.IntegrationTest/` exercise these steps.
-
 ## Part E: Token lifetime and troubleshooting
 
 Token lifetime:
@@ -217,9 +204,9 @@ cleanup recovery flow.
 
 ## Security
 
-- `local.settings.json` and `http-client.env.json.user` are gitignored. Never
-  commit them. YouTube client secrets and refresh tokens are secrets; do not
-  paste them into shared chats, issues, or logs.
+- Never commit local configuration files that contain secrets. YouTube client
+  secrets and refresh tokens are secrets; do not paste them into shared chats,
+  issues, or logs.
 - Revoke a leaked or unwanted token at
   <https://myaccount.google.com/permissions>.
 - The adapter does not log credentials, tokens, or authorization headers. Keep

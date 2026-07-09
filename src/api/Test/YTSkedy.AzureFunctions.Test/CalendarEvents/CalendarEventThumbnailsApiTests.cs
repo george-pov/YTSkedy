@@ -8,6 +8,7 @@ using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.CalendarEvents;
 
@@ -190,11 +191,6 @@ public sealed class CalendarEventThumbnailsApiTests
         BinaryPrimitives.WriteInt32BigEndian(content.AsSpan(20, 4), height);
 
         return content;
-    }
-
-    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now;
     }
 
     private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent) : ICalendarEventReader

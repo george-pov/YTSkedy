@@ -1,24 +1,23 @@
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.Scheduling.TestSupport;
 
 namespace YTSkedy.Scheduling.Domain.Test.Platforms;
 
 internal static class PlatformSamples
 {
-    public const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
-    public const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
-    public const string ExternalResourceId = "abc123youtubeid";
+    public const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
+    public const string PlatformId = SchedulingSampleIds.PlatformId;
+    public const string ExternalResourceId = SchedulingSampleIds.ExternalResourceId;
 
-    public static readonly DateTimeOffset PublishedUtc =
-        new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
+    public static readonly DateTimeOffset PublishedUtc = SchedulingSampleTimes.PublishedUtc;
 
-    public static readonly DateTimeOffset UpdatedUtc =
-        new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
+    public static readonly DateTimeOffset UpdatedUtc = SchedulingSampleTimes.UpdatedUtc;
 
     public static YouTubeCredentials YouTubeCredentials(
         string clientId = "client-id",
         string clientSecret = "client-secret",
         string refreshToken = "refresh-token") =>
-        new(clientId, clientSecret, refreshToken);
+        SchedulingSamples.YouTubeCredentials(clientId, clientSecret, refreshToken);
 
     public static YouTubeSettings YouTubeSettings(
         string clientId = "client-id",
@@ -26,8 +25,10 @@ internal static class PlatformSamples
         string refreshToken = "refresh-token",
         string privacyStatus = "private",
         bool selfDeclaredMadeForKids = false) =>
-        new(
-            YouTubeCredentials(clientId, clientSecret, refreshToken),
+        SchedulingSamples.YouTubeSettings(
+            clientId,
+            clientSecret,
+            refreshToken,
             privacyStatus,
             selfDeclaredMadeForKids);
 
@@ -36,12 +37,12 @@ internal static class PlatformSamples
         string username = "editor",
         string applicationPassword = "application-password",
         string postStatus = "publish") =>
-        new(siteUrl, username, applicationPassword, postStatus);
+        SchedulingSamples.WordPressSettings(siteUrl, username, applicationPassword, postStatus);
 
     public static PublishingContent PublishingContent(
         string titleTemplateId = "title-template",
         string descriptionTemplateId = "description-template") =>
-        new(titleTemplateId, descriptionTemplateId);
+        SchedulingSamples.PublishingContent(titleTemplateId, descriptionTemplateId);
 
     public static PlatformView PlatformView(
         string platformId = PlatformId,
@@ -50,7 +51,7 @@ internal static class PlatformSamples
         PlatformType type = PlatformType.YouTube,
         PublishSettings? publishSettings = null,
         PublishingContent? publishingContent = null) =>
-        new(
+        SchedulingSamples.Platform(
             platformId,
             name,
             referenceKey,
@@ -71,12 +72,12 @@ internal static class PlatformSamples
         PublicationTargetSnapshot? targetSnapshot = null,
         ContentSnapshot? contentSnapshot = null,
         ThumbnailPublishStatus? thumbnailStatus = null) =>
-        new(
+        SchedulingSamples.Publication(
+            status,
             calendarEventId,
             platformId,
             platformName,
             platformType,
-            status,
             externalResourceId,
             publishedUtc ?? PublishedUtc,
             platformDeletedUtc,

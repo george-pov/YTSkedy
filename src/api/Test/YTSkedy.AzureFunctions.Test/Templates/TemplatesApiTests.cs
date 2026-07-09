@@ -4,6 +4,7 @@ using YTSkedy.AzureFunctions.Templates;
 using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Templates;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.Templates;
 
@@ -119,7 +120,7 @@ public sealed class TemplatesApiTests
             out var error);
 
         Assert.False(built);
-        Assert.Equal(expectedMessage, BadRequestMessage(error));
+        Assert.Equal(expectedMessage, ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Fact]
@@ -156,7 +157,7 @@ public sealed class TemplatesApiTests
             out var error);
 
         Assert.False(built);
-        Assert.Equal(expectedMessage, BadRequestMessage(error));
+        Assert.Equal(expectedMessage, ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Fact]
@@ -302,9 +303,4 @@ public sealed class TemplatesApiTests
             response.Tokens.Select(token => token.Name));
     }
 
-    private static string BadRequestMessage(IActionResult actionResult)
-    {
-        var badRequest = Assert.IsType<BadRequestObjectResult>(actionResult);
-        return Assert.IsType<string>(badRequest.Value);
-    }
 }

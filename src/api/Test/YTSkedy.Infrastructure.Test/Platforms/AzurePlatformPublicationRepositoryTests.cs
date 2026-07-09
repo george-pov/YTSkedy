@@ -2,14 +2,16 @@ using YTSkedy.Infrastructure.Platforms;
 using YTSkedy.Infrastructure.Test.TestSupport;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.Scheduling.TestSupport;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.Infrastructure.Test.Platforms;
 
 public class AzurePlatformPublicationRepositoryTests
 {
-    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
-    private const string OtherCalendarEventId = "7c2d4fae7dec11d0a76500a0c91e6bf6";
-    private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
+    private const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
+    private const string OtherCalendarEventId = SchedulingSampleIds.OtherCalendarEventId;
+    private const string PlatformId = SchedulingSampleIds.PlatformId;
 
     [Fact]
     public async Task StartAndMarkPublished_PreservesContentSnapshot()
@@ -21,7 +23,7 @@ public class AzurePlatformPublicationRepositoryTests
             PlatformId,
             "Main YouTube channel",
             PlatformType.YouTube,
-            YouTubeSettings(),
+            SchedulingSamples.YouTubeSettings(),
             new ContentSnapshot("Rendered title", "Rendered description"));
 
         var start = await repository.StartPublishingAsync(attempt, CancellationToken.None);
@@ -29,7 +31,7 @@ public class AzurePlatformPublicationRepositoryTests
         var publishedUtc = await repository.MarkPublishedAsync(
             CalendarEventId,
             PlatformId,
-            "yt-broadcast-id",
+            SchedulingSampleIds.YouTubeBroadcastId,
             CancellationToken.None);
         var published = await repository.GetAsync(CalendarEventId, PlatformId, CancellationToken.None);
 
@@ -42,7 +44,7 @@ public class AzurePlatformPublicationRepositoryTests
         Assert.NotNull(publishedUtc);
         Assert.NotNull(published);
         Assert.Equal(PublishStatus.Published, published.Status);
-        Assert.Equal("yt-broadcast-id", published.ExternalResourceId);
+        Assert.Equal(SchedulingSampleIds.YouTubeBroadcastId, published.ExternalResourceId);
         Assert.Equal(ThumbnailPublishStatus.NotConfigured, published.ThumbnailStatus);
         Assert.Equal("Rendered title", published.ContentSnapshot!.Title);
         Assert.Equal("Rendered description", published.ContentSnapshot.Description);
@@ -158,12 +160,12 @@ public class AzurePlatformPublicationRepositoryTests
     {
         var tableClient = new PlatformPublicationTableClient();
         var repository = CreateRepository(tableClient);
-        tableClient.Seed(PublishedEntity("yt-broadcast-id"));
+        tableClient.Seed(PublishedEntity(SchedulingSampleIds.YouTubeBroadcastId));
 
         var result = await repository.DeletePublishedAsync(
             CalendarEventId,
             PlatformId,
-            "yt-broadcast-id",
+            SchedulingSampleIds.YouTubeBroadcastId,
             CancellationToken.None);
 
         Assert.Equal(DeletePublishedResult.Deleted, result);
@@ -178,7 +180,7 @@ public class AzurePlatformPublicationRepositoryTests
         var result = await repository.DeletePublishedAsync(
             CalendarEventId,
             PlatformId,
-            "yt-broadcast-id",
+            SchedulingSampleIds.YouTubeBroadcastId,
             CancellationToken.None);
 
         Assert.Equal(DeletePublishedResult.NotFound, result);
@@ -189,14 +191,14 @@ public class AzurePlatformPublicationRepositoryTests
     {
         var tableClient = new PlatformPublicationTableClient();
         var repository = CreateRepository(tableClient);
-        var entity = PublishedEntity("yt-broadcast-id");
+        var entity = PublishedEntity(SchedulingSampleIds.YouTubeBroadcastId);
         entity.Status = PublishStatus.Publishing.ToString();
         tableClient.Seed(entity);
 
         var result = await repository.DeletePublishedAsync(
             CalendarEventId,
             PlatformId,
-            "yt-broadcast-id",
+            SchedulingSampleIds.YouTubeBroadcastId,
             CancellationToken.None);
 
         Assert.Equal(DeletePublishedResult.Changed, result);
@@ -213,7 +215,7 @@ public class AzurePlatformPublicationRepositoryTests
         var result = await repository.DeletePublishedAsync(
             CalendarEventId,
             PlatformId,
-            "yt-broadcast-id",
+            SchedulingSampleIds.YouTubeBroadcastId,
             CancellationToken.None);
 
         Assert.Equal(DeletePublishedResult.Changed, result);
@@ -225,14 +227,14 @@ public class AzurePlatformPublicationRepositoryTests
     {
         var tableClient = new PlatformPublicationTableClient();
         var repository = CreateRepository(tableClient);
-        var entity = PublishedEntity("yt-broadcast-id");
+        var entity = PublishedEntity(SchedulingSampleIds.YouTubeBroadcastId);
         entity.PlatformDeletedUtc = new DateTimeOffset(2026, 6, 23, 9, 0, 0, TimeSpan.Zero);
         tableClient.Seed(entity);
 
         var result = await repository.DeletePublishedAsync(
             CalendarEventId,
             PlatformId,
-            "yt-broadcast-id",
+            SchedulingSampleIds.YouTubeBroadcastId,
             CancellationToken.None);
 
         Assert.Equal(DeletePublishedResult.Changed, result);
@@ -244,14 +246,14 @@ public class AzurePlatformPublicationRepositoryTests
     {
         var tableClient = new PlatformPublicationTableClient();
         var repository = CreateRepository(tableClient);
-        var entity = PublishedEntity("yt-broadcast-id");
+        var entity = PublishedEntity(SchedulingSampleIds.YouTubeBroadcastId);
         tableClient.Seed(entity);
         tableClient.FailDeleteWithPreconditionFailed(entity);
 
         var result = await repository.DeletePublishedAsync(
             CalendarEventId,
             PlatformId,
-            "yt-broadcast-id",
+            SchedulingSampleIds.YouTubeBroadcastId,
             CancellationToken.None);
 
         Assert.Equal(DeletePublishedResult.Changed, result);
@@ -321,11 +323,11 @@ public class AzurePlatformPublicationRepositoryTests
     [Fact]
     public void CanDeletePublished_PublishedRowWithMatchingExternalId_ReturnsDeleted()
     {
-        var entity = PublishedEntity("yt-broadcast-id");
+        var entity = PublishedEntity(SchedulingSampleIds.YouTubeBroadcastId);
 
         var result = AzurePlatformPublicationRepository.CanDeletePublished(
             entity,
-            "yt-broadcast-id");
+            SchedulingSampleIds.YouTubeBroadcastId);
 
         Assert.Equal(DeletePublishedResult.Deleted, result);
     }
@@ -333,12 +335,12 @@ public class AzurePlatformPublicationRepositoryTests
     [Fact]
     public void CanDeletePublished_PublishingRow_ReturnsChanged()
     {
-        var entity = PublishedEntity("yt-broadcast-id");
+        var entity = PublishedEntity(SchedulingSampleIds.YouTubeBroadcastId);
         entity.Status = PublishStatus.Publishing.ToString();
 
         var result = AzurePlatformPublicationRepository.CanDeletePublished(
             entity,
-            "yt-broadcast-id");
+            SchedulingSampleIds.YouTubeBroadcastId);
 
         Assert.Equal(DeletePublishedResult.Changed, result);
     }
@@ -346,12 +348,12 @@ public class AzurePlatformPublicationRepositoryTests
     [Fact]
     public void CanDeletePublished_OrphanedPublishedRow_ReturnsChanged()
     {
-        var entity = PublishedEntity("yt-broadcast-id");
+        var entity = PublishedEntity(SchedulingSampleIds.YouTubeBroadcastId);
         entity.PlatformDeletedUtc = new DateTimeOffset(2026, 6, 23, 9, 0, 0, TimeSpan.Zero);
 
         var result = AzurePlatformPublicationRepository.CanDeletePublished(
             entity,
-            "yt-broadcast-id");
+            SchedulingSampleIds.YouTubeBroadcastId);
 
         Assert.Equal(DeletePublishedResult.Changed, result);
     }
@@ -363,7 +365,7 @@ public class AzurePlatformPublicationRepositoryTests
 
         var result = AzurePlatformPublicationRepository.CanDeletePublished(
             entity,
-            "yt-broadcast-id");
+            SchedulingSampleIds.YouTubeBroadcastId);
 
         Assert.Equal(DeletePublishedResult.Changed, result);
     }
@@ -379,7 +381,7 @@ public class AzurePlatformPublicationRepositoryTests
         await repository.MarkPublishedAsync(
             CalendarEventId,
             PlatformId,
-            "yt-broadcast-id",
+            SchedulingSampleIds.YouTubeBroadcastId,
             CancellationToken.None);
     }
 
@@ -389,7 +391,7 @@ public class AzurePlatformPublicationRepositoryTests
             PlatformId,
             "Main YouTube channel",
             PlatformType.YouTube,
-            YouTubeSettings(),
+            SchedulingSamples.YouTubeSettings(),
             new ContentSnapshot("Rendered title", "Rendered description"));
 
     private static PlatformPublicationEntity PublishedEntity(string externalResourceId) =>
@@ -399,7 +401,7 @@ public class AzurePlatformPublicationRepositoryTests
         PublishStatus status,
         string calendarEventId = CalendarEventId,
         string platformId = PlatformId,
-        string? externalResourceId = "yt-broadcast-id") =>
+        string? externalResourceId = SchedulingSampleIds.YouTubeBroadcastId) =>
         new()
         {
             PartitionKey = PlatformPublicationKey.PartitionKeyFor(calendarEventId),
@@ -415,18 +417,12 @@ public class AzurePlatformPublicationRepositoryTests
             ContentSnapshotDescription = "Rendered description",
             PublishSettingsJson = PublishSettingsSerializer.SerializeSnapshot(
                 PlatformType.YouTube,
-                YouTubeSettings()),
+                SchedulingSamples.YouTubeSettings()),
             PublishedUtc = status == PublishStatus.Published
                 ? new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
                 : null,
             CreatedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
             UpdatedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
         };
-
-    private static YouTubeSettings YouTubeSettings() =>
-        new(
-            new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
-            "private",
-            false);
 
 }

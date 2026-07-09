@@ -2,6 +2,8 @@ using YTSkedy.Infrastructure.Platforms;
 using YTSkedy.Infrastructure.Test.TestSupport;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.Scheduling.TestSupport;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.Infrastructure.Test.Platforms;
 
@@ -54,7 +56,7 @@ public sealed class AzurePlatformRepositoryTests
             YouTubePlatform(
                 "Main YouTube channel",
                 referenceKey: null,
-                publishingContent: new PublishingContent("title-template", "description-template")),
+                publishingContent: SchedulingSamples.PublishingContent()),
             CancellationToken.None);
 
         var read = await repository.GetAsync(result.PlatformId!, CancellationToken.None);
@@ -98,8 +100,8 @@ public sealed class AzurePlatformRepositoryTests
             create.PlatformId!,
             "Main YouTube channel",
             "WP-1",
-            YouTubeSettings(),
-            RequiredPublishingContent(),
+            SchedulingSamples.YouTubeSettings(),
+            SchedulingSamples.PublishingContent(),
             CancellationToken.None);
         var read = await repository.GetAsync(create.PlatformId!, CancellationToken.None);
 
@@ -121,8 +123,8 @@ public sealed class AzurePlatformRepositoryTests
             create.PlatformId!,
             "Main YouTube channel",
             "wp-1",
-            YouTubeSettings(),
-            RequiredPublishingContent(),
+            SchedulingSamples.YouTubeSettings(),
+            SchedulingSamples.PublishingContent(),
             CancellationToken.None);
         var read = await repository.GetAsync(create.PlatformId!, CancellationToken.None);
 
@@ -147,8 +149,8 @@ public sealed class AzurePlatformRepositoryTests
             other.PlatformId!,
             "Backup YouTube channel",
             "wp-1",
-            YouTubeSettings(),
-            RequiredPublishingContent(),
+            SchedulingSamples.YouTubeSettings(),
+            SchedulingSamples.PublishingContent(),
             CancellationToken.None);
 
         Assert.Equal(UpdatePlatformResult.ReferenceKeyAlreadyExists, result);
@@ -170,7 +172,7 @@ public sealed class AzurePlatformRepositoryTests
             create.PlatformId!,
             "Main YouTube channel",
             null,
-            YouTubeSettings(),
+            SchedulingSamples.YouTubeSettings(),
             new PublishingContent("new-title", "new-description"),
             CancellationToken.None);
         var read = await repository.GetAsync(create.PlatformId!, CancellationToken.None);
@@ -210,17 +212,7 @@ public sealed class AzurePlatformRepositoryTests
         new(
             name,
             PlatformType.YouTube,
-            YouTubeSettings(),
-            publishingContent ?? RequiredPublishingContent(),
+            SchedulingSamples.YouTubeSettings(),
+            publishingContent ?? SchedulingSamples.PublishingContent(),
             referenceKey);
-
-    private static YouTubeSettings YouTubeSettings() =>
-        new(
-            new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
-            "private",
-            false);
-
-    private static PublishingContent RequiredPublishingContent() =>
-        new("title-template", "description-template");
-
 }

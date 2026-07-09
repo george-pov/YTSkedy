@@ -1,5 +1,3 @@
-using YTSkedy.Scheduling.Application.CalendarEvents;
-using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
 
@@ -7,22 +5,19 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class GetCalendarEventDetailsHandlerTests
 {
-    private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
-    private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
-    private const string OtherPlatformId = "8c1d77e0c0a04b2bb0d6f7a9e2c31845";
-    private static readonly DateTimeOffset Now = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+    private const string CalendarEventId = GetCalendarEventDetailsScenario.CalendarEventId;
+    private const string PlatformId = ApplicationTestData.PlatformId;
+    private const string OtherPlatformId = ApplicationTestData.OtherPlatformId;
 
     [Fact]
     public async Task HandleAsync_MissingEvent_ReturnsNull()
     {
-        var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(getResult: null),
-            new FakePlatformReader([]),
-            new FakePlatformPublicationReader([]),
-            new FakeTimeProvider(Now),
-            new FakeThumbnailReader(null));
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = null
+        };
 
-        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+        var result = await scenario.HandleAsync();
 
         Assert.Null(result);
     }
@@ -31,14 +26,12 @@ public class GetCalendarEventDetailsHandlerTests
     public async Task HandleAsync_ExistingEvent_ReturnsEventReadModel()
     {
         var calendarEvent = CreateEvent();
-        var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(getResult: calendarEvent),
-            new FakePlatformReader([]),
-            new FakePlatformPublicationReader([]),
-            new FakeTimeProvider(Now),
-            new FakeThumbnailReader(null));
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = calendarEvent
+        };
 
-        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+        var result = await scenario.HandleAsync();
 
         Assert.NotNull(result);
         Assert.Same(calendarEvent, result!.Event);
@@ -47,14 +40,13 @@ public class GetCalendarEventDetailsHandlerTests
     [Fact]
     public async Task HandleAsync_NoPublicationRows_AllowsUpdateAndDelete()
     {
-        var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(getResult: CreateEvent()),
-            new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
-            new FakePlatformPublicationReader([]),
-            new FakeTimeProvider(Now),
-            new FakeThumbnailReader(null));
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = CreateEvent(),
+            Platforms = [CreatePlatform(PlatformId, "Main channel")]
+        };
 
-        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+        var result = await scenario.HandleAsync();
 
         Assert.NotNull(result);
         Assert.True(result!.CanUpdate);
@@ -65,20 +57,21 @@ public class GetCalendarEventDetailsHandlerTests
     [Fact]
     public async Task HandleAsync_PublicationRowsExist_DisallowsUpdateAndDelete()
     {
-        var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(getResult: CreateEvent()),
-            new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
-            new FakePlatformPublicationReader([
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = CreateEvent(),
+            Platforms = [CreatePlatform(PlatformId, "Main channel")],
+            Publications =
+            [
                 CreatePublication(
                     PlatformId,
                     "Main channel",
                     PublishStatus.Published,
                     externalResourceId: "abc123youtubeid")
-            ]),
-            new FakeTimeProvider(Now),
-            new FakeThumbnailReader(null));
+            ]
+        };
 
-        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+        var result = await scenario.HandleAsync();
 
         Assert.NotNull(result);
         Assert.False(result!.CanUpdate);
@@ -90,14 +83,13 @@ public class GetCalendarEventDetailsHandlerTests
     public async Task HandleAsync_ExistingThumbnail_ReturnsThumbnail()
     {
         var thumbnail = CreateThumbnail();
-        var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(getResult: CreateEvent()),
-            new FakePlatformReader([]),
-            new FakePlatformPublicationReader([]),
-            new FakeTimeProvider(Now),
-            new FakeThumbnailReader(thumbnail));
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = CreateEvent(),
+            Thumbnail = thumbnail
+        };
 
-        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+        var result = await scenario.HandleAsync();
 
         Assert.Same(thumbnail, result!.Thumbnail);
     }
@@ -105,14 +97,12 @@ public class GetCalendarEventDetailsHandlerTests
     [Fact]
     public async Task HandleAsync_NoActivePlatforms_ReturnsEmptyPlatforms()
     {
-        var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(getResult: CreateEvent()),
-            new FakePlatformReader([]),
-            new FakePlatformPublicationReader([]),
-            new FakeTimeProvider(Now),
-            new FakeThumbnailReader(null));
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = CreateEvent()
+        };
 
-        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+        var result = await scenario.HandleAsync();
 
         Assert.NotNull(result);
         Assert.Empty(result!.Platforms);
@@ -121,14 +111,13 @@ public class GetCalendarEventDetailsHandlerTests
     [Fact]
     public async Task HandleAsync_ActivePlatformWithNoRow_ComputesNotPublished()
     {
-        var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(getResult: CreateEvent()),
-            new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
-            new FakePlatformPublicationReader([]),
-            new FakeTimeProvider(Now),
-            new FakeThumbnailReader(null));
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = CreateEvent(),
+            Platforms = [CreatePlatform(PlatformId, "Main channel")]
+        };
 
-        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+        var result = await scenario.HandleAsync();
 
         var item = Assert.Single(result!.Platforms);
         Assert.Equal(PlatformId, item.PlatformId);
@@ -154,14 +143,14 @@ public class GetCalendarEventDetailsHandlerTests
             externalResourceId: "abc123youtubeid",
             publishedUtc: publishedUtc,
             contentSnapshot: new ContentSnapshot("Rendered title", "Rendered description"));
-        var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(getResult: CreateEvent()),
-            new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
-            new FakePlatformPublicationReader([publication]),
-            new FakeTimeProvider(Now),
-            new FakeThumbnailReader(null));
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = CreateEvent(),
+            Platforms = [CreatePlatform(PlatformId, "Main channel")],
+            Publications = [publication]
+        };
 
-        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+        var result = await scenario.HandleAsync();
 
         var item = Assert.Single(result!.Platforms);
         Assert.Equal(PublishStatus.Published, item.Status);
@@ -182,15 +171,14 @@ public class GetCalendarEventDetailsHandlerTests
             PublishStatus.Published,
             externalResourceId: "abc123youtubeid",
             publishedUtc: new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero));
-        var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(getResult: CreateEvent(
-                new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero))),
-            new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
-            new FakePlatformPublicationReader([publication]),
-            new FakeTimeProvider(Now),
-            new FakeThumbnailReader(null));
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = CreateEvent(new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero)),
+            Platforms = [CreatePlatform(PlatformId, "Main channel")],
+            Publications = [publication]
+        };
 
-        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+        var result = await scenario.HandleAsync();
 
         var item = Assert.Single(result!.Platforms);
         Assert.False(item.CanPublish);
@@ -210,14 +198,14 @@ public class GetCalendarEventDetailsHandlerTests
             publishedUtc: new DateTimeOffset(2026, 6, 20, 8, 0, 0, TimeSpan.Zero),
             platformDeletedUtc: deletedUtc,
             contentSnapshot: new ContentSnapshot("Rendered title", null));
-        var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(getResult: CreateEvent()),
-            new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
-            new FakePlatformPublicationReader([orphan]),
-            new FakeTimeProvider(Now),
-            new FakeThumbnailReader(null));
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = CreateEvent(),
+            Platforms = [CreatePlatform(PlatformId, "Main channel")],
+            Publications = [orphan]
+        };
 
-        var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(2, result!.Platforms.Count);
 
@@ -240,17 +228,15 @@ public class GetCalendarEventDetailsHandlerTests
     [Fact]
     public async Task HandleAsync_ReadsCalendarEventExactlyOnce()
     {
-        var reader = new FakeCalendarEventReader(getResult: CreateEvent());
-        var handler = new GetCalendarEventDetailsHandler(
-            reader,
-            new FakePlatformReader([CreatePlatform(PlatformId, "Main channel")]),
-            new FakePlatformPublicationReader([]),
-            new FakeTimeProvider(Now),
-            new FakeThumbnailReader(null));
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = CreateEvent(),
+            Platforms = [CreatePlatform(PlatformId, "Main channel")]
+        };
 
-        await handler.HandleAsync(CalendarEventId, CancellationToken.None);
+        await scenario.HandleAsync();
 
-        Assert.Equal(1, reader.GetByIdCallCount);
+        Assert.Equal(1, scenario.CalendarEventReader.GetByIdCallCount);
     }
 
     [Theory]
@@ -258,15 +244,13 @@ public class GetCalendarEventDetailsHandlerTests
     [InlineData("   ")]
     public async Task HandleAsync_BlankId_Throws(string calendarEventId)
     {
-        var handler = new GetCalendarEventDetailsHandler(
-            new FakeCalendarEventReader(getResult: CreateEvent()),
-            new FakePlatformReader([]),
-            new FakePlatformPublicationReader([]),
-            new FakeTimeProvider(Now),
-            new FakeThumbnailReader(null));
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = CreateEvent()
+        };
 
         await Assert.ThrowsAsync<ArgumentException>(
-            () => handler.HandleAsync(calendarEventId, CancellationToken.None));
+            () => scenario.HandleAsync(calendarEventId));
     }
 
     private static CalendarEventView CreateEvent() =>

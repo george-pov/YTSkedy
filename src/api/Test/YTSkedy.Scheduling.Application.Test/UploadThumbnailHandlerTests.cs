@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
@@ -87,7 +88,7 @@ public sealed class UploadThumbnailHandlerTests
                 canMutate ? [] : [ApplicationTestData.Publication(PublishStatus.Published)]),
             modifier,
             store,
-            new FakeTimeProvider(ApplicationTestData.Now));
+            new FixedTimeProvider(ApplicationTestData.Now));
 
     private static UploadThumbnailCommand ValidCommand() =>
         new(
