@@ -1,5 +1,6 @@
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
 
@@ -159,12 +160,13 @@ public class UpdateCalendarEventHandlerTests
         bool canMutate = true) =>
         new(
             new FakeCalendarEventReader(getResult: calendarEvent),
-            new FakePlatformPublicationReader(
-                canMutate
-                    ? []
-                    : [ApplicationTestData.Publication(
-                        PublishStatus.Published,
-                        calendarEventId: CalendarEventId)]),
+            new CalendarEventPublicationLock(
+                new FakePlatformPublicationReader(
+                    canMutate
+                        ? []
+                        : [ApplicationTestData.Publication(
+                            PublishStatus.Published,
+                            calendarEventId: CalendarEventId)])),
             modifier);
 
     private static CalendarEventView CreateCalendarEventView() =>

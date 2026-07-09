@@ -7,19 +7,21 @@ using YTSkedy.Scheduling.Domain.Platforms;
 namespace YTSkedy.Infrastructure.Platforms;
 
 /// <summary>
-/// Azure Table-backed publication store implementing the write port
-/// (<see cref="IPlatformPublicationRepository"/>) and the read port
-/// (<see cref="IPlatformPublicationReader"/>). Rows are partitioned by calendar
-/// event (<c>event-{calendarEventId}</c>) and keyed by platform
-/// (<c>platform-{platformId}</c>), so every publication for an event reads from
-/// one partition. Starting an attempt uses a conditional insert so two
-/// concurrent publish attempts cannot both start the same pair. Storage
+/// Azure Table-backed publication store implementing focused publication write
+/// ports and the read port (<see cref="IPlatformPublicationReader"/>). Rows are
+/// partitioned by calendar event (<c>event-{calendarEventId}</c>) and keyed by
+/// platform (<c>platform-{platformId}</c>), so every publication for an event
+/// reads from one partition. Starting an attempt uses a conditional insert so
+/// two concurrent publish attempts cannot both start the same pair. Storage
 /// identity, ETags, and id formatting stay inside this class.
 /// </summary>
 public sealed class AzurePlatformPublicationRepository(
     TableClient tableClient,
     TimeProvider timeProvider) :
-    IPlatformPublicationRepository,
+    IPublicationAttemptWriter,
+    IPublicationThumbnailWriter,
+    IPublicationCleanupWriter,
+    IPublicationHistoryWriter,
     IPlatformPublicationReader
 {
     public async Task<StartPublicationResult> StartPublishingAsync(

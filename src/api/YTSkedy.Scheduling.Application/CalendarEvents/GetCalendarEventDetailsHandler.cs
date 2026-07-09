@@ -1,5 +1,6 @@
 using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.EventPlatforms;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
 
 namespace YTSkedy.Scheduling.Application.CalendarEvents;
@@ -34,7 +35,7 @@ public sealed class GetCalendarEventDetailsHandler(
 
         var activePlatforms = await platforms.ListAsync(null, cancellationToken);
         var publicationRows = await publications.ListByEventAsync(calendarEventId, cancellationToken);
-        var canMutateEvent = publicationRows.Count == 0;
+        var canMutateEvent = !CalendarEventPublicationLock.IsLocked(publicationRows);
         var thumbnail = await thumbnails.GetThumbnailAsync(calendarEventId, cancellationToken);
 
         return new CalendarEventDetailsView(

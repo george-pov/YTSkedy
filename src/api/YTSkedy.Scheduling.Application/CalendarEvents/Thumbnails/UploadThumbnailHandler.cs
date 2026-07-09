@@ -6,7 +6,7 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 
 public sealed class UploadThumbnailHandler(
     ICalendarEventReader calendarEventReader,
-    IPlatformPublicationReader publicationReader,
+    CalendarEventPublicationLock publicationLock,
     ICalendarEventThumbnailModifier thumbnailModifier,
     IThumbnailStore thumbnailStore,
     TimeProvider timeProvider)
@@ -26,7 +26,7 @@ public sealed class UploadThumbnailHandler(
             return UploadThumbnailResult.EventNotFound;
         }
 
-        if (await publicationReader.HasAnyForEventAsync(
+        if (await publicationLock.IsLockedAsync(
                 command.CalendarEventId,
                 cancellationToken))
         {

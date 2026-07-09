@@ -1,3 +1,5 @@
+using YTSkedy.Scheduling.Application.Platforms.EventPlatforms;
+
 namespace YTSkedy.Scheduling.Application.Platforms.Publications;
 
 public sealed record PublishResult(

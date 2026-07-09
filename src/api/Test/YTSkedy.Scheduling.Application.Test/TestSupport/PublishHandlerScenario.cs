@@ -3,6 +3,7 @@ using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Content;
+using YTSkedy.Scheduling.Application.Platforms.PublicationThumbnails;
 using YTSkedy.Scheduling.Application.Platforms.Providers;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Application.Templates;
@@ -44,22 +45,31 @@ internal static class PublishHandlerScenario
         IReadOnlyList<PlatformPublication>? publicationRows = null,
         Thumbnail? thumbnail = null,
         ThumbnailContent? thumbnailContent = null,
-        IThumbnailPublisher? thumbnailPublisher = null) =>
-        new(
+        IThumbnailPublisher? thumbnailPublisher = null)
+    {
+        var publicationRepository = repository ?? new PublishFakePublicationRepository();
+
+        return new PublishHandler(
             new FakeCalendarEventReader(getResult: calendarEvent),
-            new FakeThumbnailReader(thumbnail),
-            new FakeThumbnailStore(thumbnailContent),
             new FakePlatformReader(
                 platforms: activePlatforms ?? (platform is null ? [] : [platform]),
                 getResult: platform),
             new FakePlatformPublicationReader(
                 publicationRows ?? (existing is null ? [] : [existing])),
-            repository ?? new PublishFakePublicationRepository(),
-            new PublishPublisherSelector(publisher),
-            new PublishThumbnailPublisherSelector(thumbnailPublisher),
+            publicationRepository,
+            new PlatformTypeAdapterSelector<IPlatformPublisher>(
+                publisher is null ? [] : [publisher]),
+            new PublicationThumbnailApplier(
+                new FakeThumbnailReader(thumbnail),
+                new FakeThumbnailStore(thumbnailContent),
+                publicationRepository,
+                new PlatformTypeAdapterSelector<IThumbnailPublisher>(
+                    thumbnailPublisher is null ? [] : [thumbnailPublisher]),
+                NullLogger<PublicationThumbnailApplier>.Instance),
             new PublishingContentRenderer(templates ?? DefaultTemplateReader()),
             new FixedTimeProvider(Now),
             NullLogger<PublishHandler>.Instance);
+    }
 
     public static CalendarEventView Event(
         DateTimeOffset startUtc,
@@ -142,20 +152,11 @@ internal static class PublishHandlerScenario
     public static ThumbnailContent ThumbnailContent() =>
         ApplicationTestData.ThumbnailContent();
 
-    private sealed class PublishPublisherSelector(IPlatformPublisher? publisher)
-        : IPlatformPublisherSelector
-    {
-        public IPlatformPublisher? Find(PlatformType type) => publisher;
-    }
-
-    private sealed class PublishThumbnailPublisherSelector(
-        IThumbnailPublisher? publisher) : IThumbnailPublisherSelector
-    {
-        public IThumbnailPublisher? Find(PlatformType type) => publisher;
-    }
 }
 
-internal sealed class PublishFakePublicationRepository : IPlatformPublicationRepository
+internal sealed class PublishFakePublicationRepository :
+    IPublicationAttemptWriter,
+    IPublicationThumbnailWriter
 {
     public StartPublicationResult StartResult { get; init; } = StartPublicationResult.Started;
 
@@ -228,17 +229,6 @@ internal sealed class PublishFakePublicationRepository : IPlatformPublicationRep
         return Task.FromResult(true);
     }
 
-    public Task<DeletePublishedResult> DeletePublishedAsync(
-        string calendarEventId,
-        string platformId,
-        string externalResourceId,
-        CancellationToken cancellationToken) =>
-        throw new NotSupportedException();
-
-    public Task<int> OrphanPublishedByPlatformAsync(
-        string platformId,
-        CancellationToken cancellationToken) =>
-        throw new NotSupportedException();
 }
 
 internal sealed class PublishFakePublisher : IPlatformPublisher

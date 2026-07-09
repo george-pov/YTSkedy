@@ -5,7 +5,7 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 
 public sealed class DeleteThumbnailHandler(
     ICalendarEventReader calendarEventReader,
-    IPlatformPublicationReader publicationReader,
+    CalendarEventPublicationLock publicationLock,
     ICalendarEventThumbnailReader thumbnailReader,
     ICalendarEventThumbnailModifier thumbnailModifier,
     IThumbnailStore thumbnailStore)
@@ -24,7 +24,7 @@ public sealed class DeleteThumbnailHandler(
             return DeleteThumbnailResult.EventNotFound;
         }
 
-        if (await publicationReader.HasAnyForEventAsync(
+        if (await publicationLock.IsLockedAsync(
                 calendarEventId,
                 cancellationToken))
         {

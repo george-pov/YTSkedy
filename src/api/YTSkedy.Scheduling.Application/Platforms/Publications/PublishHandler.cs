@@ -1,8 +1,9 @@
 using Microsoft.Extensions.Logging;
 using YTSkedy.Scheduling.Application.CalendarEvents;
-using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Content;
+using YTSkedy.Scheduling.Application.Platforms.EventPlatforms;
+using YTSkedy.Scheduling.Application.Platforms.PublicationThumbnails;
 using YTSkedy.Scheduling.Application.Platforms.Providers;
 using YTSkedy.Scheduling.Domain.Platforms;
 
@@ -22,13 +23,11 @@ namespace YTSkedy.Scheduling.Application.Platforms.Publications;
 /// </summary>
 public sealed class PublishHandler(
     ICalendarEventReader calendarEvents,
-    ICalendarEventThumbnailReader thumbnails,
-    IThumbnailStore thumbnailStore,
     IPlatformReader platforms,
     IPlatformPublicationReader publications,
-    IPlatformPublicationRepository publicationRepository,
-    IPlatformPublisherSelector publishers,
-    IThumbnailPublisherSelector thumbnailPublishers,
+    IPublicationAttemptWriter publicationAttempts,
+    IPlatformTypeAdapterSelector<IPlatformPublisher> publishers,
+    PublicationThumbnailApplier thumbnailApplier,
     PublishingContentRenderer contentRenderer,
     TimeProvider timeProvider,
     ILogger<PublishHandler> logger)
@@ -119,7 +118,7 @@ public sealed class PublishHandler(
             platform.PublishSettings,
             contentSnapshot);
 
-        var startResult = await publicationRepository.StartPublishingAsync(
+        var startResult = await publicationAttempts.StartPublishingAsync(
             attempt,
             cancellationToken);
         if (startResult == StartPublicationResult.Conflict)
@@ -128,10 +127,12 @@ public sealed class PublishHandler(
             return PublishResult.ForStatus(PublishResultStatus.PublishInProgress);
         }
 
-        PublishThumbnail thumbnail;
+        PublicationThumbnail thumbnail;
         try
         {
-            thumbnail = await LoadThumbnailAsync(command.CalendarEventId, cancellationToken);
+            thumbnail = await thumbnailApplier.LoadAsync(
+                command.CalendarEventId,
+                cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -142,7 +143,7 @@ public sealed class PublishHandler(
                 command.CalendarEventId,
                 command.PlatformId);
 
-            await publicationRepository.ReleasePublishingAsync(
+            await publicationAttempts.ReleasePublishingAsync(
                 command.CalendarEventId,
                 command.PlatformId,
                 cancellationToken);
@@ -173,7 +174,7 @@ public sealed class PublishHandler(
                 command.CalendarEventId,
                 command.PlatformId);
 
-            await publicationRepository.ReleasePublishingAsync(
+            await publicationAttempts.ReleasePublishingAsync(
                 command.CalendarEventId,
                 command.PlatformId,
                 cancellationToken);
@@ -181,7 +182,7 @@ public sealed class PublishHandler(
             return PublishResult.ForStatus(PublishResultStatus.ProviderFailed);
         }
 
-        var publishedUtc = await publicationRepository.MarkPublishedAsync(
+        var publishedUtc = await publicationAttempts.MarkPublishedAsync(
             command.CalendarEventId,
             command.PlatformId,
             publishResult.ExternalResourceId,
@@ -201,187 +202,22 @@ public sealed class PublishHandler(
             return PublishResult.ForStatus(PublishResultStatus.FinalizeFailed);
         }
 
-        var publishedStatus = PublishStatus.Published;
-        var thumbnailStatus = await ApplyThumbnailAsync(
-            command,
-            platform,
-            publishResult.ExternalResourceId,
-            thumbnail,
-            cancellationToken);
-        var isFuture = calendarEvent.ScheduledStartUtc > timeProvider.GetUtcNow();
-        return PublishResult.Published(
-            new EventPlatformView(
+        var thumbnailStatus = await thumbnailApplier.ApplyAsync(
+            new PublicationThumbnailCommand(
+                command.CalendarEventId,
                 command.PlatformId,
-                platform.Name,
-                platform.Type,
-                publishedStatus,
+                platform,
+                publishResult.ExternalResourceId,
+                thumbnail),
+            cancellationToken);
+
+        return PublishResult.Published(
+            EventPlatformProjection.ProjectPublished(
+                calendarEvent,
+                platform,
                 publishResult.ExternalResourceId,
                 publishedUtc.Value,
-                null,
-                PlatformActionPolicy.CanPublish(publishedStatus, isOrphaned: false, isFuture),
-                PlatformActionPolicy.CanDeletePublication(
-                    publishedStatus,
-                    isOrphaned: false,
-                    hasExternalResourceId: true,
-                    isFuture),
-                PlatformActionPolicy.CanPreviewPublishingContent(
-                    publishedStatus,
-                    isOrphaned: false,
-                    hasContentSnapshot: true),
+                timeProvider.GetUtcNow(),
                 thumbnailStatus));
-    }
-
-    private async Task<PublishThumbnail> LoadThumbnailAsync(
-        string calendarEventId,
-        CancellationToken cancellationToken)
-    {
-        var thumbnail = await thumbnails.GetThumbnailAsync(calendarEventId, cancellationToken);
-        if (thumbnail is null)
-        {
-            return PublishThumbnail.NotConfigured;
-        }
-
-        var content = await thumbnailStore.GetAsync(thumbnail.BlobName, cancellationToken);
-
-        return content is null
-            ? PublishThumbnail.MissingContent
-            : PublishThumbnail.Configured(content);
-    }
-
-    private async Task<ThumbnailPublishStatus?> ApplyThumbnailAsync(
-        PublishCommand command,
-        PlatformView platform,
-        string externalResourceId,
-        PublishThumbnail thumbnail,
-        CancellationToken cancellationToken)
-    {
-        var thumbnailStatus = ThumbnailPublicationPolicy.InitialStatusFor(platform.Type);
-        if (thumbnailStatus is null)
-        {
-            return null;
-        }
-
-        if (!thumbnail.IsConfigured)
-        {
-            return ThumbnailPublishStatus.NotConfigured;
-        }
-
-        if (thumbnail.Content is null)
-        {
-            await MarkThumbnailFailedAsync(
-                command.CalendarEventId,
-                command.PlatformId,
-                "stored thumbnail bytes were not found",
-                cancellationToken);
-
-            return ThumbnailPublishStatus.Failed;
-        }
-
-        var thumbnailPublisher = thumbnailPublishers.Find(platform.Type);
-        if (thumbnailPublisher is null)
-        {
-            await MarkThumbnailFailedAsync(
-                command.CalendarEventId,
-                command.PlatformId,
-                "no thumbnail publisher was registered for the platform type",
-                cancellationToken);
-
-            return ThumbnailPublishStatus.Failed;
-        }
-
-        try
-        {
-            await thumbnailPublisher.PublishAsync(
-                new ThumbnailPublishRequest(
-                    command.CalendarEventId,
-                    command.PlatformId,
-                    externalResourceId,
-                    platform.PublishSettings,
-                    thumbnail.Content),
-                cancellationToken);
-        }
-        catch (ThumbnailPublishException exception)
-        {
-            logger.LogWarning(
-                exception,
-                "Thumbnail application failed for calendar event {CalendarEventId}, platform " +
-                "{PlatformId}, and external resource {ExternalResourceId}.",
-                command.CalendarEventId,
-                command.PlatformId,
-                externalResourceId);
-
-            await MarkThumbnailFailedAsync(
-                command.CalendarEventId,
-                command.PlatformId,
-                "provider thumbnail upload failed",
-                cancellationToken);
-
-            return ThumbnailPublishStatus.Failed;
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            logger.LogError(
-                exception,
-                "Thumbnail application failed unexpectedly for calendar event {CalendarEventId}, " +
-                "platform {PlatformId}, and external resource {ExternalResourceId}.",
-                command.CalendarEventId,
-                command.PlatformId,
-                externalResourceId);
-
-            await MarkThumbnailFailedAsync(
-                command.CalendarEventId,
-                command.PlatformId,
-                "provider thumbnail upload failed unexpectedly",
-                cancellationToken);
-
-            return ThumbnailPublishStatus.Failed;
-        }
-
-        var recorded = await publicationRepository.MarkThumbnailAppliedAsync(
-            command.CalendarEventId,
-            command.PlatformId,
-            cancellationToken);
-        if (!recorded)
-        {
-            logger.LogWarning(
-                "Thumbnail application succeeded for calendar event {CalendarEventId} and platform " +
-                "{PlatformId}, but the publication row no longer accepted the thumbnail status update.",
-                command.CalendarEventId,
-                command.PlatformId);
-        }
-
-        return ThumbnailPublishStatus.Applied;
-    }
-
-    private async Task MarkThumbnailFailedAsync(
-        string calendarEventId,
-        string platformId,
-        string reason,
-        CancellationToken cancellationToken)
-    {
-        var recorded = await publicationRepository.MarkThumbnailFailedAsync(
-            calendarEventId,
-            platformId,
-            cancellationToken);
-        if (!recorded)
-        {
-            logger.LogWarning(
-                "Thumbnail application failed for calendar event {CalendarEventId} and platform " +
-                "{PlatformId} because {Reason}, but the publication row no longer accepted the " +
-                "thumbnail status update.",
-                calendarEventId,
-                platformId,
-                reason);
-        }
-    }
-
-    private sealed record PublishThumbnail(bool IsConfigured, ThumbnailContent? Content)
-    {
-        public static PublishThumbnail NotConfigured { get; } = new(false, null);
-
-        public static PublishThumbnail MissingContent { get; } = new(true, null);
-
-        public static PublishThumbnail Configured(ThumbnailContent content) =>
-            new(true, content);
     }
 }

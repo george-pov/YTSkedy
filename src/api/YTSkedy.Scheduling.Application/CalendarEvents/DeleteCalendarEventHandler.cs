@@ -5,7 +5,7 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
 public sealed class DeleteCalendarEventHandler(
     ICalendarEventReader calendarEventReader,
-    IPlatformPublicationReader publicationReader,
+    CalendarEventPublicationLock publicationLock,
     ICalendarEventModifier calendarEventModifier,
     ICalendarEventThumbnailReader thumbnailReader,
     IThumbnailStore thumbnailStore)
@@ -25,7 +25,7 @@ public sealed class DeleteCalendarEventHandler(
             return DeleteCalendarEventResult.NotFound;
         }
 
-        if (await publicationReader.HasAnyForEventAsync(
+        if (await publicationLock.IsLockedAsync(
                 calendarEventId,
                 cancellationToken))
         {

@@ -1,5 +1,6 @@
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
 
@@ -94,8 +95,9 @@ public sealed class DeleteThumbnailHandlerTests
         bool canMutate = true) =>
         new(
             new FakeCalendarEventReader(getResult: calendarEvent),
-            new FakePlatformPublicationReader(
-                canMutate ? [] : [ApplicationTestData.Publication(PublishStatus.Published)]),
+            new CalendarEventPublicationLock(
+                new FakePlatformPublicationReader(
+                    canMutate ? [] : [ApplicationTestData.Publication(PublishStatus.Published)])),
             new FakeThumbnailReader(thumbnail),
             modifier,
             store);

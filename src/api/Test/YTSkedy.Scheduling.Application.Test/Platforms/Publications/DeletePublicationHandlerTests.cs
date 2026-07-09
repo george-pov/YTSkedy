@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Providers;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
@@ -219,8 +220,8 @@ public class DeletePublicationHandlerTests
             new FakePlatformPublicationReader(
                 hasPublication ? [publication ?? Publication(PublishStatus.Published)] : []),
             repository ?? new FakePublicationRepository(),
-            new FakePublicationDeleterSelector(
-                hasDeleter ? deleter ?? new FakePublicationDeleter() : null),
+            new PlatformTypeAdapterSelector<IPlatformPublicationDeleter>(
+                hasDeleter ? [deleter ?? new FakePublicationDeleter()] : []),
             new FixedTimeProvider(Now),
             NullLogger<DeletePublicationHandler>.Instance);
 
@@ -255,7 +256,7 @@ public class DeletePublicationHandlerTests
                 WordPressSiteUrl: null,
                 YouTubeClientId: ApplicationTestData.YouTubeClientId));
 
-    private sealed class FakePublicationRepository : IPlatformPublicationRepository
+    private sealed class FakePublicationRepository : IPublicationCleanupWriter
     {
         public DeletePublishedResult DeletePublishedResult { get; init; } =
             DeletePublishedResult.Deleted;
@@ -263,36 +264,6 @@ public class DeletePublicationHandlerTests
         public bool DeletePublishedCalled { get; private set; }
 
         public string? DeletedExternalResourceId { get; private set; }
-
-        public Task<StartPublicationResult> StartPublishingAsync(
-            PlatformPublicationAttempt attempt,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task ReleasePublishingAsync(
-            string calendarEventId,
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<DateTimeOffset?> MarkPublishedAsync(
-            string calendarEventId,
-            string platformId,
-            string externalResourceId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> MarkThumbnailAppliedAsync(
-            string calendarEventId,
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> MarkThumbnailFailedAsync(
-            string calendarEventId,
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
 
         public Task<DeletePublishedResult> DeletePublishedAsync(
             string calendarEventId,
@@ -305,17 +276,6 @@ public class DeletePublicationHandlerTests
 
             return Task.FromResult(DeletePublishedResult);
         }
-
-        public Task<int> OrphanPublishedByPlatformAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class FakePublicationDeleterSelector(IPlatformPublicationDeleter? deleter)
-        : IPublicationDeleterSelector
-    {
-        public IPlatformPublicationDeleter? Find(PlatformType type) => deleter;
     }
 
     private sealed class FakePublicationDeleter : IPlatformPublicationDeleter

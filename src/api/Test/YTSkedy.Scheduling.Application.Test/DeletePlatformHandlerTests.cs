@@ -163,46 +163,9 @@ public class DeletePlatformHandlerTests
     }
 
     private sealed class FakePlatformPublicationRepository(List<string> calls)
-        : IPlatformPublicationRepository
+        : IPublicationHistoryWriter
     {
         public string? OrphanedPlatformId { get; private set; }
-
-        public Task<StartPublicationResult> StartPublishingAsync(
-            PlatformPublicationAttempt attempt,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task ReleasePublishingAsync(
-            string calendarEventId,
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<DateTimeOffset?> MarkPublishedAsync(
-            string calendarEventId,
-            string platformId,
-            string externalResourceId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> MarkThumbnailAppliedAsync(
-            string calendarEventId,
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> MarkThumbnailFailedAsync(
-            string calendarEventId,
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<DeletePublishedResult> DeletePublishedAsync(
-            string calendarEventId,
-            string platformId,
-            string externalResourceId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
 
         public Task<int> OrphanPublishedByPlatformAsync(
             string platformId,

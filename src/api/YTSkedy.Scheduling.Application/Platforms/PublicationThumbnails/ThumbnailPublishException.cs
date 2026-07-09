@@ -1,4 +1,4 @@
-namespace YTSkedy.Scheduling.Application.Platforms.Publications;
+namespace YTSkedy.Scheduling.Application.Platforms.PublicationThumbnails;
 
 public sealed class ThumbnailPublishException : Exception
 {

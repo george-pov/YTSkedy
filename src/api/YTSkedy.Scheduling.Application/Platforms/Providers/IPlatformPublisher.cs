@@ -11,10 +11,8 @@ namespace YTSkedy.Scheduling.Application.Platforms.Providers;
 /// <see cref="PlatformPublishException"/> so the caller can release its
 /// attempt and surface an upstream failure.
 /// </summary>
-public interface IPlatformPublisher
+public interface IPlatformPublisher : IPlatformTypeAdapter
 {
-    PlatformType Type { get; }
-
     Task<PlatformPublishResult> PublishAsync(
         PlatformPublishRequest request,
         CancellationToken cancellationToken);

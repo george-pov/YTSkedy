@@ -20,6 +20,7 @@ using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Content;
 using YTSkedy.Scheduling.Application.Platforms.Providers;
+using YTSkedy.Scheduling.Application.Platforms.PublicationThumbnails;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Application.Templates;
@@ -107,6 +108,7 @@ builder.Services.AddSingleton(_ =>
 builder.Services.AddScoped<CreateCalendarEventHandler>();
 builder.Services.AddScoped<ListEventsHandler>();
 builder.Services.AddScoped<GetCalendarEventDetailsHandler>();
+builder.Services.AddScoped<CalendarEventPublicationLock>();
 builder.Services.AddScoped<UpdateCalendarEventHandler>();
 builder.Services.AddScoped<DeleteCalendarEventHandler>();
 builder.Services.AddScoped<UploadThumbnailHandler>();
@@ -285,7 +287,13 @@ builder.Services.AddScoped(serviceProvider =>
     new AzurePlatformPublicationRepository(
         serviceProvider.GetRequiredKeyedService<TableClient>("platformPublications"),
         serviceProvider.GetRequiredService<TimeProvider>()));
-builder.Services.AddScoped<IPlatformPublicationRepository>(
+builder.Services.AddScoped<IPublicationAttemptWriter>(
+    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
+builder.Services.AddScoped<IPublicationThumbnailWriter>(
+    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
+builder.Services.AddScoped<IPublicationCleanupWriter>(
+    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
+builder.Services.AddScoped<IPublicationHistoryWriter>(
     serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
 builder.Services.AddScoped<IPlatformPublicationReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
@@ -314,14 +322,18 @@ builder.Services.AddSingleton(serviceProvider =>
         serviceProvider.GetRequiredService<ILogger<WordPressPublicationDeleter>>()));
 builder.Services.AddSingleton<IPlatformPublicationDeleter>(
     serviceProvider => serviceProvider.GetRequiredService<WordPressPublicationDeleter>());
-builder.Services.AddSingleton<IPlatformPublisherSelector, PlatformPublisherSelector>();
+builder.Services.AddSingleton<IPlatformTypeAdapterSelector<IPlatformPublisher>,
+    PlatformTypeAdapterSelector<IPlatformPublisher>>();
 builder.Services.AddSingleton<IThumbnailPublisher, YouTubeThumbnailPublisher>();
-builder.Services.AddSingleton<IThumbnailPublisherSelector, ThumbnailPublisherSelector>();
+builder.Services.AddSingleton<IPlatformTypeAdapterSelector<IThumbnailPublisher>,
+    PlatformTypeAdapterSelector<IThumbnailPublisher>>();
+builder.Services.AddScoped<PublicationThumbnailApplier>();
 builder.Services.AddScoped<PublishHandler>();
 
 // Platform publication cleanup: providers are selected by platform type and use
 // current settings stored on the platform row.
-builder.Services.AddSingleton<IPublicationDeleterSelector, PublicationDeleterSelector>();
+builder.Services.AddSingleton<IPlatformTypeAdapterSelector<IPlatformPublicationDeleter>,
+    PlatformTypeAdapterSelector<IPlatformPublicationDeleter>>();
 builder.Services.AddScoped<DeletePublicationHandler>();
 
 builder.Build().Run();

@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Logging;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
-using YTSkedy.Scheduling.Domain.CalendarEvents;
+using YTSkedy.Scheduling.Application.Platforms.EventPlatforms;
+using YTSkedy.Scheduling.Application.Platforms.Providers;
 using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Scheduling.Application.Platforms.Publications;
@@ -15,8 +16,8 @@ public sealed class DeletePublicationHandler(
     ICalendarEventReader calendarEvents,
     IPlatformReader platforms,
     IPlatformPublicationReader publications,
-    IPlatformPublicationRepository publicationRepository,
-    IPublicationDeleterSelector deleters,
+    IPublicationCleanupWriter publicationCleanup,
+    IPlatformTypeAdapterSelector<IPlatformPublicationDeleter> deleters,
     TimeProvider timeProvider,
     ILogger<DeletePublicationHandler> logger)
 {
@@ -51,7 +52,10 @@ public sealed class DeletePublicationHandler(
         {
             return DeletePublicationResult.Success(
                 DeletePublicationStatus.AlreadyNotPublished,
-                ProjectNotPublished(calendarEvent, platform));
+                EventPlatformProjection.ProjectNotPublished(
+                    calendarEvent,
+                    platform,
+                    timeProvider.GetUtcNow()));
         }
 
         if (publication.IsOrphaned)
@@ -130,7 +134,7 @@ public sealed class DeletePublicationHandler(
             return DeletePublicationResult.ForStatus(DeletePublicationStatus.ProviderFailed);
         }
 
-        var deleteResult = await publicationRepository.DeletePublishedAsync(
+        var deleteResult = await publicationCleanup.DeletePublishedAsync(
             command.CalendarEventId,
             command.PlatformId,
             publication.ExternalResourceId,
@@ -141,17 +145,11 @@ public sealed class DeletePublicationHandler(
             DeletePublishedResult.Deleted or DeletePublishedResult.NotFound =>
                 DeletePublicationResult.Success(
                     DeletePublicationStatus.Deleted,
-                    ProjectNotPublished(calendarEvent, platform)),
+                    EventPlatformProjection.ProjectNotPublished(
+                        calendarEvent,
+                        platform,
+                        timeProvider.GetUtcNow())),
             _ => DeletePublicationResult.ForStatus(DeletePublicationStatus.RowChanged)
         };
     }
-
-    private EventPlatformView ProjectNotPublished(
-        CalendarEventView calendarEvent,
-        PlatformView platform) =>
-        EventPlatformProjection.Project(
-            calendarEvent,
-            [platform],
-            [],
-            timeProvider.GetUtcNow()).Single();
 }

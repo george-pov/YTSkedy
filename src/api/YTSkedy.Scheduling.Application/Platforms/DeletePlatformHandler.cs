@@ -15,7 +15,7 @@ public sealed class DeletePlatformHandler(
     IPlatformReader platforms,
     IPlatformModifier platformModifier,
     IPlatformPublicationReader publications,
-    IPlatformPublicationRepository publicationRepository)
+    IPublicationHistoryWriter publicationHistory)
 {
     public async Task<DeletePlatformResult> HandleAsync(
         DeletePlatformCommand command,
@@ -41,7 +41,7 @@ public sealed class DeletePlatformHandler(
 
         // Orphan before removing the platform row so published history is never
         // left without a deleted marker if the delete is interrupted afterward.
-        await publicationRepository.OrphanPublishedByPlatformAsync(
+        await publicationHistory.OrphanPublishedByPlatformAsync(
             command.PlatformId,
             cancellationToken);
 

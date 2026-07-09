@@ -1,6 +1,6 @@
 using YTSkedy.Scheduling.Domain.Platforms;
 
-namespace YTSkedy.Scheduling.Application.Platforms.Publications;
+namespace YTSkedy.Scheduling.Application.Platforms.EventPlatforms;
 
 /// <summary>
 /// One row of the event-platform listing: a platform paired with its publication

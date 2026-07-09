@@ -27,7 +27,8 @@ public sealed class CalendarEventThumbnailsApiTests
         var api = new CalendarEventThumbnailsApi(
             new UploadThumbnailHandler(
                 new FakeCalendarEventReader(CreateEvent()),
-                new FakePublicationReader(hasAnyForEvent: false),
+                new CalendarEventPublicationLock(
+                    new FakePublicationReader(hasAnyForEvent: false)),
                 new FakeThumbnailModifier(),
                 new FakeThumbnailStore(),
                 new FixedTimeProvider(Now)),

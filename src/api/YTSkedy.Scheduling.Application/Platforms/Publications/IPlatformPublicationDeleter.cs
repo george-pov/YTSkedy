@@ -1,4 +1,5 @@
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Providers;
 
 namespace YTSkedy.Scheduling.Application.Platforms.Publications;
 
@@ -7,10 +8,8 @@ namespace YTSkedy.Scheduling.Application.Platforms.Publications;
 /// publishing. A concrete deleter serves one <see cref="PlatformType"/>, so the
 /// application use case stays provider-neutral.
 /// </summary>
-public interface IPlatformPublicationDeleter
+public interface IPlatformPublicationDeleter : IPlatformTypeAdapter
 {
-    PlatformType Type { get; }
-
     Task<PublicationDeleteResult> DeleteAsync(
         PublicationDeleteRequest request,
         CancellationToken cancellationToken);

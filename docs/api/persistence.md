@@ -12,7 +12,7 @@ Multi-platform publishing adds two more tables. Configured platforms persist in
 a `Platforms` table through the `IPlatformModifier` and `IPlatformReader` ports,
 implemented by `AzurePlatformRepository`. Per-event, per-platform publish state
 persists in a `PlatformPublications` table through the
-`IPlatformPublicationRepository` and `IPlatformPublicationReader` ports,
+focused publication write ports and the `IPlatformPublicationReader` port,
 implemented by `AzurePlatformPublicationRepository`. Calendar event rows are
 provider-neutral and store no publish state of their own.
 
@@ -223,8 +223,8 @@ than duplicated in documentation.
 
 ## Platform Publication Rows
 
-`AzurePlatformPublicationRepository` implements the
-`IPlatformPublicationRepository` write port and the
+`AzurePlatformPublicationRepository` implements the publication attempt,
+thumbnail-status, cleanup, and history write ports plus the
 `IPlatformPublicationReader` read port against the `PlatformPublications` table.
 A publication row is the authoritative publish state for one calendar event and
 one platform.

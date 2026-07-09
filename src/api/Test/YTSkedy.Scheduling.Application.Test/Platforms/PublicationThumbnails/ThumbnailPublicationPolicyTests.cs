@@ -1,5 +1,4 @@
-using YTSkedy.Scheduling.Application.Platforms;
-using YTSkedy.Scheduling.Application.Platforms.Publications;
+using YTSkedy.Scheduling.Application.Platforms.PublicationThumbnails;
 using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Scheduling.Application.Test;

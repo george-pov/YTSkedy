@@ -6,7 +6,7 @@ namespace YTSkedy.Scheduling.Application.CalendarEvents;
 
 public sealed class UpdateCalendarEventHandler(
     ICalendarEventReader calendarEventReader,
-    IPlatformPublicationReader publicationReader,
+    CalendarEventPublicationLock publicationLock,
     ICalendarEventModifier calendarEvents)
 {
     public async Task<UpdateCalendarEventResult> HandleAsync(
@@ -24,7 +24,7 @@ public sealed class UpdateCalendarEventHandler(
             return UpdateCalendarEventResult.NotFound;
         }
 
-        if (await publicationReader.HasAnyForEventAsync(
+        if (await publicationLock.IsLockedAsync(
                 command.CalendarEventId,
                 cancellationToken))
         {

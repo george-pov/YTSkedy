@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.TestSupport;
@@ -85,8 +86,9 @@ public sealed class UploadThumbnailHandlerTests
         bool canMutate = true) =>
         new(
             new FakeCalendarEventReader(getResult: calendarEvent),
-            new FakePlatformPublicationReader(
-                canMutate ? [] : [ApplicationTestData.Publication(PublishStatus.Published)]),
+            new CalendarEventPublicationLock(
+                new FakePlatformPublicationReader(
+                    canMutate ? [] : [ApplicationTestData.Publication(PublishStatus.Published)])),
             modifier,
             store,
             new FixedTimeProvider(ApplicationTestData.Now));
