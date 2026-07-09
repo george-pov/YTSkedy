@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using YTSkedy.Infrastructure.Test.TestSupport;
 using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
@@ -59,10 +60,9 @@ public class YouTubeThumbnailPublisherTests
         await Assert.ThrowsAsync<ThumbnailPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
 
-        var logText = string.Join(Environment.NewLine, logger.Entries.Select(entry => entry.Message));
-        Assert.DoesNotContain(ClientSecret, logText);
-        Assert.DoesNotContain(RefreshToken, logText);
-        Assert.Contains("invalidImage", logText);
+        Assert.DoesNotContain(ClientSecret, logger.Text);
+        Assert.DoesNotContain(RefreshToken, logger.Text);
+        Assert.Contains("invalidImage", logger.Text);
     }
 
     [Fact]
@@ -125,20 +125,4 @@ public class YouTubeThumbnailPublisherTests
         }
     }
 
-    private sealed class CapturingLogger<T> : ILogger<T>
-    {
-        public List<(LogLevel Level, string Message)> Entries { get; } = [];
-
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter) =>
-            Entries.Add((logLevel, formatter(state, exception)));
-    }
 }

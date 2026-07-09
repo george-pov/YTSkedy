@@ -1,10 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
-using Azure;
-using Azure.Core;
-using Azure.Data.Tables;
-using Azure.Data.Tables.Models;
 using YTSkedy.Infrastructure.CalendarEvents;
+using YTSkedy.Infrastructure.Test.TestSupport;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
@@ -15,7 +12,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task CreateAsync_CalendarEvent_StoresStableKeysAndTextJson()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new CalendarEventTableClient();
         var repository = CreateRepository(tableClient);
         var calendarEvent = new CalendarEvent(
             new ScheduledStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
@@ -44,7 +41,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task CreateAsync_DuplicateScheduledStart_ThrowsDuplicateScheduledStartException()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new CalendarEventTableClient();
         var repository = CreateRepository(tableClient);
         var scheduledStartUtc = new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero);
         await repository.CreateAsync(
@@ -64,7 +61,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task GetByIdAsync_OpaqueId_ReturnsCalendarEvent()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new CalendarEventTableClient();
         var repository = CreateRepository(tableClient);
         var scheduledStartUtc = new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero);
         var calendarEventId = await repository.CreateAsync(
@@ -83,7 +80,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task GetByIdAsync_LegacyScheduledStartId_ReturnsNull()
     {
-        var repository = CreateRepository(new InMemoryTableClient());
+        var repository = CreateRepository(new CalendarEventTableClient());
 
         var result = await repository.GetByIdAsync(
             "start-20260606T170000Z-6f9619ff8b864fb5bdfd4f5c2f2f16a1",
@@ -95,7 +92,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task DeleteAsync_OpaqueId_RemovesEventRow()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new CalendarEventTableClient();
         var repository = CreateRepository(tableClient);
         var calendarEventId = await repository.CreateAsync(
             Event("Original title", "2026-06-15T10:00:00"),
@@ -110,7 +107,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task ListAsync_MonthCriteria_FiltersSinglePartitionByLocalMonth()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new CalendarEventTableClient();
         var repository = CreateRepository(tableClient);
         var tokyoJuneId = await repository.CreateAsync(
             Event("Tokyo June", "2026-06-01T00:30:00", "Asia/Tokyo"),
@@ -141,7 +138,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task ListAsync_NoCriteria_ReturnsAllEvents()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new CalendarEventTableClient();
         var repository = CreateRepository(tableClient);
         var firstId = await repository.CreateAsync(
             Event("First", "2026-06-15T10:00:00"),
@@ -162,7 +159,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task UpdateAsync_ExistingEvent_ReplacesScheduledStartAndTextJson()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new CalendarEventTableClient();
         var repository = CreateRepository(tableClient);
         var calendarEventId = await repository.CreateAsync(
             Event("Original title", "2026-06-15T10:00:00"),
@@ -201,7 +198,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task UpdateAsync_MissingEvent_ReturnsFalse()
     {
-        var repository = CreateRepository(new InMemoryTableClient());
+        var repository = CreateRepository(new CalendarEventTableClient());
 
         var result = await repository.UpdateAsync(
             "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
@@ -215,7 +212,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task UpdateAsync_DuplicateScheduledStart_ThrowsDuplicateScheduledStartException()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new CalendarEventTableClient();
         var repository = CreateRepository(tableClient);
         var scheduledStartUtc = new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero);
         await repository.CreateAsync(
@@ -240,7 +237,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task SaveThumbnailAsync_ExistingEvent_StoresThumbnailJson()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new CalendarEventTableClient();
         var repository = CreateRepository(tableClient);
         var calendarEventId = await repository.CreateAsync(
             Event("Original title", "2026-06-15T10:00:00"),
@@ -265,7 +262,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task SaveThumbnailAsync_MissingEvent_ReturnsFalse()
     {
-        var repository = CreateRepository(new InMemoryTableClient());
+        var repository = CreateRepository(new CalendarEventTableClient());
 
         var result = await repository.SaveThumbnailAsync(
             "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
@@ -278,7 +275,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task GetThumbnailAsync_NoThumbnail_ReturnsNull()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new CalendarEventTableClient();
         var repository = CreateRepository(tableClient);
         var calendarEventId = await repository.CreateAsync(
             Event("Original title", "2026-06-15T10:00:00"),
@@ -295,7 +292,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task DeleteThumbnailAsync_ExistingEvent_ClearsThumbnailJson()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new CalendarEventTableClient();
         var repository = CreateRepository(tableClient);
         var calendarEventId = await repository.CreateAsync(
             Event("Original title", "2026-06-15T10:00:00"),
@@ -321,7 +318,7 @@ public sealed class AzureCalendarEventRepositoryTests
     [Fact]
     public async Task DeleteThumbnailAsync_MissingEvent_ReturnsFalse()
     {
-        var repository = CreateRepository(new InMemoryTableClient());
+        var repository = CreateRepository(new CalendarEventTableClient());
 
         var result = await repository.DeleteThumbnailAsync(
             "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
@@ -330,7 +327,7 @@ public sealed class AzureCalendarEventRepositoryTests
         Assert.False(result);
     }
 
-    private static AzureCalendarEventRepository CreateRepository(InMemoryTableClient tableClient) =>
+    private static AzureCalendarEventRepository CreateRepository(CalendarEventTableClient tableClient) =>
         new(tableClient, new FixedTimeProvider(
             new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero)));
 
@@ -391,170 +388,4 @@ public sealed class AzureCalendarEventRepositoryTests
         return value.GetProperty("value").GetString() ?? string.Empty;
     }
 
-    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now;
-    }
-
-    private sealed class InMemoryTableClient : TableClient
-    {
-        public Dictionary<(string PartitionKey, string RowKey), CalendarEventEntity> Entities { get; } = [];
-
-        public override Task<Response<TableItem>> CreateIfNotExistsAsync(
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(Response.FromValue(
-                TableModelFactory.TableItem("CalendarEvents"),
-                StubResponse.Instance));
-
-        public override Task<Response> AddEntityAsync<T>(
-            T entity,
-            CancellationToken cancellationToken = default)
-        {
-            var calendarEvent = ToCalendarEventEntity(entity);
-            var key = (calendarEvent.PartitionKey, calendarEvent.RowKey);
-            if (Entities.ContainsKey(key))
-            {
-                throw new RequestFailedException(409, "Entity already exists.");
-            }
-
-            Entities[key] = Clone(calendarEvent);
-
-            return Task.FromResult<Response>(StubResponse.Instance);
-        }
-
-        public override Task<Response> UpdateEntityAsync<T>(
-            T entity,
-            ETag ifMatch,
-            TableUpdateMode mode,
-            CancellationToken cancellationToken = default)
-        {
-            var calendarEvent = ToCalendarEventEntity(entity);
-            var key = (calendarEvent.PartitionKey, calendarEvent.RowKey);
-            if (!Entities.ContainsKey(key))
-            {
-                throw new RequestFailedException(404, "Entity not found.");
-            }
-
-            Entities[key] = Clone(calendarEvent);
-
-            return Task.FromResult<Response>(StubResponse.Instance);
-        }
-
-        public override Task<Response> DeleteEntityAsync(
-            string partitionKey,
-            string rowKey,
-            ETag ifMatch = default,
-            CancellationToken cancellationToken = default)
-        {
-            Entities.Remove((partitionKey, rowKey));
-
-            return Task.FromResult<Response>(StubResponse.Instance);
-        }
-
-        public override Task<NullableResponse<T>> GetEntityIfExistsAsync<T>(
-            string partitionKey,
-            string rowKey,
-            IEnumerable<string>? select = null,
-            CancellationToken cancellationToken = default)
-        {
-            if (Entities.TryGetValue((partitionKey, rowKey), out var entity))
-            {
-                return Task.FromResult<NullableResponse<T>>(
-                    Response.FromValue((T)(object)Clone(entity), StubResponse.Instance));
-            }
-
-            return Task.FromResult<NullableResponse<T>>(new EmptyNullableResponse<T>());
-        }
-
-        public override AsyncPageable<T> QueryAsync<T>(
-            string? filter = null,
-            int? maxPerPage = null,
-            IEnumerable<string>? select = null,
-            CancellationToken cancellationToken = default)
-        {
-            var values = filter is null || string.Equals(
-                filter,
-                CalendarEventStorageKey.PartitionFilter(),
-                StringComparison.Ordinal)
-                    ? Entities.Values.Select(entity => (T)(object)Clone(entity)).ToArray()
-                    : [];
-
-            return AsyncPageable<T>.FromPages(
-                [Page<T>.FromValues(values, continuationToken: null, StubResponse.Instance)]);
-        }
-
-        private static CalendarEventEntity ToCalendarEventEntity<T>(T entity)
-        {
-            if (entity is not CalendarEventEntity calendarEvent)
-            {
-                throw new InvalidOperationException($"Unsupported entity type '{typeof(T).Name}'.");
-            }
-
-            return calendarEvent;
-        }
-
-        private static CalendarEventEntity Clone(CalendarEventEntity entity) =>
-            new()
-            {
-                PartitionKey = entity.PartitionKey,
-                RowKey = entity.RowKey,
-                Timestamp = entity.Timestamp,
-                ETag = entity.ETag,
-                CalendarEventId = entity.CalendarEventId,
-                ScheduledStartUtc = entity.ScheduledStartUtc,
-                LocalDateTime = entity.LocalDateTime,
-                TimeZoneId = entity.TimeZoneId,
-                TextJson = entity.TextJson,
-                ThumbnailJson = entity.ThumbnailJson,
-                CreatedUtc = entity.CreatedUtc
-            };
-    }
-
-    private sealed class EmptyNullableResponse<T> : NullableResponse<T>
-    {
-        public override bool HasValue => false;
-
-        public override T Value => throw new InvalidOperationException("No value is available.");
-
-        public override Response GetRawResponse() => StubResponse.Instance;
-    }
-
-    private sealed class StubResponse : Response
-    {
-        public static readonly StubResponse Instance = new();
-
-        private StubResponse()
-        {
-        }
-
-        public override int Status => 200;
-
-        public override string ReasonPhrase => "OK";
-
-        public override Stream? ContentStream { get; set; }
-
-        public override string ClientRequestId { get; set; } = string.Empty;
-
-        protected override bool ContainsHeader(string name) => false;
-
-        protected override IEnumerable<HttpHeader> EnumerateHeaders() => [];
-
-        protected override bool TryGetHeader(string name, out string value)
-        {
-            value = string.Empty;
-
-            return false;
-        }
-
-        protected override bool TryGetHeaderValues(string name, out IEnumerable<string> values)
-        {
-            values = [];
-
-            return false;
-        }
-
-        public override void Dispose()
-        {
-        }
-    }
 }

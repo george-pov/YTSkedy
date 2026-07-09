@@ -2,9 +2,11 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using YTSkedy.Infrastructure.Test.TestSupport;
 using YTSkedy.Infrastructure.WordPress;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
+using static YTSkedy.Infrastructure.Test.WordPress.WordPressDiscoveryHandlers;
 using static YTSkedy.Infrastructure.Test.WordPress.WordPressTestResponses;
 
 namespace YTSkedy.Infrastructure.Test.WordPress;
@@ -18,7 +20,7 @@ public class WordPressPublisherTests
     [Fact]
     public void Type_IsWordPress()
     {
-        var publisher = CreatePublisher(PrettyRootHandler(_ => JsonResponse("""{"id":74}""")));
+        var publisher = CreatePublisher(PrettyRoot(_ => JsonResponse("""{"id":74}""")));
 
         Assert.Equal(PlatformType.WordPress, publisher.Type);
     }
@@ -28,8 +30,8 @@ public class WordPressPublisherTests
     {
         HttpRequestMessage? capturedRequest = null;
         string? capturedBody = null;
-        var handler = PrettyRootHandler(
-            postHandler: request =>
+        var handler = PrettyRoot(
+            requestHandler: request =>
             {
                 capturedRequest = request;
                 capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
@@ -71,7 +73,7 @@ public class WordPressPublisherTests
     public async Task PublishAsync_DiscoveredRouteRoot_PostsExpectedRequestAndReturnsId()
     {
         HttpRequestMessage? capturedRequest = null;
-        var handler = RouteRootHandler(request =>
+        var handler = RouteRoot(request =>
         {
             capturedRequest = request;
             return JsonResponse("""{"id":74}""");
@@ -94,7 +96,7 @@ public class WordPressPublisherTests
     public async Task PublishAsync_NullDescription_SendsEmptyContent()
     {
         string? capturedBody = null;
-        var handler = PrettyRootHandler(request =>
+        var handler = PrettyRoot(request =>
         {
             capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
             return JsonResponse("""{"id":75}""");
@@ -120,7 +122,7 @@ public class WordPressPublisherTests
     public async Task PublishAsync_DiscoveryFailure_ThrowsPlatformPublishException()
     {
         var logger = new CapturingLogger<WordPressPublisher>();
-        var handler = UnsupportedDiscoveryHandler();
+        var handler = UnsupportedDiscovery();
         var publisher = CreatePublisher(handler, logger);
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
@@ -128,7 +130,7 @@ public class WordPressPublisherTests
 
         Assert.Contains("Failed to publish", exception.Message);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
-        Assert.DoesNotContain(ApplicationPassword, LogText(logger));
+        Assert.DoesNotContain(ApplicationPassword, logger.Text);
         Assert.Equal(3, handler.CallCount);
     }
 
@@ -141,7 +143,7 @@ public class WordPressPublisherTests
         HttpStatusCode statusCode)
     {
         var logger = new CapturingLogger<WordPressPublisher>();
-        var handler = PrettyRootHandler(_ => new HttpResponseMessage(statusCode));
+        var handler = PrettyRoot(_ => new HttpResponseMessage(statusCode));
         var publisher = CreatePublisher(handler, logger);
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
@@ -164,7 +166,7 @@ public class WordPressPublisherTests
     public async Task PublishAsync_MalformedJson_ThrowsPlatformPublishException()
     {
         var logger = new CapturingLogger<WordPressPublisher>();
-        var handler = PrettyRootHandler(_ => JsonResponse("{not-json"));
+        var handler = PrettyRoot(_ => JsonResponse("{not-json"));
         var publisher = CreatePublisher(handler, logger);
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
@@ -183,7 +185,7 @@ public class WordPressPublisherTests
         string responseJson)
     {
         var logger = new CapturingLogger<WordPressPublisher>();
-        var handler = PrettyRootHandler(_ => JsonResponse(responseJson));
+        var handler = PrettyRoot(_ => JsonResponse(responseJson));
         var publisher = CreatePublisher(handler, logger);
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
@@ -198,7 +200,7 @@ public class WordPressPublisherTests
     public async Task PublishAsync_HttpRequestException_ThrowsPlatformPublishException()
     {
         var logger = new CapturingLogger<WordPressPublisher>();
-        var handler = PrettyRootHandler(_ => throw new HttpRequestException("network down"));
+        var handler = PrettyRoot(_ => throw new HttpRequestException("network down"));
         var publisher = CreatePublisher(handler, logger);
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
@@ -249,47 +251,6 @@ public class WordPressPublisherTests
             logger ?? new CapturingLogger<WordPressPublisher>());
     }
 
-    private static FakeHttpMessageHandler PrettyRootHandler(
-        Func<HttpRequestMessage, HttpResponseMessage> postHandler,
-        string rootUrl = "https://example.com/wp-json/") =>
-        new(request =>
-        {
-            if (request.Method == HttpMethod.Head)
-            {
-                return LinkResponse($"<{rootUrl}>; rel=\"https://api.w.org/\"");
-            }
-
-            if (request.Method == HttpMethod.Get)
-            {
-                return JsonIndexResponse();
-            }
-
-            return postHandler(request);
-        });
-
-    private static FakeHttpMessageHandler RouteRootHandler(
-        Func<HttpRequestMessage, HttpResponseMessage> postHandler) =>
-        new(request =>
-        {
-            if (request.Method == HttpMethod.Head)
-            {
-                return LinkResponse("<https://example.com/index.php?rest_route=/>; rel=\"https://api.w.org/\"");
-            }
-
-            if (request.Method == HttpMethod.Get)
-            {
-                return JsonIndexResponse();
-            }
-
-            return postHandler(request);
-        });
-
-    private static FakeHttpMessageHandler UnsupportedDiscoveryHandler() =>
-        new(request =>
-            request.Method == HttpMethod.Head
-                ? new HttpResponseMessage(HttpStatusCode.OK)
-                : JsonResponse("""{"namespaces":["oembed/1.0"]}"""));
-
     private static PlatformPublishRequest Request(
         PublishSettings? settings = null,
         string? description = "English description") =>
@@ -304,15 +265,4 @@ public class WordPressPublisherTests
             "English title",
             description,
             new DateTimeOffset(2026, 6, 25, 17, 0, 0, TimeSpan.Zero));
-
-    private static void AssertDiscoveryRequestsAreAnonymous(FakeHttpMessageHandler handler)
-    {
-        var discoveryRequests = handler.Requests.Where(request =>
-            request.Method == HttpMethod.Head || request.Method == HttpMethod.Get);
-
-        Assert.All(discoveryRequests, request => Assert.Null(request.Authorization));
-    }
-
-    private static string LogText(CapturingLogger<WordPressPublisher> logger) =>
-        string.Join(Environment.NewLine, logger.Entries.Select(entry => entry.Message));
 }

@@ -1,0 +1,391 @@
+using Azure;
+using Azure.Core;
+using Azure.Data.Tables;
+using Azure.Data.Tables.Models;
+using YTSkedy.Infrastructure.CalendarEvents;
+using YTSkedy.Infrastructure.Platforms;
+using YTSkedy.Infrastructure.Settings;
+using YTSkedy.Scheduling.Domain.Platforms;
+
+namespace YTSkedy.Infrastructure.Test.TestSupport;
+
+internal abstract class InMemoryTableClient<TEntity>(string tableName) : TableClient
+    where TEntity : class, ITableEntity
+{
+    private readonly HashSet<(string PartitionKey, string RowKey)> deletePreconditionFailures = [];
+
+    public Dictionary<(string PartitionKey, string RowKey), TEntity> Entities { get; } = [];
+
+    public bool CreateIfNotExistsCalled { get; private set; }
+
+    public void Seed(TEntity entity)
+    {
+        Entities[(entity.PartitionKey, entity.RowKey)] = Clone(entity);
+    }
+
+    public void FailDeleteWithPreconditionFailed(TEntity entity)
+    {
+        deletePreconditionFailures.Add((entity.PartitionKey, entity.RowKey));
+    }
+
+    public override Task<Response<TableItem>> CreateIfNotExistsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        CreateIfNotExistsCalled = true;
+
+        return Task.FromResult(Response.FromValue(
+            TableModelFactory.TableItem(tableName),
+            StubResponse.Instance));
+    }
+
+    public override Task<Response> AddEntityAsync<T>(
+        T entity,
+        CancellationToken cancellationToken = default)
+    {
+        var typedEntity = ToEntity(entity);
+        var key = (typedEntity.PartitionKey, typedEntity.RowKey);
+        if (Entities.ContainsKey(key))
+        {
+            throw new RequestFailedException(409, "Entity already exists.");
+        }
+
+        Entities[key] = Clone(typedEntity);
+
+        return Task.FromResult<Response>(StubResponse.Instance);
+    }
+
+    public override Task<Response> UpsertEntityAsync<T>(
+        T entity,
+        TableUpdateMode mode = TableUpdateMode.Merge,
+        CancellationToken cancellationToken = default)
+    {
+        var typedEntity = ToEntity(entity);
+        Entities[(typedEntity.PartitionKey, typedEntity.RowKey)] = Clone(typedEntity);
+
+        return Task.FromResult<Response>(StubResponse.Instance);
+    }
+
+    public override Task<Response> UpdateEntityAsync<T>(
+        T entity,
+        ETag ifMatch,
+        TableUpdateMode mode,
+        CancellationToken cancellationToken = default)
+    {
+        var typedEntity = ToEntity(entity);
+        var key = (typedEntity.PartitionKey, typedEntity.RowKey);
+        if (!Entities.ContainsKey(key))
+        {
+            throw new RequestFailedException(404, "Entity not found.");
+        }
+
+        Entities[key] = Clone(typedEntity);
+
+        return Task.FromResult<Response>(StubResponse.Instance);
+    }
+
+    public override Task<Response> DeleteEntityAsync(
+        string partitionKey,
+        string rowKey,
+        ETag ifMatch = default,
+        CancellationToken cancellationToken = default)
+    {
+        var key = (partitionKey, rowKey);
+        if (deletePreconditionFailures.Contains(key))
+        {
+            throw new RequestFailedException(412, "Precondition failed.");
+        }
+
+        if (!Entities.Remove(key))
+        {
+            throw new RequestFailedException(404, "Entity not found.");
+        }
+
+        return Task.FromResult<Response>(StubResponse.Instance);
+    }
+
+    public override Task<NullableResponse<T>> GetEntityIfExistsAsync<T>(
+        string partitionKey,
+        string rowKey,
+        IEnumerable<string>? select = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (Entities.TryGetValue((partitionKey, rowKey), out var entity))
+        {
+            return Task.FromResult<NullableResponse<T>>(
+                Response.FromValue((T)(object)Clone(entity), StubResponse.Instance));
+        }
+
+        return Task.FromResult<NullableResponse<T>>(new EmptyNullableResponse<T>());
+    }
+
+    public override AsyncPageable<T> QueryAsync<T>(
+        string? filter = null,
+        int? maxPerPage = null,
+        IEnumerable<string>? select = null,
+        CancellationToken cancellationToken = default)
+    {
+        var values = Entities.Values
+            .Where(entity => MatchesFilter(entity, filter))
+            .Select(entity => (T)(object)Clone(entity))
+            .ToArray();
+
+        return AsyncPageable<T>.FromPages(
+            [Azure.Page<T>.FromValues(values, continuationToken: null, StubResponse.Instance)]);
+    }
+
+    protected abstract TEntity Clone(TEntity entity);
+
+    protected virtual bool MatchesFilter(TEntity entity, string? filter)
+    {
+        if (string.IsNullOrWhiteSpace(filter))
+        {
+            return true;
+        }
+
+        throw new NotSupportedException($"Unsupported filter '{filter}'.");
+    }
+
+    private TEntity ToEntity<T>(T entity)
+    {
+        if (entity is not TEntity typedEntity)
+        {
+            throw new InvalidOperationException($"Unsupported entity type '{typeof(T).Name}'.");
+        }
+
+        return typedEntity;
+    }
+}
+
+internal sealed class CalendarEventTableClient : InMemoryTableClient<CalendarEventEntity>
+{
+    public CalendarEventTableClient()
+        : base("CalendarEvents")
+    {
+    }
+
+    protected override bool MatchesFilter(CalendarEventEntity entity, string? filter) =>
+        string.IsNullOrWhiteSpace(filter) ||
+        string.Equals(filter, CalendarEventStorageKey.PartitionFilter(), StringComparison.Ordinal)
+            ? true
+            : throw new NotSupportedException($"Unsupported filter '{filter}'.");
+
+    protected override CalendarEventEntity Clone(CalendarEventEntity entity) =>
+        new()
+        {
+            PartitionKey = entity.PartitionKey,
+            RowKey = entity.RowKey,
+            Timestamp = entity.Timestamp,
+            ETag = entity.ETag,
+            CalendarEventId = entity.CalendarEventId,
+            ScheduledStartUtc = entity.ScheduledStartUtc,
+            LocalDateTime = entity.LocalDateTime,
+            TimeZoneId = entity.TimeZoneId,
+            TextJson = entity.TextJson,
+            ThumbnailJson = entity.ThumbnailJson,
+            CreatedUtc = entity.CreatedUtc
+        };
+}
+
+internal sealed class PlatformTableClient : InMemoryTableClient<PlatformEntity>
+{
+    public PlatformTableClient()
+        : base("Platforms")
+    {
+    }
+
+    protected override bool MatchesFilter(PlatformEntity entity, string? filter) =>
+        string.IsNullOrWhiteSpace(filter) ||
+        string.Equals(filter, "PartitionKey eq 'platforms'", StringComparison.Ordinal)
+            ? true
+            : throw new NotSupportedException($"Unsupported filter '{filter}'.");
+
+    protected override PlatformEntity Clone(PlatformEntity entity) =>
+        new()
+        {
+            PartitionKey = entity.PartitionKey,
+            RowKey = entity.RowKey,
+            Timestamp = entity.Timestamp,
+            ETag = entity.ETag,
+            PlatformId = entity.PlatformId,
+            Name = entity.Name,
+            ReferenceKey = entity.ReferenceKey,
+            Type = entity.Type,
+            TitleTemplateId = entity.TitleTemplateId,
+            DescriptionTemplateId = entity.DescriptionTemplateId,
+            PublishSettingsJson = entity.PublishSettingsJson,
+            CreatedUtc = entity.CreatedUtc,
+            UpdatedUtc = entity.UpdatedUtc
+        };
+}
+
+internal sealed class PlatformPublicationTableClient
+    : InMemoryTableClient<PlatformPublicationEntity>
+{
+    public PlatformPublicationTableClient()
+        : base("PlatformPublications")
+    {
+    }
+
+    protected override bool MatchesFilter(PlatformPublicationEntity entity, string? filter)
+    {
+        if (string.IsNullOrWhiteSpace(filter))
+        {
+            return true;
+        }
+
+        if (TryReadSingleClause(filter, "PartitionKey", out var partitionKey))
+        {
+            return string.Equals(entity.PartitionKey, partitionKey, StringComparison.Ordinal);
+        }
+
+        if (TryReadTwoClauses(
+                filter,
+                "PlatformId",
+                "Status",
+                out var platformId,
+                out var status))
+        {
+            if (!string.Equals(status, PublishStatus.Publishing.ToString(), StringComparison.Ordinal) &&
+                !string.Equals(status, PublishStatus.Published.ToString(), StringComparison.Ordinal))
+            {
+                throw new NotSupportedException($"Unsupported filter '{filter}'.");
+            }
+
+            return string.Equals(entity.PlatformId, platformId, StringComparison.Ordinal) &&
+                string.Equals(entity.Status, status, StringComparison.Ordinal);
+        }
+
+        throw new NotSupportedException($"Unsupported filter '{filter}'.");
+    }
+
+    protected override PlatformPublicationEntity Clone(PlatformPublicationEntity entity) =>
+        new()
+        {
+            PartitionKey = entity.PartitionKey,
+            RowKey = entity.RowKey,
+            Timestamp = entity.Timestamp,
+            ETag = entity.ETag,
+            CalendarEventId = entity.CalendarEventId,
+            PlatformId = entity.PlatformId,
+            PlatformName = entity.PlatformName,
+            PlatformType = entity.PlatformType,
+            Status = entity.Status,
+            ExternalResourceId = entity.ExternalResourceId,
+            ThumbnailStatus = entity.ThumbnailStatus,
+            ContentSnapshotTitle = entity.ContentSnapshotTitle,
+            ContentSnapshotDescription = entity.ContentSnapshotDescription,
+            PublishSettingsJson = entity.PublishSettingsJson,
+            PublishedUtc = entity.PublishedUtc,
+            PlatformDeletedUtc = entity.PlatformDeletedUtc,
+            CreatedUtc = entity.CreatedUtc,
+            UpdatedUtc = entity.UpdatedUtc
+        };
+
+    private static bool TryReadSingleClause(
+        string filter,
+        string propertyName,
+        out string value)
+    {
+        var prefix = $"{propertyName} eq '";
+        if (!filter.StartsWith(prefix, StringComparison.Ordinal) ||
+            filter[^1] != '\'')
+        {
+            value = string.Empty;
+            return false;
+        }
+
+        value = filter[prefix.Length..^1];
+        return true;
+    }
+
+    private static bool TryReadTwoClauses(
+        string filter,
+        string firstPropertyName,
+        string secondPropertyName,
+        out string firstValue,
+        out string secondValue)
+    {
+        firstValue = string.Empty;
+        secondValue = string.Empty;
+
+        var separator = "' and ";
+        var separatorIndex = filter.IndexOf(separator, StringComparison.Ordinal);
+        if (separatorIndex < 0)
+        {
+            return false;
+        }
+
+        var firstClause = filter[..(separatorIndex + 1)];
+        var secondClause = filter[(separatorIndex + separator.Length)..];
+
+        return TryReadSingleClause(firstClause, firstPropertyName, out firstValue) &&
+            TryReadSingleClause(secondClause, secondPropertyName, out secondValue);
+    }
+}
+
+internal sealed class ApplicationSettingsTableClient
+    : InMemoryTableClient<ApplicationSettingsEntity>
+{
+    public ApplicationSettingsTableClient()
+        : base("ApplicationSettings")
+    {
+    }
+
+    protected override ApplicationSettingsEntity Clone(ApplicationSettingsEntity entity) =>
+        new()
+        {
+            PartitionKey = entity.PartitionKey,
+            RowKey = entity.RowKey,
+            Timestamp = entity.Timestamp,
+            ETag = entity.ETag,
+            ValueJson = entity.ValueJson
+        };
+}
+
+internal sealed class EmptyNullableResponse<T> : NullableResponse<T>
+{
+    public override bool HasValue => false;
+
+    public override T Value => throw new InvalidOperationException("No value is available.");
+
+    public override Response GetRawResponse() => StubResponse.Instance;
+}
+
+internal sealed class StubResponse : Response
+{
+    public static readonly StubResponse Instance = new();
+
+    private StubResponse()
+    {
+    }
+
+    public override int Status => 200;
+
+    public override string ReasonPhrase => "OK";
+
+    public override Stream? ContentStream { get; set; }
+
+    public override string ClientRequestId { get; set; } = string.Empty;
+
+    protected override bool ContainsHeader(string name) => false;
+
+    protected override IEnumerable<HttpHeader> EnumerateHeaders() => [];
+
+    protected override bool TryGetHeader(string name, out string value)
+    {
+        value = string.Empty;
+
+        return false;
+    }
+
+    protected override bool TryGetHeaderValues(string name, out IEnumerable<string> values)
+    {
+        values = [];
+
+        return false;
+    }
+
+    public override void Dispose()
+    {
+    }
+}

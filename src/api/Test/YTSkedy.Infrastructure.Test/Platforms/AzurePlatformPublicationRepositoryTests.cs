@@ -1,8 +1,5 @@
-using Azure;
-using Azure.Core;
-using Azure.Data.Tables;
-using Azure.Data.Tables.Models;
 using YTSkedy.Infrastructure.Platforms;
+using YTSkedy.Infrastructure.Test.TestSupport;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
 
@@ -17,7 +14,7 @@ public class AzurePlatformPublicationRepositoryTests
     [Fact]
     public async Task StartAndMarkPublished_PreservesContentSnapshot()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new PlatformPublicationTableClient();
         var repository = CreateRepository(tableClient);
         var attempt = new PlatformPublicationAttempt(
             CalendarEventId,
@@ -54,7 +51,7 @@ public class AzurePlatformPublicationRepositoryTests
     [Fact]
     public async Task MarkThumbnailApplied_PublishedRow_StoresApplied()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new PlatformPublicationTableClient();
         var repository = CreateRepository(tableClient);
         await StartAndPublish(repository);
 
@@ -71,7 +68,7 @@ public class AzurePlatformPublicationRepositoryTests
     [Fact]
     public async Task MarkThumbnailFailed_PublishedRow_StoresFailed()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new PlatformPublicationTableClient();
         var repository = CreateRepository(tableClient);
         await StartAndPublish(repository);
 
@@ -88,7 +85,7 @@ public class AzurePlatformPublicationRepositoryTests
     [Fact]
     public async Task MarkThumbnailApplied_PublishingRow_ReturnsFalse()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new PlatformPublicationTableClient();
         var repository = CreateRepository(tableClient);
         await repository.StartPublishingAsync(Attempt(), CancellationToken.None);
 
@@ -105,7 +102,7 @@ public class AzurePlatformPublicationRepositoryTests
     [Fact]
     public async Task HasAnyForEventAsync_NoRowsForEvent_ReturnsFalse()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new PlatformPublicationTableClient();
         var repository = CreateRepository(tableClient);
         await repository.StartPublishingAsync(Attempt(OtherCalendarEventId), CancellationToken.None);
 
@@ -119,7 +116,7 @@ public class AzurePlatformPublicationRepositoryTests
     [Fact]
     public async Task HasAnyForEventAsync_RowExistsForEvent_ReturnsTrue()
     {
-        var tableClient = new InMemoryTableClient();
+        var tableClient = new PlatformPublicationTableClient();
         var repository = CreateRepository(tableClient);
         await repository.StartPublishingAsync(Attempt(CalendarEventId), CancellationToken.None);
 
@@ -128,6 +125,197 @@ public class AzurePlatformPublicationRepositoryTests
             CancellationToken.None);
 
         Assert.True(hasAny);
+    }
+
+    [Fact]
+    public async Task ReleasePublishingAsync_ExistingRow_RemovesRow()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var repository = CreateRepository(tableClient);
+        await repository.StartPublishingAsync(Attempt(), CancellationToken.None);
+
+        await repository.ReleasePublishingAsync(
+            CalendarEventId,
+            PlatformId,
+            CancellationToken.None);
+
+        Assert.Empty(tableClient.Entities);
+    }
+
+    [Fact]
+    public async Task ReleasePublishingAsync_MissingRow_Completes()
+    {
+        var repository = CreateRepository(new PlatformPublicationTableClient());
+
+        await repository.ReleasePublishingAsync(
+            CalendarEventId,
+            PlatformId,
+            CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task DeletePublishedAsync_MatchingPublishedRow_DeletesAndReturnsDeleted()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var repository = CreateRepository(tableClient);
+        tableClient.Seed(PublishedEntity("yt-broadcast-id"));
+
+        var result = await repository.DeletePublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            "yt-broadcast-id",
+            CancellationToken.None);
+
+        Assert.Equal(DeletePublishedResult.Deleted, result);
+        Assert.Empty(tableClient.Entities);
+    }
+
+    [Fact]
+    public async Task DeletePublishedAsync_MissingRow_ReturnsNotFound()
+    {
+        var repository = CreateRepository(new PlatformPublicationTableClient());
+
+        var result = await repository.DeletePublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            "yt-broadcast-id",
+            CancellationToken.None);
+
+        Assert.Equal(DeletePublishedResult.NotFound, result);
+    }
+
+    [Fact]
+    public async Task DeletePublishedAsync_PublishingRow_ReturnsChangedAndLeavesRow()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var repository = CreateRepository(tableClient);
+        var entity = PublishedEntity("yt-broadcast-id");
+        entity.Status = PublishStatus.Publishing.ToString();
+        tableClient.Seed(entity);
+
+        var result = await repository.DeletePublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            "yt-broadcast-id",
+            CancellationToken.None);
+
+        Assert.Equal(DeletePublishedResult.Changed, result);
+        Assert.Single(tableClient.Entities);
+    }
+
+    [Fact]
+    public async Task DeletePublishedAsync_ExternalResourceIdChanged_ReturnsChangedAndLeavesRow()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var repository = CreateRepository(tableClient);
+        tableClient.Seed(PublishedEntity("other-resource-id"));
+
+        var result = await repository.DeletePublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            "yt-broadcast-id",
+            CancellationToken.None);
+
+        Assert.Equal(DeletePublishedResult.Changed, result);
+        Assert.Single(tableClient.Entities);
+    }
+
+    [Fact]
+    public async Task DeletePublishedAsync_OrphanedRow_ReturnsChangedAndLeavesRow()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var repository = CreateRepository(tableClient);
+        var entity = PublishedEntity("yt-broadcast-id");
+        entity.PlatformDeletedUtc = new DateTimeOffset(2026, 6, 23, 9, 0, 0, TimeSpan.Zero);
+        tableClient.Seed(entity);
+
+        var result = await repository.DeletePublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            "yt-broadcast-id",
+            CancellationToken.None);
+
+        Assert.Equal(DeletePublishedResult.Changed, result);
+        Assert.Single(tableClient.Entities);
+    }
+
+    [Fact]
+    public async Task DeletePublishedAsync_DeletePreconditionFailed_ReturnsChangedAndLeavesRow()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var repository = CreateRepository(tableClient);
+        var entity = PublishedEntity("yt-broadcast-id");
+        tableClient.Seed(entity);
+        tableClient.FailDeleteWithPreconditionFailed(entity);
+
+        var result = await repository.DeletePublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            "yt-broadcast-id",
+            CancellationToken.None);
+
+        Assert.Equal(DeletePublishedResult.Changed, result);
+        Assert.Single(tableClient.Entities);
+    }
+
+    [Fact]
+    public async Task ListPublishingByPlatformAsync_FiltersPublishingRowsForRequestedPlatform()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var repository = CreateRepository(tableClient);
+        tableClient.Seed(PublicationEntity(
+            PublishStatus.Publishing,
+            calendarEventId: CalendarEventId,
+            platformId: PlatformId));
+        tableClient.Seed(PublicationEntity(
+            PublishStatus.Published,
+            calendarEventId: OtherCalendarEventId,
+            platformId: PlatformId));
+        tableClient.Seed(PublicationEntity(
+            PublishStatus.Publishing,
+            calendarEventId: OtherCalendarEventId,
+            platformId: "other-platform-id"));
+
+        var result = await repository.ListPublishingByPlatformAsync(
+            PlatformId,
+            CancellationToken.None);
+
+        var publication = Assert.Single(result);
+        Assert.Equal(CalendarEventId, publication.CalendarEventId);
+        Assert.Equal(PlatformId, publication.PlatformId);
+        Assert.Equal(PublishStatus.Publishing, publication.Status);
+    }
+
+    [Fact]
+    public async Task OrphanPublishedByPlatformAsync_StampsOnlyPublishedRowsForRequestedPlatform()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var repository = CreateRepository(tableClient);
+        var published = PublicationEntity(
+            PublishStatus.Published,
+            calendarEventId: CalendarEventId,
+            platformId: PlatformId);
+        var publishing = PublicationEntity(
+            PublishStatus.Publishing,
+            calendarEventId: OtherCalendarEventId,
+            platformId: PlatformId);
+        var otherPlatformPublished = PublicationEntity(
+            PublishStatus.Published,
+            calendarEventId: OtherCalendarEventId,
+            platformId: "other-platform-id");
+        tableClient.Seed(published);
+        tableClient.Seed(publishing);
+        tableClient.Seed(otherPlatformPublished);
+
+        var orphaned = await repository.OrphanPublishedByPlatformAsync(
+            PlatformId,
+            CancellationToken.None);
+
+        Assert.Equal(1, orphaned);
+        Assert.NotNull(tableClient.Entities[(published.PartitionKey, published.RowKey)].PlatformDeletedUtc);
+        Assert.Null(tableClient.Entities[(publishing.PartitionKey, publishing.RowKey)].PlatformDeletedUtc);
+        Assert.Null(tableClient.Entities[
+            (otherPlatformPublished.PartitionKey, otherPlatformPublished.RowKey)].PlatformDeletedUtc);
     }
 
     [Fact]
@@ -181,7 +369,7 @@ public class AzurePlatformPublicationRepositoryTests
     }
 
     private static AzurePlatformPublicationRepository CreateRepository(
-        InMemoryTableClient tableClient) =>
+        PlatformPublicationTableClient tableClient) =>
         new(tableClient, new FixedTimeProvider(
             new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)));
 
@@ -205,18 +393,32 @@ public class AzurePlatformPublicationRepositoryTests
             new ContentSnapshot("Rendered title", "Rendered description"));
 
     private static PlatformPublicationEntity PublishedEntity(string externalResourceId) =>
+        PublicationEntity(PublishStatus.Published, externalResourceId: externalResourceId);
+
+    private static PlatformPublicationEntity PublicationEntity(
+        PublishStatus status,
+        string calendarEventId = CalendarEventId,
+        string platformId = PlatformId,
+        string? externalResourceId = "yt-broadcast-id") =>
         new()
         {
-            PartitionKey = PlatformPublicationKey.PartitionKeyFor(CalendarEventId),
-            RowKey = PlatformPublicationKey.RowKeyFor(PlatformId),
-            CalendarEventId = CalendarEventId,
-            PlatformId = PlatformId,
+            PartitionKey = PlatformPublicationKey.PartitionKeyFor(calendarEventId),
+            RowKey = PlatformPublicationKey.RowKeyFor(platformId),
+            CalendarEventId = calendarEventId,
+            PlatformId = platformId,
             PlatformName = "Main YouTube channel",
             PlatformType = PlatformType.YouTube.ToString(),
-            Status = PublishStatus.Published.ToString(),
-            ExternalResourceId = externalResourceId,
-            PublishSettingsJson = "{}",
-            PublishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
+            Status = status.ToString(),
+            ExternalResourceId = status == PublishStatus.Published ? externalResourceId : null,
+            ThumbnailStatus = ThumbnailPublishStatus.NotConfigured.ToString(),
+            ContentSnapshotTitle = "Rendered title",
+            ContentSnapshotDescription = "Rendered description",
+            PublishSettingsJson = PublishSettingsSerializer.SerializeSnapshot(
+                PlatformType.YouTube,
+                YouTubeSettings()),
+            PublishedUtc = status == PublishStatus.Published
+                ? new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
+                : null,
             CreatedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
             UpdatedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
         };
@@ -227,192 +429,4 @@ public class AzurePlatformPublicationRepositoryTests
             "private",
             false);
 
-    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now;
-    }
-
-    private sealed class InMemoryTableClient : TableClient
-    {
-        private readonly Dictionary<(string PartitionKey, string RowKey), PlatformPublicationEntity>
-            entities = [];
-
-        public override Task<Response<TableItem>> CreateIfNotExistsAsync(
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(Response.FromValue(
-                TableModelFactory.TableItem("PlatformPublications"),
-                StubResponse.Instance));
-
-        public override Task<Response> AddEntityAsync<T>(
-            T entity,
-            CancellationToken cancellationToken = default)
-        {
-            var publication = ToPublicationEntity(entity);
-            var key = (publication.PartitionKey, publication.RowKey);
-            if (entities.ContainsKey(key))
-            {
-                throw new RequestFailedException(409, "Entity already exists.");
-            }
-
-            entities[key] = Clone(publication);
-
-            return Task.FromResult<Response>(StubResponse.Instance);
-        }
-
-        public override Task<Response> UpdateEntityAsync<T>(
-            T entity,
-            ETag ifMatch,
-            TableUpdateMode mode,
-            CancellationToken cancellationToken = default)
-        {
-            var publication = ToPublicationEntity(entity);
-            var key = (publication.PartitionKey, publication.RowKey);
-            if (!entities.ContainsKey(key))
-            {
-                throw new RequestFailedException(404, "Entity not found.");
-            }
-
-            entities[key] = Clone(publication);
-
-            return Task.FromResult<Response>(StubResponse.Instance);
-        }
-
-        public override Task<NullableResponse<T>> GetEntityIfExistsAsync<T>(
-            string partitionKey,
-            string rowKey,
-            IEnumerable<string>? select = null,
-            CancellationToken cancellationToken = default)
-        {
-            if (entities.TryGetValue((partitionKey, rowKey), out var entity))
-            {
-                return Task.FromResult<NullableResponse<T>>(
-                    Response.FromValue((T)(object)Clone(entity), StubResponse.Instance));
-            }
-
-            return Task.FromResult<NullableResponse<T>>(new EmptyNullableResponse<T>());
-        }
-
-        public override AsyncPageable<T> QueryAsync<T>(
-            string? filter = null,
-            int? maxPerPage = null,
-            IEnumerable<string>? select = null,
-            CancellationToken cancellationToken = default)
-        {
-            var values = entities.Values
-                .Where(entity => MatchesFilter(entity, filter))
-                .Select(Clone)
-                .Cast<T>()
-                .ToArray();
-            var page = Page<T>.FromValues(values, continuationToken: null, StubResponse.Instance);
-
-            return AsyncPageable<T>.FromPages([page]);
-        }
-
-        private static PlatformPublicationEntity ToPublicationEntity<T>(T entity)
-        {
-            if (entity is not PlatformPublicationEntity publication)
-            {
-                throw new InvalidOperationException($"Unsupported entity type '{typeof(T).Name}'.");
-            }
-
-            return publication;
-        }
-
-        private static bool MatchesFilter(
-            PlatformPublicationEntity entity,
-            string? filter)
-        {
-            if (string.IsNullOrWhiteSpace(filter))
-            {
-                return true;
-            }
-
-            var partitionPrefix = "PartitionKey eq '";
-            if (filter.StartsWith(partitionPrefix, StringComparison.Ordinal))
-            {
-                var partitionKeyEnd = filter.IndexOf(
-                    '\'',
-                    partitionPrefix.Length);
-
-                return partitionKeyEnd > partitionPrefix.Length &&
-                    string.Equals(
-                        entity.PartitionKey,
-                        filter[partitionPrefix.Length..partitionKeyEnd],
-                        StringComparison.Ordinal);
-            }
-
-            throw new NotSupportedException($"Unsupported filter '{filter}'.");
-        }
-
-        private static PlatformPublicationEntity Clone(PlatformPublicationEntity entity) =>
-            new()
-            {
-                PartitionKey = entity.PartitionKey,
-                RowKey = entity.RowKey,
-                Timestamp = entity.Timestamp,
-                ETag = entity.ETag,
-                CalendarEventId = entity.CalendarEventId,
-                PlatformId = entity.PlatformId,
-                PlatformName = entity.PlatformName,
-                PlatformType = entity.PlatformType,
-                Status = entity.Status,
-                ExternalResourceId = entity.ExternalResourceId,
-                ThumbnailStatus = entity.ThumbnailStatus,
-                ContentSnapshotTitle = entity.ContentSnapshotTitle,
-                ContentSnapshotDescription = entity.ContentSnapshotDescription,
-                PublishSettingsJson = entity.PublishSettingsJson,
-                PublishedUtc = entity.PublishedUtc,
-                PlatformDeletedUtc = entity.PlatformDeletedUtc,
-                CreatedUtc = entity.CreatedUtc,
-                UpdatedUtc = entity.UpdatedUtc
-            };
-    }
-
-    private sealed class EmptyNullableResponse<T> : NullableResponse<T>
-    {
-        public override bool HasValue => false;
-
-        public override T Value => throw new InvalidOperationException("No value is available.");
-
-        public override Response GetRawResponse() => StubResponse.Instance;
-    }
-
-    private sealed class StubResponse : Response
-    {
-        public static readonly StubResponse Instance = new();
-
-        private StubResponse()
-        {
-        }
-
-        public override int Status => 200;
-
-        public override string ReasonPhrase => "OK";
-
-        public override Stream? ContentStream { get; set; }
-
-        public override string ClientRequestId { get; set; } = string.Empty;
-
-        protected override bool ContainsHeader(string name) => false;
-
-        protected override IEnumerable<HttpHeader> EnumerateHeaders() => [];
-
-        protected override bool TryGetHeader(string name, out string value)
-        {
-            value = string.Empty;
-
-            return false;
-        }
-
-        protected override bool TryGetHeaderValues(string name, out IEnumerable<string> values)
-        {
-            values = [];
-
-            return false;
-        }
-
-        public override void Dispose()
-        {
-        }
-    }
 }

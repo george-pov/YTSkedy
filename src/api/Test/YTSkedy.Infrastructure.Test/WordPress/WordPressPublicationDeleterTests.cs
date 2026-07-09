@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text;
+using YTSkedy.Infrastructure.Test.TestSupport;
 using YTSkedy.Infrastructure.WordPress;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
+using static YTSkedy.Infrastructure.Test.WordPress.WordPressDiscoveryHandlers;
 using static YTSkedy.Infrastructure.Test.WordPress.WordPressTestResponses;
 
 namespace YTSkedy.Infrastructure.Test.WordPress;
@@ -17,7 +19,7 @@ public class WordPressPublicationDeleterTests
     [Fact]
     public void Type_IsWordPress()
     {
-        var deleter = CreateDeleter(PrettyRootHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)));
+        var deleter = CreateDeleter(PrettyRoot(_ => new HttpResponseMessage(HttpStatusCode.OK)));
 
         Assert.Equal(PlatformType.WordPress, deleter.Type);
     }
@@ -26,7 +28,7 @@ public class WordPressPublicationDeleterTests
     public async Task DeleteAsync_DiscoveredPrettyRoot_DeletesExpectedPostWithForce()
     {
         HttpRequestMessage? capturedRequest = null;
-        var handler = PrettyRootHandler(request =>
+        var handler = PrettyRoot(request =>
         {
             capturedRequest = request;
             return new HttpResponseMessage(HttpStatusCode.OK);
@@ -53,7 +55,7 @@ public class WordPressPublicationDeleterTests
     public async Task DeleteAsync_DiscoveredRouteRoot_DeletesExpectedPostWithForce()
     {
         HttpRequestMessage? capturedRequest = null;
-        var handler = RouteRootHandler(request =>
+        var handler = RouteRoot(request =>
         {
             capturedRequest = request;
             return new HttpResponseMessage(HttpStatusCode.OK);
@@ -76,13 +78,13 @@ public class WordPressPublicationDeleterTests
     public async Task DeleteAsync_DiscoveryFailure_ReturnsFailed()
     {
         var logger = new CapturingLogger<WordPressPublicationDeleter>();
-        var handler = UnsupportedDiscoveryHandler();
+        var handler = UnsupportedDiscovery();
         var deleter = CreateDeleter(handler, logger);
 
         var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
 
         Assert.Equal(PublicationDeleteStatus.Failed, result.Status);
-        var logText = LogText(logger);
+        var logText = logger.Text;
         Assert.Contains("example.com", logText);
         Assert.DoesNotContain(ApplicationPassword, logText);
         Assert.Equal(3, handler.CallCount);
@@ -92,7 +94,7 @@ public class WordPressPublicationDeleterTests
     public async Task DeleteAsync_NotFound_ReturnsAlreadyGone()
     {
         var deleter = CreateDeleter(
-            PrettyRootHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound)));
+            PrettyRoot(_ => new HttpResponseMessage(HttpStatusCode.NotFound)));
 
         var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
 
@@ -108,13 +110,13 @@ public class WordPressPublicationDeleterTests
     {
         var logger = new CapturingLogger<WordPressPublicationDeleter>();
         var deleter = CreateDeleter(
-            PrettyRootHandler(_ => new HttpResponseMessage(statusCode)),
+            PrettyRoot(_ => new HttpResponseMessage(statusCode)),
             logger);
 
         var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
 
         Assert.Equal(PublicationDeleteStatus.Failed, result.Status);
-        var logText = LogText(logger);
+        var logText = logger.Text;
         Assert.Contains(((int)statusCode).ToString(), logText);
         Assert.Contains("example.com", logText);
         Assert.DoesNotContain(ApplicationPassword, logText);
@@ -162,13 +164,13 @@ public class WordPressPublicationDeleterTests
     {
         var logger = new CapturingLogger<WordPressPublicationDeleter>();
         var deleter = CreateDeleter(
-            PrettyRootHandler(_ => throw new HttpRequestException("network down")),
+            PrettyRoot(_ => throw new HttpRequestException("network down")),
             logger);
 
         var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
 
         Assert.Equal(PublicationDeleteStatus.Failed, result.Status);
-        var logText = LogText(logger);
+        var logText = logger.Text;
         Assert.Contains("example.com", logText);
         Assert.DoesNotContain(ApplicationPassword, logText);
         Assert.DoesNotContain("Basic", logText);
@@ -198,46 +200,6 @@ public class WordPressPublicationDeleterTests
             logger ?? new CapturingLogger<WordPressPublicationDeleter>());
     }
 
-    private static FakeHttpMessageHandler PrettyRootHandler(
-        Func<HttpRequestMessage, HttpResponseMessage> deleteHandler) =>
-        new(request =>
-        {
-            if (request.Method == HttpMethod.Head)
-            {
-                return LinkResponse("<https://example.com/wp-json/>; rel=\"https://api.w.org/\"");
-            }
-
-            if (request.Method == HttpMethod.Get)
-            {
-                return JsonIndexResponse();
-            }
-
-            return deleteHandler(request);
-        });
-
-    private static FakeHttpMessageHandler RouteRootHandler(
-        Func<HttpRequestMessage, HttpResponseMessage> deleteHandler) =>
-        new(request =>
-        {
-            if (request.Method == HttpMethod.Head)
-            {
-                return LinkResponse("<https://example.com/index.php?rest_route=/>; rel=\"https://api.w.org/\"");
-            }
-
-            if (request.Method == HttpMethod.Get)
-            {
-                return JsonIndexResponse();
-            }
-
-            return deleteHandler(request);
-        });
-
-    private static FakeHttpMessageHandler UnsupportedDiscoveryHandler() =>
-        new(request =>
-            request.Method == HttpMethod.Head
-                ? new HttpResponseMessage(HttpStatusCode.OK)
-                : JsonResponse("""{"namespaces":["oembed/1.0"]}"""));
-
     private static PublicationDeleteRequest Request(
         PublishSettings? settings = null,
         string externalResourceId = "74") =>
@@ -248,17 +210,6 @@ public class WordPressPublicationDeleterTests
                 "https://example.com",
                 "editor",
                 ApplicationPassword,
-                "publish"),
+            "publish"),
             externalResourceId);
-
-    private static void AssertDiscoveryRequestsAreAnonymous(FakeHttpMessageHandler handler)
-    {
-        var discoveryRequests = handler.Requests.Where(request =>
-            request.Method == HttpMethod.Head || request.Method == HttpMethod.Get);
-
-        Assert.All(discoveryRequests, request => Assert.Null(request.Authorization));
-    }
-
-    private static string LogText(CapturingLogger<WordPressPublicationDeleter> logger) =>
-        string.Join(Environment.NewLine, logger.Entries.Select(entry => entry.Message));
 }

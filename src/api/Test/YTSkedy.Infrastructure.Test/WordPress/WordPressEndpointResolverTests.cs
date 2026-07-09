@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System.Net;
+using YTSkedy.Infrastructure.Test.TestSupport;
 using YTSkedy.Infrastructure.WordPress;
 using YTSkedy.Scheduling.Domain.Platforms;
 using static YTSkedy.Infrastructure.Test.WordPress.WordPressTestResponses;
@@ -164,7 +165,7 @@ public class WordPressEndpointResolverTests
 
         Assert.Contains("example.com", exception.Message);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
-        Assert.DoesNotContain(ApplicationPassword, LogText(logger));
+        Assert.DoesNotContain(ApplicationPassword, logger.Text);
     }
 
     [Fact]
@@ -256,7 +257,7 @@ public class WordPressEndpointResolverTests
         await Assert.ThrowsAsync<HttpRequestException>(
             () => resolver.ResolveAsync(Settings(), CancellationToken.None));
 
-        var logText = LogText(logger);
+        var logText = logger.Text;
         Assert.Contains("example.com", logText);
         Assert.DoesNotContain(ApplicationPassword, logText);
         Assert.DoesNotContain("Basic", logText);
@@ -283,7 +284,4 @@ public class WordPressEndpointResolverTests
 
     private static WordPressSettings Settings(string siteUrl = "https://example.com") =>
         new(siteUrl, "editor", ApplicationPassword, "publish");
-
-    private static string LogText<T>(CapturingLogger<T> logger) =>
-        string.Join(Environment.NewLine, logger.Entries.Select(entry => entry.Message));
 }
