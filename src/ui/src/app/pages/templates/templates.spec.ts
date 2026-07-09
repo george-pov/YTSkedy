@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Observable, of, throwError } from 'rxjs';
+import { firstValueFrom, Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -13,6 +13,7 @@ import {
   UpdateTemplateRequest,
   UpdateTemplateResponse,
 } from 'src/app/shared/api/templates/templates-service';
+import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Templates } from './templates';
 
@@ -30,6 +31,7 @@ describe('Templates', () => {
     >;
     delete: Mock<(type: Template['type'], id: string) => Observable<void>>;
   };
+  let confirmation: { confirm: Mock<(data: unknown) => Observable<string | undefined>> };
   let notifications: { showSuccess: Mock<(message: string) => void> };
 
   beforeEach(() => {
@@ -39,6 +41,10 @@ describe('Templates', () => {
       update: vi.fn(),
       delete: vi.fn(),
     };
+    confirmation = {
+      confirm: vi.fn<(data: unknown) => Observable<string | undefined>>(),
+    };
+    confirmation.confirm.mockReturnValue(of('discard'));
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
   });
 
@@ -111,12 +117,18 @@ describe('Templates', () => {
     fixture.detectChanges();
   }
 
+  async function canDeactivate(): Promise<boolean> {
+    const result = fixture.componentInstance.canDeactivateWithPendingChanges();
+    return typeof result === 'boolean' ? result : firstValueFrom(result);
+  }
+
   async function createComponent(): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [Templates],
       providers: [
         provideZonelessChangeDetection(),
         { provide: TemplatesService, useValue: service },
+        { provide: ConfirmationDialogService, useValue: confirmation },
         { provide: NotificationService, useValue: notifications },
       ],
     }).compileComponents();
@@ -189,7 +201,7 @@ describe('Templates', () => {
 
     await createComponent();
 
-    buttonByText('New Template').click();
+    buttonByText('+ Add Template').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -210,7 +222,7 @@ describe('Templates', () => {
 
     await createComponent();
 
-    buttonByText('New Template').click();
+    buttonByText('+ Add Template').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -226,6 +238,8 @@ describe('Templates', () => {
     });
     expect(rows()).toHaveLength(1);
     expect(notifications.showSuccess).toHaveBeenCalledWith('Template created.');
+    expect(await canDeactivate()).toBe(true);
+    expect(confirmation.confirm).not.toHaveBeenCalled();
   });
 
   it('updates the selected template without changing its type', async () => {
@@ -251,6 +265,8 @@ describe('Templates', () => {
       content: 'Updated body',
     });
     expect(notifications.showSuccess).toHaveBeenCalledWith('Template saved.');
+    expect(await canDeactivate()).toBe(true);
+    expect(confirmation.confirm).not.toHaveBeenCalled();
   });
 
   it('deletes the selected template and closes the editor', async () => {
@@ -281,7 +297,7 @@ describe('Templates', () => {
 
     await createComponent();
 
-    buttonByText('New Template').click();
+    buttonByText('+ Add Template').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -294,5 +310,211 @@ describe('Templates', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
     expect(rows()).toHaveLength(0);
   });
-});
 
+  it('uses the approved action copy and right-aligned action layout', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+
+    await createComponent();
+
+    expect(buttonByText('+ Add Template')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain(
+      'choose + Add Template to add one',
+    );
+
+    buttonByText('+ Add Template').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(buttonByText('Cancel')).not.toBeNull();
+    expect(buttonByText('Save template')).not.toBeNull();
+    expect(editor()?.querySelector('.app-actions.app-actions-end')).not.toBeNull();
+
+    await selectRow(0);
+
+    expect(buttonByText('Delete')).not.toBeNull();
+    expect(buttonByText('Save changes')).not.toBeNull();
+  });
+
+  it('disables save until a template editor has pending changes', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+
+    await createComponent();
+
+    buttonByText('+ Add Template').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(buttonByText('Save template').disabled).toBe(true);
+
+    await setValue(nameInput(), 'New template');
+
+    expect(buttonByText('Save template').disabled).toBe(false);
+
+    await selectRow(0);
+
+    expect(buttonByText('Save changes').disabled).toBe(true);
+
+    await setValue(nameInput(), '  Weeknight stream  ');
+
+    expect(buttonByText('Save changes').disabled).toBe(true);
+
+    await setValue(contentTextarea(), 'Changed content');
+
+    expect(buttonByText('Save changes').disabled).toBe(false);
+  });
+
+  it('does not save a clean template editor submit', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+
+    await createComponent();
+    await selectRow(0);
+    await submitEditor();
+
+    expect(service.update).not.toHaveBeenCalled();
+  });
+
+  it('allows clean route exit without prompting', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+
+    await createComponent();
+    await selectRow(0);
+
+    expect(await canDeactivate()).toBe(true);
+    expect(confirmation.confirm).not.toHaveBeenCalled();
+  });
+
+  it('blocks route exit when dirty changes are kept', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(contentTextarea(), 'Changed content');
+
+    expect(await canDeactivate()).toBe(false);
+    expect(confirmation.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Discard unsaved template changes?',
+        actions: [
+          { id: 'keep-editing', label: 'Keep editing' },
+          { id: 'discard', label: 'Discard changes', primary: true },
+        ],
+      }),
+    );
+  });
+
+  it('allows route exit when dirty changes are discarded', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+    confirmation.confirm.mockReturnValue(of('discard'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(contentTextarea(), 'Changed content');
+
+    expect(await canDeactivate()).toBe(true);
+  });
+
+  it('guards row switching until dirty changes are discarded', async () => {
+    service.list.mockReturnValue(
+      of({
+        templates: [
+          template({ id: 'id-1', name: 'First template', content: 'First content' }),
+          template({ id: 'id-2', name: 'Second template', content: 'Second content' }),
+        ],
+      }),
+    );
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(contentTextarea(), 'Changed first content');
+    await selectRow(1);
+
+    expect(contentTextarea().value).toBe('Changed first content');
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    await selectRow(1);
+
+    expect(nameInput().value).toBe('Second template');
+    expect(contentTextarea().value).toBe('Second content');
+  });
+
+  it('guards Add Template until dirty changes are discarded', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(nameInput(), 'Dirty name');
+
+    buttonByText('+ Add Template').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(nameInput().value).toBe('Dirty name');
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    buttonByText('+ Add Template').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-select')).not.toBeNull();
+    expect(nameInput().value).toBe('');
+  });
+
+  it('keeps editing when Cancel discard is rejected and closes when it is confirmed', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(contentTextarea(), 'Dirty content');
+
+    buttonByText('Cancel').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(editor()).not.toBeNull();
+    expect(contentTextarea().value).toBe('Dirty content');
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    buttonByText('Cancel').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(editor()).toBeNull();
+  });
+
+  it('guards dirty editor delete until discard is confirmed', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+    service.delete.mockReturnValue(of(undefined));
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(contentTextarea(), 'Dirty content');
+
+    buttonByText('Delete').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(service.delete).not.toHaveBeenCalled();
+    expect(editor()).not.toBeNull();
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    buttonByText('Delete').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
+    expect(editor()).toBeNull();
+  });
+});

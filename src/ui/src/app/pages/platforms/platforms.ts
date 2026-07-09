@@ -8,13 +8,15 @@ import {
   signal,
 } from '@angular/core';
 import { form } from '@angular/forms/signals';
-import { finalize } from 'rxjs';
+import { finalize, map, Observable } from 'rxjs';
 
 import {
+  CreatePlatformRequest,
   Platform,
   PlatformNameConflictError,
   PlatformReferenceKeyConflictError,
   PlatformsService,
+  UpdatePlatformRequest,
   YouTubePublishSettings,
   WordPressPublishSettings,
 } from 'src/app/shared/api/platforms/platforms-service';
@@ -24,6 +26,7 @@ import {
 } from 'src/app/shared/api/templates/templates-service';
 import { Alert } from 'src/app/shared/components/alert/alert';
 import { Button } from 'src/app/shared/components/button/button';
+import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { DataTable } from 'src/app/shared/components/data-table/data-table';
 import { DataTableColumn } from 'src/app/shared/components/data-table/data-table-column';
 import { Input } from 'src/app/shared/components/input/input';
@@ -31,10 +34,13 @@ import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-l
 import { ProgressBar } from 'src/app/shared/components/progress-bar/progress-bar';
 import { Select, SelectOption } from 'src/app/shared/components/select/select';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
+import { type PendingChangesAware } from 'src/app/shared/routing/pending-changes-guard';
 import {
   applyPlatformRules,
   createPlatformFormModel,
   PlatformFormModel,
+  sameCreatePlatformRequest,
+  sameUpdatePlatformRequest,
   toCreatePlatformRequest,
   toUpdatePlatformRequest,
 } from './platforms.form';
@@ -62,9 +68,10 @@ type EditorMode = 'none' | 'create' | 'edit';
   styleUrl: './platforms.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Platforms implements OnInit {
+export class Platforms implements OnInit, PendingChangesAware {
   private readonly platformsService = inject(PlatformsService);
   private readonly templatesService = inject(TemplatesService);
+  private readonly confirmation = inject(ConfirmationDialogService);
   private readonly notifications = inject(NotificationService);
   private latestTemplateLoadId = 0;
   private loadedTemplateType: Platform['type'] | null = null;
@@ -100,10 +107,35 @@ export class Platforms implements OnInit {
 
   protected readonly model = signal<PlatformFormModel>(createPlatformFormModel());
   protected readonly form = form(this.model, applyPlatformRules);
+  protected readonly createPlatformBaseline = signal<CreatePlatformRequest | null>(null);
+  protected readonly updatePlatformBaseline = signal<UpdatePlatformRequest | null>(null);
 
   // The type currently in the editor. Reactive to the create-mode type select,
   // so the settings section can switch on it.
   protected readonly selectedType = computed(() => this.model().type);
+  protected readonly hasPendingPlatformChanges = computed(() => {
+    if (this.editorMode() === 'create') {
+      const baseline = this.createPlatformBaseline();
+      return (
+        baseline !== null &&
+        !sameCreatePlatformRequest(toCreatePlatformRequest(this.model()), baseline)
+      );
+    }
+
+    const baseline = this.updatePlatformBaseline();
+    return (
+      this.editorMode() === 'edit' &&
+      baseline !== null &&
+      !sameUpdatePlatformRequest(toUpdatePlatformRequest(this.model()), baseline)
+    );
+  });
+  protected readonly saveDisabled = computed(
+    () =>
+      this.isSaving() ||
+      this.isDeleting() ||
+      this.editorMode() === 'none' ||
+      !this.hasPendingPlatformChanges(),
+  );
   protected readonly templateOptions = computed<readonly SelectOption[]>(() =>
     this.availableTemplates().map((template) => ({
       value: template.id,
@@ -131,25 +163,61 @@ export class Platforms implements OnInit {
     this.loadPlatforms();
   }
 
+  canDeactivateWithPendingChanges(): boolean | Observable<boolean> {
+    if (!this.hasPendingPlatformChanges() || this.isSaving() || this.isDeleting()) {
+      return true;
+    }
+
+    return this.confirmDiscardPlatformChanges();
+  }
+
   protected select(id: string): void {
+    if (this.editorMode() === 'edit' && this.selected()?.id === id) {
+      return;
+    }
+
     const platform = this.platforms().find((entry) => entry.id === id);
     if (platform === undefined) {
       return;
     }
 
+    this.discardPlatformChangesBefore(() => this.openPlatform(platform));
+  }
+
+  protected newPlatform(): void {
+    this.discardPlatformChangesBefore(() => this.openNewPlatform());
+  }
+
+  protected cancel(): void {
+    if (this.isSaving() || this.isDeleting() || this.editorMode() === 'none') {
+      return;
+    }
+
+    this.discardPlatformChangesBefore(() => this.closeEditor());
+  }
+
+  private openPlatform(platform: Platform): void {
+    const model = toFormModel(platform);
+
     this.errorMessage.set(null);
     this.selected.set(platform);
     this.editorMode.set('edit');
     this.loadedTemplateType = null;
-    this.model.set(toFormModel(platform));
+    this.model.set(model);
+    this.createPlatformBaseline.set(null);
+    this.updatePlatformBaseline.set(toUpdatePlatformRequest(model));
   }
 
-  protected newPlatform(): void {
+  private openNewPlatform(): void {
+    const model = createPlatformFormModel();
+
     this.errorMessage.set(null);
     this.selected.set(null);
     this.editorMode.set('create');
     this.loadedTemplateType = null;
-    this.model.set(createPlatformFormModel());
+    this.model.set(model);
+    this.createPlatformBaseline.set(toCreatePlatformRequest(model));
+    this.updatePlatformBaseline.set(null);
   }
 
   protected onSubmit(event: Event): void {
@@ -158,7 +226,7 @@ export class Platforms implements OnInit {
   }
 
   protected save(): void {
-    if (this.isSaving() || this.isDeleting() || this.editorMode() === 'none') {
+    if (this.saveDisabled()) {
       return;
     }
 
@@ -175,6 +243,14 @@ export class Platforms implements OnInit {
   }
 
   protected deleteSelected(): void {
+    if (this.isSaving() || this.isDeleting()) {
+      return;
+    }
+
+    this.discardPlatformChangesBefore(() => this.deleteSelectedAfterDiscard());
+  }
+
+  private deleteSelectedAfterDiscard(): void {
     const current = this.selected();
     if (current === null || this.isSaving() || this.isDeleting()) {
       return;
@@ -195,6 +271,33 @@ export class Platforms implements OnInit {
           this.errorMessage.set('The platform could not be deleted. Try again.');
         },
       });
+  }
+
+  private confirmDiscardPlatformChanges(): Observable<boolean> {
+    return this.confirmation
+      .confirm<'keep-editing' | 'discard'>({
+        kind: 'warning',
+        title: 'Discard unsaved platform changes?',
+        body: 'Platform edits have not been saved.',
+        actions: [
+          { id: 'keep-editing', label: 'Keep editing' },
+          { id: 'discard', label: 'Discard changes', primary: true },
+        ],
+      })
+      .pipe(map((result) => result === 'discard'));
+  }
+
+  private discardPlatformChangesBefore(action: () => void): void {
+    if (!this.hasPendingPlatformChanges()) {
+      action();
+      return;
+    }
+
+    this.confirmDiscardPlatformChanges().subscribe((discard) => {
+      if (discard) {
+        action();
+      }
+    });
   }
 
   private loadPlatforms(): void {
@@ -238,6 +341,8 @@ export class Platforms implements OnInit {
           this.selected.set(created);
           this.editorMode.set('edit');
           this.model.set(toFormModel(created));
+          this.createPlatformBaseline.set(null);
+          this.updatePlatformBaseline.set(toUpdatePlatformRequest(this.model()));
           this.notifications.showSuccess('Platform created.');
         },
         error: (error: unknown) => {
@@ -276,6 +381,8 @@ export class Platforms implements OnInit {
           );
           this.selected.set(updated);
           this.model.set(toFormModel(updated));
+          this.createPlatformBaseline.set(null);
+          this.updatePlatformBaseline.set(toUpdatePlatformRequest(this.model()));
           this.notifications.showSuccess('Platform saved.');
         },
         error: (error: unknown) => {
@@ -286,8 +393,16 @@ export class Platforms implements OnInit {
 
   private removeFromList(id: string): void {
     this.platforms.update((list) => list.filter((entry) => entry.id !== id));
+    this.closeEditor();
+  }
+
+  private closeEditor(): void {
     this.selected.set(null);
     this.editorMode.set('none');
+    this.model.set(createPlatformFormModel());
+    this.createPlatformBaseline.set(null);
+    this.updatePlatformBaseline.set(null);
+    this.errorMessage.set(null);
   }
 
   private loadTemplates(type: Platform['type']): void {

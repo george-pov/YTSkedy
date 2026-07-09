@@ -14,9 +14,9 @@ import {
   UpdatePlatformRequest,
   YouTubeCredentials,
   YouTubePrivacyStatus,
-  YouTubePublishSettings,
   WordPressPostStatus,
 } from 'src/app/shared/api/platforms/platforms-service';
+import { sameRequest } from 'src/app/shared/forms/request-comparison';
 
 export const nameMaxLength = 50;
 export const referenceKeyMaxLength = 15;
@@ -271,4 +271,18 @@ export function toUpdatePlatformRequest(model: PlatformFormModel): UpdatePlatfor
     publishSettings: toPublishSettings(model),
     publishingContent: toPublishingContent(model),
   };
+}
+
+export function sameCreatePlatformRequest(
+  left: CreatePlatformRequest,
+  right: CreatePlatformRequest,
+): boolean {
+  return sameRequest(left, right);
+}
+
+export function sameUpdatePlatformRequest(
+  left: UpdatePlatformRequest,
+  right: UpdatePlatformRequest,
+): boolean {
+  return sameRequest(left, right);
 }

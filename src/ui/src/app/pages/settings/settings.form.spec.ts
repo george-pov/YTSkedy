@@ -5,6 +5,7 @@ import {
   appendEventTextField,
   createSettingsModel,
   deleteEventTextField,
+  sameUpdateEventTextFieldsRequest,
   toUpdateEventTextFieldsRequest,
   type EventTextFieldEditor,
 } from './settings.form';
@@ -95,6 +96,98 @@ describe('settings form mapping', () => {
         },
       ],
     });
+  });
+
+  it('normalizes trimmed label changes before comparison', () => {
+    const saved = toUpdateEventTextFieldsRequest(createSettingsModel(eventTextFields()));
+    const edited = toUpdateEventTextFieldsRequest({
+      fields: [
+        {
+          fieldKey: 'text1',
+          label: '  Title  ',
+          type: 'ShortText',
+          maxLength: '50',
+        },
+        {
+          fieldKey: 'text2',
+          label: '  Description  ',
+          type: 'LongText',
+          maxLength: '2500',
+        },
+      ],
+    });
+
+    expect(sameUpdateEventTextFieldsRequest(edited, saved)).toBe(true);
+  });
+
+  it('compares add, delete, renumber, type, and max length changes as dirty', () => {
+    const saved = toUpdateEventTextFieldsRequest(createSettingsModel(eventTextFields()));
+
+    expect(
+      sameUpdateEventTextFieldsRequest(
+        toUpdateEventTextFieldsRequest({
+          fields: appendEventTextField(editorFields()),
+        }),
+        saved,
+      ),
+    ).toBe(false);
+    expect(
+      sameUpdateEventTextFieldsRequest(
+        toUpdateEventTextFieldsRequest({
+          fields: deleteEventTextField(editorFields(), 0),
+        }),
+        saved,
+      ),
+    ).toBe(false);
+    expect(
+      sameUpdateEventTextFieldsRequest(
+        toUpdateEventTextFieldsRequest({
+          fields: [
+            {
+              fieldKey: 'text2',
+              label: 'Title',
+              type: 'ShortText',
+              maxLength: '50',
+            },
+            {
+              fieldKey: 'text1',
+              label: 'Description',
+              type: 'LongText',
+              maxLength: '2500',
+            },
+          ],
+        }),
+        saved,
+      ),
+    ).toBe(false);
+    expect(
+      sameUpdateEventTextFieldsRequest(
+        toUpdateEventTextFieldsRequest({
+          fields: [
+            {
+              ...editorFields()[0],
+              type: 'LongText',
+            },
+            editorFields()[1],
+          ],
+        }),
+        saved,
+      ),
+    ).toBe(false);
+    expect(
+      sameUpdateEventTextFieldsRequest(
+        toUpdateEventTextFieldsRequest({
+          fields: [
+            {
+              ...editorFields()[0],
+              maxLength: '80',
+            },
+            editorFields()[1],
+          ],
+        }),
+        saved,
+      ),
+    ).toBe(false);
   });
 
   function eventTextFields(): EventTextField[] {

@@ -1,6 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Observable, of, throwError } from 'rxjs';
+import { firstValueFrom, Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -18,6 +18,7 @@ import {
   TemplateListResponse,
   TemplatesService,
 } from 'src/app/shared/api/templates/templates-service';
+import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Platforms } from './platforms';
 import { PlatformFormModel, referenceKeyMaxLength } from './platforms.form';
@@ -39,6 +40,7 @@ describe('Platforms', () => {
   let templatesService: {
     list: Mock<(type?: Platform['type']) => Observable<TemplateListResponse>>;
   };
+  let confirmation: { confirm: Mock<(data: unknown) => Observable<string | undefined>> };
   let notifications: { showSuccess: Mock<(message: string) => void> };
 
   beforeEach(() => {
@@ -52,6 +54,10 @@ describe('Platforms', () => {
       list: vi.fn<(type?: Platform['type']) => Observable<TemplateListResponse>>(),
     };
     templatesService.list.mockReturnValue(of({ templates: [] }));
+    confirmation = {
+      confirm: vi.fn<(data: unknown) => Observable<string | undefined>>(),
+    };
+    confirmation.confirm.mockReturnValue(of('discard'));
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
   });
 
@@ -217,6 +223,11 @@ describe('Platforms', () => {
     fixture.detectChanges();
   }
 
+  async function canDeactivate(): Promise<boolean> {
+    const result = fixture.componentInstance.canDeactivateWithPendingChanges();
+    return typeof result === 'boolean' ? result : firstValueFrom(result);
+  }
+
   async function createComponent(): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [Platforms],
@@ -224,6 +235,7 @@ describe('Platforms', () => {
         provideZonelessChangeDetection(),
         { provide: PlatformsService, useValue: service },
         { provide: TemplatesService, useValue: templatesService },
+        { provide: ConfirmationDialogService, useValue: confirmation },
         { provide: NotificationService, useValue: notifications },
       ],
     }).compileComponents();
@@ -248,13 +260,78 @@ describe('Platforms', () => {
     expect(rows()).toHaveLength(2);
   });
 
-  it('hides the editor until a platform is selected or New is clicked', async () => {
+  it('hides the editor until a platform is selected or Add is clicked', async () => {
     service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
 
     await createComponent();
 
     expect(editor()).toBeNull();
     expect(fixture.nativeElement.textContent).toContain('Select a platform on the left');
+  });
+
+  it('uses the approved action copy and right-aligned action layout', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+
+    await createComponent();
+
+    expect(buttonByText('+ Add Platform')).not.toBeNull();
+    expect((fixture.nativeElement.textContent as string).replace(/\s+/g, ' ')).toContain(
+      'choose + Add Platform to add one',
+    );
+
+    buttonByText('+ Add Platform').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(buttonByText('Cancel')).not.toBeNull();
+    expect(buttonByText('Save platform')).not.toBeNull();
+    expect(editor()?.querySelector('.app-actions.app-actions-end')).not.toBeNull();
+
+    await selectRow(0);
+
+    expect(buttonByText('Delete')).not.toBeNull();
+    expect(buttonByText('Save changes')).not.toBeNull();
+  });
+
+  it('disables save until a platform editor has pending changes', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+
+    await createComponent();
+
+    buttonByText('+ Add Platform').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(buttonByText('Save platform').disabled).toBe(true);
+
+    await setValue(nameInput(), 'Second channel');
+
+    expect(buttonByText('Save platform').disabled).toBe(false);
+
+    await selectRow(0);
+
+    expect(buttonByText('Save changes').disabled).toBe(true);
+
+    await setValue(nameInput(), '  Main YouTube channel  ');
+    await setValue(inputByLabel('Client secret'), '   ');
+
+    expect(buttonByText('Save changes').disabled).toBe(true);
+
+    await setValue(inputByLabel('Client secret'), 'replacement-client-secret');
+
+    expect(buttonByText('Save changes').disabled).toBe(false);
+  });
+
+  it('does not save a clean platform editor submit', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+
+    await createComponent();
+    await selectRow(0);
+    await submitEditor();
+
+    expect(service.update).not.toHaveBeenCalled();
   });
 
   it('renders a load error when platforms cannot be loaded', async () => {
@@ -292,7 +369,7 @@ describe('Platforms', () => {
     service.list.mockReturnValue(of({ platforms: [] }));
 
     await createComponent();
-    buttonByText('New Platform').click();
+    buttonByText('+ Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -346,7 +423,7 @@ describe('Platforms', () => {
     );
 
     await createComponent();
-    buttonByText('New Platform').click();
+    buttonByText('+ Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -421,7 +498,7 @@ describe('Platforms', () => {
     );
 
     await createComponent();
-    buttonByText('New Platform').click();
+    buttonByText('+ Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -462,6 +539,8 @@ describe('Platforms', () => {
     });
     expect(rows()).toHaveLength(1);
     expect(notifications.showSuccess).toHaveBeenCalledWith('Platform created.');
+    expect(await canDeactivate()).toBe(true);
+    expect(confirmation.confirm).not.toHaveBeenCalled();
   });
 
   it('creates a WordPress platform with provider settings', async () => {
@@ -508,7 +587,7 @@ describe('Platforms', () => {
     );
 
     await createComponent();
-    buttonByText('New Platform').click();
+    buttonByText('+ Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -562,7 +641,7 @@ describe('Platforms', () => {
     service.update.mockReturnValue(
       of({
         id: 'id-2',
-        name: 'Company blog',
+        name: 'Company blog updated',
         referenceKey: 'blog-1',
         type: 'WordPress',
         publishSettings: {
@@ -581,11 +660,12 @@ describe('Platforms', () => {
 
     await createComponent();
     await selectRow(0);
+    await setValue(nameInput(), 'Company blog updated');
 
     await submitEditor();
 
     expect(service.update).toHaveBeenCalledWith('WordPress', 'id-2', {
-      name: 'Company blog',
+      name: 'Company blog updated',
       referenceKey: 'blog-1',
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
@@ -709,6 +789,8 @@ describe('Platforms', () => {
       publishingContent: publishingContent(),
     });
     expect(inputByLabel('Client secret').value).toBe('*********N3W');
+    expect(await canDeactivate()).toBe(true);
+    expect(confirmation.confirm).not.toHaveBeenCalled();
   });
 
   it('surfaces a friendly message when the name is already taken', async () => {
@@ -716,7 +798,7 @@ describe('Platforms', () => {
     service.create.mockReturnValue(throwError(() => new PlatformNameConflictError()));
 
     await createComponent();
-    buttonByText('New Platform').click();
+    buttonByText('+ Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -738,7 +820,7 @@ describe('Platforms', () => {
     service.list.mockReturnValue(of({ platforms: [] }));
 
     await createComponent();
-    buttonByText('New Platform').click();
+    buttonByText('+ Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -763,7 +845,7 @@ describe('Platforms', () => {
     service.list.mockReturnValue(of({ platforms: [] }));
 
     await createComponent();
-    buttonByText('New Platform').click();
+    buttonByText('+ Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -802,7 +884,7 @@ describe('Platforms', () => {
     );
 
     await createComponent();
-    buttonByText('New Platform').click();
+    buttonByText('+ Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -828,7 +910,7 @@ describe('Platforms', () => {
     service.create.mockReturnValue(throwError(() => new PlatformReferenceKeyConflictError()));
 
     await createComponent();
-    buttonByText('New Platform').click();
+    buttonByText('+ Add Platform').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -862,6 +944,204 @@ describe('Platforms', () => {
     expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
     expect(rows()).toHaveLength(0);
     expect(notifications.showSuccess).toHaveBeenCalledWith('Platform deleted.');
+  });
+
+  it('allows clean route exit without prompting', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+
+    await createComponent();
+    await selectRow(0);
+
+    expect(await canDeactivate()).toBe(true);
+    expect(confirmation.confirm).not.toHaveBeenCalled();
+  });
+
+  it('blocks route exit when dirty changes are kept', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(nameInput(), 'Changed channel');
+
+    expect(await canDeactivate()).toBe(false);
+    expect(confirmation.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Discard unsaved platform changes?',
+        actions: [
+          { id: 'keep-editing', label: 'Keep editing' },
+          { id: 'discard', label: 'Discard changes', primary: true },
+        ],
+      }),
+    );
+  });
+
+  it('allows route exit when dirty changes are discarded', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+    confirmation.confirm.mockReturnValue(of('discard'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(nameInput(), 'Changed channel');
+
+    expect(await canDeactivate()).toBe(true);
+  });
+
+  it('guards row switching until dirty changes are discarded', async () => {
+    service.list.mockReturnValue(
+      of({
+        platforms: [
+          youTubePlatform({ id: 'id-1', name: 'Main YouTube channel' }),
+          youTubePlatform({
+            id: 'id-2',
+            name: 'Second YouTube channel',
+            referenceKey: 'youTube2',
+          }),
+        ],
+      }),
+    );
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(nameInput(), 'Dirty channel');
+    await selectRow(1);
+
+    expect(nameInput().value).toBe('Dirty channel');
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    await selectRow(1);
+
+    expect(nameInput().value).toBe('Second YouTube channel');
+  });
+
+  it('guards Add Platform until dirty changes are discarded', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(nameInput(), 'Dirty channel');
+
+    buttonByText('+ Add Platform').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(nameInput().value).toBe('Dirty channel');
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    buttonByText('+ Add Platform').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-select')).not.toBeNull();
+    expect(nameInput().value).toBe('');
+  });
+
+  it('keeps editing when Cancel discard is rejected and closes when it is confirmed', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(nameInput(), 'Dirty channel');
+
+    buttonByText('Cancel').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(editor()).not.toBeNull();
+    expect(nameInput().value).toBe('Dirty channel');
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    buttonByText('Cancel').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(editor()).toBeNull();
+  });
+
+  it('guards dirty editor delete until discard is confirmed', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+    service.delete.mockReturnValue(of(undefined));
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(nameInput(), 'Dirty channel');
+
+    buttonByText('Delete').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(service.delete).not.toHaveBeenCalled();
+    expect(editor()).not.toBeNull();
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    buttonByText('Delete').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
+    expect(editor()).toBeNull();
+  });
+
+  it('keeps blank replacement secrets clean in edit mode', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform(), wordPressPlatform()] }));
+
+    await createComponent();
+    await selectRow(0);
+
+    expect(await canDeactivate()).toBe(true);
+    expect(confirmation.confirm).not.toHaveBeenCalled();
+
+    await selectRow(1);
+
+    expect(await canDeactivate()).toBe(true);
+    expect(confirmation.confirm).not.toHaveBeenCalled();
+  });
+
+  it('treats replacement secret values as dirty', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(inputByLabel('Client secret'), 'replacement-client-secret');
+
+    expect(await canDeactivate()).toBe(false);
+  });
+
+  it('treats title and description template changes as dirty', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    await createComponent();
+    await selectRow(0);
+
+    componentModel().set({
+      ...componentModel().get(),
+      titleTemplateId: 'changed-title-template',
+    });
+    fixture.detectChanges();
+
+    expect(await canDeactivate()).toBe(false);
+
+    confirmation.confirm.mockClear();
+    componentModel().set({
+      ...componentModel().get(),
+      titleTemplateId: 'title-template',
+      descriptionTemplateId: 'changed-description-template',
+    });
+    fixture.detectChanges();
+
+    expect(await canDeactivate()).toBe(false);
   });
 
   function publishingContent(

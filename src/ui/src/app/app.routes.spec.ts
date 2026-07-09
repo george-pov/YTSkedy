@@ -7,10 +7,22 @@ import { CalendarEvents } from './pages/calendar-events/calendar-events';
 import { ComponentLab } from './pages/component-lab/component-lab';
 import { Home } from './pages/home/home';
 import { Platforms } from './pages/platforms/platforms';
+import { Settings } from './pages/settings/settings';
 import { SignedOut } from './pages/signed-out/signed-out';
+import { Templates } from './pages/templates/templates';
 import { authenticatedGuard } from './shared/auth/authenticated-guard';
 import { redirectAuthenticatedGuard } from './shared/auth/redirect-authenticated-guard';
 import { pendingChangesGuard } from './shared/routing/pending-changes-guard';
+
+const guardedEditorRouteCases = [
+  {
+    path: 'calendar-events/:calendarEventId/edit',
+    component: CalendarEventDetails,
+  },
+  { path: 'templates', component: Templates },
+  { path: 'platforms', component: Platforms },
+  { path: 'settings', component: Settings },
+] as const;
 
 describe('routes', () => {
   it('uses the app layout as the route shell', () => {
@@ -53,26 +65,19 @@ describe('routes', () => {
     });
   });
 
-  it('guards calendar event edit route exit against pending changes', () => {
-    const layoutRoute = routes.find(({ path }) => path === '');
+  it.each(guardedEditorRouteCases)(
+    'guards $path behind authentication and pending-change route protection',
+    ({ path, component }) => {
+      const layoutRoute = routes.find((route) => route.path === '');
 
-    expect(layoutRoute?.children).toContainEqual({
-      path: 'calendar-events/:calendarEventId/edit',
-      component: CalendarEventDetails,
-      canActivate: [authenticatedGuard],
-      canDeactivate: [pendingChangesGuard],
-    });
-  });
-
-  it('guards the platforms page behind authentication through the layout outlet', () => {
-    const layoutRoute = routes.find(({ path }) => path === '');
-
-    expect(layoutRoute?.children).toContainEqual({
-      path: 'platforms',
-      component: Platforms,
-      canActivate: [authenticatedGuard],
-    });
-  });
+      expect(layoutRoute?.children).toContainEqual({
+        path,
+        component,
+        canActivate: [authenticatedGuard],
+        canDeactivate: [pendingChangesGuard],
+      });
+    },
+  );
 
   it('keeps the component lab available through a direct route', () => {
     const layoutRoute = routes.find(({ path }) => path === '');

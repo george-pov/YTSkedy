@@ -1,6 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Observable, of, throwError } from 'rxjs';
+import { firstValueFrom, Observable, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -8,6 +8,7 @@ import {
   EventTextFieldsService,
   UpdateEventTextFieldsRequest,
 } from 'src/app/shared/api/settings/event-text-fields-service';
+import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Settings } from './settings';
 
@@ -17,6 +18,7 @@ describe('Settings', () => {
     get: Mock<() => Observable<EventTextFieldsResponse>>;
     update: Mock<(request: UpdateEventTextFieldsRequest) => Observable<EventTextFieldsResponse>>;
   };
+  let confirmation: { confirm: Mock<(data: unknown) => Observable<string | undefined>> };
   let notifications: { showSuccess: Mock<(message: string) => void> };
 
   beforeEach(() => {
@@ -26,6 +28,10 @@ describe('Settings', () => {
         vi.fn<(request: UpdateEventTextFieldsRequest) => Observable<EventTextFieldsResponse>>(),
     };
     service.get.mockReturnValue(of(defaultFields()));
+    confirmation = {
+      confirm: vi.fn<(data: unknown) => Observable<string | undefined>>(),
+    };
+    confirmation.confirm.mockReturnValue(of('discard'));
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
   });
 
@@ -35,6 +41,7 @@ describe('Settings', () => {
       providers: [
         provideZonelessChangeDetection(),
         { provide: EventTextFieldsService, useValue: service },
+        { provide: ConfirmationDialogService, useValue: confirmation },
         { provide: NotificationService, useValue: notifications },
       ],
     }).compileComponents();
@@ -43,6 +50,11 @@ describe('Settings', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
+  }
+
+  async function canDeactivate(): Promise<boolean> {
+    const result = fixture.componentInstance.canDeactivateWithPendingChanges();
+    return typeof result === 'boolean' ? result : firstValueFrom(result);
   }
 
   function text(): string {
@@ -103,6 +115,35 @@ describe('Settings', () => {
     expect(text()).toContain('text1');
     expect(text()).toContain('text2');
     expect(inputs().map((input) => input.value)).toEqual(['Title', '50', 'Description', '2500']);
+  });
+
+  it('uses the approved footer action copy', async () => {
+    await createComponent();
+
+    expect(buttonByText('Cancel')).not.toBeNull();
+    expect(buttonByText('Save changes')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.app-actions.app-actions-end')).not.toBeNull();
+  });
+
+  it('disables save until settings have pending changes', async () => {
+    await createComponent();
+
+    expect(buttonByText('Save changes').disabled).toBe(true);
+
+    await setValue(inputAt(0), '  Title  ');
+
+    expect(buttonByText('Save changes').disabled).toBe(true);
+
+    await setValue(inputAt(0), 'Stream title');
+
+    expect(buttonByText('Save changes').disabled).toBe(false);
+  });
+
+  it('does not save a clean settings submit', async () => {
+    await createComponent();
+    await submit();
+
+    expect(service.update).not.toHaveBeenCalled();
   });
 
   it('appends a field with the next derived key immediately', async () => {
@@ -183,16 +224,36 @@ describe('Settings', () => {
       }),
     );
     await createComponent();
+    await setValue(inputAt(0), 'Draft title');
 
     await submit();
 
+    expect(service.update).toHaveBeenCalledWith({
+      fields: [
+        {
+          fieldKey: 'text1',
+          label: 'Draft title',
+          type: 'ShortText',
+          maxLength: 50,
+        },
+        {
+          fieldKey: 'text2',
+          label: 'Description',
+          type: 'LongText',
+          maxLength: 2500,
+        },
+      ],
+    });
     expect(inputs().map((input) => input.value)).toEqual(['Normalized title', '90']);
     expect(notifications.showSuccess).toHaveBeenCalledWith('Event text fields saved.');
+    expect(await canDeactivate()).toBe(true);
+    expect(confirmation.confirm).not.toHaveBeenCalled();
   });
 
   it('shows a save error and keeps the editor open when save fails', async () => {
     service.update.mockReturnValue(throwError(() => new Error('Request failed')));
     await createComponent();
+    await setValue(inputAt(0), 'Stream title');
 
     await submit();
 
@@ -208,6 +269,114 @@ describe('Settings', () => {
 
     expect(service.update).not.toHaveBeenCalled();
     expect(text()).toContain('Max length must be a positive whole number.');
+  });
+
+  it('allows clean route exit without prompting', async () => {
+    await createComponent();
+
+    expect(await canDeactivate()).toBe(true);
+    expect(confirmation.confirm).not.toHaveBeenCalled();
+  });
+
+  it('blocks route exit when dirty changes are kept', async () => {
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+    await createComponent();
+
+    await setValue(inputAt(0), 'Stream title');
+
+    expect(await canDeactivate()).toBe(false);
+    expect(confirmation.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Discard unsaved settings changes?',
+        actions: [
+          { id: 'keep-editing', label: 'Keep editing' },
+          { id: 'discard', label: 'Discard changes', primary: true },
+        ],
+      }),
+    );
+  });
+
+  it('allows route exit when dirty changes are discarded', async () => {
+    confirmation.confirm.mockReturnValue(of('discard'));
+    await createComponent();
+
+    await setValue(inputAt(0), 'Stream title');
+
+    expect(await canDeactivate()).toBe(true);
+  });
+
+  it('keeps editing when Cancel discard is rejected and restores saved fields when confirmed', async () => {
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+    await createComponent();
+
+    await setValue(inputAt(0), 'Stream title');
+
+    buttonByText('Cancel').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(inputAt(0).value).toBe('Stream title');
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    buttonByText('Cancel').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(inputs().map((input) => input.value)).toEqual(['Title', '50', 'Description', '2500']);
+  });
+
+  it('tracks add, delete, and renumber changes as pending', async () => {
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+    service.get.mockReturnValue(
+      of({
+        fields: [
+          { fieldKey: 'text1', label: 'Title', type: 'ShortText', maxLength: 50 },
+          { fieldKey: 'text2', label: 'Summary', type: 'ShortText', maxLength: 100 },
+          { fieldKey: 'text3', label: 'Description', type: 'LongText', maxLength: 2500 },
+        ],
+      }),
+    );
+    await createComponent();
+
+    buttonByText('Add field').click();
+    fixture.detectChanges();
+
+    expect(await canDeactivate()).toBe(false);
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    buttonByText('Cancel').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+
+    deleteButtons()[1].dispatchEvent(new Event('click'));
+    fixture.detectChanges();
+
+    expect(text()).not.toContain('text3');
+    expect(await canDeactivate()).toBe(false);
+  });
+
+  it('clears save errors when Cancel discards changes', async () => {
+    service.update.mockReturnValue(throwError(() => new Error('Request failed')));
+    confirmation.confirm.mockReturnValue(of('discard'));
+    await createComponent();
+
+    await setValue(inputAt(0), 'Stream title');
+    await submit();
+
+    expect(text()).toContain('Event text fields could not be saved.');
+
+    buttonByText('Cancel').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(text()).not.toContain('Event text fields could not be saved.');
+    expect(inputAt(0).value).toBe('Title');
   });
 
   function defaultFields(): EventTextFieldsResponse {

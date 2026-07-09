@@ -1,7 +1,7 @@
 <section class="platforms">
   <header class="header">
     <h1>Platforms</h1>
-    <app-button (click)="newPlatform()">New Platform</app-button>
+    <app-button (click)="newPlatform()">+ Add Platform</app-button>
   </header>
 
   @if (showLoading()) {
@@ -88,10 +88,7 @@
               <app-alert variant="error">{{ message }}</app-alert>
             }
 
-            <div class="app-actions">
-              <app-button type="submit" [disabled]="isSaving() || isDeleting()">
-                {{ isSaving() ? 'Saving...' : 'Save' }}
-              </app-button>
+            <div class="app-actions app-actions-end">
               @if (editorMode() === 'edit') {
                 <app-button
                   type="button"
@@ -102,12 +99,29 @@
                   {{ isDeleting() ? 'Deleting...' : 'Delete' }}
                 </app-button>
               }
+              <app-button
+                type="button"
+                appearance="outlined"
+                [disabled]="isSaving() || isDeleting()"
+                (click)="cancel()"
+              >
+                Cancel
+              </app-button>
+              <app-button type="submit" [disabled]="saveDisabled()">
+                @if (isSaving()) {
+                  Saving...
+                } @else if (editorMode() === 'create') {
+                  Save platform
+                } @else {
+                  Save changes
+                }
+              </app-button>
             </div>
           </form>
         } @else {
           <p class="app-col-md-7 app-pt-6 editor-empty">
-            Select a platform on the left to view and update its settings, or choose New Platform to
-            add one.
+            Select a platform on the left to view and update its settings, or choose + Add Platform
+            to add one.
           </p>
         }
       </div>

@@ -19,8 +19,8 @@ The Angular frontend lives under `src/ui/`.
 - Shared route-exit protection lives under `src/ui/src/app/shared/routing/`.
   The `pendingChangesGuard` defines a `PendingChangesAware` contract and
   delegates route-exit decisions to page-owned state and confirmation copy.
-  The current use is the calendar event details edit route for pending
-  scheduled-start and event-text changes.
+  The current use is the calendar event details edit route plus the Templates,
+  Platforms, and Settings editor routes.
 - Runtime API base URL configuration is loaded from
   `src/ui/public/config/app-config.json`.
 - The `calendar-events` page route loads one server-side sorted page of events

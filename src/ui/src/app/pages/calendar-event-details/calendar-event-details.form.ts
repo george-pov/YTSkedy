@@ -20,6 +20,7 @@ import {
   EventTextType,
 } from 'src/app/shared/api/settings/event-text-fields-service';
 import { SelectOption } from 'src/app/shared/components/select/select';
+import { sameRequest } from 'src/app/shared/forms/request-comparison';
 
 export interface EventTextFieldModel {
   fieldKey: string;
@@ -227,11 +228,7 @@ export function sameUpdateCalendarEventRequest(
   left: UpdateCalendarEventRequest,
   right: UpdateCalendarEventRequest,
 ): boolean {
-  return (
-    left.start.localDateTime === right.start.localDateTime &&
-    left.start.timeZoneId === right.start.timeZoneId &&
-    sameEventTextValues(left.texts, right.texts)
-  );
+  return sameRequest(left, right);
 }
 
 export function eventTextFieldsToModel(fields: readonly EventTextField[]): EventTextFieldModel[] {
@@ -256,20 +253,6 @@ function toEventTextValues(model: CalendarEventDetailsModel) {
     fieldKey: text.fieldKey,
     value: text.value.trim(),
   }));
-}
-
-function sameEventTextValues(
-  left: UpdateCalendarEventRequest['texts'],
-  right: UpdateCalendarEventRequest['texts'],
-): boolean {
-  return (
-    left.length === right.length &&
-    left.every(
-      (text, index) =>
-        text.fieldKey === right[index].fieldKey &&
-        text.value.trim() === right[index].value.trim(),
-    )
-  );
 }
 
 // Formats an epoch-milliseconds instant as `YYYY-MM-DD HH:mm` in UTC, matching

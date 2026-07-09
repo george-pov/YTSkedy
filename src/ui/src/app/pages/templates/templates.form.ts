@@ -10,6 +10,7 @@ import {
   TemplateType,
   UpdateTemplateRequest,
 } from 'src/app/shared/api/templates/templates-service';
+import { sameRequest } from 'src/app/shared/forms/request-comparison';
 
 // Mirror the backend domain limits in `Template.cs` so the UI rejects oversized
 // input before the request. The backend remains the durable validator.
@@ -65,9 +66,22 @@ export function toCreateTemplateRequest(model: TemplateFormModel): CreateTemplat
   };
 }
 
+export function toTemplateEditorRequest(
+  model: TemplateFormModel,
+): CreateTemplateRequest {
+  return toCreateTemplateRequest(model);
+}
+
 export function toUpdateTemplateRequest(model: TemplateFormModel): UpdateTemplateRequest {
   return {
     name: model.name.trim(),
     content: model.content,
   };
+}
+
+export function sameTemplateEditorRequest(
+  left: CreateTemplateRequest,
+  right: CreateTemplateRequest,
+): boolean {
+  return sameRequest(left, right);
 }
