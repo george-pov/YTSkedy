@@ -13,7 +13,11 @@
     <input
       matInput
       [formField]="field()"
-      [placeholder]="placeholder()">
+      [placeholder]="placeholder()"
+      [type]="inputType()"
+      [attr.min]="min()"
+      [attr.max]="max()"
+      [attr.step]="step()">
   }
   @if (errorMessage(); as message) {
     <mat-error>{{ message }}</mat-error>

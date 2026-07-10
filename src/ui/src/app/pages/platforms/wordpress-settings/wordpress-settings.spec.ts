@@ -10,6 +10,8 @@ interface WordPressSettingsModel {
   username: string;
   applicationPassword: string;
   postStatus: string;
+  sticky: boolean;
+  scheduleOffsetHours: string;
 }
 
 @Component({
@@ -20,6 +22,8 @@ interface WordPressSettingsModel {
     [username]="form.username"
     [applicationPassword]="form.applicationPassword"
     [postStatus]="form.postStatus"
+    [sticky]="form.sticky"
+    [scheduleOffsetHours]="form.scheduleOffsetHours"
     passwordDisplayValue="*******"
   />`,
 })
@@ -29,6 +33,8 @@ class WordPressSettingsHost {
     username: 'publisher',
     applicationPassword: '',
     postStatus: 'draft',
+    sticky: false,
+    scheduleOffsetHours: '',
   });
   readonly form = form(this.model, () => {});
 }
@@ -50,12 +56,66 @@ describe('WordPressSettings', () => {
     expect(fixture.nativeElement.querySelectorAll('app-input input')).toHaveLength(2);
     expect(fixture.nativeElement.querySelectorAll('app-masked-input input')).toHaveLength(1);
     expect(fixture.nativeElement.querySelectorAll('app-select')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelectorAll('app-checkbox')).toHaveLength(1);
+  });
+
+  it('offers all five post statuses in display order', async () => {
+    const trigger = fixture.nativeElement.querySelector('.mat-mdc-select-trigger') as HTMLElement;
+    trigger.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const labels = Array.from(document.querySelectorAll('mat-option')).map((option) =>
+      option.textContent?.trim(),
+    );
+
+    expect(labels).toEqual(['Draft', 'Pending', 'Private', 'Scheduled', 'Publish']);
+  });
+
+  it('keeps the sticky checkbox visible and synchronizes checked state', async () => {
+    const checkbox = fixture.nativeElement.querySelector(
+      'app-checkbox input[type="checkbox"]',
+    ) as HTMLInputElement;
+
+    expect(checkbox.checked).toBe(false);
+    expect(fixture.nativeElement.querySelector('app-checkbox')?.textContent).toContain(
+      'Make this post sticky',
+    );
+
+    checkbox.click();
+    await fixture.whenStable();
+
+    expect(host.model().sticky).toBe(true);
+  });
+
+  it.each(['draft', 'pending', 'private', 'publish'])(
+    'hides the scheduled offset for %s',
+    (postStatus) => {
+      host.model.update((model) => ({ ...model, postStatus }));
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('input[type="number"]')).toBeNull();
+    },
+  );
+
+  it('shows the bounded whole-hours input for Scheduled', () => {
+    host.model.update((model) => ({
+      ...model,
+      postStatus: 'future',
+      scheduleOffsetHours: '24',
+    }));
+    fixture.detectChanges();
+
+    const input = fixture.nativeElement.querySelector('input[type="number"]') as HTMLInputElement;
+    expect(input).not.toBeNull();
+    expect(input.value).toBe('24');
+    expect(input.getAttribute('min')).toBe('1');
+    expect(input.getAttribute('max')).toBe('168');
+    expect(input.getAttribute('step')).toBe('1');
   });
 
   it('shows the display value inside the replacement input while the value stays empty', () => {
-    const input = fixture.nativeElement.querySelector(
-      'app-masked-input input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('app-masked-input input') as HTMLInputElement;
 
     expect(fixture.nativeElement.querySelectorAll('.secret-status')).toHaveLength(0);
     expect(input.value).toBe('*******');

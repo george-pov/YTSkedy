@@ -13,6 +13,7 @@ interface InputLabModel {
   counted: string;
   multiline: string;
   multilineCounted: string;
+  hoursBeforeEventStart: string;
 }
 
 @Component({
@@ -30,6 +31,7 @@ export class InputLab {
     counted: 'Weekly stream check-in',
     multiline: 'First line\nSecond line',
     multilineCounted: 'Welcome to the weekly stream.',
+    hoursBeforeEventStart: '24',
   });
 
   // A `maxLength` rule both caps the input and feeds the counter's denominator.

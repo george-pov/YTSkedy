@@ -1,8 +1,12 @@
+import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { form } from '@angular/forms/signals';
 import { describe, expect, it } from 'vitest';
 
 import { Platform } from 'src/app/shared/api/platforms/platforms-service';
 import {
   createPlatformFormModel,
+  applyPlatformRules,
   PlatformFormModel,
   sameCreatePlatformRequest,
   sameUpdatePlatformRequest,
@@ -12,6 +16,14 @@ import {
 } from './platforms.form';
 
 describe('platforms form request mapping', () => {
+  it('uses non-sticky Draft defaults with no scheduled offset', () => {
+    expect(createPlatformFormModel()).toMatchObject({
+      wordPressPostStatus: 'draft',
+      wordPressSticky: false,
+      wordPressScheduleOffsetHours: '',
+    });
+  });
+
   it('maps selected title and description templates to request publishing content', () => {
     const model = validModel({
       titleTemplateId: ' title-template ',
@@ -69,6 +81,49 @@ describe('platforms form request mapping', () => {
       siteUrl: 'https://blog.example.test/',
       username: 'publisher',
       postStatus: 'draft',
+      sticky: false,
+    });
+  });
+
+  it('maps Scheduled settings to a numeric offset and sticky boolean', () => {
+    const request = toCreatePlatformRequest(
+      validModel({
+        type: 'WordPress',
+        wordPressSiteUrl: 'https://blog.example.test/',
+        wordPressUsername: 'publisher',
+        wordPressApplicationPassword: 'local-test-password',
+        wordPressPostStatus: 'future',
+        wordPressSticky: true,
+        wordPressScheduleOffsetHours: ' 24 ',
+      }),
+    );
+
+    expect(request.publishSettings).toEqual({
+      siteUrl: 'https://blog.example.test/',
+      username: 'publisher',
+      postStatus: 'future',
+      sticky: true,
+      scheduleOffsetHours: 24,
+      applicationPassword: 'local-test-password',
+    });
+  });
+
+  it('omits a retained scheduled offset from non-scheduled requests', () => {
+    const request = toUpdatePlatformRequest(
+      validModel({
+        type: 'WordPress',
+        wordPressSiteUrl: 'https://blog.example.test/',
+        wordPressUsername: 'publisher',
+        wordPressPostStatus: 'pending',
+        wordPressScheduleOffsetHours: '24',
+      }),
+    );
+
+    expect(request.publishSettings).toEqual({
+      siteUrl: 'https://blog.example.test/',
+      username: 'publisher',
+      postStatus: 'pending',
+      sticky: false,
     });
   });
 
@@ -197,6 +252,55 @@ describe('platforms form request mapping', () => {
     expect(sameUpdatePlatformRequest(edited, saved)).toBe(true);
   });
 
+  it('sameUpdatePlatformRequest_WordPressStickyChangeComparesDirty', () => {
+    const saved = toUpdatePlatformRequest(
+      validModel({ type: 'WordPress', wordPressSticky: false }),
+    );
+    const edited = toUpdatePlatformRequest(
+      validModel({ type: 'WordPress', wordPressSticky: true }),
+    );
+
+    expect(sameUpdatePlatformRequest(edited, saved)).toBe(false);
+  });
+
+  it('sameUpdatePlatformRequest_ScheduledOffsetChangeComparesDirty', () => {
+    const saved = toUpdatePlatformRequest(
+      validModel({
+        type: 'WordPress',
+        wordPressPostStatus: 'future',
+        wordPressScheduleOffsetHours: '24',
+      }),
+    );
+    const edited = toUpdatePlatformRequest(
+      validModel({
+        type: 'WordPress',
+        wordPressPostStatus: 'future',
+        wordPressScheduleOffsetHours: '48',
+      }),
+    );
+
+    expect(sameUpdatePlatformRequest(edited, saved)).toBe(false);
+  });
+
+  it('sameUpdatePlatformRequest_RetainedHiddenOffsetComparesClean', () => {
+    const saved = toUpdatePlatformRequest(
+      validModel({
+        type: 'WordPress',
+        wordPressPostStatus: 'draft',
+        wordPressScheduleOffsetHours: '',
+      }),
+    );
+    const edited = toUpdatePlatformRequest(
+      validModel({
+        type: 'WordPress',
+        wordPressPostStatus: 'draft',
+        wordPressScheduleOffsetHours: '24',
+      }),
+    );
+
+    expect(sameUpdatePlatformRequest(edited, saved)).toBe(true);
+  });
+
   it('sameUpdatePlatformRequest_ReplacementSecretValuesCompareDirty', () => {
     const saved = toUpdatePlatformRequest(
       validModel({
@@ -299,7 +403,34 @@ describe('platforms form request mapping', () => {
       wordPressUsername: 'publisher',
       wordPressApplicationPassword: '',
       wordPressPostStatus: 'publish',
+      wordPressSticky: false,
+      wordPressScheduleOffsetHours: '',
       wordPressApplicationPasswordConfigured: 'true',
+      wordPressPasswordDisplayValue: '*******',
+    });
+  });
+
+  it('restores Scheduled response settings into the form', () => {
+    const model = toPlatformFormModel(
+      platform({
+        type: 'WordPress',
+        publishSettings: {
+          siteUrl: 'https://blog.example.test/',
+          username: 'publisher',
+          postStatus: 'future',
+          sticky: true,
+          scheduleOffsetHours: 24,
+          applicationPasswordConfigured: true,
+          passwordDisplayValue: '*******',
+        },
+      }),
+    );
+
+    expect(model).toMatchObject({
+      wordPressPostStatus: 'future',
+      wordPressSticky: true,
+      wordPressScheduleOffsetHours: '24',
+      wordPressApplicationPassword: '',
       wordPressPasswordDisplayValue: '*******',
     });
   });
@@ -324,10 +455,67 @@ describe('platforms form request mapping', () => {
       wordPressUsername: '',
       wordPressApplicationPassword: '',
       wordPressPostStatus: 'draft',
+      wordPressSticky: false,
+      wordPressScheduleOffsetHours: '',
       wordPressApplicationPasswordConfigured: 'false',
       wordPressPasswordDisplayValue: '',
     });
   });
+
+  it('requires an offset for Scheduled posts', () => {
+    const offset = scheduledOffsetField('');
+
+    expect(offset().errors()[0]?.message).toBe(
+      'Hours before event start is required for Scheduled posts.',
+    );
+  });
+
+  it.each(['0', '169', '-1', '+1', '1.5', '1e2', '24 hours'])(
+    'rejects invalid Scheduled offset %s',
+    (value) => {
+      const offset = scheduledOffsetField(value);
+
+      expect(offset().errors()[0]?.message).toBe(
+        'Hours before event start must be a whole number from 1 through 168.',
+      );
+    },
+  );
+
+  it.each(['1', '24', '168'])('accepts valid Scheduled offset %s', (value) => {
+    expect(scheduledOffsetField(value)().errors()).toHaveLength(0);
+  });
+
+  it.each(['draft', 'pending', 'private', 'publish'])(
+    'does not validate a hidden offset for %s',
+    (postStatus) => {
+      const model = signal(
+        validModel({
+          type: 'WordPress',
+          wordPressPostStatus: postStatus,
+          wordPressScheduleOffsetHours: 'invalid retained value',
+        }),
+      );
+      const platformForm = TestBed.runInInjectionContext(() => form(model, applyPlatformRules));
+
+      expect(platformForm.wordPressScheduleOffsetHours().errors()).toHaveLength(0);
+    },
+  );
+
+  function scheduledOffsetField(value: string) {
+    const model = signal(
+      validModel({
+        type: 'WordPress',
+        wordPressSiteUrl: 'https://blog.example.test/',
+        wordPressUsername: 'publisher',
+        wordPressApplicationPassword: 'local-test-password',
+        wordPressPostStatus: 'future',
+        wordPressScheduleOffsetHours: value,
+      }),
+    );
+
+    return TestBed.runInInjectionContext(() => form(model, applyPlatformRules))
+      .wordPressScheduleOffsetHours;
+  }
 
   function validModel(overrides: Partial<PlatformFormModel>): PlatformFormModel {
     return {

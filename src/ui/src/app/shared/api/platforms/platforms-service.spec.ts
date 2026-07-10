@@ -79,7 +79,9 @@ describe('PlatformsService', () => {
           publishSettings: {
             siteUrl: 'https://blog.example.test/',
             username: 'publisher',
-            postStatus: 'draft',
+            postStatus: 'future',
+            sticky: true,
+            scheduleOffsetHours: 24,
             applicationPasswordConfigured: true,
             passwordDisplayValue: '*******',
           },
@@ -123,7 +125,9 @@ describe('PlatformsService', () => {
           publishSettings: {
             siteUrl: 'https://blog.example.test/',
             username: 'publisher',
-            postStatus: 'draft',
+            postStatus: 'future',
+            sticky: true,
+            scheduleOffsetHours: 24,
             applicationPasswordConfigured: true,
             passwordDisplayValue: '*******',
           },
@@ -257,7 +261,9 @@ describe('PlatformsService', () => {
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
-        postStatus: 'draft',
+        postStatus: 'future',
+        sticky: true,
+        scheduleOffsetHours: 24,
         applicationPassword: 'local-test-password',
       },
       publishingContent: {
@@ -281,7 +287,9 @@ describe('PlatformsService', () => {
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
-        postStatus: 'draft',
+        postStatus: 'future',
+        sticky: true,
+        scheduleOffsetHours: 24,
         applicationPasswordConfigured: true,
         passwordDisplayValue: '*******',
       },
@@ -299,7 +307,9 @@ describe('PlatformsService', () => {
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
-        postStatus: 'draft',
+        postStatus: 'future',
+        sticky: true,
+        scheduleOffsetHours: 24,
         applicationPasswordConfigured: true,
         passwordDisplayValue: '*******',
       },
@@ -447,7 +457,9 @@ describe('PlatformsService', () => {
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
-        postStatus: 'publish',
+        postStatus: 'future',
+        sticky: true,
+        scheduleOffsetHours: 24,
       },
       publishingContent: publishingContent(),
     };
@@ -471,7 +483,9 @@ describe('PlatformsService', () => {
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
-        postStatus: 'publish',
+        postStatus: 'future',
+        sticky: true,
+        scheduleOffsetHours: 24,
         applicationPasswordConfigured: true,
         passwordDisplayValue: '*******',
       },
@@ -486,7 +500,9 @@ describe('PlatformsService', () => {
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
-        postStatus: 'publish',
+        postStatus: 'future',
+        sticky: true,
+        scheduleOffsetHours: 24,
         applicationPasswordConfigured: true,
         passwordDisplayValue: '*******',
       },

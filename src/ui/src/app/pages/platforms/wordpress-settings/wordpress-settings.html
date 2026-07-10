@@ -7,3 +7,14 @@
   maskMode="password"
 />
 <app-select [field]="postStatus()" label="Post status" [options]="postStatusOptions" />
+@if (showScheduleOffset()) {
+  <app-input
+    [field]="scheduleOffsetHours()"
+    label="Hours before event start"
+    inputType="number"
+    [min]="1"
+    [max]="168"
+    [step]="1"
+  />
+}
+<app-checkbox [field]="sticky()" label="Make this post sticky" />
