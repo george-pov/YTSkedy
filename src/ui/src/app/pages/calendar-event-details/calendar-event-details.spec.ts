@@ -25,6 +25,11 @@ import {
   EventTextFieldsService,
 } from 'src/app/shared/api/settings/event-text-fields-service';
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
+import {
+  DATE_INPUT_DISPLAY_FORMAT,
+  DATE_INPUT_FORMAT,
+  TIME_INPUT_FORMAT,
+} from 'src/app/shared/date-time/date-time-format';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import {
   resolveCanDeactivate,
@@ -36,16 +41,16 @@ import { CalendarEventDetailsModel } from './calendar-event-details.form';
 
 const testDateFormats: MatDateFormats = {
   parse: {
-    dateInput: 'yyyy-MM-dd',
-    timeInput: 'HH:mm',
+    dateInput: DATE_INPUT_FORMAT,
+    timeInput: TIME_INPUT_FORMAT,
   },
   display: {
-    dateInput: 'yyyy-MM-dd',
+    dateInput: DATE_INPUT_DISPLAY_FORMAT,
     monthYearLabel: 'LLL yyyy',
     dateA11yLabel: 'DDD',
     monthYearA11yLabel: 'LLLL yyyy',
-    timeInput: 'HH:mm',
-    timeOptionLabel: 'HH:mm',
+    timeInput: TIME_INPUT_FORMAT,
+    timeOptionLabel: TIME_INPUT_FORMAT,
   },
 };
 

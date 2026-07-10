@@ -5,12 +5,16 @@ import { MatDateFormats } from '@angular/material/core';
 import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import {
+  DATE_INPUT_DISPLAY_FORMAT,
+  DATE_INPUT_FORMAT,
+} from 'src/app/shared/date-time/date-time-format';
 import { DateField } from './date';
 
 const testDateFormats: MatDateFormats = {
-  parse: { dateInput: 'yyyy-MM-dd' },
+  parse: { dateInput: DATE_INPUT_FORMAT },
   display: {
-    dateInput: 'yyyy-MM-dd',
+    dateInput: DATE_INPUT_DISPLAY_FORMAT,
     monthYearLabel: 'LLL yyyy',
     dateA11yLabel: 'DDD',
     monthYearA11yLabel: 'LLLL yyyy',
@@ -72,6 +76,58 @@ describe('DateField', () => {
     await fixture.whenStable();
 
     expect(host.model().date).toBe('2026-07-01');
+  });
+
+  it('displays the selected date with its weekday while retaining the ISO field value', async () => {
+    host.form.date().value.set('2026-07-31');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement.querySelector('input') as HTMLInputElement).value).toBe(
+      '2026-07-31 (Friday)',
+    );
+    expect(host.model().date).toBe('2026-07-31');
+  });
+
+  it('allows a date to be typed one character at a time', async () => {
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
+    input.focus();
+
+    for (const character of '2026-07-31') {
+      input.value += character;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+    }
+
+    expect(host.model().date).toBe('2026-07-31');
+  });
+
+  it('ignores non-format text in typed date input', async () => {
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
+    input.value = '2026-07-31 Sunday';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(host.model().date).toBe('2026-07-31');
+    expect(input.value).toBe('2026-07-31 (Friday)');
+  });
+
+  it('does not commit a typed date outside the YYYY-MM-DD format', async () => {
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
+    input.value = '2026-7-31';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(host.model().date).toBe('');
   });
 
   it('shows the field error once the field is touched', async () => {

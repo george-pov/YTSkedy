@@ -5,6 +5,8 @@ import { MatInput, MatInputModule } from '@angular/material/input';
 import { MatTimepickerModule } from '@angular/material/timepicker';
 import { DateTime } from 'luxon';
 
+import { TIME_INPUT_FORMAT } from 'src/app/shared/date-time/date-time-format';
+
 // Value contract: an `HH:mm` time-of-day string bound as a Signal Forms
 // `Field<string>`. The Material timepicker uses Luxon `DateTime` internally,
 // and this wrapper converts string<->DateTime at the Material boundary so pages
@@ -50,11 +52,37 @@ export class TimeField {
     return state.errors()[0]?.message ?? null;
   });
 
-  protected onTimeChange(value: DateTime | null): void {
+  protected onTimeSelected(value: DateTime): void {
     this.field()().value.set(formatTimeFieldValue(value));
   }
 
-  protected markAsTouched(): void {
+  protected onTimeValueChange(value: DateTime | null, inputValue: string): void {
+    if (value === null && inputValue.length === 0) {
+      this.field()().value.set('');
+    }
+  }
+
+  protected onTimeInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const inputValue = sanitizeTimeInput(input.value);
+
+    if (input.value !== inputValue) {
+      input.value = inputValue;
+    }
+
+    if (inputValue.length === 0) {
+      this.field()().value.set('');
+      return;
+    }
+
+    const time = parseTimeFieldValue(inputValue);
+    if (time !== null && formatTimeFieldValue(time) === inputValue) {
+      this.field()().value.set(inputValue);
+    }
+  }
+
+  protected onBlur(event: FocusEvent): void {
+    (event.target as HTMLInputElement).value = this.field()().value();
     this.field()().markAsTouched();
   }
 }
@@ -64,10 +92,14 @@ function parseTimeFieldValue(value: string): DateTime | null {
     return null;
   }
 
-  const time = DateTime.fromFormat(value, 'HH:mm');
+  const time = DateTime.fromFormat(value, TIME_INPUT_FORMAT);
   return time.isValid ? time : null;
 }
 
 function formatTimeFieldValue(value: DateTime | null): string {
-  return value?.isValid ? value.toFormat('HH:mm') : '';
+  return value?.isValid ? value.toFormat(TIME_INPUT_FORMAT) : '';
+}
+
+function sanitizeTimeInput(value: string): string {
+  return value.replace(/[^0-9:]/g, '').slice(0, 5);
 }

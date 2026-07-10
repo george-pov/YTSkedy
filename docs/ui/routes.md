@@ -115,7 +115,9 @@ and event text controls are editable in edit mode only when the API-provided
 translation of the local start using the shared long English date-time format:
 in create mode and editable edit mode it is derived live from the chosen local
 date, time, and zone; in locked edit mode it uses the stored
-`scheduledStartUtc`. Save sends
+`scheduledStartUtc`. The Start date control accepts typed `YYYY-MM-DD` values
+and displays a selected value like `2026-07-31 (Friday)`. The Start time
+control accepts typed `HH:mm` values. Save sends
 `PUT /api/calendar-events/{calendarEventId}` with `start` and text values and
 stays on the edit page on success. A successful edit-mode save updates the
 saved baseline, clears any save error, shows `Calendar event updated.`, and
