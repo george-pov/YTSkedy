@@ -52,4 +52,15 @@ describe('ComponentLab', () => {
     expect(fixture.nativeElement.querySelector('app-button-lab')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('app-toolbar-lab')).toBeNull();
   });
+
+  it('renders the registered Checkbox lab', () => {
+    const checkboxNav = navButtons().find(
+      (button) => button.textContent?.trim() === 'Checkbox',
+    );
+
+    checkboxNav?.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-checkbox-lab')).not.toBeNull();
+  });
 });

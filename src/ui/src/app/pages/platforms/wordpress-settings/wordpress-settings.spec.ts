@@ -70,6 +70,15 @@ describe('WordPressSettings', () => {
     );
 
     expect(labels).toEqual(['Draft', 'Pending', 'Private', 'Scheduled', 'Publish']);
+
+    const scheduled = Array.from(document.querySelectorAll('mat-option')).find(
+      (option) => option.textContent?.trim() === 'Scheduled',
+    ) as HTMLElement | undefined;
+    scheduled?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(host.model().postStatus).toBe('future');
   });
 
   it('keeps the sticky checkbox visible and synchronizes checked state', async () => {

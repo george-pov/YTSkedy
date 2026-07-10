@@ -39,9 +39,14 @@ describe('Checkbox (signal forms field)', () => {
     return fixture.nativeElement.querySelector('input[type="checkbox"]') as HTMLInputElement;
   }
 
-  it('renders initial unchecked and checked model states', async () => {
+  it('renders an initial unchecked model state', () => {
     expect(checkbox().checked).toBe(false);
+  });
 
+  it('renders an initial checked model state', async () => {
+    fixture.destroy();
+    fixture = TestBed.createComponent(CheckboxHost);
+    host = fixture.componentInstance;
     host.model.set({ selected: true });
     fixture.detectChanges();
     await fixture.whenStable();
