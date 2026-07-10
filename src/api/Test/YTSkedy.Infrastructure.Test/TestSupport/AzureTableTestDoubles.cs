@@ -13,10 +13,19 @@ internal abstract class InMemoryTableClient<TEntity>(string tableName) : TableCl
     where TEntity : class, ITableEntity
 {
     private readonly HashSet<(string PartitionKey, string RowKey)> deletePreconditionFailures = [];
+    private readonly Dictionary<
+        (string PartitionKey, string RowKey),
+        Queue<Action<TEntity>?>> updatePreconditionFailures = [];
 
     public Dictionary<(string PartitionKey, string RowKey), TEntity> Entities { get; } = [];
 
     public bool CreateIfNotExistsCalled { get; private set; }
+
+    public int UpdateCallCount { get; private set; }
+
+    public TableUpdateMode? LastUpdateMode { get; private set; }
+
+    public IReadOnlyList<string>? LastQuerySelect { get; private set; }
 
     public void Seed(TEntity entity)
     {
@@ -26,6 +35,20 @@ internal abstract class InMemoryTableClient<TEntity>(string tableName) : TableCl
     public void FailDeleteWithPreconditionFailed(TEntity entity)
     {
         deletePreconditionFailures.Add((entity.PartitionKey, entity.RowKey));
+    }
+
+    public void FailNextUpdateWithPreconditionFailed(
+        TEntity entity,
+        Action<TEntity>? onFailure = null)
+    {
+        var key = (entity.PartitionKey, entity.RowKey);
+        if (!updatePreconditionFailures.TryGetValue(key, out var failures))
+        {
+            failures = [];
+            updatePreconditionFailures[key] = failures;
+        }
+
+        failures.Enqueue(onFailure);
     }
 
     public override Task<Response<TableItem>> CreateIfNotExistsAsync(
@@ -73,9 +96,18 @@ internal abstract class InMemoryTableClient<TEntity>(string tableName) : TableCl
     {
         var typedEntity = ToEntity(entity);
         var key = (typedEntity.PartitionKey, typedEntity.RowKey);
+        UpdateCallCount++;
+        LastUpdateMode = mode;
         if (!Entities.ContainsKey(key))
         {
             throw new RequestFailedException(404, "Entity not found.");
+        }
+
+        if (updatePreconditionFailures.TryGetValue(key, out var failures) &&
+            failures.TryDequeue(out var onFailure))
+        {
+            onFailure?.Invoke(Entities[key]);
+            throw new RequestFailedException(412, "Precondition failed.");
         }
 
         Entities[key] = Clone(typedEntity);
@@ -124,6 +156,8 @@ internal abstract class InMemoryTableClient<TEntity>(string tableName) : TableCl
         IEnumerable<string>? select = null,
         CancellationToken cancellationToken = default)
     {
+        LastQuerySelect = select?.ToArray();
+
         var values = Entities.Values
             .Where(entity => MatchesFilter(entity, filter))
             .Select(entity => (T)(object)Clone(entity))
@@ -181,6 +215,7 @@ internal sealed class CalendarEventTableClient : InMemoryTableClient<CalendarEve
             LocalDateTime = entity.LocalDateTime,
             TimeZoneId = entity.TimeZoneId,
             TextJson = entity.TextJson,
+            PublishedPlatformIdsJson = entity.PublishedPlatformIdsJson,
             ThumbnailJson = entity.ThumbnailJson,
             CreatedUtc = entity.CreatedUtc
         };

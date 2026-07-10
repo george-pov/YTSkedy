@@ -5,4 +5,5 @@ internal sealed record CalendarEventViewResponse(
     CalendarEventStart Start,
     DateTimeOffset ScheduledStartUtc,
     string DisplayTitle,
+    string PublicationStatus,
     IReadOnlyList<EventTextResponse> Texts);

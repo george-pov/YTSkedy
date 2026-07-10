@@ -120,6 +120,8 @@ builder.Services.AddScoped<ICalendarEventModifier>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
 builder.Services.AddScoped<ICalendarEventReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
+builder.Services.AddScoped<IPublicationIndexWriter>(
+    serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
 builder.Services.AddScoped<ICalendarEventThumbnailModifier>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
 builder.Services.AddScoped<ICalendarEventThumbnailReader>(

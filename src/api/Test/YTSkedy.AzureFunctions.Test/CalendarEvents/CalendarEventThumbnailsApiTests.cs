@@ -196,7 +196,7 @@ public sealed class CalendarEventThumbnailsApiTests
 
     private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent) : ICalendarEventReader
     {
-        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
+        public Task<IReadOnlyList<CalendarEventListRecord>> ListAsync(
             CalendarEventMonthCriteria? criteria,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();

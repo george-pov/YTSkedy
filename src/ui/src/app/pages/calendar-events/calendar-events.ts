@@ -11,6 +11,7 @@ import { finalize } from 'rxjs';
 import {
   CalendarEvent,
   CalendarEventListQuery,
+  CalendarEventPublishingStatus,
   CalendarEventSortField,
   CalendarEventsService,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
@@ -65,6 +66,12 @@ export class CalendarEvents implements OnInit {
       value: (event) => event.displayTitle,
       sortable: true,
       truncate: true,
+    },
+    {
+      key: 'publicationStatus',
+      header: 'Publication Status',
+      value: (event) => publicationStatusLabel(event.publicationStatus),
+      sortable: false,
     },
   ];
 
@@ -129,6 +136,22 @@ function formatScheduledStart(event: CalendarEvent): string {
     formatLocalDateTime(event.start.localDateTime) || event.start.localDateTime;
 
   return `${localDateTime} - ${event.start.timeZoneId}`;
+}
+
+function publicationStatusLabel(status: CalendarEventPublishingStatus): string {
+  switch (status) {
+    case 'NotPublished':
+      return '';
+    case 'PartiallyPublished':
+      return 'Partially Published';
+    case 'FullyPublished':
+      return 'Fully Published';
+    case 'Failed':
+      return 'Failed';
+  }
+
+  const exhaustiveStatus: never = status;
+  return exhaustiveStatus;
 }
 
 // Maps a table column key to its API sort field. Only the sortable columns are

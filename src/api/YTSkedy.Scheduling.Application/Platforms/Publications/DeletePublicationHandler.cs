@@ -17,6 +17,7 @@ public sealed class DeletePublicationHandler(
     IPlatformReader platforms,
     IPlatformPublicationReader publications,
     IPublicationCleanupWriter publicationCleanup,
+    IPublicationIndexWriter publicationIndex,
     IPlatformTypeAdapterSelector<IPlatformPublicationDeleter> deleters,
     TimeProvider timeProvider,
     ILogger<DeletePublicationHandler> logger)
@@ -140,16 +141,44 @@ public sealed class DeletePublicationHandler(
             publication.ExternalResourceId,
             cancellationToken);
 
-        return deleteResult switch
+        if (deleteResult is not (
+                DeletePublishedResult.Deleted or
+                DeletePublishedResult.NotFound))
         {
-            DeletePublishedResult.Deleted or DeletePublishedResult.NotFound =>
-                DeletePublicationResult.Success(
-                    DeletePublicationStatus.Deleted,
-                    EventPlatformMapper.MapNotPublished(
-                        calendarEvent,
-                        platform,
-                        timeProvider.GetUtcNow())),
-            _ => DeletePublicationResult.ForStatus(DeletePublicationStatus.RowChanged)
-        };
+            return DeletePublicationResult.ForStatus(DeletePublicationStatus.RowChanged);
+        }
+
+        try
+        {
+            if (!await publicationIndex.RemovePublishedPlatformAsync(
+                    command.CalendarEventId,
+                    command.PlatformId,
+                    cancellationToken))
+            {
+                logger.LogError(
+                    "Publication index operation {Operation} failed for calendar event " +
+                    "{CalendarEventId} and platform {PlatformId}.",
+                    "RemovePublishedPlatform",
+                    command.CalendarEventId,
+                    command.PlatformId);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(
+                exception,
+                "Publication index operation {Operation} failed for calendar event " +
+                "{CalendarEventId} and platform {PlatformId}.",
+                "RemovePublishedPlatform",
+                command.CalendarEventId,
+                command.PlatformId);
+        }
+
+        return DeletePublicationResult.Success(
+            DeletePublicationStatus.Deleted,
+            EventPlatformMapper.MapNotPublished(
+                calendarEvent,
+                platform,
+                timeProvider.GetUtcNow()));
     }
 }

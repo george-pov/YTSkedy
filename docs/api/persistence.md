@@ -13,8 +13,10 @@ a `Platforms` table through the `IPlatformModifier` and `IPlatformReader` ports,
 implemented by `AzurePlatformRepository`. Per-event, per-platform publish state
 persists in a `PlatformPublications` table through the
 focused publication write ports and the `IPlatformPublicationReader` port,
-implemented by `AzurePlatformPublicationRepository`. Calendar event rows are
-provider-neutral and store no publish state of their own.
+implemented by `AzurePlatformPublicationRepository`. Calendar event rows remain
+provider-neutral but also store a derived set of successfully published
+platform ids for the informational list aggregate. That set is not
+authoritative publication state.
 
 Application-owned settings persist in a generic `ApplicationSettings` table.
 The current event text fields setting is one row in that table, read and
@@ -22,7 +24,7 @@ written through the event-text-fields settings ports.
 
 Calendar event thumbnail bytes persist in private Azure Blob Storage through
 the `IThumbnailStore` port, implemented by `AzureThumbnailStore`. Calendar
-event rows store thumbnail metadata only.
+event rows store thumbnail metadata rather than thumbnail bytes.
 
 ## Configuration
 
@@ -111,6 +113,39 @@ fields and text values against the stored snapshot and does not consult the
 current setting, so stored events keep their field list, labels, max lengths,
 keys, and values after settings edits. Rows without `TextJson` are not a
 supported read shape.
+
+Calendar event rows also store required `PublishedPlatformIdsJson`, a derived
+read index for the list endpoint.
+
+- The value is a JSON array of distinct internal platform ids in ordinal sort
+  order. New rows explicitly store `[]`.
+- Rows with missing, blank, malformed, null-entry, or blank-id JSON are not a
+  supported read shape. There is no migration, backfill, lazy initialization,
+  or compatibility read; deployed data must use the current required shape.
+- This breaking storage shape currently supports a deliberate development-data
+  reset only. Incompatible calendar-event and publication rows plus associated
+  thumbnail blobs must be cleared and recreated before use; a production
+  migration path is not available.
+- A platform id is added only after the authoritative publication row is
+  finalized as `Published`. It is removed only after completed-publication
+  cleanup reports that the authoritative row was deleted or was already
+  missing.
+- Add and remove are idempotent conditional merge writes. A storage
+  `412 Precondition Failed` response causes the repository to re-read and
+  reapply the set operation, for at most three update attempts, so concurrent
+  publications to different platforms do not overwrite each other's ids.
+- Event and thumbnail replace writes read the current row first and preserve
+  the required index property.
+- List reads deserialize the index with each calendar-event row, load active
+  platform ids once through an id-only platform query, and calculate the
+  aggregate without reading publication partitions.
+- Platform create, update, and delete do not scan or rewrite calendar-event
+  rows. Comparing with platforms active at list-read time can reclassify past
+  rows after platform changes.
+
+`PlatformPublications` remains authoritative for details, action flags,
+mutation locks, provider publish, and cleanup. The derived index contains no
+provider settings, credentials, external resource ids, or content snapshots.
 
 Calendar event rows can also store `ThumbnailJson`, optional metadata for one
 current event thumbnail. `ThumbnailJson` contains file name, content type, byte
@@ -217,6 +252,9 @@ than duplicated in documentation.
 - `TitleTemplateId` and `DescriptionTemplateId` store the required
   provider-neutral publishing-content template ids. Rows missing either id are
   not supported by the current contract.
+- Calendar-event list aggregation uses `IPlatformReader.ListIdsAsync`, which
+  selects only `PlatformId` from the active platform partition. It does not
+  load or deserialize secret-bearing publish settings.
 
 Entity fields, table keys, and formatting details are defined in code rather
 than duplicated in documentation.
@@ -245,6 +283,11 @@ one platform.
   computed `NotPublished` after a failed provider call. `MarkPublishedAsync`
   records the `Published` status, the provider `ExternalResourceId`, and the
   publish instant.
+- After `MarkPublishedAsync` succeeds, the publish handler adds the platform id
+  to the calendar-event derived index before thumbnail follow-up. A false index
+  result or storage exception is logged with the calendar-event id, platform
+  id, and operation, but the completed provider/publication result remains
+  successful.
 - `ThumbnailStatus` is stored on platform-publication rows for providers that
   support thumbnail application. YouTube rows use `NotConfigured`, `Applied`,
   or `Failed`; providers without thumbnail support store no thumbnail status.
@@ -253,6 +296,9 @@ one platform.
   cleanup succeeds. The delete is conditional on the row still being non-orphan
   `Published` with the same `ExternalResourceId`; otherwise the caller receives
   a changed-row outcome and the row is kept.
+- After `DeletePublishedAsync` returns `Deleted` or `NotFound`, the delete
+  handler removes the platform id from the derived index. A false result or
+  storage exception is logged without changing the successful deletion result.
 - Deleting a platform does not delete `Published` rows. The delete handler
   stamps `PlatformDeletedUtc` to turn them into read-only orphan history, and is
   blocked while any row for the platform is `Publishing`.
@@ -273,6 +319,12 @@ one platform.
 
 Entity fields, table keys, and formatting details are defined in code rather
 than duplicated in documentation.
+
+The authoritative row and derived index live in separate tables, so their
+writes are not atomic. A narrow same-platform publish/delete interleaving or a
+logged index-write failure can leave the informational aggregate stale. The
+authoritative row still controls provider state and actions. Generation-aware
+indexing and scheduled reconciliation are not implemented.
 
 ## Time Zone Handling
 
@@ -313,9 +365,12 @@ secondary index, or strict uniqueness mechanism.
 - Calendar events can be created, updated, deleted, paged, and listed by local
   calendar month.
 - Schema migration and backfill paths are not implemented.
-- Table read and write retry policy is limited to the Azure SDK behavior and
-  the explicit conflict handling documented in the HTTP contracts.
+- Table read and write retry policy is limited to the Azure SDK behavior, the
+  explicit HTTP conflict handling, and the three-attempt ETag retry for
+  calendar-event publication-index updates.
 - Backup and recovery processes are not documented.
 - Calendar events link to created provider resources through platform
   publication rows, which store the provider `ExternalResourceId`. Reconciliation
   between stored publications and live provider state is not implemented.
+- Derived publication-index reconciliation is not implemented. The aggregate
+  remains informational and must not be used for mutation policy.

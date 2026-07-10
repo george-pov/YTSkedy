@@ -122,6 +122,7 @@ Success response (`200 OK`) is a paged envelope:
       },
       "scheduledStartUtc": "2026-06-06T17:00:00+00:00",
       "displayTitle": "Saturday stream",
+      "publicationStatus": "PartiallyPublished",
       "texts": [
         {
           "fieldKey": "text1",
@@ -160,6 +161,20 @@ Success response (`200 OK`) is a paged envelope:
   and `title` sorting. It is the first `ShortText` value in the stored event
   snapshot, falling back to the first text value when the snapshot has no short
   text field.
+- `publicationStatus` is a required informational aggregate with values
+  `NotPublished`, `PartiallyPublished`, `FullyPublished`, or `Failed`. It is not
+  a supported sort field and it does not control any write action.
+  - `NotPublished` means the event's derived published-platform-id set is empty.
+  - `FullyPublished` means at least one active platform exists and every active
+    platform id is in the derived set.
+  - Any other non-empty derived set is `PartiallyPublished`, including a set
+    containing only ids for deleted platforms when no active platform exists.
+  - `Failed` is reserved by the contract. The current publication lifecycle
+    does not capture or persist an aggregate failure state.
+- Aggregation compares each event with the platforms active at list-read time.
+  Adding or deleting a platform can therefore reclassify past and future list
+  rows. Per-platform publication rows remain authoritative and are not returned
+  by this endpoint.
 - `texts` is the event's stored snapshot. It carries enough field metadata for
   clients to display or edit the event without consulting the current setting.
 - A page past the end returns `200 OK` with `items` as `[]` and the real
@@ -186,22 +201,22 @@ GET /api/calendar-events/{calendarEventId}
 ```
 
 Returns a single calendar event by id with its per-platform publication state.
-Requires the `CalendarEvents.Read` scope. The calendar event fields match one
-`items[]` entry from the list endpoint, carrying the wall-clock local start and
-time zone (not the UTC instant) so the UI edit form can repopulate from stored
-local time. It also carries `scheduledStartUtc`, the same instant as a UTC
-ISO-8601 string. The edit form shows this translation and updates it from
-editable start controls when `canUpdate` is true.
+Requires the `CalendarEvents.Read` scope. The scheduled-start and text fields
+match their list counterparts, carrying the wall-clock local start and time
+zone so the UI edit form can repopulate from stored local time. It also carries
+`scheduledStartUtc`, the same instant as a UTC ISO-8601 string. The details
+response does not include the list-only aggregate `publicationStatus`. The edit
+form shows this translation and updates it from editable start controls when
+`canUpdate` is true.
 
 Unlike a list item, the details response also carries `platforms`: one entry
 per active registered platform with its publish status, plus orphan history
 rows for platforms deleted after publishing this event, so a client can render
 the event details and its publish state from one read. This is the only
-endpoint that exposes per-event publication state; there is no separate
-event-platform listing route. The calendar event itself stays
-provider-neutral; the publish state is composed at read time and is not stored
-on the event. The calendar event list endpoint stays provider-neutral and does
-not carry `platforms`.
+endpoint that exposes authoritative per-platform state; there is no separate
+event-platform listing route. The list endpoint exposes only the informational
+aggregate and never carries `platforms`. Details compose per-platform state
+from authoritative `PlatformPublications` rows and do not use the list index.
 
 Success response (`200 OK`):
 

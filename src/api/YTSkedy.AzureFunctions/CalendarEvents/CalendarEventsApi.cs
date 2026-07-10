@@ -345,8 +345,10 @@ public sealed class CalendarEventsApi(
     }
 
     private static CalendarEventViewResponse ToViewResponse(
-        CalendarEventView calendarEvent)
+        CalendarEventListItem item)
     {
+        var calendarEvent = item.Event;
+
         return new(
             calendarEvent.CalendarEventId,
             new CalendarEventStart(
@@ -354,8 +356,19 @@ public sealed class CalendarEventsApi(
                 calendarEvent.Start.TimeZoneId),
             calendarEvent.ScheduledStartUtc,
             calendarEvent.Text.DisplayTitle,
+            ToPublishingStatusString(item.PublicationStatus),
             ToTextResponse(calendarEvent.Text));
     }
+
+    internal static string ToPublishingStatusString(PublishingStatus status) =>
+        status switch
+        {
+            PublishingStatus.NotPublished => "NotPublished",
+            PublishingStatus.PartiallyPublished => "PartiallyPublished",
+            PublishingStatus.FullyPublished => "FullyPublished",
+            PublishingStatus.Failed => "Failed",
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+        };
 
     /// <summary>
     /// Maps the calendar event details read model to the get-by-id response. The

@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 using YTSkedy.AzureFunctions.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
+using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.TestSupport;
 using YTSkedy.TestSupport;
 
@@ -63,11 +66,13 @@ public sealed class CalendarEventsApiTests
         };
 
     [Fact]
-    public async Task ListAsync_EventPage_MapsDisplayTitle()
+    public async Task ListAsync_EventPage_MapsDisplayTitleAndNotPublishedStatus()
     {
         var api = new CalendarEventsApi(
             null!,
-            new ListEventsHandler(new FakeCalendarEventReader([CreateEvent()])),
+            new ListEventsHandler(
+                new FakeCalendarEventReader([CreateEvent()]),
+                new FakePlatformReader()),
             null!,
             null!,
             null!);
@@ -79,6 +84,47 @@ public sealed class CalendarEventsApiTests
         var response = Assert.IsType<CalendarEventListResponse>(ok.Value);
         var item = Assert.Single(response.Items);
         Assert.Equal("English stream 1", item.DisplayTitle);
+        Assert.Equal("NotPublished", item.PublicationStatus);
+    }
+
+    [Fact]
+    public async Task ListAsync_EventPage_SerializesPublicationStatusFieldName()
+    {
+        var api = new CalendarEventsApi(
+            null!,
+            new ListEventsHandler(
+                new FakeCalendarEventReader([CreateEvent()]),
+                new FakePlatformReader()),
+            null!,
+            null!,
+            null!);
+
+        var result = await api.ListAsync(
+            new DefaultHttpContext().Request,
+            CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<CalendarEventListResponse>(ok.Value);
+        var json = JsonSerializer.Serialize(
+            response,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        using var document = JsonDocument.Parse(json);
+        var item = document.RootElement.GetProperty("items")[0];
+        Assert.Equal("NotPublished", item.GetProperty("publicationStatus").GetString());
+    }
+
+    [Theory]
+    [InlineData(PublishingStatus.NotPublished, "NotPublished")]
+    [InlineData(PublishingStatus.PartiallyPublished, "PartiallyPublished")]
+    [InlineData(PublishingStatus.FullyPublished, "FullyPublished")]
+    [InlineData(PublishingStatus.Failed, "Failed")]
+    public void ToPublishingStatusString_Status_ReturnsContractValue(
+        PublishingStatus status,
+        string expected)
+    {
+        var result = CalendarEventsApi.ToPublishingStatusString(status);
+
+        Assert.Equal(expected, result);
     }
 
     [Fact]
@@ -248,13 +294,34 @@ public sealed class CalendarEventsApiTests
     private sealed class FakeCalendarEventReader(
         IReadOnlyList<CalendarEventView> items) : ICalendarEventReader
     {
-        public Task<IReadOnlyList<CalendarEventView>> ListAsync(
+        public Task<IReadOnlyList<CalendarEventListRecord>> ListAsync(
             CalendarEventMonthCriteria? criteria,
             CancellationToken cancellationToken) =>
-            Task.FromResult(items);
+            Task.FromResult<IReadOnlyList<CalendarEventListRecord>>(
+                items.Select(item => new CalendarEventListRecord(
+                    item,
+                    new HashSet<string>(StringComparer.Ordinal))).ToArray());
 
         public Task<CalendarEventView?> GetByIdAsync(
             string calendarEventId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class FakePlatformReader : IPlatformReader
+    {
+        public Task<IReadOnlyList<PlatformView>> ListAsync(
+            PlatformType? type,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlySet<string>> ListIdsAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlySet<string>>(
+                new HashSet<string>(StringComparer.Ordinal));
+
+        public Task<PlatformView?> GetAsync(
+            string platformId,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }

@@ -10,7 +10,7 @@ import {
 } from '@angular/forms/signals';
 
 import {
-  CalendarEvent,
+  CalendarEventFields,
   CalendarEventText,
   CreateCalendarEventRequest,
   UpdateCalendarEventRequest,
@@ -195,7 +195,7 @@ export function toCreateCalendarEventRequest(
 // snapshot exactly as returned by the API.
 export function patchCalendarEventDetailsModel(
   model: WritableSignal<CalendarEventDetailsModel>,
-  event: CalendarEvent,
+  event: CalendarEventFields,
 ): void {
   const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(event.start.localDateTime);
   const date = match === null ? '' : match[1];

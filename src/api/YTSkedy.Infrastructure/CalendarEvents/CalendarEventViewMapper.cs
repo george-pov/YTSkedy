@@ -9,7 +9,7 @@ internal static class CalendarEventViewMapper
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    internal static IReadOnlyList<CalendarEventView> ToViewsForMonth(
+    internal static IReadOnlyList<CalendarEventListRecord> ToListRecordsForMonth(
         IEnumerable<CalendarEventEntity> entities,
         CalendarEventMonthCriteria criteria)
     {
@@ -20,19 +20,26 @@ internal static class CalendarEventViewMapper
             .Where(entity => IsInLocalMonth(entity, criteria))
             .OrderBy(entity => entity.ScheduledStartUtc)
             .ThenBy(entity => entity.CalendarEventId, StringComparer.Ordinal)
-            .Select(ToView)
+            .Select(ToListRecord)
             .ToArray();
     }
 
-    internal static IReadOnlyList<CalendarEventView> ToViews(
+    internal static IReadOnlyList<CalendarEventListRecord> ToListRecords(
         IEnumerable<CalendarEventEntity> entities)
     {
         ArgumentNullException.ThrowIfNull(entities);
 
         return entities
-            .Select(ToView)
+            .Select(ToListRecord)
             .ToArray();
     }
+
+    private static CalendarEventListRecord ToListRecord(CalendarEventEntity entity) =>
+        new(
+            ToView(entity),
+            PublishedPlatformIdsJson.Deserialize(
+                entity.PublishedPlatformIdsJson,
+                entity.CalendarEventId));
 
     private static bool IsInLocalMonth(
         CalendarEventEntity entity,

@@ -51,11 +51,21 @@ facade, not directly on MSAL Angular.
 sorted by scheduled start descending. Page, page-size, and supported sort
 changes trigger a refetch.
 
-The table shows Scheduled Start and Title as sortable columns. Scheduled Start
+The table shows Scheduled Start, Title, and Publication Status in that order.
+Scheduled Start and Title are sortable. Publication Status is plain text and is
+not sortable, so it never emits an unsupported API sort. Scheduled Start
 displays the submitted local date-time followed by its IANA time-zone id while
 server ordering uses the corresponding UTC instant. The Title displays the
-backend `displayTitle`. Clicking either a row or its title link opens the edit
-route.
+backend `displayTitle`. Publication Status maps the required API aggregate as
+follows:
+
+- `NotPublished`: empty cell.
+- `PartiallyPublished`: `Partially Published`.
+- `FullyPublished`: `Fully Published`.
+- `Failed`: `Failed`.
+
+The status is informational and does not control navigation or actions.
+Clicking either a row or its title link opens the edit route.
 
 ## Calendar Event Create
 

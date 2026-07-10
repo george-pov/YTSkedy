@@ -12,9 +12,12 @@ public sealed class AzureCalendarEventRepository(
     TimeProvider timeProvider) :
     ICalendarEventModifier,
     ICalendarEventReader,
+    IPublicationIndexWriter,
     ICalendarEventThumbnailReader,
     ICalendarEventThumbnailModifier
 {
+    private const int PublicationIndexUpdateAttempts = 3;
+
     public async Task<string> CreateAsync(
         CalendarEvent calendarEvent,
         DateTimeOffset scheduledStartUtc,
@@ -42,6 +45,7 @@ public sealed class AzureCalendarEventRepository(
             LocalDateTime = FormatLocalDateTime(calendarEvent.Start.LocalDateTime),
             TimeZoneId = calendarEvent.Start.TimeZoneId,
             TextJson = CalendarEventViewMapper.SerializeText(calendarEvent.Text),
+            PublishedPlatformIdsJson = PublishedPlatformIdsJson.Serialize([]),
             CreatedUtc = timeProvider.GetUtcNow()
         };
 
@@ -50,27 +54,28 @@ public sealed class AzureCalendarEventRepository(
         return calendarEventId;
     }
 
-    public async Task<IReadOnlyList<CalendarEventView>> ListAsync(
+    public async Task<IReadOnlyList<CalendarEventListRecord>> ListAsync(
         CalendarEventMonthCriteria? criteria,
         CancellationToken cancellationToken) =>
         criteria is null
             ? await ListAllAsync(cancellationToken)
             : await ListByMonthAsync(criteria, cancellationToken);
 
-    private async Task<IReadOnlyList<CalendarEventView>> ListByMonthAsync(
+    private async Task<IReadOnlyList<CalendarEventListRecord>> ListByMonthAsync(
         CalendarEventMonthCriteria criteria,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(criteria);
 
-        return CalendarEventViewMapper.ToViewsForMonth(
+        return CalendarEventViewMapper.ToListRecordsForMonth(
             await ListEntitiesAsync(cancellationToken),
             criteria);
     }
 
-    private async Task<IReadOnlyList<CalendarEventView>> ListAllAsync(
+    private async Task<IReadOnlyList<CalendarEventListRecord>> ListAllAsync(
         CancellationToken cancellationToken) =>
-        CalendarEventViewMapper.ToViews(await ListEntitiesAsync(cancellationToken));
+        CalendarEventViewMapper.ToListRecords(
+            await ListEntitiesAsync(cancellationToken));
 
     public async Task<CalendarEventView?> GetByIdAsync(
         string calendarEventId,
@@ -205,6 +210,26 @@ public sealed class AzureCalendarEventRepository(
         return true;
     }
 
+    public Task<bool> AddPublishedPlatformAsync(
+        string calendarEventId,
+        string platformId,
+        CancellationToken cancellationToken) =>
+        UpdatePublishedPlatformIdsAsync(
+            calendarEventId,
+            platformId,
+            add: true,
+            cancellationToken);
+
+    public Task<bool> RemovePublishedPlatformAsync(
+        string calendarEventId,
+        string platformId,
+        CancellationToken cancellationToken) =>
+        UpdatePublishedPlatformIdsAsync(
+            calendarEventId,
+            platformId,
+            add: false,
+            cancellationToken);
+
     public async Task DeleteAsync(
         string calendarEventId,
         CancellationToken cancellationToken)
@@ -247,6 +272,63 @@ public sealed class AzureCalendarEventRepository(
                 entity.CalendarEventId,
                 excludedCalendarEventId,
                 StringComparison.Ordinal));
+    }
+
+    private async Task<bool> UpdatePublishedPlatformIdsAsync(
+        string calendarEventId,
+        string platformId,
+        bool add,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
+
+        for (var attempt = 0; attempt < PublicationIndexUpdateAttempts; attempt++)
+        {
+            var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
+            if (entity is null)
+            {
+                return false;
+            }
+
+            var publishedPlatformIds = new HashSet<string>(
+                PublishedPlatformIdsJson.Deserialize(
+                    entity.PublishedPlatformIdsJson,
+                    calendarEventId),
+                StringComparer.Ordinal);
+            var changed = add
+                ? publishedPlatformIds.Add(platformId)
+                : publishedPlatformIds.Remove(platformId);
+            if (!changed)
+            {
+                return true;
+            }
+
+            entity.PublishedPlatformIdsJson = PublishedPlatformIdsJson.Serialize(
+                publishedPlatformIds);
+
+            try
+            {
+                await tableClient.UpdateEntityAsync(
+                    entity,
+                    entity.ETag,
+                    TableUpdateMode.Merge,
+                    cancellationToken);
+
+                return true;
+            }
+            catch (RequestFailedException exception) when (exception.Status == 404)
+            {
+                return false;
+            }
+            catch (RequestFailedException exception) when (exception.Status == 412)
+            {
+                // A concurrent row update won. Re-read and reapply the set
+                // operation while the bounded retry budget remains.
+            }
+        }
+
+        return false;
     }
 
     private async Task<IReadOnlyList<CalendarEventEntity>> ListEntitiesAsync(

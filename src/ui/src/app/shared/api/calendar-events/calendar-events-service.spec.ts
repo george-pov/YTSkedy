@@ -57,6 +57,7 @@ describe('CalendarEventsService', () => {
           },
           scheduledStartUtc: '2026-01-15T09:30:00+00:00',
           displayTitle: 'Test stream',
+          publicationStatus: 'PartiallyPublished',
           texts: [
             {
               fieldKey: 'text1',
@@ -91,6 +92,7 @@ describe('CalendarEventsService', () => {
     request.flush(apiResponse);
 
     expect(actualPage).toEqual(apiResponse);
+    expect(actualPage?.items[0].publicationStatus).toBe('PartiallyPublished');
   });
 
   it('includes the optional year and month params when both are provided', () => {

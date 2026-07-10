@@ -180,6 +180,29 @@ public sealed class AzurePlatformRepository(
             return PlatformViewMapper.ToViews(candidates);
     }
 
+    public async Task<IReadOnlySet<string>> ListIdsAsync(
+        CancellationToken cancellationToken)
+    {
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+
+        try
+        {
+            await foreach (var entity in tableClient.QueryAsync<PlatformEntity>(
+                PartitionFilter(),
+                select: [nameof(PlatformEntity.PlatformId)],
+                cancellationToken: cancellationToken))
+            {
+                ids.Add(entity.PlatformId);
+            }
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            // The table does not exist yet, so there are no active platform ids.
+        }
+
+        return ids;
+    }
+
     public async Task<PlatformView?> GetAsync(
         string platformId,
         CancellationToken cancellationToken)

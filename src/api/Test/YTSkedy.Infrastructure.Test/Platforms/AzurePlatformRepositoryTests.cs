@@ -71,6 +71,26 @@ public sealed class AzurePlatformRepositoryTests
     }
 
     [Fact]
+    public async Task ListIdsAsync_PlatformRows_ReturnsOrdinalSetUsingIdOnlySelection()
+    {
+        var tableClient = new PlatformTableClient();
+        var repository = CreateRepository(tableClient);
+        var first = await repository.CreateAsync(
+            YouTubePlatform("Main YouTube channel", referenceKey: null),
+            CancellationToken.None);
+        var second = await repository.CreateAsync(
+            YouTubePlatform("Backup YouTube channel", referenceKey: null),
+            CancellationToken.None);
+
+        var result = await repository.ListIdsAsync(CancellationToken.None);
+
+        Assert.Equal(
+            new[] { first.PlatformId, second.PlatformId }.Order(StringComparer.Ordinal),
+            result.Order(StringComparer.Ordinal));
+        Assert.Equal(["PlatformId"], tableClient.LastQuerySelect);
+    }
+
+    [Fact]
     public async Task CreateAsync_DuplicateReferenceKeyDifferentCasing_ReturnsReferenceKeyAlreadyExists()
     {
         var tableClient = new PlatformTableClient();

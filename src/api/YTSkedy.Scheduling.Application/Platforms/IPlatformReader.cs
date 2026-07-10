@@ -14,6 +14,11 @@ public interface IPlatformReader
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Reads only the ids of currently configured platforms.
+    /// </summary>
+    Task<IReadOnlySet<string>> ListIdsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// Reads a single platform view by id, or null when no platform has the id.
     /// </summary>
     Task<PlatformView?> GetAsync(

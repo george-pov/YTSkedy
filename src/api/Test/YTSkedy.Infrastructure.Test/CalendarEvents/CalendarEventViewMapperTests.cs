@@ -8,7 +8,7 @@ namespace YTSkedy.Infrastructure.Test.CalendarEvents;
 public class CalendarEventViewMapperTests
 {
     [Fact]
-    public void ToViewsForMonth_IncludedEntity_MapsCalendarEventFields()
+    public void ToListRecordsForMonth_IncludedEntity_MapsCalendarEventFieldsAndPublishedIds()
     {
         var entity = CreateEntity(
             "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
@@ -17,9 +17,12 @@ public class CalendarEventViewMapperTests
             Text("English stream 1", "Event description"));
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventViewMapper.ToViewsForMonth([entity], criteria);
+        entity.PublishedPlatformIdsJson = "[\"platform-b\",\"platform-a\"]";
 
-        var calendarEvent = Assert.Single(result);
+        var result = CalendarEventViewMapper.ToListRecordsForMonth([entity], criteria);
+
+        var record = Assert.Single(result);
+        var calendarEvent = record.Event;
         Assert.Equal("6f9619ff8b864fb5bdfd4f5c2f2f16a1", calendarEvent.CalendarEventId);
         Assert.Equal(new DateTime(2026, 06, 05, 10, 00, 00), calendarEvent.Start.LocalDateTime);
         Assert.Equal("America/Vancouver", calendarEvent.Start.TimeZoneId);
@@ -42,10 +45,13 @@ public class CalendarEventViewMapperTests
         Assert.Equal(
             ["English stream 1", "Event description"],
             calendarEvent.Text.Values.Select(value => value.Value));
+        Assert.Equal(
+            ["platform-a", "platform-b"],
+            record.PublishedPlatformIds.Order(StringComparer.Ordinal));
     }
 
     [Fact]
-    public void ToViewsForMonth_MixedLocalMonths_FiltersByRequestedMonth()
+    public void ToListRecordsForMonth_MixedLocalMonths_FiltersByRequestedMonth()
     {
         var entities = new[]
         {
@@ -73,7 +79,7 @@ public class CalendarEventViewMapperTests
         };
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventViewMapper.ToViewsForMonth(entities, criteria);
+        var result = CalendarEventViewMapper.ToListRecordsForMonth(entities, criteria);
 
         Assert.Equal(
             [
@@ -81,11 +87,11 @@ public class CalendarEventViewMapperTests
                 "22222222222222222222222222222222",
                 "33333333333333333333333333333333"
             ],
-            result.Select(calendarEvent => calendarEvent.CalendarEventId));
+            result.Select(record => record.Event.CalendarEventId));
     }
 
     [Fact]
-    public void ToViewsForMonth_UnorderedEntities_SortsByScheduledStartUtcThenId()
+    public void ToListRecordsForMonth_UnorderedEntities_SortsByScheduledStartUtcThenId()
     {
         var entities = new[]
         {
@@ -104,7 +110,7 @@ public class CalendarEventViewMapperTests
         };
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
-        var result = CalendarEventViewMapper.ToViewsForMonth(entities, criteria);
+        var result = CalendarEventViewMapper.ToListRecordsForMonth(entities, criteria);
 
         Assert.Equal(
             [
@@ -112,11 +118,11 @@ public class CalendarEventViewMapperTests
                 "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                 "cccccccccccccccccccccccccccccccc"
             ],
-            result.Select(calendarEvent => calendarEvent.CalendarEventId));
+            result.Select(record => record.Event.CalendarEventId));
     }
 
     [Fact]
-    public void ToViewsForMonth_MalformedTextJson_ThrowsInvalidOperationException()
+    public void ToListRecordsForMonth_MalformedTextJson_ThrowsInvalidOperationException()
     {
         var entity = CreateEntity(
             "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
@@ -126,13 +132,13 @@ public class CalendarEventViewMapperTests
         var criteria = new CalendarEventMonthCriteria(2026, 6);
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            CalendarEventViewMapper.ToViewsForMonth([entity], criteria));
+            CalendarEventViewMapper.ToListRecordsForMonth([entity], criteria));
 
         Assert.Contains("malformed text JSON", exception.Message);
     }
 
     [Fact]
-    public void ToViews_MixedLocalMonths_MapsEveryEntityWithoutFiltering()
+    public void ToListRecords_MixedLocalMonths_MapsEveryEntityWithoutFiltering()
     {
         var entities = new[]
         {
@@ -150,7 +156,7 @@ public class CalendarEventViewMapperTests
                 "2025-11-15T09:00:00")
         };
 
-        var result = CalendarEventViewMapper.ToViews(entities);
+        var result = CalendarEventViewMapper.ToListRecords(entities);
 
         Assert.Equal(
             [
@@ -158,11 +164,11 @@ public class CalendarEventViewMapperTests
                 "77777777777777777777777777777777",
                 "88888888888888888888888888888888"
             ],
-            result.Select(calendarEvent => calendarEvent.CalendarEventId));
+            result.Select(record => record.Event.CalendarEventId));
     }
 
     [Fact]
-    public void ToViews_Entity_MapsCalendarEventFields()
+    public void ToListRecords_Entity_MapsCalendarEventFields()
     {
         var entity = CreateEntity(
             "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
@@ -170,9 +176,9 @@ public class CalendarEventViewMapperTests
             "2026-06-05T10:00:00",
             Text("English stream 1", "Event description"));
 
-        var result = CalendarEventViewMapper.ToViews([entity]);
+        var result = CalendarEventViewMapper.ToListRecords([entity]);
 
-        var calendarEvent = Assert.Single(result);
+        var calendarEvent = Assert.Single(result).Event;
         Assert.Equal("6f9619ff8b864fb5bdfd4f5c2f2f16a1", calendarEvent.CalendarEventId);
         Assert.Equal(new DateTime(2026, 06, 05, 10, 00, 00), calendarEvent.Start.LocalDateTime);
         Assert.Equal("America/Vancouver", calendarEvent.Start.TimeZoneId);
@@ -223,6 +229,7 @@ public class CalendarEventViewMapperTests
                 text ?? Text(
                     $"English stream {calendarEventId}",
                     $"Description for {calendarEventId}")),
+            PublishedPlatformIdsJson = "[]",
             CreatedUtc = new DateTimeOffset(2026, 01, 01, 00, 00, 00, TimeSpan.Zero)
         };
 

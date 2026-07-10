@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { form } from '@angular/forms/signals';
 import { describe, expect, it } from 'vitest';
 
-import { CalendarEvent } from 'src/app/shared/api/calendar-events/calendar-events-service';
+import { CalendarEventFields } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { EventTextField } from 'src/app/shared/api/settings/event-text-fields-service';
 import {
   applyCalendarEventDetailsRules,
@@ -230,7 +230,7 @@ describe('calendar event details form mapping', () => {
     };
   }
 
-  function event(): CalendarEvent {
+  function event(): CalendarEventFields {
     return {
       calendarEventId: '6f9619ff8b864fb5bdfd4f5c2f2f16a1',
       start: {

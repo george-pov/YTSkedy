@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using static YTSkedy.Scheduling.Application.Test.PublishHandlerScenario;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Providers;
@@ -15,15 +16,18 @@ public class PublishHandlerLifecycleTests
         {
             StartResult = StartPublicationResult.Conflict
         };
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
         var handler = CreateHandler(
             Event(FutureStart),
             Platform(),
             new PublishFakePublisher(),
-            repository: repository);
+            repository: repository,
+            publicationIndex: publicationIndex);
 
         var result = await Handle(handler);
 
         Assert.Equal(PublishResultStatus.PublishInProgress, result.Status);
+        Assert.Empty(publicationIndex.AddCalls);
     }
 
     [Fact]
@@ -34,13 +38,20 @@ public class PublishHandlerLifecycleTests
         {
             Throws = new PlatformPublishException("provider down")
         };
-        var handler = CreateHandler(Event(FutureStart), Platform(), publisher, repository: repository);
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository,
+            publicationIndex: publicationIndex);
 
         var result = await Handle(handler);
 
         Assert.Equal(PublishResultStatus.ProviderFailed, result.Status);
         Assert.True(repository.ReleaseCalled);
         Assert.False(repository.MarkPublishedCalled);
+        Assert.Empty(publicationIndex.AddCalls);
     }
 
     [Fact]
@@ -51,13 +62,20 @@ public class PublishHandlerLifecycleTests
         {
             Throws = new PlatformPublishValidationException("invalid provider settings")
         };
-        var handler = CreateHandler(Event(FutureStart), Platform(), publisher, repository: repository);
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository,
+            publicationIndex: publicationIndex);
 
         var result = await Handle(handler);
 
         Assert.Equal(PublishResultStatus.InvalidProviderPublishSettings, result.Status);
         Assert.True(repository.ReleaseCalled);
         Assert.False(repository.MarkPublishedCalled);
+        Assert.Empty(publicationIndex.AddCalls);
     }
 
     [Fact]
@@ -68,12 +86,19 @@ public class PublishHandlerLifecycleTests
         {
             Result = new PlatformPublishResult("yt-broadcast-id")
         };
-        var handler = CreateHandler(Event(FutureStart), Platform(), publisher, repository: repository);
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository,
+            publicationIndex: publicationIndex);
 
         var result = await Handle(handler);
 
         Assert.Equal(PublishResultStatus.FinalizeFailed, result.Status);
         Assert.False(repository.ReleaseCalled);
+        Assert.Empty(publicationIndex.AddCalls);
     }
 
     [Fact]
@@ -88,7 +113,13 @@ public class PublishHandlerLifecycleTests
         {
             Result = new PlatformPublishResult("yt-broadcast-id")
         };
-        var handler = CreateHandler(Event(FutureStart), Platform(), publisher, repository: repository);
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository,
+            publicationIndex: publicationIndex);
 
         var result = await Handle(handler);
 
@@ -116,6 +147,57 @@ public class PublishHandlerLifecycleTests
         Assert.Equal("English description", publisher.Request.Description);
         Assert.Equal(FutureStart, publisher.Request.ScheduledStartUtc);
         Assert.Same(YouTubePublishSettings, publisher.Request.PublishSettings);
+        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.AddCalls);
+    }
+
+    [Fact]
+    public async Task HandleAsync_PublicationIndexReturnsFalse_LogsAndReturnsPublished()
+    {
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter
+        {
+            AddResult = false
+        };
+        var logger = new CapturingLogger<PublishHandler>();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            new PublishFakePublisher(),
+            publicationIndex: publicationIndex,
+            logger: logger);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.AddCalls);
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(LogLevel.Error, entry.Level);
+        Assert.Contains("AddPublishedPlatform", entry.Message, StringComparison.Ordinal);
+        Assert.Contains(CalendarEventId, entry.Message, StringComparison.Ordinal);
+        Assert.Contains(PlatformId, entry.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task HandleAsync_PublicationIndexThrows_LogsAndReturnsPublished()
+    {
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter
+        {
+            AddException = new InvalidOperationException("storage unavailable")
+        };
+        var logger = new CapturingLogger<PublishHandler>();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            new PublishFakePublisher(),
+            publicationIndex: publicationIndex,
+            logger: logger);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.AddCalls);
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(LogLevel.Error, entry.Level);
+        Assert.Contains("AddPublishedPlatform", entry.Message, StringComparison.Ordinal);
     }
 
     [Fact]

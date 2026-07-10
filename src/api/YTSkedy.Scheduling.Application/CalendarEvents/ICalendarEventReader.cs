@@ -10,7 +10,7 @@ public interface ICalendarEventReader
     /// null all stored events are returned. Sorting and paging are applied by the
     /// caller, so the returned order is not significant.
     /// </summary>
-    Task<IReadOnlyList<CalendarEventView>> ListAsync(
+    Task<IReadOnlyList<CalendarEventListRecord>> ListAsync(
         CalendarEventMonthCriteria? criteria,
         CancellationToken cancellationToken);
 

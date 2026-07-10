@@ -14,10 +14,15 @@ import {
 } from './calendar-events-endpoint';
 
 export type CalendarEventPlatformStatus = 'NotPublished' | 'Publishing' | 'Published';
+export type CalendarEventPublishingStatus =
+  | 'NotPublished'
+  | 'PartiallyPublished'
+  | 'FullyPublished'
+  | 'Failed';
 export type ThumbnailPublishStatus = 'NotConfigured' | 'Applied' | 'Failed';
 export type PublishingContentType = 'Preview' | 'Snapshot';
 
-interface CalendarEventFields {
+export interface CalendarEventFields {
   calendarEventId: string;
   start: CalendarEventStart;
   scheduledStartUtc: string;
@@ -25,7 +30,9 @@ interface CalendarEventFields {
   texts: CalendarEventText[];
 }
 
-export interface CalendarEvent extends CalendarEventFields {}
+export interface CalendarEvent extends CalendarEventFields {
+  publicationStatus: CalendarEventPublishingStatus;
+}
 
 export interface CalendarEventDetailsResponse extends CalendarEventFields {
   canUpdate: boolean;

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
@@ -153,15 +154,18 @@ public class DeletePublicationHandlerTests
     [Fact]
     public async Task DeletePublication_ProviderFailure_ReturnsProviderFailed()
     {
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
         var handler = CreateHandler(
             deleter: new FakePublicationDeleter
             {
                 Result = PublicationDeleteResult.Failed
-            });
+            },
+            publicationIndex: publicationIndex);
 
         var result = await Handle(handler);
 
         Assert.Equal(DeletePublicationStatus.ProviderFailed, result.Status);
+        Assert.Empty(publicationIndex.RemoveCalls);
     }
 
     [Fact]
@@ -172,7 +176,11 @@ public class DeletePublicationHandlerTests
         {
             Result = PublicationDeleteResult.AlreadyGone
         };
-        var handler = CreateHandler(repository: repository, deleter: deleter);
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
+        var handler = CreateHandler(
+            repository: repository,
+            deleter: deleter,
+            publicationIndex: publicationIndex);
 
         var result = await Handle(handler);
 
@@ -182,20 +190,86 @@ public class DeletePublicationHandlerTests
         Assert.Equal(PublishStatus.NotPublished, result.Platform!.Status);
         Assert.True(result.Platform.CanPublish);
         Assert.False(result.Platform.CanDeletePublication);
+        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.RemoveCalls);
+    }
+
+    [Fact]
+    public async Task DeletePublication_RowAlreadyMissingAfterProviderCleanup_RemovesIndex()
+    {
+        var repository = new FakePublicationRepository
+        {
+            DeletePublishedResult = DeletePublishedResult.NotFound
+        };
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
+        var handler = CreateHandler(
+            repository: repository,
+            publicationIndex: publicationIndex);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(DeletePublicationStatus.Deleted, result.Status);
+        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.RemoveCalls);
     }
 
     [Fact]
     public async Task DeletePublication_RowChangedAfterProviderCleanup_ReturnsRowChanged()
     {
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
         var handler = CreateHandler(
             repository: new FakePublicationRepository
             {
                 DeletePublishedResult = DeletePublishedResult.Changed
-            });
+            },
+            publicationIndex: publicationIndex);
 
         var result = await Handle(handler);
 
         Assert.Equal(DeletePublicationStatus.RowChanged, result.Status);
+        Assert.Empty(publicationIndex.RemoveCalls);
+    }
+
+    [Fact]
+    public async Task DeletePublication_IndexReturnsFalse_LogsAndReturnsDeleted()
+    {
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter
+        {
+            RemoveResult = false
+        };
+        var logger = new CapturingLogger<DeletePublicationHandler>();
+        var handler = CreateHandler(
+            publicationIndex: publicationIndex,
+            logger: logger);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(DeletePublicationStatus.Deleted, result.Status);
+        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.RemoveCalls);
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(LogLevel.Error, entry.Level);
+        Assert.Contains("RemovePublishedPlatform", entry.Message, StringComparison.Ordinal);
+        Assert.Contains(CalendarEventId, entry.Message, StringComparison.Ordinal);
+        Assert.Contains(PlatformId, entry.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DeletePublication_IndexThrows_LogsAndReturnsDeleted()
+    {
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter
+        {
+            RemoveException = new InvalidOperationException("storage unavailable")
+        };
+        var logger = new CapturingLogger<DeletePublicationHandler>();
+        var handler = CreateHandler(
+            publicationIndex: publicationIndex,
+            logger: logger);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(DeletePublicationStatus.Deleted, result.Status);
+        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.RemoveCalls);
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(LogLevel.Error, entry.Level);
+        Assert.Contains("RemovePublishedPlatform", entry.Message, StringComparison.Ordinal);
     }
 
     private static Task<DeletePublicationResult> Handle(DeletePublicationHandler handler) =>
@@ -212,7 +286,9 @@ public class DeletePublicationHandlerTests
         bool hasCalendarEvent = true,
         bool hasPlatform = true,
         bool hasPublication = true,
-        bool hasDeleter = true) =>
+        bool hasDeleter = true,
+        FakeCalendarEventPublicationIndexWriter? publicationIndex = null,
+        ILogger<DeletePublicationHandler>? logger = null) =>
         new(
             new FakeCalendarEventReader(
                 getResult: hasCalendarEvent ? calendarEvent ?? Event(FutureStart) : null),
@@ -220,10 +296,11 @@ public class DeletePublicationHandlerTests
             new FakePlatformPublicationReader(
                 hasPublication ? [publication ?? Publication(PublishStatus.Published)] : []),
             repository ?? new FakePublicationRepository(),
+            publicationIndex ?? new FakeCalendarEventPublicationIndexWriter(),
             new PlatformTypeAdapterSelector<IPlatformPublicationDeleter>(
                 hasDeleter ? [deleter ?? new FakePublicationDeleter()] : []),
             new FixedTimeProvider(Now),
-            NullLogger<DeletePublicationHandler>.Instance);
+            logger ?? NullLogger<DeletePublicationHandler>.Instance);
 
     private static CalendarEventView Event(DateTimeOffset startUtc) =>
         ApplicationTestData.CalendarEvent(

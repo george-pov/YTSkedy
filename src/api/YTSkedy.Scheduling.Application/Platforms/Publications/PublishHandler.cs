@@ -26,6 +26,7 @@ public sealed class PublishHandler(
     IPlatformReader platforms,
     IPlatformPublicationReader publications,
     IPublicationAttemptWriter publicationAttempts,
+    IPublicationIndexWriter publicationIndex,
     IPlatformTypeAdapterSelector<IPlatformPublisher> publishers,
     PublicationThumbnailApplier thumbnailApplier,
     PublishingContentRenderer contentRenderer,
@@ -217,6 +218,32 @@ public sealed class PublishHandler(
                 publishResult.ExternalResourceId);
 
             return PublishResult.ForStatus(PublishResultStatus.FinalizeFailed);
+        }
+
+        try
+        {
+            if (!await publicationIndex.AddPublishedPlatformAsync(
+                    command.CalendarEventId,
+                    command.PlatformId,
+                    cancellationToken))
+            {
+                logger.LogError(
+                    "Publication index operation {Operation} failed for calendar event " +
+                    "{CalendarEventId} and platform {PlatformId}.",
+                    "AddPublishedPlatform",
+                    command.CalendarEventId,
+                    command.PlatformId);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(
+                exception,
+                "Publication index operation {Operation} failed for calendar event " +
+                "{CalendarEventId} and platform {PlatformId}.",
+                "AddPublishedPlatform",
+                command.CalendarEventId,
+                command.PlatformId);
         }
 
         var thumbnailStatus = await thumbnailApplier.ApplyAsync(

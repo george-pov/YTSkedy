@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
@@ -45,7 +46,9 @@ internal static class PublishHandlerScenario
         IReadOnlyList<PlatformPublication>? publicationRows = null,
         Thumbnail? thumbnail = null,
         ThumbnailContent? thumbnailContent = null,
-        IThumbnailPublisher? thumbnailPublisher = null)
+        IThumbnailPublisher? thumbnailPublisher = null,
+        FakeCalendarEventPublicationIndexWriter? publicationIndex = null,
+        ILogger<PublishHandler>? logger = null)
     {
         var publicationRepository = repository ?? new PublishFakePublicationRepository();
 
@@ -57,6 +60,7 @@ internal static class PublishHandlerScenario
             new FakePlatformPublicationReader(
                 publicationRows ?? (existing is null ? [] : [existing])),
             publicationRepository,
+            publicationIndex ?? new FakeCalendarEventPublicationIndexWriter(),
             new PlatformTypeAdapterSelector<IPlatformPublisher>(
                 publisher is null ? [] : [publisher]),
             new PublicationThumbnailApplier(
@@ -68,7 +72,7 @@ internal static class PublishHandlerScenario
                 NullLogger<PublicationThumbnailApplier>.Instance),
             new PublishingContentRenderer(templates ?? DefaultTemplateReader()),
             new FixedTimeProvider(Now),
-            NullLogger<PublishHandler>.Instance);
+            logger ?? NullLogger<PublishHandler>.Instance);
     }
 
     public static CalendarEventView Event(

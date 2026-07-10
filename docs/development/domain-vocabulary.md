@@ -28,8 +28,16 @@ Canonical product concepts and public identifier vocabulary for YTSkedy.
   edits.
 - `field key`: Backend-derived `textN` key for an event text field, such as
   `text1` or `text2`. Use `fieldKey` in HTTP and TypeScript shapes.
-- `publish status`: Platform-publication state such as `NotPublished`,
-  `Publishing`, or `Published`.
+- `publish status`: Authoritative per-platform publication state represented by
+  `PublishStatus`, such as `NotPublished`, `Publishing`, or `Published`.
+- `publishing status`: Informational calendar-event list aggregate represented
+  by `PublishingStatus` and exposed as `publicationStatus`. Values are
+  `NotPublished`, `PartiallyPublished`, `FullyPublished`, and the reserved
+  `Failed`. It is distinct from per-platform publish status and is not an action
+  policy input. The UI labels the column `Publication Status`.
+- `published platform id index`: Derived, secret-free set of successfully
+  published platform ids stored with a calendar event for list aggregation.
+  Platform publication rows remain authoritative.
 - `action policy`: Pure domain rule object that computes write eligibility.
 - `template`: Reusable free-text publishing content with placeholder tokens.
 - `template type`: Provider family associated with a template, currently
@@ -120,6 +128,7 @@ Shorter names are acceptable for:
 | `YouTubeSettings` | YouTube-specific publish settings used by a YouTube platform. | `PublishSettings` is acceptable inside YouTube-platform-specific code. |
 | `PlatformPublication` | Publish state for one calendar event on one platform. | `Publication` is acceptable inside platform-specific namespaces, types, or tests. |
 | `PublishStatus` | Status of a platform publication. | `Status` is acceptable inside platform-publication-specific code. |
+| `PublishingStatus` | Informational aggregate of a calendar event's successful publications compared with active platforms. | Use `publicationStatus` in HTTP and TypeScript list shapes. Do not use it for per-platform rows or action policy. |
 | `ExternalResourceId` | Provider-owned id returned after publishing. | `ResourceId` is acceptable inside provider-specific result mapping. Provider-specific ids such as `YouTubeBroadcastId` belong only at provider boundaries. |
 | `ScheduledStart` | Local date/time plus explicit time zone context. | `StartDate` or `StartTime` is acceptable only when the value is truly date-only or time-only, or when the enclosing type already owns the scheduling context. |
 | `ScheduledStartUtc` | Persisted UTC instant derived from the scheduled start. | `UtcStart` is acceptable in storage or formatting helpers. Avoid bare `Date` unless the local scope is very small and unambiguous. |

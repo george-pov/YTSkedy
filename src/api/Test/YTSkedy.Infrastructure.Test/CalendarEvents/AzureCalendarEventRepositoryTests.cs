@@ -36,6 +36,7 @@ public sealed class AzureCalendarEventRepositoryTests
         Assert.Equal(["text1", "text2"], FieldKeys(entity.TextJson));
         Assert.Equal("Original title", ValueFor(entity.TextJson, "text1"));
         Assert.Equal("Original description", ValueFor(entity.TextJson, "text2"));
+        Assert.Equal("[]", entity.PublishedPlatformIdsJson);
         Assert.Null(entity.ThumbnailJson);
     }
 
@@ -133,7 +134,7 @@ public sealed class AzureCalendarEventRepositoryTests
 
         Assert.Equal(
             [tokyoJuneId, vancouverJuneId, lateJuneId],
-            result.Select(calendarEvent => calendarEvent.CalendarEventId));
+            result.Select(record => record.Event.CalendarEventId));
     }
 
     [Fact]
@@ -154,7 +155,7 @@ public sealed class AzureCalendarEventRepositoryTests
 
         Assert.Equal(
             [firstId, secondId],
-            result.Select(calendarEvent => calendarEvent.CalendarEventId));
+            result.Select(record => record.Event.CalendarEventId));
     }
 
     [Fact]
@@ -165,6 +166,10 @@ public sealed class AzureCalendarEventRepositoryTests
         var calendarEventId = await repository.CreateAsync(
             Event("Original title", "2026-06-15T10:00:00"),
             new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        await repository.AddPublishedPlatformAsync(
+            calendarEventId,
+            "platform-a",
             CancellationToken.None);
         var updatedEvent = Event(
             "Updated title",
@@ -194,6 +199,7 @@ public sealed class AzureCalendarEventRepositoryTests
         Assert.Equal("Europe/London", entity.TimeZoneId);
         Assert.Equal("Updated title", ValueFor(entity.TextJson, "text1"));
         Assert.Equal("Updated description", ValueFor(entity.TextJson, "text2"));
+        Assert.Equal(["platform-a"], PublishedPlatformIds(entity));
     }
 
     [Fact]
@@ -244,6 +250,10 @@ public sealed class AzureCalendarEventRepositoryTests
             Event("Original title", "2026-06-15T10:00:00"),
             new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
             CancellationToken.None);
+        await repository.AddPublishedPlatformAsync(
+            calendarEventId,
+            "platform-a",
+            CancellationToken.None);
         var thumbnail = Thumbnail(calendarEventId);
 
         var result = await repository.SaveThumbnailAsync(
@@ -258,6 +268,7 @@ public sealed class AzureCalendarEventRepositoryTests
             calendarEventId,
             CancellationToken.None));
         Assert.Equal("Original title", ValueFor(entity.TextJson, "text1"));
+        Assert.Equal(["platform-a"], PublishedPlatformIds(entity));
     }
 
     [Fact]
@@ -303,6 +314,10 @@ public sealed class AzureCalendarEventRepositoryTests
             calendarEventId,
             Thumbnail(calendarEventId),
             CancellationToken.None);
+        await repository.AddPublishedPlatformAsync(
+            calendarEventId,
+            "platform-a",
+            CancellationToken.None);
 
         var result = await repository.DeleteThumbnailAsync(
             calendarEventId,
@@ -314,6 +329,7 @@ public sealed class AzureCalendarEventRepositoryTests
         Assert.Null(await repository.GetThumbnailAsync(
             calendarEventId,
             CancellationToken.None));
+        Assert.Equal(["platform-a"], PublishedPlatformIds(entity));
     }
 
     [Fact]
@@ -326,6 +342,165 @@ public sealed class AzureCalendarEventRepositoryTests
             CancellationToken.None);
 
         Assert.False(result);
+    }
+
+    [Fact]
+    public async Task AddPublishedPlatformAsync_NewIds_StoresDistinctOrdinallySortedIds()
+    {
+        var tableClient = new CalendarEventTableClient();
+        var repository = CreateRepository(tableClient);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        var firstResult = await repository.AddPublishedPlatformAsync(
+            calendarEventId,
+            "platform-b",
+            CancellationToken.None);
+        var secondResult = await repository.AddPublishedPlatformAsync(
+            calendarEventId,
+            "platform-a",
+            CancellationToken.None);
+        var idempotentResult = await repository.AddPublishedPlatformAsync(
+            calendarEventId,
+            "platform-a",
+            CancellationToken.None);
+
+        var entity = Assert.Single(tableClient.Entities.Values);
+        Assert.True(firstResult);
+        Assert.True(secondResult);
+        Assert.True(idempotentResult);
+        Assert.Equal("[\"platform-a\",\"platform-b\"]", entity.PublishedPlatformIdsJson);
+        Assert.Equal(2, tableClient.UpdateCallCount);
+        Assert.Equal(Azure.Data.Tables.TableUpdateMode.Merge, tableClient.LastUpdateMode);
+        Assert.Equal("Original title", ValueFor(entity.TextJson, "text1"));
+    }
+
+    [Fact]
+    public async Task RemovePublishedPlatformAsync_ExistingAndMissingIds_IsIdempotent()
+    {
+        var tableClient = new CalendarEventTableClient();
+        var repository = CreateRepository(tableClient);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        await repository.AddPublishedPlatformAsync(
+            calendarEventId,
+            "platform-a",
+            CancellationToken.None);
+        var updatesBeforeRemove = tableClient.UpdateCallCount;
+
+        var missingResult = await repository.RemovePublishedPlatformAsync(
+            calendarEventId,
+            "platform-b",
+            CancellationToken.None);
+        var existingResult = await repository.RemovePublishedPlatformAsync(
+            calendarEventId,
+            "platform-a",
+            CancellationToken.None);
+
+        var entity = Assert.Single(tableClient.Entities.Values);
+        Assert.True(missingResult);
+        Assert.True(existingResult);
+        Assert.Equal("[]", entity.PublishedPlatformIdsJson);
+        Assert.Equal(updatesBeforeRemove + 1, tableClient.UpdateCallCount);
+    }
+
+    [Fact]
+    public async Task AddPublishedPlatformAsync_MissingEvent_ReturnsFalse()
+    {
+        var repository = CreateRepository(new CalendarEventTableClient());
+
+        var result = await repository.AddPublishedPlatformAsync(
+            "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
+            "platform-a",
+            CancellationToken.None);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task RemovePublishedPlatformAsync_MissingEvent_ReturnsFalse()
+    {
+        var repository = CreateRepository(new CalendarEventTableClient());
+
+        var result = await repository.RemovePublishedPlatformAsync(
+            "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
+            "platform-a",
+            CancellationToken.None);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task AddPublishedPlatformAsync_PreconditionFailure_RereadsAndPreservesConcurrentIds()
+    {
+        var tableClient = new CalendarEventTableClient();
+        var repository = CreateRepository(tableClient);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        var storedEntity = Assert.Single(tableClient.Entities.Values);
+        tableClient.FailNextUpdateWithPreconditionFailed(
+            storedEntity,
+            concurrentEntity => concurrentEntity.PublishedPlatformIdsJson =
+                "[\"platform-b\"]");
+
+        var result = await repository.AddPublishedPlatformAsync(
+            calendarEventId,
+            "platform-a",
+            CancellationToken.None);
+
+        Assert.True(result);
+        Assert.Equal(2, tableClient.UpdateCallCount);
+        Assert.Equal(
+            ["platform-a", "platform-b"],
+            PublishedPlatformIds(Assert.Single(tableClient.Entities.Values)));
+    }
+
+    [Fact]
+    public async Task AddPublishedPlatformAsync_ThreePreconditionFailures_ReturnsFalse()
+    {
+        var tableClient = new CalendarEventTableClient();
+        var repository = CreateRepository(tableClient);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        var storedEntity = Assert.Single(tableClient.Entities.Values);
+        tableClient.FailNextUpdateWithPreconditionFailed(storedEntity);
+        tableClient.FailNextUpdateWithPreconditionFailed(storedEntity);
+        tableClient.FailNextUpdateWithPreconditionFailed(storedEntity);
+
+        var result = await repository.AddPublishedPlatformAsync(
+            calendarEventId,
+            "platform-a",
+            CancellationToken.None);
+
+        Assert.False(result);
+        Assert.Equal(3, tableClient.UpdateCallCount);
+        Assert.Empty(PublishedPlatformIds(Assert.Single(tableClient.Entities.Values)));
+    }
+
+    [Theory]
+    [InlineData(null, "platform-a")]
+    [InlineData("", "platform-a")]
+    [InlineData("event-a", null)]
+    [InlineData("event-a", " ")]
+    public async Task AddPublishedPlatformAsync_BlankId_ThrowsArgumentException(
+        string? calendarEventId,
+        string? platformId)
+    {
+        var repository = CreateRepository(new CalendarEventTableClient());
+
+        await Assert.ThrowsAnyAsync<ArgumentException>(() =>
+            repository.AddPublishedPlatformAsync(
+                calendarEventId!,
+                platformId!,
+                CancellationToken.None));
     }
 
     private static AzureCalendarEventRepository CreateRepository(CalendarEventTableClient tableClient) =>
@@ -388,5 +563,12 @@ public sealed class AzureCalendarEventRepositoryTests
 
         return value.GetProperty("value").GetString() ?? string.Empty;
     }
+
+    private static string[] PublishedPlatformIds(CalendarEventEntity entity) =>
+        PublishedPlatformIdsJson.Deserialize(
+                entity.PublishedPlatformIdsJson,
+                entity.CalendarEventId)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
 
 }

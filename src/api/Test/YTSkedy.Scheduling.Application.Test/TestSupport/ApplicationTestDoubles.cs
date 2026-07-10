@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 using YTSkedy.Scheduling.Application.Platforms;
@@ -25,14 +26,20 @@ internal sealed class FakeEventTextFieldsReader(EventTextFields eventTextFields)
 
 internal sealed class FakeCalendarEventReader : ICalendarEventReader
 {
-    private readonly IReadOnlyList<CalendarEventView> items;
+    private readonly IReadOnlyList<CalendarEventListRecord> items;
     private readonly CalendarEventView? getResult;
 
     public FakeCalendarEventReader(
         IReadOnlyList<CalendarEventView>? items = null,
-        CalendarEventView? getResult = null)
+        CalendarEventView? getResult = null,
+        IReadOnlyList<CalendarEventListRecord>? listRecords = null)
     {
-        this.items = items ?? (getResult is null ? [] : [getResult]);
+        this.items = listRecords ??
+            (items ?? (getResult is null ? [] : [getResult]))
+                .Select(item => new CalendarEventListRecord(
+                    item,
+                    new HashSet<string>(StringComparer.Ordinal)))
+                .ToArray();
         this.getResult = getResult;
     }
 
@@ -46,7 +53,7 @@ internal sealed class FakeCalendarEventReader : ICalendarEventReader
 
     public string? CalendarEventId { get; private set; }
 
-    public Task<IReadOnlyList<CalendarEventView>> ListAsync(
+    public Task<IReadOnlyList<CalendarEventListRecord>> ListAsync(
         CalendarEventMonthCriteria? criteria,
         CancellationToken cancellationToken)
     {
@@ -66,7 +73,7 @@ internal sealed class FakeCalendarEventReader : ICalendarEventReader
         CancellationToken = cancellationToken;
 
         var result = getResult ??
-            items.FirstOrDefault(candidate =>
+            items.Select(item => item.Event).FirstOrDefault(candidate =>
                 string.Equals(candidate.CalendarEventId, calendarEventId, StringComparison.Ordinal));
 
         return Task.FromResult(result);
@@ -77,22 +84,31 @@ internal sealed class FakePlatformReader : IPlatformReader
 {
     private readonly IReadOnlyList<PlatformView> platforms;
     private readonly PlatformView? getResult;
+    private readonly IReadOnlySet<string> platformIds;
 
     public FakePlatformReader(
         IReadOnlyList<PlatformView>? platforms = null,
-        PlatformView? getResult = null)
+        PlatformView? getResult = null,
+        IReadOnlySet<string>? platformIds = null)
     {
         this.platforms = platforms ?? (getResult is null ? [] : [getResult]);
         this.getResult = getResult;
+        this.platformIds = platformIds ?? new HashSet<string>(
+            this.platforms.Select(platform => platform.PlatformId),
+            StringComparer.Ordinal);
     }
 
     public bool ListCalled { get; private set; }
+
+    public int ListIdsCallCount { get; private set; }
 
     public PlatformType? RequestedType { get; private set; }
 
     public string? PlatformId { get; private set; }
 
     public CancellationToken CancellationToken { get; private set; }
+
+    public CancellationToken ListIdsCancellationToken { get; private set; }
 
     public Task<IReadOnlyList<PlatformView>> ListAsync(
         PlatformType? type,
@@ -109,6 +125,15 @@ internal sealed class FakePlatformReader : IPlatformReader
         return Task.FromResult(result);
     }
 
+    public Task<IReadOnlySet<string>> ListIdsAsync(
+        CancellationToken cancellationToken)
+    {
+        ListIdsCallCount++;
+        ListIdsCancellationToken = cancellationToken;
+
+        return Task.FromResult(platformIds);
+    }
+
     public Task<PlatformView?> GetAsync(
         string platformId,
         CancellationToken cancellationToken)
@@ -122,6 +147,62 @@ internal sealed class FakePlatformReader : IPlatformReader
 
         return Task.FromResult(result);
     }
+}
+
+internal sealed class FakeCalendarEventPublicationIndexWriter : IPublicationIndexWriter
+{
+    public bool AddResult { get; init; } = true;
+
+    public bool RemoveResult { get; init; } = true;
+
+    public Exception? AddException { get; init; }
+
+    public Exception? RemoveException { get; init; }
+
+    public List<(string CalendarEventId, string PlatformId)> AddCalls { get; } = [];
+
+    public List<(string CalendarEventId, string PlatformId)> RemoveCalls { get; } = [];
+
+    public Task<bool> AddPublishedPlatformAsync(
+        string calendarEventId,
+        string platformId,
+        CancellationToken cancellationToken)
+    {
+        AddCalls.Add((calendarEventId, platformId));
+
+        return AddException is null
+            ? Task.FromResult(AddResult)
+            : Task.FromException<bool>(AddException);
+    }
+
+    public Task<bool> RemovePublishedPlatformAsync(
+        string calendarEventId,
+        string platformId,
+        CancellationToken cancellationToken)
+    {
+        RemoveCalls.Add((calendarEventId, platformId));
+
+        return RemoveException is null
+            ? Task.FromResult(RemoveResult)
+            : Task.FromException<bool>(RemoveException);
+    }
+}
+
+internal sealed class CapturingLogger<T> : ILogger<T>
+{
+    public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    public void Log<TState>(
+        LogLevel logLevel,
+        EventId eventId,
+        TState state,
+        Exception? exception,
+        Func<TState, Exception?, string> formatter) =>
+        Entries.Add((logLevel, formatter(state, exception)));
 }
 
 internal sealed class FakePlatformPublicationReader : IPlatformPublicationReader

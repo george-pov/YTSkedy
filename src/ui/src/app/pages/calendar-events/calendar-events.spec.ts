@@ -59,12 +59,49 @@ describe('CalendarEvents', () => {
     expect(text).toContain('Scheduled Start');
     expect(text).not.toContain('Scheduled Start (UTC)');
     expect(text).toContain('Title');
+    expect(text).toContain('Publication Status');
     expect(text).toContain(
       'Friday, July 31, 2026 7:30 AM - America/Vancouver',
     );
     expect(text).not.toContain('Time Zone');
     expect(text).toContain('Stream title 1');
     expect(text).not.toContain('Description for stream 1');
+  });
+
+  it.each([
+    ['NotPublished', ''],
+    ['PartiallyPublished', 'Partially Published'],
+    ['FullyPublished', 'Fully Published'],
+    ['Failed', 'Failed'],
+  ] as const)(
+    'renders %s as exact text in the third cell',
+    async (publicationStatus, expectedLabel) => {
+      service.list.mockReturnValue(
+        of(pageOf([draftEvent(calendarEventId, { publicationStatus })])),
+      );
+
+      await createComponent();
+
+      const thirdCell = dataRows()[0].cells.item(2);
+      expect(thirdCell).not.toBeNull();
+      expect(thirdCell?.textContent?.trim()).toBe(expectedLabel);
+    },
+  );
+
+  it('renders Publication Status as a non-sortable third column', async () => {
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)])));
+
+    await createComponent();
+
+    const headers = Array.from(
+      fixture.nativeElement.querySelectorAll('th'),
+    ) as HTMLTableCellElement[];
+    expect(headers.map((header) => header.textContent?.trim())).toEqual([
+      'Scheduled Start',
+      'Title',
+      'Publication Status',
+    ]);
+    expect(headers[2].querySelector('[role="button"]')).toBeNull();
   });
 
   it('does not render an Actions column for a single edit affordance', async () => {
@@ -346,6 +383,7 @@ describe('CalendarEvents', () => {
       },
       scheduledStartUtc: '2026-07-31T14:30:00+00:00',
       displayTitle: 'Stream title 1',
+      publicationStatus: 'NotPublished',
       texts: [
         {
           fieldKey: 'text1',

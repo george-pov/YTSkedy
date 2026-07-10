@@ -55,9 +55,17 @@ Cross-boundary rules:
 - Calendar event create uses the current event text fields setting, while
   calendar event list and details expose each event's stored text snapshot.
   Clients must not reshape edit forms from the current setting.
-- Calendar event list responses are provider-neutral. Per-platform publication
-  state and root event mutation flags are exposed through the calendar event
-  details read model.
+- Calendar event list responses remain provider-neutral and include required
+  informational `publicationStatus` values `NotPublished`,
+  `PartiallyPublished`, `FullyPublished`, or `Failed`. The API calculates this
+  aggregate from the event's derived published-platform-id index and the
+  platforms active at list-read time. The UI maps the tokens to page-owned
+  labels and must not use the aggregate for action eligibility. `Failed` is a
+  reserved contract value; failure capture and stale-`Publishing` recovery are
+  not part of the current lifecycle.
+- Per-platform publication state and root event mutation flags are exposed
+  through the calendar event details read model. Details do not include the
+  list aggregate and continue to use authoritative publication rows.
 - Calendar event update requests include both `start` and `texts`. The backend
   owns scheduled-start conversion, invalid/repeated local-time validation,
   publication-lock enforcement, and best-effort duplicate scheduled-start
@@ -159,6 +167,14 @@ Persistence contracts are internal to the API boundary unless a feature
 explicitly exposes them through HTTP. The UI must not depend on table names,
 partition keys, row keys, ETags, or storage-specific conflict behavior except
 through documented HTTP responses.
+
+Calendar-event rows carry a secret-free derived set of successfully published
+platform ids only to support the list aggregate. `PlatformPublications` remains
+the authoritative source for per-platform state, actions, mutation locks,
+publish, and cleanup. Platform lifecycle changes do not fan out writes to
+calendar events; comparing with current active platform ids may reclassify past
+list rows. A derived-index failure is logged after the authoritative operation
+and does not change the publish or publication-delete HTTP result.
 
 ## External Integrations
 
