@@ -116,7 +116,7 @@ enter WordPress connection details through platform create or update requests:
 | `publishSettings.applicationPassword` | Secret | WordPress Application Password sent through Basic Auth to the WordPress REST API. |
 | `publishSettings.postStatus` | Non-secret | Initial WordPress post status: `draft`, `pending`, `private`, `future`, or `publish`. |
 | `publishSettings.sticky` | Non-secret | Whether WordPress treats the created post as sticky. |
-| `publishSettings.scheduleOffsetHours` | Non-secret | Positive hour offset used only when `postStatus` is `future`; the provider `date_gmt` is computed from the calendar event scheduled start minus this offset. |
+| `publishSettings.scheduleOffsetHours` | Non-secret | Hour offset from `1` through `168` used only when `postStatus` is `future`; the provider `date_gmt` is computed from the calendar event scheduled start minus this offset. |
 
 `applicationPassword` is accepted on platform create and update but is never
 returned by platform reads. Responses return `applicationPasswordConfigured`

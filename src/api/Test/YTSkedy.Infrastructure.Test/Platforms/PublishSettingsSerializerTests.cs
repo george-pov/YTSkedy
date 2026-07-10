@@ -162,10 +162,10 @@ public class PublishSettingsSerializerTests
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
         Assert.Equal("https://example.com", root.GetProperty("siteUrl").GetString());
-        Assert.Equal("editor", root.GetProperty("username").GetString());
-        Assert.Equal(WordPressSettings.ScheduledPostStatus, root.GetProperty("postStatus").GetString());
-        Assert.True(root.GetProperty("sticky").GetBoolean());
-        Assert.Equal(25, root.GetProperty("scheduleOffsetHours").GetInt32());
+        Assert.False(root.TryGetProperty("username", out _));
+        Assert.False(root.TryGetProperty("postStatus", out _));
+        Assert.False(root.TryGetProperty("sticky", out _));
+        Assert.False(root.TryGetProperty("scheduleOffsetHours", out _));
         Assert.False(root.TryGetProperty("applicationPassword", out _));
         Assert.False(root.TryGetProperty("passwordDisplayValue", out _));
         Assert.DoesNotContain("application-password", json);

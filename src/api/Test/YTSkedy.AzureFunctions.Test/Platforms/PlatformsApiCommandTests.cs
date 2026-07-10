@@ -302,7 +302,8 @@ public sealed class PlatformsApiCommandTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    public void TryBuildCreateCommand_WordPressFuturePostStatusWithNonPositiveOffset_ReturnsBadRequest(
+    [InlineData(DomainWordPressSettings.MaxScheduleOffsetHours + 1)]
+    public void TryBuildCreateCommand_WordPressFuturePostStatusWithInvalidOffset_ReturnsBadRequest(
         int scheduleOffsetHours)
     {
         var request = new CreatePlatformRequest(
@@ -319,7 +320,31 @@ public sealed class PlatformsApiCommandTests
 
         Assert.False(built);
         Assert.Equal(
-            "Publish settings schedule offset hours must be greater than zero.",
+            "Publish settings schedule offset hours must be between 1 and 168.",
+            ActionResultAssertions.BadRequestMessage(error));
+    }
+
+    [Fact]
+    public void TryBuildUpdateCommand_WordPressFuturePostStatusWithInvalidOffset_ReturnsBadRequest()
+    {
+        var request = new UpdatePlatformRequest(
+            "Renamed WordPress site",
+            null,
+            WordPressPayload(
+                applicationPassword: "   ",
+                postStatus: DomainWordPressSettings.ScheduledPostStatus,
+                scheduleOffsetHours: DomainWordPressSettings.MaxScheduleOffsetHours + 1),
+            PublishingPayload());
+
+        var built = PlatformsApi.TryBuildUpdateCommand(
+            WordPressPlatform(),
+            request,
+            out _,
+            out var error);
+
+        Assert.False(built);
+        Assert.Equal(
+            "Publish settings schedule offset hours must be between 1 and 168.",
             ActionResultAssertions.BadRequestMessage(error));
     }
 

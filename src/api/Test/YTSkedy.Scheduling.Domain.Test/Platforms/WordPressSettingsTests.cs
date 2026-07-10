@@ -79,18 +79,22 @@ public class WordPressSettingsTests
                 postStatus));
     }
 
-    [Fact]
-    public void Constructor_ScheduledPostWithOffset_SetsScheduleOffsetHours()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(25)]
+    [InlineData(WordPressSettings.MaxScheduleOffsetHours)]
+    public void Constructor_ScheduledPostWithValidOffset_SetsScheduleOffsetHours(
+        int scheduleOffsetHours)
     {
         var settings = new WordPressSettings(
             "https://example.com",
             "editor",
             "password",
             WordPressSettings.ScheduledPostStatus,
-            scheduleOffsetHours: 25);
+            scheduleOffsetHours: scheduleOffsetHours);
 
         Assert.Equal(WordPressSettings.ScheduledPostStatus, settings.PostStatus);
-        Assert.Equal(25, settings.ScheduleOffsetHours);
+        Assert.Equal(scheduleOffsetHours, settings.ScheduleOffsetHours);
     }
 
     [Fact]
@@ -107,7 +111,8 @@ public class WordPressSettingsTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    public void Constructor_ScheduledPostWithNonPositiveOffset_Throws(int scheduleOffsetHours)
+    [InlineData(WordPressSettings.MaxScheduleOffsetHours + 1)]
+    public void Constructor_ScheduledPostWithInvalidOffset_Throws(int scheduleOffsetHours)
     {
         Assert.Throws<ArgumentOutOfRangeException>(
             () => new WordPressSettings(
@@ -116,6 +121,31 @@ public class WordPressSettingsTests
                 "password",
                 WordPressSettings.ScheduledPostStatus,
                 scheduleOffsetHours: scheduleOffsetHours));
+    }
+
+    [Fact]
+    public void TryComputeScheduledPostUtc_ValidOffset_ReturnsComputedInstant()
+    {
+        var computed = WordPressSettings.TryComputeScheduledPostUtc(
+            new DateTimeOffset(2026, 6, 25, 17, 0, 0, TimeSpan.Zero),
+            WordPressSettings.MaxScheduleOffsetHours,
+            out var scheduledPostUtc);
+
+        Assert.True(computed);
+        Assert.Equal(
+            new DateTimeOffset(2026, 6, 18, 17, 0, 0, TimeSpan.Zero),
+            scheduledPostUtc);
+    }
+
+    [Fact]
+    public void TryComputeScheduledPostUtc_InvalidOffset_ReturnsFalse()
+    {
+        var computed = WordPressSettings.TryComputeScheduledPostUtc(
+            new DateTimeOffset(2026, 6, 25, 17, 0, 0, TimeSpan.Zero),
+            WordPressSettings.MaxScheduleOffsetHours + 1,
+            out _);
+
+        Assert.False(computed);
     }
 
     [Fact]

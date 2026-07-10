@@ -164,10 +164,10 @@ public class PlatformPublicationMapperTests
         Assert.Equal("WordPress", entity.PlatformType);
         Assert.Null(entity.ThumbnailStatus);
         Assert.Contains("\"siteUrl\":\"https://example.com\"", entity.PublishSettingsJson);
-        Assert.Contains("\"username\":\"editor\"", entity.PublishSettingsJson);
-        Assert.Contains("\"postStatus\":\"future\"", entity.PublishSettingsJson);
-        Assert.Contains("\"sticky\":true", entity.PublishSettingsJson);
-        Assert.Contains("\"scheduleOffsetHours\":25", entity.PublishSettingsJson);
+        Assert.DoesNotContain("username", entity.PublishSettingsJson);
+        Assert.DoesNotContain("postStatus", entity.PublishSettingsJson);
+        Assert.DoesNotContain("sticky", entity.PublishSettingsJson);
+        Assert.DoesNotContain("scheduleOffsetHours", entity.PublishSettingsJson);
         Assert.DoesNotContain("applicationPassword", entity.PublishSettingsJson);
         Assert.DoesNotContain("passwordDisplayValue", entity.PublishSettingsJson);
         Assert.DoesNotContain("application-password", entity.PublishSettingsJson);

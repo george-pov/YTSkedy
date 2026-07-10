@@ -126,8 +126,8 @@ A WordPress platform is returned as:
 - WordPress `publishSettings.sticky` is optional on create and update and
   defaults to `false`.
 - WordPress `publishSettings.scheduleOffsetHours` is required when
-  `postStatus` is `future`, must be greater than zero, and must be omitted or
-  `null` for every other WordPress post status.
+  `postStatus` is `future`, must be from `1` through `168`, and must be
+  omitted or `null` for every other WordPress post status.
 - WordPress create and update requests can include
   `publishSettings.applicationPassword`, but responses never return it.
   Responses return `applicationPasswordConfigured` and `passwordDisplayValue`
@@ -277,7 +277,7 @@ Status codes:
   or insecure `siteUrl`, missing `username`, missing `applicationPassword`, or
   `postStatus` not `draft`, `pending`, `private`, `future`, or `publish`.
 - `400 Bad Request` when WordPress `postStatus` is `future` and
-  `scheduleOffsetHours` is missing, zero, or negative.
+  `scheduleOffsetHours` is missing or outside `1..168`.
 - `400 Bad Request` when WordPress `scheduleOffsetHours` is supplied for any
   non-`future` post status.
 - `409 Conflict` when another platform already uses the same name.
@@ -473,11 +473,12 @@ Application Password. The request maps the rendered title to `title`, the
 optional rendered description to `content`, and the platform's `postStatus` to
 `status`. It maps `sticky` to the WordPress REST `sticky` field. When
 `postStatus` is `future`, it computes `date_gmt` by subtracting
-`scheduleOffsetHours` from the calendar event's `scheduledStartUtc`; other
-statuses omit `date_gmt`. The numeric WordPress post id is returned as the
-provider-neutral `externalResourceId`. A local `Published` row means the
-provider resource was created; YTSkedy does not track the later WordPress
-transition from `future` to `publish`.
+`scheduleOffsetHours` from the calendar event's `scheduledStartUtc`; the
+offset must be from `1` through `168`. Other statuses omit `date_gmt`. The
+numeric WordPress post id is returned as the provider-neutral
+`externalResourceId`. A local `Published` row means the provider resource was
+created; YTSkedy does not track the later WordPress transition from `future` to
+`publish`.
 
 YouTube success response (`200 OK`):
 

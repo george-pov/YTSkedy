@@ -82,13 +82,6 @@ public class WordPressPublisherTests
     [InlineData("publish")]
     public async Task PublishAsync_AllowedPostStatus_SendsConfiguredStatus(string postStatus)
     {
-        string? capturedBody = null;
-        var handler = PrettyRoot(request =>
-        {
-            capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
-            return JsonResponse("""{"id":74}""");
-        });
-        var publisher = CreatePublisher(handler);
         var settings = new WordPressSettings(
             "https://example.com",
             "editor",
@@ -96,10 +89,9 @@ public class WordPressPublisherTests
             postStatus,
             scheduleOffsetHours: postStatus == WordPressSettings.ScheduledPostStatus ? 25 : null);
 
-        await publisher.PublishAsync(Request(settings), CancellationToken.None);
+        var publishedPost = await PublishAndReadPostJsonAsync(settings);
 
-        using var document = JsonDocument.Parse(capturedBody!);
-        Assert.Equal(postStatus, document.RootElement.GetProperty("status").GetString());
+        Assert.Equal(postStatus, publishedPost.Body.GetProperty("status").GetString());
     }
 
     [Theory]
@@ -107,13 +99,6 @@ public class WordPressPublisherTests
     [InlineData(false)]
     public async Task PublishAsync_StickySetting_SerializesSticky(bool sticky)
     {
-        string? capturedBody = null;
-        var handler = PrettyRoot(request =>
-        {
-            capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
-            return JsonResponse("""{"id":74}""");
-        });
-        var publisher = CreatePublisher(handler);
         var settings = new WordPressSettings(
             "https://example.com",
             "editor",
@@ -121,35 +106,28 @@ public class WordPressPublisherTests
             "publish",
             sticky);
 
-        await publisher.PublishAsync(Request(settings), CancellationToken.None);
+        var publishedPost = await PublishAndReadPostJsonAsync(settings);
 
-        using var document = JsonDocument.Parse(capturedBody!);
-        Assert.Equal(sticky, document.RootElement.GetProperty("sticky").GetBoolean());
+        Assert.Equal(sticky, publishedPost.Body.GetProperty("sticky").GetBoolean());
     }
 
     [Fact]
     public async Task PublishAsync_FutureStatusWithScheduleOffset_SendsDateGmt()
     {
-        string? capturedBody = null;
-        var handler = PrettyRoot(request =>
-        {
-            capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
-            return JsonResponse("""{"id":74}""");
-        });
-        var publisher = CreatePublisher(handler);
         var settings = new WordPressSettings(
             "https://example.com",
             "editor",
             ApplicationPassword,
             WordPressSettings.ScheduledPostStatus,
-            scheduleOffsetHours: 25);
+            scheduleOffsetHours: WordPressSettings.MaxScheduleOffsetHours);
 
-        await publisher.PublishAsync(Request(settings), CancellationToken.None);
+        var publishedPost = await PublishAndReadPostJsonAsync(
+            settings,
+            scheduledStartUtc: new DateTimeOffset(2026, 7, 1, 17, 0, 0, TimeSpan.Zero));
 
-        using var document = JsonDocument.Parse(capturedBody!);
         Assert.Equal(
-            "2026-06-24T16:00:00Z",
-            document.RootElement.GetProperty("date_gmt").GetString());
+            "2026-06-24T17:00:00Z",
+            publishedPost.Body.GetProperty("date_gmt").GetString());
     }
 
     [Fact]
@@ -202,28 +180,17 @@ public class WordPressPublisherTests
     [Fact]
     public async Task PublishAsync_NullDescription_SendsEmptyContent()
     {
-        string? capturedBody = null;
-        var handler = PrettyRoot(request =>
-        {
-            capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
-            return JsonResponse("""{"id":75}""");
-        });
-        var publisher = CreatePublisher(handler);
+        var publishedPost = await PublishAndReadPostJsonAsync(
+            new WordPressSettings(
+                "https://example.com",
+                "editor",
+                ApplicationPassword,
+                "draft"),
+            description: null);
 
-        await publisher.PublishAsync(
-            Request(
-                new WordPressSettings(
-                    "https://example.com",
-                    "editor",
-                    ApplicationPassword,
-                    "draft"),
-                description: null),
-            CancellationToken.None);
-
-        using var document = JsonDocument.Parse(capturedBody!);
-        Assert.Equal("", document.RootElement.GetProperty("content").GetString());
-        Assert.Equal("draft", document.RootElement.GetProperty("status").GetString());
-        Assert.False(document.RootElement.TryGetProperty("date_gmt", out _));
+        Assert.Equal("", publishedPost.Body.GetProperty("content").GetString());
+        Assert.Equal("draft", publishedPost.Body.GetProperty("status").GetString());
+        Assert.False(publishedPost.Body.TryGetProperty("date_gmt", out _));
     }
 
     [Fact]
@@ -360,9 +327,34 @@ public class WordPressPublisherTests
             logger ?? new CapturingLogger<WordPressPublisher>());
     }
 
+    private static async Task<PublishedPostJson> PublishAndReadPostJsonAsync(
+        WordPressSettings settings,
+        string? description = "English description",
+        DateTimeOffset? scheduledStartUtc = null)
+    {
+        string? capturedBody = null;
+        var handler = PrettyRoot(request =>
+        {
+            capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return JsonResponse("""{"id":74}""");
+        });
+        var publisher = CreatePublisher(handler);
+
+        var result = await publisher.PublishAsync(
+            Request(settings, description, scheduledStartUtc),
+            CancellationToken.None);
+
+        using var document = JsonDocument.Parse(capturedBody!);
+        return new PublishedPostJson(
+            result,
+            document.RootElement.Clone(),
+            handler);
+    }
+
     private static PlatformPublishRequest Request(
         PublishSettings? settings = null,
-        string? description = "English description") =>
+        string? description = "English description",
+        DateTimeOffset? scheduledStartUtc = null) =>
         new(
             CalendarEventId,
             PlatformId,
@@ -373,5 +365,10 @@ public class WordPressPublisherTests
                 "publish"),
             "English title",
             description,
-            new DateTimeOffset(2026, 6, 25, 17, 0, 0, TimeSpan.Zero));
+            scheduledStartUtc ?? new DateTimeOffset(2026, 6, 25, 17, 0, 0, TimeSpan.Zero));
+
+    private sealed record PublishedPostJson(
+        PlatformPublishResult Result,
+        JsonElement Body,
+        FakeHttpMessageHandler Handler);
 }

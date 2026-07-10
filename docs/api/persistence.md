@@ -263,10 +263,11 @@ one platform.
 - `PlatformPublications.PublishSettingsJson` is a snapshot, not the live
   platform settings store. Cleanup target snapshots use only non-secret
   provider target data such as the YouTube OAuth client id or the WordPress
-  site URL. WordPress snapshots also include non-secret publish-shape fields
-  `username`, `postStatus`, `sticky`, and `scheduleOffsetHours`. They must omit
-  secrets and response-only display values such as refresh tokens, client
-  secrets, Application Passwords, and `passwordDisplayValue`.
+  site URL. WordPress snapshots store only the site URL as cleanup target
+  identity. They must omit publish-shape fields, secrets, and response-only
+  display values such as `username`, `postStatus`, `sticky`,
+  `scheduleOffsetHours`, refresh tokens, client secrets, Application Passwords,
+  and `passwordDisplayValue`.
 - Calendar event ids reach the partition filter from the request route, so the
   partition literal is escaped (single quotes doubled) as defense in depth.
 
