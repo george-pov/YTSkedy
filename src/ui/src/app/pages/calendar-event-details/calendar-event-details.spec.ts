@@ -25,6 +25,11 @@ import {
   EventTextFieldsService,
 } from 'src/app/shared/api/settings/event-text-fields-service';
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
+import {
+  DATE_INPUT_DISPLAY_FORMAT,
+  DATE_INPUT_FORMAT,
+  TIME_INPUT_FORMAT,
+} from 'src/app/shared/date-time/date-time-format';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import {
   resolveCanDeactivate,
@@ -36,16 +41,16 @@ import { CalendarEventDetailsModel } from './calendar-event-details.form';
 
 const testDateFormats: MatDateFormats = {
   parse: {
-    dateInput: 'yyyy-MM-dd',
-    timeInput: 'HH:mm',
+    dateInput: DATE_INPUT_FORMAT,
+    timeInput: TIME_INPUT_FORMAT,
   },
   display: {
-    dateInput: 'yyyy-MM-dd',
+    dateInput: DATE_INPUT_DISPLAY_FORMAT,
     monthYearLabel: 'LLL yyyy',
     dateA11yLabel: 'DDD',
     monthYearA11yLabel: 'LLLL yyyy',
-    timeInput: 'HH:mm',
-    timeOptionLabel: 'HH:mm',
+    timeInput: TIME_INPUT_FORMAT,
+    timeOptionLabel: TIME_INPUT_FORMAT,
   },
 };
 
@@ -495,7 +500,7 @@ describe('CalendarEventDetails', () => {
     // 10:00 in America/Vancouver (PDT, UTC-7) is 17:00 UTC.
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Scheduled start (UTC)');
-    expect(text).toContain('2030-07-04 17:00');
+    expect(text).toContain('Thursday, July 4, 2030 5:00 PM');
   });
 
   it('does not show a delete button in create mode', () => {
@@ -583,7 +588,7 @@ describe('CalendarEventDetails', () => {
       // Local start is 09:30 Europe/London in July (BST, UTC+1) = 08:30 UTC.
       const text = fixture.nativeElement.textContent;
       expect(text).toContain('Scheduled start (UTC)');
-      expect(text).toContain('2030-07-04 08:30');
+      expect(text).toContain('Thursday, July 4, 2030 8:30 AM');
     });
 
     it('does not show edit-mode save scope copy for an editable event', () => {
@@ -1065,7 +1070,9 @@ describe('CalendarEventDetails', () => {
       fixture.detectChanges();
 
       expect(fixture.nativeElement.textContent).toContain('Scheduled start (UTC)');
-      expect(fixture.nativeElement.textContent).toContain('2030-07-05 17:00');
+      expect(fixture.nativeElement.textContent).toContain(
+        'Friday, July 5, 2030 5:00 PM',
+      );
     });
 
     it('disables unchanged edit-mode Save', () => {

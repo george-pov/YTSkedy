@@ -20,6 +20,7 @@ import {
   EventTextType,
 } from 'src/app/shared/api/settings/event-text-fields-service';
 import { SelectOption } from 'src/app/shared/components/select/select';
+import { formatUtcDateTime } from 'src/app/shared/date-time/date-time-format';
 import { sameRequest } from 'src/app/shared/forms/request-comparison';
 
 export interface EventTextFieldModel {
@@ -255,19 +256,6 @@ function toEventTextValues(model: CalendarEventDetailsModel) {
   }));
 }
 
-// Formats an epoch-milliseconds instant as `YYYY-MM-DD HH:mm` in UTC, matching
-// the calendar events list rendering of the scheduled start.
-function formatUtcInstant(epochMs: number): string {
-  const instant = new Date(epochMs);
-  const pad = (value: number): string => value.toString().padStart(2, '0');
-
-  return (
-    `${instant.getUTCFullYear()}-${pad(instant.getUTCMonth() + 1)}-` +
-    `${pad(instant.getUTCDate())} ${pad(instant.getUTCHours())}:` +
-    `${pad(instant.getUTCMinutes())}`
-  );
-}
-
 // Create-mode preview: resolves the chosen local date, time, and zone to the UTC
 // instant the backend would store, so the form can show how the local start
 // translates to UTC. Returns an empty string while any part is missing or the
@@ -285,13 +273,11 @@ export function scheduledStartUtcPreview(
 
   const instant = zonedWallTimeToInstant(`${date}T${time}:00`, timeZoneId);
 
-  return instant === null ? '' : formatUtcInstant(instant);
+  return instant === null ? '' : formatUtcDateTime(instant);
 }
 
 // Edit-mode: formats the stored UTC instant (an ISO-8601 string from the API)
 // for the read-only display. Returns an empty string when it cannot be parsed.
 export function formatScheduledStartUtcIso(scheduledStartUtc: string): string {
-  const epochMs = Date.parse(scheduledStartUtc);
-
-  return Number.isNaN(epochMs) ? '' : formatUtcInstant(epochMs);
+  return formatUtcDateTime(Date.parse(scheduledStartUtc));
 }

@@ -56,9 +56,12 @@ describe('CalendarEvents', () => {
     expect(fixture.nativeElement.querySelector('table')).not.toBeNull();
 
     const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Scheduled Start (UTC)');
+    expect(text).toContain('Scheduled Start');
+    expect(text).not.toContain('Scheduled Start (UTC)');
     expect(text).toContain('Title');
-    expect(text).toContain('2026-06-06 17:00');
+    expect(text).toContain(
+      'Friday, July 31, 2026 7:30 AM - America/Vancouver',
+    );
     expect(text).not.toContain('Time Zone');
     expect(text).toContain('Stream title 1');
     expect(text).not.toContain('Description for stream 1');
@@ -338,10 +341,10 @@ describe('CalendarEvents', () => {
     return {
       calendarEventId,
       start: {
-        localDateTime: '2026-06-06T10:00:00',
+        localDateTime: '2026-07-31T07:30:00',
         timeZoneId: 'America/Vancouver',
       },
-      scheduledStartUtc: '2026-06-06T17:00:00+00:00',
+      scheduledStartUtc: '2026-07-31T14:30:00+00:00',
       displayTitle: 'Stream title 1',
       texts: [
         {

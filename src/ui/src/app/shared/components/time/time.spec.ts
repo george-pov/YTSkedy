@@ -5,17 +5,21 @@ import { MatDateFormats } from '@angular/material/core';
 import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import {
+  DATE_INPUT_FORMAT,
+  TIME_INPUT_FORMAT,
+} from 'src/app/shared/date-time/date-time-format';
 import { TimeField } from './time';
 
 const testDateFormats: MatDateFormats = {
-  parse: { dateInput: 'yyyy-MM-dd', timeInput: 'HH:mm' },
+  parse: { dateInput: DATE_INPUT_FORMAT, timeInput: TIME_INPUT_FORMAT },
   display: {
-    dateInput: 'yyyy-MM-dd',
+    dateInput: DATE_INPUT_FORMAT,
     monthYearLabel: 'LLL yyyy',
     dateA11yLabel: 'DDD',
     monthYearA11yLabel: 'LLLL yyyy',
-    timeInput: 'HH:mm',
-    timeOptionLabel: 'HH:mm',
+    timeInput: TIME_INPUT_FORMAT,
+    timeOptionLabel: TIME_INPUT_FORMAT,
   },
 };
 
@@ -74,6 +78,48 @@ describe('TimeField', () => {
     await fixture.whenStable();
 
     expect(host.model().time).toBe('14:30');
+  });
+
+  it('allows a time to be typed one character at a time', async () => {
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
+    input.focus();
+
+    for (const character of '14:30') {
+      input.value += character;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+    }
+
+    expect(input.value).toBe('14:30');
+    expect(host.model().time).toBe('14:30');
+  });
+
+  it('ignores non-format text in typed time input', async () => {
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
+    input.value = '14:30 PM';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(host.model().time).toBe('14:30');
+    expect(input.value).toBe('14:30');
+  });
+
+  it('does not commit a typed time outside the HH:mm format', async () => {
+    const input = fixture.nativeElement.querySelector(
+      'input',
+    ) as HTMLInputElement;
+    input.value = '4:30';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(host.model().time).toBe('');
   });
 
   it('shows the field error once the field is touched', async () => {

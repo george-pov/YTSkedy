@@ -8,8 +8,10 @@
     [value]="selectedDate()"
     [disabled]="disabled()"
     [errorStateMatcher]="errorStateMatcher"
-    (dateInput)="onDateInput($event)"
-    (blur)="markAsTouched()">
+    (keydown)="prepareDateForEditing($event)"
+    (input)="onDateTextInput($event)"
+    (dateInput)="onDatePickerInput($event)"
+    (blur)="onBlur($event)">
   <mat-hint>YYYY-MM-DD</mat-hint>
   <mat-datepicker-toggle matIconSuffix [for]="picker" [disabled]="disabled()" />
   <mat-datepicker #picker [disabled]="disabled()" />

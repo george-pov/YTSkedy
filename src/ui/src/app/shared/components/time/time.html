@@ -3,16 +3,18 @@
     <mat-label>{{ label() }}</mat-label>
   }
   <input
+    #timeInput
     matInput
     [matTimepicker]="picker"
     [value]="selectedTime()"
     [disabled]="disabled()"
     [errorStateMatcher]="errorStateMatcher"
-    (valueChange)="onTimeChange($event)"
-    (blur)="markAsTouched()">
+    (valueChange)="onTimeValueChange($event, timeInput.value)"
+    (input)="onTimeInput($event)"
+    (blur)="onBlur($event)">
   <mat-hint>HH:mm</mat-hint>
   <mat-timepicker-toggle matIconSuffix [for]="picker" [disabled]="disabled()" />
-  <mat-timepicker #picker interval="15m" />
+  <mat-timepicker #picker interval="15m" (selected)="onTimeSelected($event.value)" />
   @if (errorMessage(); as message) {
     <mat-error>{{ message }}</mat-error>
   }
