@@ -28,8 +28,8 @@ only. Boundary-specific implementation guidance lives in the API and UI docs.
   operations docs.
 - `docs/architecture/`: cross-boundary system architecture and integration
   contract docs.
-- `docs/development/naming-guidance.md`: shared domain vocabulary and naming
-  conventions.
+- `docs/development/domain-vocabulary.md`: shared domain vocabulary.
+- `docs/development/naming-guidance.md`: shared identifier naming rules.
 
 ## System Responsibilities
 
@@ -96,9 +96,10 @@ Use the boundary docs for implementation detail:
 - API configuration: [`../api/configuration.md`](../api/configuration.md)
 - UI architecture: [`../ui/architecture.md`](../ui/architecture.md)
 - UI routes: [`../ui/routes.md`](../ui/routes.md)
+- UI deployment: [`../ui/operations/deployment.md`](../ui/operations/deployment.md)
 - Cross-boundary contracts:
   [`integration-contracts.md`](integration-contracts.md)
 
 Do not duplicate endpoint request or response shapes in UI docs. Link to the
 API HTTP contract instead. Do not duplicate domain vocabulary outside
-[`../development/naming-guidance.md`](../development/naming-guidance.md).
+[`../development/domain-vocabulary.md`](../development/domain-vocabulary.md).

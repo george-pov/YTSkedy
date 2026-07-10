@@ -11,19 +11,21 @@ architecture, API, UI, development, or operations guidance.
   plus the root documentation entry points.
 - Update when: adding, removing, renaming, or moving any durable doc, or when a
   boundary index takes ownership of a new documentation area.
-- Validate with: compare this inventory against the output of `rg --files docs`
-  plus `README.md` and `CONTEXT.md`, verify edited links resolve, and run
-  `git diff --check`.
+- Validate with: run `pwsh -NoLogo -NoProfile -File
+  scripts/validate-docs.ps1` from the repository root.
 
 ## Entry Points
 
 - Root developer entrypoint: [`../README.md`](../README.md)
 - Project context: [`../CONTEXT.md`](../CONTEXT.md)
+- UI workspace entrypoint: [`../src/ui/README.md`](../src/ui/README.md)
 - Durable docs inventory: [`README.md`](README.md)
 - Shared architecture overview: [`architecture/overview.md`](architecture/overview.md)
 - Cross-boundary integration contracts:
   [`architecture/integration-contracts.md`](architecture/integration-contracts.md)
-- Domain vocabulary and naming guidance:
+- Domain vocabulary:
+  [`development/domain-vocabulary.md`](development/domain-vocabulary.md)
+- Naming guidance:
   [`development/naming-guidance.md`](development/naming-guidance.md)
 - API docs index: [`api/README.md`](api/README.md)
 - UI docs index: [`ui/README.md`](ui/README.md)
@@ -33,6 +35,8 @@ architecture, API, UI, development, or operations guidance.
 - Architecture overview: [`architecture/overview.md`](architecture/overview.md)
 - Integration contracts:
   [`architecture/integration-contracts.md`](architecture/integration-contracts.md)
+- Domain vocabulary:
+  [`development/domain-vocabulary.md`](development/domain-vocabulary.md)
 - Naming guidance:
   [`development/naming-guidance.md`](development/naming-guidance.md)
 
@@ -48,8 +52,14 @@ architecture, API, UI, development, or operations guidance.
 - HTTP contracts index: [`api/http/README.md`](api/http/README.md)
 - Calendar events HTTP contract:
   [`api/http/calendar-events.md`](api/http/calendar-events.md)
+- Event text fields HTTP contract:
+  [`api/http/event-text-fields.md`](api/http/event-text-fields.md)
+- Calendar-event thumbnails HTTP contract:
+  [`api/http/calendar-event-thumbnails.md`](api/http/calendar-event-thumbnails.md)
 - Platform publishing HTTP contract:
   [`api/http/platforms.md`](api/http/platforms.md)
+- Platform publications HTTP contract:
+  [`api/http/platform-publications.md`](api/http/platform-publications.md)
 - Templates HTTP contract:
   [`api/http/templates.md`](api/http/templates.md)
 
@@ -81,6 +91,10 @@ architecture, API, UI, development, or operations guidance.
   [`ui/architecture/application-structure.md`](ui/architecture/application-structure.md)
 - Runtime configuration:
   [`ui/architecture/runtime-configuration.md`](ui/architecture/runtime-configuration.md)
+
+### UI Operations
+
+- UI deployment: [`ui/operations/deployment.md`](ui/operations/deployment.md)
 
 ### UI Development
 

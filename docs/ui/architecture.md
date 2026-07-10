@@ -1,195 +1,107 @@
 # UI Architecture
 
-The Angular frontend lives under `src/ui/`.
+The Angular frontend lives under `src/ui/`. This document owns frontend
+structure, dependency boundaries, shared UI patterns, and API access rules.
+Page behavior belongs in [`routes.md`](routes.md).
 
-## Current State
+## Ownership
 
-- `src/ui/` contains an Angular workspace managed with npm.
-- The frontend package is named `ytskedy-ui`.
-- `package.json` declares `npm@11.13.0` as the frontend package manager.
-- Angular packages currently use `22.0.x` ranges (`^22.0.2` for the framework,
-  Material, and CDK; `^22.0.3` for the Angular CLI and build tooling).
-- TypeScript currently uses `~6.0.2`.
-- Angular Material and Angular CDK are available UI dependencies. Repeated or
-  app-owned Material usage should be isolated behind shared components under
-  `src/ui/src/app/shared/components/`.
-- Styling uses SCSS.
-- Routing is configured through Angular router.
-- Routed pages render through the `AppLayout` route shell.
-- Shared route-exit protection lives under `src/ui/src/app/shared/routing/`.
-  The `pendingChangesGuard` defines a `PendingChangesAware` contract and
-  delegates route-exit decisions to page-owned state and confirmation copy.
-  The current use is the calendar event details edit route plus the Templates,
-  Platforms, and Settings editor routes.
-- Runtime API base URL configuration is loaded from
-  `src/ui/public/config/app-config.json`.
-- The `calendar-events` page route loads one server-side sorted page of events
-  through the calendar events API service and renders the result through the
-  shared `app-data-table` component in server mode. It defaults to the first
-  page sorted by scheduled start descending, re-fetches on each sort, page, or
-  page-size change. The Scheduled Start and Title columns are sortable.
-  Rows use the data table hover-highlight option and activate the details/edit
-  route. The title display uses the backend `displayTitle` field, is also a
-  link to the details/edit route, and is the source for `title` sorting.
-  The scheduled start cell renders the submitted local date-time using the
-  shared long English format followed by its IANA time-zone id, for example
-  `Friday, July 31, 2026 7:30 AM - America/Vancouver`. Server-side scheduled
-  start sorting still orders by the UTC instant. The create/edit form also
-  shows the local time and zone. Publishing is platform-scoped and is exposed
-  from the calendar event details edit route.
-- The `platforms` page route lists, creates, updates, and deletes configured
-  publishing destinations through the platforms API service. It shows and edits
-  each platform's optional Reference key, and exposes YouTube and WordPress
-  provider settings. Title and description template selections are required
-  publishing-content fields. YouTube client secrets, YouTube refresh tokens,
-  and WordPress Application Passwords are accepted on create and optional
-  replacement updates. In edit mode the replacement inputs stay blank, while
-  backend-computed redacted display strings appear inside the matching blank
-  inputs. The shared `app-masked-input` keeps the backend display string out of
-  the form value, shows replacement values in clear text while focused, and
-  masks them again on blur. Blank saves preserve stored secrets.
-- The `settings` page route reads, edits, renumbers, and saves the current
-  event text fields list through the settings API service. Add and delete
-  derive local `textN` keys immediately, and save replaces local state with the
-  backend-normalized response.
-- Calendar events API service code lives under
-  `src/ui/src/app/shared/api/calendar-events/`.
-- The calendar event details edit route consumes the single-event details
-  response and renders its embedded platform publication rows through the
-  shared `app-data-table` component as a Type, Name, Status, and Actions list.
-  Create mode loads current event text fields from settings. Edit mode renders
-  the event's stored `texts` snapshot and does not reshape it from the current
-  setting. Rows with `canPublish: true` call the platform-scoped publish
-  endpoint and update only that row from the publish response.
-- Platforms API service code lives under
-  `src/ui/src/app/shared/api/platforms/`.
+- Source of truth: Angular workspace structure, frontend responsibilities,
+  shared component boundaries, and typed API access patterns.
+- Update when: source ownership, shared UI patterns, application boundaries, or
+  frontend dependency direction changes.
+- Do not duplicate: route behavior or backend request and response contracts.
+
+## Technology Boundary
+
+- The workspace is managed with npm and Angular CLI.
+- Angular Material and CDK are available behind app-owned shared components.
+- TypeScript and SCSS are the application language and styling boundaries.
+- Routed pages render through the `AppLayout` shell.
+- Runtime public settings load from `public/config/app-config.json` through an
+  app-owned typed configuration boundary.
+- Exact tool versions are owned by `src/ui/package.json` and its lockfile.
 
 ## Source Layout
 
-Current application source lives under:
-
 ```text
 src/ui/src/app/
-```
-
-Current route and page files:
-
-```text
-src/ui/src/app/app.routes.ts
-src/ui/src/app/layout/app-layout/
-src/ui/src/app/pages/calendar-events/
-src/ui/src/app/pages/calendar-event-details/
-src/ui/src/app/pages/settings/
-src/ui/src/app/pages/templates/
-src/ui/src/app/pages/platforms/
-src/ui/src/app/shared/api/calendar-events/
-src/ui/src/app/shared/api/platforms/
-src/ui/src/app/shared/api/settings/
-src/ui/src/app/shared/api/templates/
-src/ui/src/app/shared/config/
-src/ui/src/app/shared/routing/
-src/ui/src/app/shared/components/button/
-src/ui/src/app/shared/components/data-table/
-src/ui/src/app/shared/components/toolbar/
+  app.routes.ts
+  layout/
+    app-layout/
+  pages/
+    calendar-events/
+    calendar-event-details/
+    templates/
+    platforms/
+    settings/
+    component-lab/
+  shared/
+    api/
+    auth/
+    components/
+    config/
+    routing/
 ```
 
 Use the page-first structure in
-[`architecture/application-structure.md`](architecture/application-structure.md)
-for source ownership. Keep route-level pages under `pages/`, reusable browser UI
-under `shared/`, and persistent application chrome under `layout/`.
+[`architecture/application-structure.md`](architecture/application-structure.md).
+Route orchestration belongs under `pages/`, reusable browser behavior belongs
+under `shared/`, and persistent application chrome belongs under `layout/`.
+
+## Page And Shared State
+
+- Route pages own user-visible orchestration, loading state, mutation state,
+  errors, confirmation copy, and navigation decisions.
+- Form and editor state may be extracted beside its owning page when the state
+  has a clear lifecycle and reduces page orchestration complexity.
+- Shared route-exit protection lives under `shared/routing/`.
+  `pendingChangesGuard` remains copy-free and delegates dirty-state comparison
+  and discard wording to the routed page.
+- Reusable helpers must not absorb page-specific business rules or copy merely
+  to reduce file length.
+- Browser state must use backend-computed action eligibility rather than
+  re-deriving scheduling or publication policy.
 
 ## Shared Components
 
-App-owned Angular Material usage is isolated behind shared components under
-`src/ui/src/app/shared/components/`. Pages compose these components and do not
-import Angular Material directly for those concerns.
+App-owned Angular Material usage is isolated behind components under
+`shared/components/`. Pages compose those components instead of importing
+Material primitives directly for the same concern.
 
-### Data Table
+`app-data-table` is the shared table boundary. It supports client and server
+paging modes, configurable columns, custom cell templates, sorting, paging,
+empty states, optional row hover, row activation, and selected-row behavior.
+Pages own API sort-field mapping and server refetch behavior.
 
-`app-data-table` (`DataTable<T>` in
-`src/ui/src/app/shared/components/data-table/`) is a generic, reusable table
-that wraps Angular Material `MatTable`, `MatSort`, and `MatPaginator`. It
-supports two modes through the `mode` input. In the default `client` mode,
-sorting and pagination run client-side on the supplied rows. In `server` mode,
-the component renders the supplied page as-is and emits state so the page can
-fetch the matching server page. All Material table directives stay internal to
-the component.
-
-Inputs:
-
-- `data` (`readonly T[]`, default `[]`): rows to render. In server mode this is
-  the current page, rendered unsliced and unsorted by the client.
-- `columns` (required `readonly DataTableColumn<T>[]`): column configuration.
-- `caption` (default `''`): accessible name rendered as a visually hidden
-  `<caption>`.
-- `pageSize` (default `10`) and `pageSizeOptions` (default `[10, 25, 50]`).
-- `sortActive` (default `''`) and `sortDirection` (`SortDirection`, default
-  `''`): the active sort column key and direction. In client mode this is the
-  optional initial sort; in server mode it reflects the server-applied sort.
-- `mode` (`'client' | 'server'`, default `'client'`): paging and sorting mode.
-- `totalCount` (default `0`): total row count across all server pages; drives
-  the paginator length in server mode (client mode falls back to the data
-  length).
-- `pageIndex` (default `0`): active zero-based page index, bound to the
-  paginator in server mode.
-- `emptyText` (default `''`): optional empty-state text.
-- `clickableRows` (default `false`): when true, mouse row clicks emit
-  `rowClick` without adding selectable row semantics.
-- `highlightRowsOnHover` (default `false`): when true, rows show a hover
-  background highlight without becoming clickable.
-
-Output:
-
-- `stateChange` (`DataTableState`): emitted in server mode on each page index,
-  page size, sort column, or sort direction change. `DataTableState` is
-  `{ pageIndex, pageSize, sortActive, sortDirection }`. Not emitted in client
-  mode. In server mode the headers only toggle ascending/descending (sort
-  clearing is disabled). The page maps the column key to its API sort field and
-  fetches the matching page.
-- `rowClick`: emitted with the row when `clickableRows` or `selectable` is
-  true and the row is clicked. `selectable` also makes rows keyboard
-  activatable and supports selected-row styling.
-
-`DataTableColumn<T>` carries `key`, `header`, `sortable?`, `value?`,
-`cellClass?`, `align?`, and `truncate?`. A text column renders `value(row)`; a
-column is sortable only when `sortable: true`; `truncate: true` clamps the cell
-to one line with an ellipsis and sets the native `title` to the full value for
-hover. Pages supply custom cell content with the `appDataTableCell` directive,
-matched to a column by `key` and rendered with the row as context.
+Shared controls own accessible rendering and generic interaction mechanics.
+They do not own route navigation, API calls, domain validation, or page-specific
+status copy.
 
 ## Responsibilities
 
-Use the UI workspace for browser-facing presentation and interaction behavior:
+The UI workspace owns:
 
-- Routes, layouts, pages, components, forms, and browser state.
-- Frontend API client code that calls the Azure Functions REST API.
-- Client-side formatting and interaction validation that improves the user
-  experience before the backend receives a request.
-- Frontend tests for components, routes, services, and user-facing behavior.
+- Routes, layouts, pages, components, forms, and browser interaction state.
+- Typed clients and mapping code for the Azure Functions REST API.
+- Client-side formatting and interaction validation for responsive feedback.
+- Frontend tests for components, routes, clients, and user-visible behavior.
 
-Do not place backend scheduling rules, persistence behavior, OAuth token
-storage, YouTube API calls, WordPress API calls, or Azure Table Storage access
-in the frontend. If frontend code needs those capabilities, add or call a
-backend API use case.
+The UI must not own backend scheduling rules, persistence behavior, OAuth token
+storage, provider API calls, or Azure Storage access. Those capabilities belong
+behind backend use cases.
 
 ## API Access
 
-Frontend API access must be isolated behind explicit services or client
-modules instead of being spread through components.
+Frontend API access is isolated behind explicit typed services under
+`shared/api/`. Page components do not construct transport shapes ad hoc and
+route configuration does not perform data mapping.
 
-The canonical backend HTTP contracts live in [`../api/http/`](../api/http/).
-UI docs should link to those contracts rather than duplicating request and
-response shapes.
+Canonical backend contracts live in [`../api/http/`](../api/http/). UI docs
+describe which contract a page consumes and link to the canonical owner rather
+than duplicating request and response shapes.
 
-Deploy-specific public settings should use the runtime configuration approach
-defined in
+Deploy-specific public settings use the runtime configuration contract in
 [`architecture/runtime-configuration.md`](architecture/runtime-configuration.md).
-
-Current calendar events API access lives in
-`src/ui/src/app/shared/api/calendar-events/calendar-events-service.ts`.
-Templates API access lives in
-`src/ui/src/app/shared/api/templates/templates-service.ts`.
-Platforms API access lives in
-`src/ui/src/app/shared/api/platforms/platforms-service.ts`.
-Settings API access for event text fields lives in
-`src/ui/src/app/shared/api/settings/event-text-fields-service.ts`.
+Deployment behavior is documented in
+[`operations/deployment.md`](operations/deployment.md).

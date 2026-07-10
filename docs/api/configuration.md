@@ -80,7 +80,7 @@ is not secret and is required on create and update.
 
 Keep YouTube client secrets and refresh tokens out of tracked files, docs
 samples, logs, and `local.settings.json`. See
-[`../http/platforms.md`](../http/platforms.md) for the platform shape.
+[`http/platforms.md`](http/platforms.md) for the platform shape.
 
 For the one-time procedure that creates the Google Cloud project, OAuth client,
 and refresh token, see the setup runbook:

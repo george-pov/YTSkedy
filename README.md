@@ -26,6 +26,7 @@ lives in [`docs/README.md`](docs/README.md).
 - Durable docs inventory: [`docs/README.md`](docs/README.md)
 - Shared architecture overview: [`docs/architecture/overview.md`](docs/architecture/overview.md)
 - Cross-boundary integration contracts: [`docs/architecture/integration-contracts.md`](docs/architecture/integration-contracts.md)
-- Domain vocabulary and naming guidance: [`docs/development/naming-guidance.md`](docs/development/naming-guidance.md)
+- Domain vocabulary: [`docs/development/domain-vocabulary.md`](docs/development/domain-vocabulary.md)
+- Naming guidance: [`docs/development/naming-guidance.md`](docs/development/naming-guidance.md)
 - API docs: [`docs/api/README.md`](docs/api/README.md)
 - UI docs: [`docs/ui/README.md`](docs/ui/README.md)

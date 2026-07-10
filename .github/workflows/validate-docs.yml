@@ -1,0 +1,38 @@
+name: Validate Documentation
+
+on:
+  pull_request:
+    paths:
+      - README.md
+      - CONTEXT.md
+      - src/ui/README.md
+      - docs/**
+      - scripts/validate-docs.ps1
+      - .github/workflows/validate-docs.yml
+  push:
+    branches:
+      - main
+    paths:
+      - README.md
+      - CONTEXT.md
+      - src/ui/README.md
+      - docs/**
+      - scripts/validate-docs.ps1
+      - .github/workflows/validate-docs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate durable docs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Validate documentation
+        shell: pwsh
+        run: pwsh -NoLogo -NoProfile -File scripts/validate-docs.ps1

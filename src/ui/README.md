@@ -1,71 +1,17 @@
-# YtskedyUi
+# YTSkedy UI
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.
+Angular workspace for the YTSkedy browser application.
 
-## Development server
+Use the canonical durable documentation:
 
-To start a local development server, run:
+- UI documentation: [`../../docs/ui/README.md`](../../docs/ui/README.md)
+- Build and test commands:
+  [`../../docs/ui/development/build-and-test.md`](../../docs/ui/development/build-and-test.md)
+- Runtime configuration:
+  [`../../docs/ui/architecture/runtime-configuration.md`](../../docs/ui/architecture/runtime-configuration.md)
+- Development guidance:
+  [`../../docs/ui/development/development-guidelines.md`](../../docs/ui/development/development-guidelines.md)
+- Deployment: [`../../docs/ui/operations/deployment.md`](../../docs/ui/operations/deployment.md)
 
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-npm test
-```
-
-## Running end-to-end tests
-
-Install the Chromium browser binary when needed:
-
-```bash
-npx playwright install chromium
-```
-
-Run durable Playwright tests in Chromium:
-
-```bash
-npm run test:e2e
-```
-
-Run the full configured browser matrix after installing all Playwright browser
-binaries:
-
-```bash
-npx playwright install
-npm run test:e2e:all
-```
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Run frontend commands from this directory. The linked documents own command,
+configuration, testing, architecture, and deployment details.

@@ -1,229 +1,187 @@
 # UI Routes
 
-The Angular application configures routes in:
+The Angular route configuration lives in `src/ui/src/app/app.routes.ts`. Routed
+pages render through `src/ui/src/app/layout/app-layout/`.
 
-```text
-src/ui/src/app/app.routes.ts
-```
+## Ownership
 
-Route pages render through the application layout component in:
+- Source of truth: browser routes, route protection, page behavior, navigation,
+  user-visible actions, and pending-change behavior.
+- Update when: a route, guard, route-level workflow, action, or navigation
+  outcome changes.
+- Do not duplicate: HTTP request and response shapes owned by `docs/api/http/`.
 
-```text
-src/ui/src/app/layout/app-layout/
-```
+## Route Summary
 
-For authenticated visitors the layout header shows a user badge (monogram plus
-name) whose menu offers Sign Out. The badge identity is derived in the browser
-from the Microsoft Entra External ID ID token `name` (Display Name) claim that
-MSAL holds on the active account; no backend call is made. The current
-`SignUpSignIn` user flow returns Display Name, so a true first and last name
-(`given_name` / `family_name`) would require adding those attributes to the
-flow's returned claims before the badge can use them. When no usable name claim
-is present the badge falls back to the email local-part, then to a neutral
-placeholder.
+| Path | Access | Page |
+| --- | --- | --- |
+| `/` | Public | Home and sign-in entrypoint |
+| `/calendar-events` | Protected | Calendar event list |
+| `/calendar-events/new` | Protected | Calendar event create page |
+| `/calendar-events/:calendarEventId/edit` | Protected | Calendar event details and publication actions |
+| `/templates` | Protected | Template list and editor |
+| `/platforms` | Protected | Platform list and editor |
+| `/settings` | Protected | Event text field settings editor |
+| `/signed-out` | Public | Post-logout confirmation |
+| `/component-lab` | Public | Shared component demonstrations |
+| `**` | Public | Redirect to `/` |
 
-## Current Routes
+## Application Layout
 
-| Path                                     | Auth      | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ---------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                                      | Public    | Renders `Home` with a sign-in button. Auto-redirects signed-in visitors to `/calendar-events`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `/calendar-events`                       | Protected | Renders `CalendarEvents` and loads one server-side sorted page of events through `GET /api/calendar-events`. The Scheduled Start column displays the submitted local date-time and IANA time-zone id, for example `Friday, July 31, 2026 7:30 AM - America/Vancouver`, while its server-side `scheduledStart` sort remains ordered by `scheduledStartUtc`. The Title column displays the backend `displayTitle` field as a link to the details/edit route and drives `title` sorting. Rows use hover highlighting, and clicking either the row or the title link opens the details/edit route. Unauthenticated access triggers an Entra External ID redirect via `AuthFacade.signIn(returnUrl)`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `/calendar-events/new`                   | Protected | Renders `CalendarEventDetails` in create mode. Loads current event text fields with `GET /api/settings/event-text-fields`, renders one control per configured field, optionally selects and previews one thumbnail, creates via `POST /api/calendar-events`, uploads the selected thumbnail after create succeeds, and returns to `/calendar-events` on success. Guarded by `authenticatedGuard`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `/calendar-events/:calendarEventId/edit` | Protected | Renders `CalendarEventDetails` in edit mode. Loads the event via `GET /api/calendar-events/{calendarEventId}`, renders the stored scheduled start, `texts` snapshot, current thumbnail metadata, and protected thumbnail preview, and shows the response `platforms` array as a Type, Name, Status, and Actions table. The page uses backend-computed root `canUpdate`, `canDelete`, and `canUpdateThumbnail` from the details response to enable scheduled-start controls, event text Save, thumbnail upload/delete, and event Delete. Save changes updates scheduled start and event text in place when the normalized form differs from the saved baseline. Cancel and route exit ask before discarding pending scheduled-start or event-text changes. Platform preview remains available with pending changes and identifies that it uses stored values; platform publish and publication-delete are blocked until pending event-form changes are saved or discarded. Event Delete asks for confirmation and, when event-form changes are pending, asks to keep or discard those changes before showing the delete confirmation. Guarded by `authenticatedGuard` and `pendingChangesGuard`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `/templates`                             | Protected | Renders `Templates`, a single-page CRUD for reusable social-post templates backed by the `templates` API through a typed `TemplatesService`. On load it lists templates with `GET /api/templates`, shows each template's type (platform) and name, and preselects the first displayed row when templates exist. `Add Template` opens an unsaved editor whose type is selectable and creates via `POST /api/templates`. Selecting a row opens the editor with the type read-only (immutable after create) and saves name and content via `PUT /api/templates/{type}/{id}`. Edit actions are Delete, Cancel, and Save changes; create actions are Cancel and Save template. Pending changes are based on normalized template save payloads, with name trimmed and content preserved exactly. The Save action is disabled until the normalized editor payload differs from the saved baseline. Route exit, row selection, `Add Template`, Cancel, and dirty editor Delete ask before discarding unsaved changes. Delete calls `DELETE /api/templates/{type}/{id}` after any discard decision. A failed load, save, or delete shows an inline error, and a duplicate name surfaces the `409` conflict. Guarded by `authenticatedGuard` and `pendingChangesGuard`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `/platforms`                             | Protected | Renders `Platforms`, a single-page CRUD for configured publishing destinations backed by the `platforms` API through a typed `PlatformsService`. On load it lists platforms with `GET /api/platforms`, shows Type, Name, and Reference key, and preselects the first displayed row when platforms exist. `Add Platform` creates a YouTube or WordPress platform via `POST /api/platforms`; selecting a row opens an editor that saves via `PUT /api/platforms/{platformId}` or deletes via `DELETE /api/platforms/{platformId}`. Edit actions are Delete, Cancel, and Save changes; create actions are Cancel and Save platform. The editor requires title-template and description-template selections backed by `GET /api/templates?type={type}`. Pending changes are based on normalized create or update platform payloads, and the Save action is disabled until that normalized payload differs from the saved baseline. In edit mode, backend-provided redacted secret display strings appear inside the blank replacement inputs, hide while the input is focused, and return on blur when no replacement is entered; redacted display strings are not copied into save payloads, and blank replacement inputs preserve stored secrets without counting as pending changes. A non-blank replacement secret, name, reference key, publishing-content template, or provider setting change counts as pending. Route exit, row selection, `Add Platform`, Cancel, and dirty editor Delete ask before discarding unsaved changes. A failed load, save, or delete shows an inline error, and duplicate names or duplicate reference keys surface the `409` conflict. Guarded by `authenticatedGuard` and `pendingChangesGuard`. |
-| `/settings`                              | Protected | Renders `Settings`, an event text field editor backed by `GET /api/settings/event-text-fields` and `PUT /api/settings/event-text-fields`. The page shows the derived `fieldKey`, label, type, max length, and delete action for each field; add and delete renumber local `textN` keys immediately. Footer actions are Cancel and Save changes. Save changes is disabled until the normalized settings update payload differs from the saved baseline. Save replaces local state and the saved baseline with the backend-normalized response. Pending changes are based on the normalized settings update payload, so label-only trimming does not count as dirty while add, delete, renumber, type, and max length changes do. Route exit asks before discarding unsaved event text field changes. Cancel asks before discarding pending changes, restores the last loaded or last saved settings after confirmation, and clears transient save errors. Guarded by `authenticatedGuard` and `pendingChangesGuard`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `/signed-out`                            | Public    | Renders post-logout confirmation. Auto-redirects already-authenticated visitors to `/calendar-events`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `/component-lab`                         | Public    | Renders the minimal component lab page for manually demoing shared UI components.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `**`                                     | Public    | Redirects to `/`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+Authenticated routes render inside `AppLayout`. The header shows a user badge
+with a Sign Out menu. The browser derives its display name from the active Entra
+External ID account and falls back to the email local-part, then a neutral
+placeholder. The badge does not call the backend for profile data.
 
-The `CalendarEvents` page calls
-`GET /api/calendar-events?page={page}&pageSize={pageSize}&sort={sort}&direction={direction}`
-through the shared API service. It requests one server-side sorted page at a
-time (the first page defaults to scheduled start descending) and drives the
-shared `app-data-table` in server mode from the returned
-`{ items, page, pageSize, totalCount, sort, direction }` envelope. Each row
-uses hover highlighting and opens the details/edit view, while each title link
-also opens that same view. In edit mode, event Save and Delete use root
-`canUpdate` and `canDelete` from the details response, while platform-scoped
-Publish and Delete publication use row action flags. The HTTP client attaches
-an Entra External ID access token via the YTSkedy-owned
-`AuthFacade` and bearer interceptor (see
-[`development/end-to-end-testing.md`](development/end-to-end-testing.md) and
-[`../architecture/integration-contracts.md`](../architecture/integration-contracts.md)).
-The route is a server-paged event table; it does not provide a calendar grid or
-multi-step scheduling workflow.
+## Home And Authentication Routes
 
-The `CalendarEventDetails` page calls `POST /api/calendar-events` through the
-same shared API service and bearer interceptor, then navigates back to
-`/calendar-events` on success. In create mode it first loads the current event
-text field list from `EventTextFieldsService`. `ShortText` fields render as
-single-line inputs and `LongText` fields render as multiline inputs. The list
-re-fetches its current page on load, so a newly created event appears according
-to the server sort order and the active page. Create mode can select, preview,
-and clear one JPEG or PNG thumbnail before save. If event creation succeeds and
-thumbnail upload fails, the event is kept and the page shows a
-thumbnail-specific error.
+The home route shows the sign-in entrypoint and redirects authenticated users to
+`/calendar-events`. `/signed-out` shows logout confirmation and also redirects
+an already-authenticated user to `/calendar-events`.
 
-In edit mode (`/calendar-events/:calendarEventId/edit`) the page reads the id
-from the route, calls `GET /api/calendar-events/{calendarEventId}` through the
-same shared API service, and patches the loaded local start, time zone, stored
-`texts` snapshot, root `canUpdate`/`canDelete` flags, `thumbnail`,
-`canUpdateThumbnail`, and `platforms` array into page state. It does not call
-the current settings endpoint to reshape an existing event. The thumbnail
-section fetches preview bytes through the protected thumbnail API route and
-creates an object URL in the browser. It never uses the protected route
-directly as an image `src`. An existing thumbnail can be deleted only when
-`canUpdateThumbnail` is true. When no thumbnail is stored, thumbnail upload is
-enabled only when `canUpdateThumbnail` is true. The `platforms` array is rendered through
-`app-data-table`, showing platform type, name, and publish status from the API
-response. A row whose `thumbnailStatus` is `Failed` shows a warning that the
-YouTube broadcast was created but the thumbnail was not applied; the page does
-not add a retry button. Rows with `canPreviewPublishingContent: true`
-show a Preview action that calls
-`GET /api/calendar-events/{calendarEventId}/platforms/{platformId}/publishing-content`
-and displays the returned `Preview` or `Snapshot` title and description below
-the table. The preview surface is on demand and does not add title or
-description columns to the table. Preview remains available while event-form
-changes are pending. When preview content is shown with pending event-form
-changes, the page explains that the preview uses stored event values and does
-not include unsaved changes. Rows with `canPublish: true` show a Publish action
-that calls
-`POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publish`.
-On success, the page refreshes event details before applying root event lock
-state, and any open preview for that platform is cleared. Rows
-with `canDeletePublication: true` show an icon button with the accessible label
-`Delete publication for {platformName}`. That action opens a confirmation
-dialog and, after confirmation, calls
-`DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`.
-On success, the page refreshes event details before applying root event lock
-state, and any open preview for that platform is cleared. When event-form
-changes are pending, platform publish and platform-publication delete are
-blocked before the publish API call or publication-delete confirmation opens.
-The page shows `Save or discard event changes before publishing.`.
+Protected routes use `authenticatedGuard`. When authentication is required, the
+guard calls `AuthFacade.signIn(returnUrl)` so a successful sign-in returns the
+user to the requested deep link. Route code depends on the app-owned auth
+facade, not directly on MSAL Angular.
 
-A preview `409` keeps the page open with
-`Publishing content cannot be previewed. Reload the page and try again.` A
-publication-delete `409` keeps the page open with
-`The publication can no longer be deleted. Reload the page and try again.`; a
-`502` keeps the page open with
-`The provider publication could not be deleted. Try again later.`; other
-failures show generic publication-delete copy. While loading it shows a
-progress bar; a failed load shows an inline error. Scheduled-start controls
-and event text controls are editable in edit mode only when the API-provided
-`canUpdate` flag is true. The form shows a read-only "Scheduled start (UTC)"
-translation of the local start using the shared long English date-time format:
-in create mode and editable edit mode it is derived live from the chosen local
-date, time, and zone; in locked edit mode it uses the stored
-`scheduledStartUtc`. The Start date control accepts typed `YYYY-MM-DD` values
-and displays a selected value like `2026-07-31 (Friday)`. The Start time
-control accepts typed `HH:mm` values. Save sends
-`PUT /api/calendar-events/{calendarEventId}` with `start` and text values and
-stays on the edit page on success. A successful edit-mode save updates the
-saved baseline, clears any save error, shows `Calendar event updated.`, and
-keeps the user on the edit route. Pending changes are based on normalized
-`UpdateCalendarEventRequest` values for scheduled start and event text, not raw
-form whitespace. `Save changes` is disabled until scheduled start or event text
-differs from the saved baseline. If `canUpdate` is false, the scheduled-start
-controls, event text controls, and Save action are disabled, and an inline info
-alert above the form sections explains that platform publications must be
-deleted before the event can be changed or deleted.
+## Calendar Event List
 
-In edit mode the page also shows a Delete action; it is hidden in create mode.
-If the API-provided `canDelete` flag is false, Delete is disabled. Delete calls
-the delete API only after delete confirmation succeeds. When event-form changes
-are pending, the page first asks whether to keep editing or discard changes.
-Keeping edits stops before delete confirmation; discarding edits continues to
-the delete confirmation. The delete confirmation is titled
-`Delete calendar event?` and explains that published provider resources are not
-removed by this action. On successful delete, the page shows
-`Calendar event deleted.` and navigates back to `/calendar-events`. A `404` is
-treated as the event already being gone (`Calendar event no longer exists.`
-then navigation); a `409` keeps the page open with
-`Delete platform publications before deleting this event.`; other failures show
-generic delete copy. An update `409` keeps the page open with
-`The event can no longer be updated. Reload the page and try again.` Save and
-Delete are mutually exclusive while either is in flight. Save, Delete, Cancel,
-Publish, Delete publication, and thumbnail controls are disabled while a
-publishing-content preview, platform publish, platform-publication delete,
-thumbnail upload, or thumbnail delete is in flight.
+`/calendar-events` requests one server-paged, server-sorted page through the
+[calendar events contract](../api/http/calendar-events.md). The initial page is
+sorted by scheduled start descending. Page, page-size, and supported sort
+changes trigger a refetch.
 
-Cancel in edit mode navigates back to `/calendar-events` when there are no
-pending scheduled-start or event-text changes. With pending event-form changes,
-Cancel uses the page-owned discard confirmation
-`Discard unsaved event changes?`. The edit route also uses the shared
-`pendingChangesGuard`
-(`src/ui/src/app/shared/routing/pending-changes-guard.ts`) for route exit. The
-guard is copy-free and delegates to the routed page's
-`canDeactivateWithPendingChanges()` method so the page owns the dirty-state
-check and confirmation copy.
+The table shows Scheduled Start and Title as sortable columns. Scheduled Start
+displays the submitted local date-time followed by its IANA time-zone id while
+server ordering uses the corresponding UTC instant. The Title displays the
+backend `displayTitle`. Clicking either a row or its title link opens the edit
+route.
 
-The `Platforms` page calls `GET /api/platforms` through the shared platforms
-API service and maps the backend `{ items: [...] }` envelope plus `platformId`
-field into the page-facing platform model. The table shows type, name, and the
-optional Reference key. Create sends the selected type, name, reference key,
-platform `publishingContent`, and provider-specific publish settings to
-`POST /api/platforms`; the create type select offers YouTube and WordPress.
-The title-template and description-template selectors list templates for the
-selected platform type and require a selected template id. In create mode,
-changing the platform type resets selected template ids that are not available
-for the new type. YouTube settings include client ID, client secret, refresh
-token, privacy status, and made-for-kids flag. WordPress settings include site
-URL, username, Application Password, and post status. Edit sends name,
-reference key, `publishingContent`, and publish settings to
-`PUT /api/platforms/{platformId}`. The Reference key field preserves casing for
-display; blank input sends `null` and clears the stored key. For YouTube, the
-client secret and refresh token replacement inputs are intentionally blank on
-edit. Backend-provided redacted display strings are shown inside those blank
-inputs, hide while the input is focused, and return on blur when no replacement
-value is entered. A typed replacement stays clear while focused and masks again
-on blur. Blank values are omitted so the API preserves the stored values. For
-WordPress, the Application Password replacement input is intentionally blank on
-edit. The password display string appears inside that blank input, hides on
-focus, returns on blur when left blank, and a non-blank value replaces it. A
-typed Application Password stays clear while focused and returns to the full
-password mask on blur. Redacted display values are not copied into create or
-update requests. The exact API response fields are documented in
-[`../api/http/platforms.md`](../api/http/platforms.md). Delete calls
-`DELETE /api/platforms/{platformId}` and removes the row after a successful
-`204 No Content`. The HTTP client attaches an Entra External ID access token
-through the same bearer interceptor and calendar-event scopes used by the other
-protected API resources.
+## Calendar Event Create
 
-The `Settings` page calls `GET /api/settings/event-text-fields` on load through
-`EventTextFieldsService`. It renders the current ordered field list and keeps
-the derived `fieldKey` read-only in the UI. Add appends a new field and derives
-the next `textN` key immediately. Delete removes the row and renumbers following
-fields immediately. Save sends the ordered fields to
-`PUT /api/settings/event-text-fields`; the page replaces its local model and
-saved baseline with the backend response so backend normalization is the final
-source of truth. Cancel restores the last loaded or saved baseline after the
-discard confirmation when there are pending edits. A failed load or save shows
-an inline error. The route is protected by the same bearer interceptor and
-calendar-event scopes as the rest of the application API.
+`/calendar-events/new` uses `CalendarEventDetails` in create mode. It loads the
+current [event text field setting](../api/http/event-text-fields.md), renders
+short and long text controls by field type, and creates through the
+[calendar events contract](../api/http/calendar-events.md).
 
-## Route Protection
+The page may select, preview, and clear one JPEG or PNG thumbnail before create.
+After the event is created, it uploads the selected file through the
+[thumbnail contract](../api/http/calendar-event-thumbnails.md). A failed upload
+does not discard the created event; the page keeps the event and shows a
+thumbnail-specific error. Successful create returns to `/calendar-events`.
 
-`/calendar-events`, `/templates`, `/platforms`, and `/settings` are guarded by
-the YTSkedy-owned `authenticatedGuard`
-(in `src/ui/src/app/shared/auth/authenticated-guard.ts`). The guard:
+## Calendar Event Edit
 
-- Consults `AuthFacade.isAuthenticated()`.
-- Calls `AuthFacade.signIn(returnUrl)` when not authenticated, capturing the
-  requested URL so a direct deep link returns to the same route after sign-in.
-- Never imports `@azure/msal-angular`; consumers depend on the facade only so
-  MSAL stays a swappable adapter.
+`/calendar-events/:calendarEventId/edit` loads the stored event details. It uses
+the stored scheduled start and event text snapshot rather than reshaping the
+event from the current settings.
 
-The `/calendar-events/:calendarEventId/edit`, `/templates`, `/platforms`, and
-`/settings` routes also use `pendingChangesGuard`
-(`src/ui/src/app/shared/routing/pending-changes-guard.ts`). The guard calls a
-page-owned `PendingChangesAware.canDeactivateWithPendingChanges()` method and
-does not own any user-facing copy.
+Backend-computed `canUpdate`, `canDelete`, and `canUpdateThumbnail` flags control
+event mutation actions. Save changes is disabled until the normalized scheduled
+start or text request differs from the saved baseline. A successful save updates
+that baseline, clears the save error, shows `Calendar event updated.`, and stays
+on the edit route.
 
-## Route Ownership
+The page fetches protected thumbnail bytes through the API and renders an object
+URL. It never uses the protected API route directly as an image `src`.
+Thumbnail upload and delete follow `canUpdateThumbnail` and the
+[thumbnail contract](../api/http/calendar-event-thumbnails.md).
 
-- Route configuration belongs in `src/ui/src/app/app.routes.ts`.
-- Route-level page components belong under `src/ui/src/app/pages/`.
-- Reusable display and form components belong under `src/ui/src/app/shared/`.
-- API response mapping should live in explicit client or service code, not in
-  route configuration.
+The platform table shows Type, Name, Status, and Actions from the details
+response. Actions use the backend row flags documented by the
+[platform publications contract](../api/http/platform-publications.md):
+
+- Preview shows rendered or snapshotted title and description on demand.
+- Preview remains available with pending event edits and states that stored
+  values are used.
+- Publish and publication delete are blocked until pending event edits are saved
+  or discarded.
+- Successful publish or publication delete refreshes details before applying
+  root event action flags and clears an open preview for that platform.
+- A failed provider thumbnail application remains a published row with a
+  warning; the page does not add a retry action.
+
+Delete is available only in edit mode and follows backend `canDelete`. Pending
+form changes are resolved before the delete confirmation opens. Successful
+delete shows `Calendar event deleted.` and returns to the list. An already
+missing event shows `Calendar event no longer exists.` and also returns to the
+list. Publication conflicts keep the page open and direct the user to remove
+platform publications first.
+
+Cancel returns to the list when there are no pending edits. Pending edits use
+the page-owned `Discard unsaved event changes?` confirmation. The route also
+uses `pendingChangesGuard` so other route exits apply the same page-owned dirty
+state and copy.
+
+Save, delete, cancel, preview, publish, publication delete, and thumbnail
+actions are mutually disabled while conflicting mutations are active.
+
+## Templates
+
+`/templates` is a single-page list and editor backed by the
+[templates contract](../api/http/templates.md). It preselects the first displayed
+template when rows exist.
+
+`Add Template` opens create mode with a selectable immutable-on-create type.
+Selecting a row opens edit mode. Create actions are Cancel and Save template;
+edit actions are Delete, Cancel, and Save changes.
+
+Pending changes compare the normalized save request: name normalization applies
+while content remains exact. Save is disabled when that request matches the
+saved baseline. Route exit, row selection, Add Template, Cancel, and dirty
+delete ask before discarding edits. Load, save, delete, and duplicate-name
+errors remain inline.
+
+## Platforms
+
+`/platforms` is a single-page list and editor backed by the
+[configured platforms contract](../api/http/platforms.md). It shows Type, Name,
+and Reference key and preselects the first displayed platform when rows exist.
+
+`Add Platform` creates a YouTube or WordPress platform. The editor requires
+title and description templates for the selected provider type. Create actions
+are Cancel and Save platform; edit actions are Delete, Cancel, and Save changes.
+
+Pending changes compare the normalized platform request. Blank replacement
+secret fields preserve stored values and do not count as changes. Backend
+redacted display strings may appear in blank replacement inputs but are never
+copied into save requests. A typed replacement is visible while focused and
+masked again on blur.
+
+Save is disabled when the normalized request matches the saved baseline. Route
+exit, row selection, Add Platform, Cancel, and dirty delete ask before
+discarding edits. Load, save, delete, duplicate-name, and duplicate-reference-key
+errors remain inline.
+
+## Settings
+
+`/settings` edits the
+[event text field setting](../api/http/event-text-fields.md). It displays the
+derived `fieldKey`, label, type, max length, and delete action. Add and delete
+renumber local `textN` keys immediately.
+
+Save changes is disabled until the normalized settings request differs from the
+saved baseline. Label-only trimming does not count as a change; add, delete,
+renumber, type, and max-length edits do. A successful save replaces local state
+and the baseline with the backend-normalized response.
+
+Cancel asks before discarding pending edits, restores the last loaded or saved
+baseline after confirmation, and clears transient save errors. Route exit uses
+the same page-owned dirty state through `pendingChangesGuard`.
+
+## Component Lab
+
+`/component-lab` is a public manual demonstration surface for shared UI
+components. It is not a production workflow or an alternative owner for shared
+component documentation.
+
+## Route Protection And Ownership
+
+`/calendar-events`, `/templates`, `/platforms`, and `/settings` use
+`authenticatedGuard`. The calendar event edit, Templates, Platforms, and
+Settings routes also use `pendingChangesGuard`.
+
+Route configuration belongs in `app.routes.ts`. Route-level page components
+belong under `pages/`. Reusable presentation and form components belong under
+`shared/`. Typed API mapping belongs in explicit client services, not route
+configuration.

@@ -5,9 +5,10 @@ broadcasts. The result is three values for one channel: a Google OAuth client
 ID, client secret, and refresh token. Enter those values into a YouTube
 platform's `publishSettings.credentials` object when creating or updating the
 platform.
-See [`../configuration.md`](../configuration.md) for how the API consumes them
-and [`../http/platforms.md`](../http/platforms.md) for the platform and publish
-contract. See
+See [`../configuration.md`](../configuration.md) for how the API consumes them,
+[`../http/platforms.md`](../http/platforms.md) for platform settings, and
+[`../http/platform-publications.md`](../http/platform-publications.md) for the
+publish contract. See
 [`platform-publication-cleanup.md`](platform-publication-cleanup.md) for
 deleting scheduled broadcasts created by this integration.
 
@@ -192,7 +193,7 @@ Other publish responses are unrelated to Google: `400` means a past start time,
 `404` means the calendar event or platform id is unknown, `501` means no
 provider serves the platform type, and `401` or `403` are the Entra sign-in,
 write-scope, or operator-role checks. See
-[`../http/platforms.md`](../http/platforms.md).
+[`../http/platform-publications.md`](../http/platform-publications.md).
 
 Publication delete uses the same stored YouTube credentials to call
 `liveBroadcasts.delete`. A YouTube not-found result is success-equivalent.

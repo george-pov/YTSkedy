@@ -14,11 +14,18 @@ Durable documentation for the backend API under `src/api/`.
 ## Contents
 
 - Architecture: [`architecture.md`](architecture.md)
-- HTTP contracts: [`http/`](http/)
+- HTTP contracts: [`http/README.md`](http/README.md)
 - Calendar events HTTP contract:
   [`http/calendar-events.md`](http/calendar-events.md)
+- Event text fields HTTP contract:
+  [`http/event-text-fields.md`](http/event-text-fields.md)
+- Calendar-event thumbnails HTTP contract:
+  [`http/calendar-event-thumbnails.md`](http/calendar-event-thumbnails.md)
 - Platform publishing HTTP contract:
   [`http/platforms.md`](http/platforms.md)
+- Platform publications HTTP contract:
+  [`http/platform-publications.md`](http/platform-publications.md)
+- Templates HTTP contract: [`http/templates.md`](http/templates.md)
 - Persistence: [`persistence.md`](persistence.md)
 - Configuration: [`configuration.md`](configuration.md)
 - Build and test commands:

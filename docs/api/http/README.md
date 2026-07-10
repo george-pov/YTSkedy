@@ -18,7 +18,11 @@ codes, authorization requirements, and manual API check notes.
 ## Contracts
 
 - Calendar events: [`calendar-events.md`](calendar-events.md)
-- Platform publishing: [`platforms.md`](platforms.md)
+- Event text fields: [`event-text-fields.md`](event-text-fields.md)
+- Calendar-event thumbnails:
+  [`calendar-event-thumbnails.md`](calendar-event-thumbnails.md)
+- Configured platforms: [`platforms.md`](platforms.md)
+- Platform publications: [`platform-publications.md`](platform-publications.md)
 - Templates: [`templates.md`](templates.md)
 
 Keep request and response shapes here when they are externally consumed by the

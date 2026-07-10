@@ -20,7 +20,7 @@ The HTTP contract is:
 DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication
 ```
 
-See [`../http/platforms.md`](../http/platforms.md) for the full request,
+See [`../http/platform-publications.md`](../http/platform-publications.md) for the full request,
 response, and status-code contract.
 
 ## Preconditions

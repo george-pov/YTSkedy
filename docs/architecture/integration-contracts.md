@@ -22,16 +22,18 @@ request, response, status-code, and manual-check details belong in
 | Contract surface | Producer | Consumer | Durable owner |
 | --- | --- | --- | --- |
 | HTTP API routes, DTOs, status codes, and auth requirements | Azure Functions API | Angular UI typed services and manual API clients | [`../api/http/`](../api/http/) |
-| Calendar event list, details, create, update, delete, and thumbnail behavior | Azure Functions API | `CalendarEvents` and `CalendarEventDetails` pages | [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
-| Event text fields settings reads and writes | Azure Functions API | `Settings` and `CalendarEventDetails` pages | [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
-| Platform CRUD, `referenceKey`, publish, publication delete, and provider-specific settings | Azure Functions API | `Platforms` and `CalendarEventDetails` pages | [`../api/http/platforms.md`](../api/http/platforms.md) |
+| Calendar event list, details, create, update, and delete behavior | Azure Functions API | `CalendarEvents` and `CalendarEventDetails` pages | [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
+| Event text fields settings reads and writes | Azure Functions API | `Settings` and `CalendarEventDetails` pages | [`../api/http/event-text-fields.md`](../api/http/event-text-fields.md) |
+| Calendar-event thumbnail storage and retrieval | Azure Functions API | `CalendarEventDetails` page and provider publication flow | [`../api/http/calendar-event-thumbnails.md`](../api/http/calendar-event-thumbnails.md) |
+| Platform CRUD, `referenceKey`, and provider-specific settings | Azure Functions API | `Platforms` page | [`../api/http/platforms.md`](../api/http/platforms.md) |
+| Publishing-content preview, publish, publication state, and publication delete | Azure Functions API | `CalendarEventDetails` page | [`../api/http/platform-publications.md`](../api/http/platform-publications.md) |
 | Template CRUD and template-token reads | Azure Functions API | `Templates` page and template editor clients | [`../api/http/templates.md`](../api/http/templates.md) |
 | Browser routes, page orchestration, and client interaction state | Angular UI | Browser users and API contract consumers checking UI behavior | [`../ui/routes.md`](../ui/routes.md) |
 | Runtime browser configuration | Deployment environment serving `app-config.json` | Angular config loader and typed API clients | [`../ui/architecture/runtime-configuration.md`](../ui/architecture/runtime-configuration.md) |
 | Bearer-token authentication and authorization | Entra External ID plus API worker middleware | Angular `AuthFacade`, bearer interceptor, and manual clients | This document and [`../api/configuration.md`](../api/configuration.md) |
 | Scheduling instants and time-zone interpretation | Backend API | Angular UI and external provider adapters | This document and [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
 | Application persistence shape | API infrastructure adapters | API application code; UI only through HTTP projections | [`../api/persistence.md`](../api/persistence.md) |
-| External provider publishing and cleanup | API application ports and infrastructure adapters | HTTP publish and publication-delete routes | [`../api/http/platforms.md`](../api/http/platforms.md) and [`../api/operations/`](../api/operations/) |
+| External provider publishing and cleanup | API application ports and infrastructure adapters | HTTP publish and publication-delete routes | [`../api/http/platform-publications.md`](../api/http/platform-publications.md) and [`../api/operations/`](../api/operations/) |
 
 ## Frontend To Backend
 
@@ -61,9 +63,9 @@ Cross-boundary rules:
   publication-lock enforcement, and best-effort duplicate scheduled-start
   detection. The UI enables or disables scheduled-start and event-text controls
   from the API-provided `canUpdate` flag.
-- The Settings page consumes `GET /api/settings/event-text-fields` and
-  `PUT /api/settings/event-text-fields` through a typed settings service. The
-  backend owns `fieldKey` derivation and normalizes keys from field order.
+- The Settings page consumes the event text fields contract through a typed
+  settings service. The backend owns `fieldKey` derivation and normalizes keys
+  from field order.
 - Template-token reads expose current `textN` fields, fixed date tokens, and
   active platform `referenceKey` values for template authoring. Preview and
   publish render from the selected calendar event's stored text snapshot and
@@ -171,7 +173,9 @@ HTTP routes.
 - Publication cleanup uses `IPlatformPublicationDeleter` selected by platform
   type.
 - Provider-specific request mapping, cleanup behavior, and recovery notes are
-  documented in [`../api/http/platforms.md`](../api/http/platforms.md) and
+  documented in
+  [`../api/http/platform-publications.md`](../api/http/platform-publications.md)
+  and
   operation runbooks under [`../api/operations/`](../api/operations/).
 - Provider secrets, OAuth tokens, access tokens, refresh tokens, API keys, and
   local credential stores must not be committed, logged, returned by read

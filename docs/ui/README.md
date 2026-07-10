@@ -32,6 +32,7 @@ Durable documentation for the Angular frontend under `src/ui/`.
 - Unit testing: [`development/unit-testing.md`](development/unit-testing.md)
 - End-to-end testing:
   [`development/end-to-end-testing.md`](development/end-to-end-testing.md)
+- Deployment: [`operations/deployment.md`](operations/deployment.md)
 
 ## External References
 
