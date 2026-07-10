@@ -44,7 +44,7 @@ public sealed class GetCalendarEventDetailsHandler(
             CanDelete: canMutateEvent,
             Thumbnail: thumbnail,
             CanUpdateThumbnail: canMutateEvent,
-            Platforms: EventPlatformProjection.Project(
+            Platforms: EventPlatformMapper.Map(
                 calendarEvent,
                 activePlatforms,
                 publicationRows,

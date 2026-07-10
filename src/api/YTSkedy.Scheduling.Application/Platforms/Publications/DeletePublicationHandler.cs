@@ -52,7 +52,7 @@ public sealed class DeletePublicationHandler(
         {
             return DeletePublicationResult.Success(
                 DeletePublicationStatus.AlreadyNotPublished,
-                EventPlatformProjection.ProjectNotPublished(
+                EventPlatformMapper.MapNotPublished(
                     calendarEvent,
                     platform,
                     timeProvider.GetUtcNow()));
@@ -145,7 +145,7 @@ public sealed class DeletePublicationHandler(
             DeletePublishedResult.Deleted or DeletePublishedResult.NotFound =>
                 DeletePublicationResult.Success(
                     DeletePublicationStatus.Deleted,
-                    EventPlatformProjection.ProjectNotPublished(
+                    EventPlatformMapper.MapNotPublished(
                         calendarEvent,
                         platform,
                         timeProvider.GetUtcNow())),

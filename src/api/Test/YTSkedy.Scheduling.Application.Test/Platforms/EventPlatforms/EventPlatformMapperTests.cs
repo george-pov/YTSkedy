@@ -4,7 +4,7 @@ using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
-public sealed class EventPlatformProjectionTests
+public sealed class EventPlatformMapperTests
 {
     private const string CalendarEventId = ApplicationTestData.CalendarEventId;
     private const string PlatformId = ApplicationTestData.PlatformId;
@@ -19,7 +19,7 @@ public sealed class EventPlatformProjectionTests
         var calendarEvent = CreateEvent();
         var platform = CreatePlatform(PlatformId, "Main channel");
 
-        var result = EventPlatformProjection.Project(calendarEvent, [platform], [], Now);
+        var result = EventPlatformMapper.Map(calendarEvent, [platform], [], Now);
 
         var item = Assert.Single(result);
         Assert.Equal(PlatformId, item.PlatformId);
@@ -46,7 +46,7 @@ public sealed class EventPlatformProjectionTests
             publishedUtc: publishedUtc,
             contentSnapshot: new ContentSnapshot("Rendered title", "Rendered description"));
 
-        var result = EventPlatformProjection.Project(
+        var result = EventPlatformMapper.Map(
             calendarEvent,
             [platform],
             [publication],
@@ -74,7 +74,7 @@ public sealed class EventPlatformProjectionTests
             publishedUtc: new DateTimeOffset(2026, 5, 30, 12, 0, 0, TimeSpan.Zero),
             contentSnapshot: new ContentSnapshot("Rendered title", "Rendered description"));
 
-        var result = EventPlatformProjection.Project(
+        var result = EventPlatformMapper.Map(
             calendarEvent,
             [platform],
             [publication],
@@ -101,7 +101,7 @@ public sealed class EventPlatformProjectionTests
             platformDeletedUtc: deletedUtc,
             contentSnapshot: new ContentSnapshot("Rendered title", null));
 
-        var result = EventPlatformProjection.Project(
+        var result = EventPlatformMapper.Map(
             calendarEvent,
             [activePlatform],
             [orphan],
@@ -120,7 +120,7 @@ public sealed class EventPlatformProjectionTests
     }
 
     [Fact]
-    public void ProjectNotPublished_WordPressPlatform_HasNoThumbnailStatus()
+    public void MapNotPublished_WordPressPlatform_HasNoThumbnailStatus()
     {
         var calendarEvent = CreateEvent();
         var platform = CreatePlatform(
@@ -129,7 +129,7 @@ public sealed class EventPlatformProjectionTests
             PlatformType.WordPress,
             ApplicationTestData.WordPressSettings());
 
-        var result = EventPlatformProjection.ProjectNotPublished(
+        var result = EventPlatformMapper.MapNotPublished(
             calendarEvent,
             platform,
             Now);
@@ -139,13 +139,13 @@ public sealed class EventPlatformProjectionTests
     }
 
     [Fact]
-    public void ProjectPublished_FutureEvent_ReturnsPublishedActionFlags()
+    public void MapPublished_FutureEvent_ReturnsPublishedActionFlags()
     {
         var calendarEvent = CreateEvent();
         var platform = CreatePlatform(PlatformId, "Main channel");
         var publishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
 
-        var result = EventPlatformProjection.ProjectPublished(
+        var result = EventPlatformMapper.MapPublished(
             calendarEvent,
             platform,
             "abc123youtubeid",

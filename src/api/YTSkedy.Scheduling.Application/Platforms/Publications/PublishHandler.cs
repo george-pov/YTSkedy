@@ -229,7 +229,7 @@ public sealed class PublishHandler(
             cancellationToken);
 
         return PublishResult.Published(
-            EventPlatformProjection.ProjectPublished(
+            EventPlatformMapper.MapPublished(
                 calendarEvent,
                 platform,
                 publishResult.ExternalResourceId,

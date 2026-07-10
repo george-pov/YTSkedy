@@ -15,9 +15,9 @@ namespace YTSkedy.Scheduling.Application.Platforms.EventPlatforms;
 /// <see cref="PlatformActionPolicy"/>. The caller is responsible for loading the
 /// calendar event and deciding the missing-event outcome.
 /// </summary>
-public static class EventPlatformProjection
+public static class EventPlatformMapper
 {
-    public static IReadOnlyList<EventPlatformView> Project(
+    public static IReadOnlyList<EventPlatformView> Map(
         Domain.CalendarEvents.CalendarEventView calendarEvent,
         IReadOnlyList<PlatformView> activePlatforms,
         IReadOnlyList<PlatformPublication> publicationRows,
@@ -38,8 +38,8 @@ public static class EventPlatformProjection
             publicationsByPlatform.TryGetValue(platform.PlatformId, out var publication);
 
             items.Add(publication is null
-                ? ProjectNotPublished(calendarEvent, platform, now)
-                : ProjectActive(calendarEvent, platform, publication, now));
+                ? MapNotPublished(calendarEvent, platform, now)
+                : MapActive(calendarEvent, platform, publication, now));
         }
 
         var activePlatformIds = activePlatforms
@@ -56,13 +56,13 @@ public static class EventPlatformProjection
                 continue;
             }
 
-            items.Add(ProjectOrphan(calendarEvent, publication, now));
+            items.Add(MapOrphan(calendarEvent, publication, now));
         }
 
         return items;
     }
 
-    public static EventPlatformView ProjectPublished(
+    public static EventPlatformView MapPublished(
         Domain.CalendarEvents.CalendarEventView calendarEvent,
         PlatformView platform,
         string externalResourceId,
@@ -98,7 +98,7 @@ public static class EventPlatformProjection
             thumbnailStatus);
     }
 
-    public static EventPlatformView ProjectNotPublished(
+    public static EventPlatformView MapNotPublished(
         Domain.CalendarEvents.CalendarEventView calendarEvent,
         PlatformView platform,
         DateTimeOffset now)
@@ -130,7 +130,7 @@ public static class EventPlatformProjection
             ThumbnailPublicationPolicy.InitialStatusFor(platform.Type));
     }
 
-    private static EventPlatformView ProjectActive(
+    private static EventPlatformView MapActive(
         Domain.CalendarEvents.CalendarEventView calendarEvent,
         PlatformView platform,
         PlatformPublication publication,
@@ -165,7 +165,7 @@ public static class EventPlatformProjection
             ThumbnailPublicationPolicy.InitialStatusFor(platform.Type));
     }
 
-    private static EventPlatformView ProjectOrphan(
+    private static EventPlatformView MapOrphan(
         Domain.CalendarEvents.CalendarEventView calendarEvent,
         PlatformPublication publication,
         DateTimeOffset now)
