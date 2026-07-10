@@ -21,6 +21,17 @@
     <app-input [field]="form.requiredText" label="Stream title" />
   </app-lab-example>
 
+  <app-lab-example titleId="input-number-example-title" title="Number">
+    <app-input
+      [field]="form.hoursBeforeEventStart"
+      label="Hours before event start"
+      inputType="number"
+      [min]="1"
+      [max]="168"
+      [step]="1"
+    />
+  </app-lab-example>
+
   <app-lab-example
     titleId="input-max-length-example-title"
     title="Maximum length (no counter)"

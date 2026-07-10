@@ -2,6 +2,7 @@ import { Type } from '@angular/core';
 
 import { AlertLab } from './alert-lab/alert-lab';
 import { ButtonLab } from './button-lab/button-lab';
+import { CheckboxLab } from './checkbox-lab/checkbox-lab';
 import { ConfirmationDialogLab } from './confirmation-dialog-lab/confirmation-dialog-lab';
 import { DataTableLab } from './data-table-lab/data-table-lab';
 import { FileButtonLab } from './file-button-lab/file-button-lab';
@@ -43,6 +44,10 @@ export const componentLabItems: readonly ComponentLabItem[] = [
   {
     label: 'Input',
     component: InputLab,
+  },
+  {
+    label: 'Checkbox',
+    component: CheckboxLab,
   },
   {
     label: 'Masked Input',

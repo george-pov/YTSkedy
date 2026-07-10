@@ -105,6 +105,7 @@ describe('Platforms', () => {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
         postStatus: 'draft',
+        sticky: false,
         applicationPasswordConfigured: true,
         passwordDisplayValue: '*******',
       },
@@ -151,6 +152,8 @@ describe('Platforms', () => {
       wordPressUsername: '',
       wordPressApplicationPassword: '',
       wordPressPostStatus: 'draft',
+      wordPressSticky: false,
+      wordPressScheduleOffsetHours: '',
       wordPressApplicationPasswordConfigured: 'false',
       wordPressPasswordDisplayValue: '',
       ...overrides,
@@ -329,6 +332,33 @@ describe('Platforms', () => {
     expect(buttonByText('Save changes').disabled).toBe(false);
   });
 
+  it('compares normalized WordPress sticky and scheduled offset settings', async () => {
+    service.list.mockReturnValue(of({ platforms: [wordPressPlatform()] }));
+
+    await createComponent();
+
+    expect(buttonByText('Save changes').disabled).toBe(true);
+
+    componentModel().set({ ...componentModel().get(), wordPressSticky: true });
+    fixture.detectChanges();
+    expect(buttonByText('Save changes').disabled).toBe(false);
+
+    componentModel().set({
+      ...componentModel().get(),
+      wordPressSticky: false,
+      wordPressScheduleOffsetHours: '24',
+    });
+    fixture.detectChanges();
+    expect(buttonByText('Save changes').disabled).toBe(true);
+
+    componentModel().set({
+      ...componentModel().get(),
+      wordPressPostStatus: 'future',
+    });
+    fixture.detectChanges();
+    expect(buttonByText('Save changes').disabled).toBe(false);
+  });
+
   it('does not save a clean platform editor submit', async () => {
     service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
 
@@ -474,6 +504,38 @@ describe('Platforms', () => {
     expect(inputs.some((input) => input.value === 'application-password')).toBe(false);
     expect(fixture.nativeElement.textContent).not.toContain('*******');
     expect(inputByLabel('Application Password').value).toBe('*******');
+    expect(componentModel().get().wordPressPostStatus).toBe('draft');
+    expect(
+      (fixture.nativeElement.querySelector('app-checkbox input') as HTMLInputElement).checked,
+    ).toBe(false);
+  });
+
+  it('restores Scheduled settings from an edit response', async () => {
+    service.list.mockReturnValue(
+      of({
+        platforms: [
+          wordPressPlatform({
+            publishSettings: {
+              siteUrl: 'https://blog.example.test/',
+              username: 'publisher',
+              postStatus: 'future',
+              sticky: true,
+              scheduleOffsetHours: 24,
+              applicationPasswordConfigured: true,
+              passwordDisplayValue: '*******',
+            },
+          }),
+        ],
+      }),
+    );
+
+    await createComponent();
+
+    expect(componentModel().get().wordPressPostStatus).toBe('future');
+    expect(inputByLabel('Hours before event start').value).toBe('24');
+    expect(
+      (fixture.nativeElement.querySelector('app-checkbox input') as HTMLInputElement).checked,
+    ).toBe(true);
   });
 
   it('creates a platform and adds it to the list', async () => {
@@ -548,7 +610,7 @@ describe('Platforms', () => {
     expect(confirmation.confirm).not.toHaveBeenCalled();
   });
 
-  it('creates a WordPress platform with provider settings', async () => {
+  it('creates a WordPress platform with Scheduled provider settings', async () => {
     service.list.mockReturnValue(of({ platforms: [] }));
     templatesService.list.mockImplementation((type) =>
       of({
@@ -580,7 +642,9 @@ describe('Platforms', () => {
         publishSettings: {
           siteUrl: 'https://blog.example.test/',
           username: 'publisher',
-          postStatus: 'draft',
+          postStatus: 'future',
+          sticky: true,
+          scheduleOffsetHours: 24,
           applicationPasswordConfigured: true,
           passwordDisplayValue: '*******',
         },
@@ -615,7 +679,9 @@ describe('Platforms', () => {
       wordPressSiteUrl: ' https://blog.example.test/ ',
       wordPressUsername: ' publisher ',
       wordPressApplicationPassword: 'local-test-password',
-      wordPressPostStatus: 'draft',
+      wordPressPostStatus: 'future',
+      wordPressSticky: true,
+      wordPressScheduleOffsetHours: '24',
       wordPressApplicationPasswordConfigured: 'false',
       wordPressPasswordDisplayValue: '',
     });
@@ -630,7 +696,9 @@ describe('Platforms', () => {
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
-        postStatus: 'draft',
+        postStatus: 'future',
+        sticky: true,
+        scheduleOffsetHours: 24,
         applicationPassword: 'local-test-password',
       },
       publishingContent: {
@@ -639,6 +707,34 @@ describe('Platforms', () => {
       },
     });
     expect(rows()).toHaveLength(1);
+  });
+
+  it('requires Hours before event start for Scheduled WordPress settings', async () => {
+    service.list.mockReturnValue(
+      of({
+        platforms: [
+          wordPressPlatform({
+            publishSettings: {
+              siteUrl: 'https://blog.example.test/',
+              username: 'publisher',
+              postStatus: 'future',
+              sticky: false,
+              applicationPasswordConfigured: true,
+              passwordDisplayValue: '*******',
+            },
+          }),
+        ],
+      }),
+    );
+
+    await createComponent();
+    await setValue(nameInput(), 'Company blog updated');
+    await submitEditor();
+
+    expect(service.update).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain(
+      'Hours before event start is required for Scheduled posts.',
+    );
   });
 
   it('updates a WordPress platform without sending a blank Application Password', async () => {
@@ -652,7 +748,9 @@ describe('Platforms', () => {
         publishSettings: {
           siteUrl: 'https://blog.example.test/',
           username: 'publisher',
-          postStatus: 'draft',
+          postStatus: 'future',
+          sticky: true,
+          scheduleOffsetHours: 24,
           applicationPasswordConfigured: true,
           passwordDisplayValue: '*******',
         },
@@ -666,6 +764,13 @@ describe('Platforms', () => {
     await createComponent();
     await selectRow(0);
     await setValue(nameInput(), 'Company blog updated');
+    componentModel().set({
+      ...componentModel().get(),
+      wordPressPostStatus: 'future',
+      wordPressSticky: true,
+      wordPressScheduleOffsetHours: '24',
+    });
+    fixture.detectChanges();
 
     await submitEditor();
 
@@ -675,7 +780,9 @@ describe('Platforms', () => {
       publishSettings: {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
-        postStatus: 'draft',
+        postStatus: 'future',
+        sticky: true,
+        scheduleOffsetHours: 24,
       },
       publishingContent: publishingContent({
         titleTemplateId: 'wordpress-title-template',
@@ -696,6 +803,7 @@ describe('Platforms', () => {
           siteUrl: 'https://blog.example.test/',
           username: 'publisher',
           postStatus: 'publish',
+          sticky: false,
           applicationPasswordConfigured: true,
           passwordDisplayValue: '*******',
         },
@@ -728,6 +836,8 @@ describe('Platforms', () => {
       wordPressUsername: 'publisher',
       wordPressApplicationPassword: 'replacement-local-password',
       wordPressPostStatus: 'publish',
+      wordPressSticky: false,
+      wordPressScheduleOffsetHours: '24',
       wordPressApplicationPasswordConfigured: 'true',
       wordPressPasswordDisplayValue: '*******',
     });
@@ -742,6 +852,7 @@ describe('Platforms', () => {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
         postStatus: 'publish',
+        sticky: false,
         applicationPassword: 'replacement-local-password',
       },
       publishingContent: publishingContent({

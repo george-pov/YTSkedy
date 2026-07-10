@@ -17,6 +17,10 @@ export class Input {
   readonly field = input.required<Field<string>>();
   readonly label = input('');
   readonly placeholder = input('');
+  readonly inputType = input<'text' | 'number'>('text');
+  readonly min = input<number>();
+  readonly max = input<number>();
+  readonly step = input<number>();
 
   /** Render a multi-line textarea instead of a single-line input. */
   readonly multiline = input(false, { transform: booleanAttribute });

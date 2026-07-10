@@ -29,13 +29,15 @@ export interface YouTubePublishSettings {
   selfDeclaredMadeForKids: boolean;
 }
 
-export type WordPressPostStatus = 'publish' | 'draft';
+export type WordPressPostStatus = 'draft' | 'pending' | 'private' | 'future' | 'publish';
 
 /** Publish settings returned for a WordPress platform. */
 export interface WordPressPublishSettings {
   siteUrl: string;
   username: string;
   postStatus: WordPressPostStatus;
+  sticky?: boolean;
+  scheduleOffsetHours?: number;
   applicationPasswordConfigured?: boolean;
   passwordDisplayValue?: string;
   applicationPassword?: string;

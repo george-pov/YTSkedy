@@ -10,6 +10,9 @@ import type { PlatformFormModel } from '../platforms.form';
 const siteUrlMaxLength = 2048;
 const usernameMaxLength = 100;
 const applicationPasswordMaxLength = 512;
+const minimumScheduleOffsetHours = 1;
+const maximumScheduleOffsetHours = 168;
+const wholeHoursPattern = /^\d+$/;
 
 export const wordpressSettingsFormDefaults: Pick<
   PlatformFormModel,
@@ -17,6 +20,8 @@ export const wordpressSettingsFormDefaults: Pick<
   | 'wordPressUsername'
   | 'wordPressApplicationPassword'
   | 'wordPressPostStatus'
+  | 'wordPressSticky'
+  | 'wordPressScheduleOffsetHours'
   | 'wordPressApplicationPasswordConfigured'
   | 'wordPressPasswordDisplayValue'
 > = {
@@ -24,6 +29,8 @@ export const wordpressSettingsFormDefaults: Pick<
   wordPressUsername: '',
   wordPressApplicationPassword: '',
   wordPressPostStatus: 'draft',
+  wordPressSticky: false,
+  wordPressScheduleOffsetHours: '',
   wordPressApplicationPasswordConfigured: 'false',
   wordPressPasswordDisplayValue: '',
 };
@@ -60,10 +67,31 @@ export function applyWordPressSettingsRules(path: SchemaPathTree<PlatformFormMod
   });
 
   validate(path.wordPressPostStatus, ({ value }) =>
-    value() === 'publish' || value() === 'draft'
+    ['draft', 'pending', 'private', 'future', 'publish'].includes(value())
       ? undefined
       : { kind: 'required', message: 'Post status is required.' },
   );
+
+  validate(path.wordPressScheduleOffsetHours, ({ value, valueOf }) => {
+    if (valueOf(path.wordPressPostStatus) !== 'future') {
+      return undefined;
+    }
+
+    const offset = value().trim();
+    if (offset.length === 0) {
+      return {
+        kind: 'required',
+        message: 'Hours before event start is required for Scheduled posts.',
+      };
+    }
+
+    return parseScheduleOffsetHours(offset) === undefined
+      ? {
+          kind: 'pattern',
+          message: 'Hours before event start must be a whole number from 1 through 168.',
+        }
+      : undefined;
+  });
 }
 
 export function toWordPressPublishSettings(model: PlatformFormModel): WordPressPublishSettings {
@@ -72,9 +100,16 @@ export function toWordPressPublishSettings(model: PlatformFormModel): WordPressP
     siteUrl: model.wordPressSiteUrl.trim(),
     username: model.wordPressUsername.trim(),
     postStatus: model.wordPressPostStatus as WordPressPostStatus,
+    sticky: model.wordPressSticky,
   };
 
-  return applicationPassword.length === 0 ? settings : { ...settings, applicationPassword };
+  const scheduleOffsetHours = toScheduleOffsetHours(model);
+  const scheduledSettings =
+    scheduleOffsetHours === undefined ? settings : { ...settings, scheduleOffsetHours };
+
+  return applicationPassword.length === 0
+    ? scheduledSettings
+    : { ...scheduledSettings, applicationPassword };
 }
 
 export function withWordPressSettingsFormModel(
@@ -91,6 +126,10 @@ export function withWordPressSettingsFormModel(
     wordPressApplicationPassword: '',
     wordPressPostStatus:
       wordPressSettings?.postStatus ?? wordpressSettingsFormDefaults.wordPressPostStatus,
+    wordPressSticky: wordPressSettings?.sticky ?? wordpressSettingsFormDefaults.wordPressSticky,
+    wordPressScheduleOffsetHours:
+      wordPressSettings?.scheduleOffsetHours?.toString() ??
+      wordpressSettingsFormDefaults.wordPressScheduleOffsetHours,
     wordPressApplicationPasswordConfigured: String(
       wordPressSettings?.applicationPasswordConfigured ?? false,
     ),
@@ -98,6 +137,25 @@ export function withWordPressSettingsFormModel(
       wordPressSettings?.passwordDisplayValue ??
       wordpressSettingsFormDefaults.wordPressPasswordDisplayValue,
   };
+}
+
+function toScheduleOffsetHours(model: PlatformFormModel): number | undefined {
+  if (model.wordPressPostStatus !== 'future') {
+    return undefined;
+  }
+
+  return parseScheduleOffsetHours(model.wordPressScheduleOffsetHours.trim());
+}
+
+function parseScheduleOffsetHours(value: string): number | undefined {
+  if (!wholeHoursPattern.test(value)) {
+    return undefined;
+  }
+
+  const hours = Number(value);
+  return hours >= minimumScheduleOffsetHours && hours <= maximumScheduleOffsetHours
+    ? hours
+    : undefined;
 }
 
 function isWordPressSettings(

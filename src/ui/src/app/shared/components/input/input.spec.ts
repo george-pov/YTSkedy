@@ -18,12 +18,20 @@ interface TitleModel {
     [placeholder]="placeholder()"
     [multiline]="multiline()"
     [showCharacterCount]="showCharacterCount()"
+    [inputType]="inputType()"
+    [min]="min()"
+    [max]="max()"
+    [step]="step()"
   />`,
 })
 class InputHost {
   readonly multiline = signal(false);
   readonly showCharacterCount = signal(false);
   readonly placeholder = signal('');
+  readonly inputType = signal<'text' | 'number'>('text');
+  readonly min = signal<number | undefined>(undefined);
+  readonly max = signal<number | undefined>(undefined);
+  readonly step = signal<number | undefined>(undefined);
   readonly model = signal<TitleModel>({ title: '' });
   readonly form = form(this.model, (path) => {
     required(path.title, { message: 'Title is required.' });
@@ -57,10 +65,37 @@ describe('Input (signal forms field)', () => {
   }
 
   it('renders the label and a native input', () => {
-    expect(
-      fixture.nativeElement.querySelector('mat-label')?.textContent?.trim(),
-    ).toBe('Title');
+    expect(fixture.nativeElement.querySelector('mat-label')?.textContent?.trim()).toBe('Title');
     expect(fixture.nativeElement.querySelector('input')).not.toBeNull();
+  });
+
+  it('renders text semantics without numeric attributes by default', () => {
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+
+    expect(input.type).toBe('text');
+    expect(input.hasAttribute('min')).toBe(false);
+    expect(input.hasAttribute('max')).toBe(false);
+    expect(input.hasAttribute('step')).toBe(false);
+  });
+
+  it('renders bounded numeric attributes and keeps the string field model', async () => {
+    host.inputType.set('number');
+    host.min.set(1);
+    host.max.set(168);
+    host.step.set(1);
+    fixture.detectChanges();
+
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    expect(input.type).toBe('number');
+    expect(input.getAttribute('min')).toBe('1');
+    expect(input.getAttribute('max')).toBe('168');
+    expect(input.getAttribute('step')).toBe('1');
+
+    input.value = '24';
+    input.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    expect(host.model().title).toBe('24');
   });
 
   it('hides the error until the field is touched', () => {
@@ -76,9 +111,7 @@ describe('Input (signal forms field)', () => {
   });
 
   it('propagates input changes back to the field value', async () => {
-    const input = fixture.nativeElement.querySelector(
-      'input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
     input.value = 'Hello';
     input.dispatchEvent(new Event('input'));
     await fixture.whenStable();
@@ -100,9 +133,7 @@ describe('Input (signal forms field)', () => {
   it('caps the input length from the schema max length', async () => {
     await fixture.whenStable();
 
-    const input = fixture.nativeElement.querySelector(
-      'input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
     expect(input.maxLength).toBe(100);
   });
 
@@ -125,9 +156,7 @@ describe('Input (signal forms field)', () => {
     await fixture.whenStable();
     expect(counterText()).toBe('0 / 100');
 
-    const input = fixture.nativeElement.querySelector(
-      'input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
     input.value = 'Hi there';
     input.dispatchEvent(new Event('input'));
     await fixture.whenStable();
