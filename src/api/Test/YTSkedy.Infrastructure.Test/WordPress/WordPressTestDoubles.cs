@@ -49,6 +49,22 @@ internal static class WordPressTestResponses
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
 
+    internal static HttpResponseMessage PagedJsonResponse(
+        string json,
+        string total = "1",
+        string totalPages = "1",
+        HttpStatusCode statusCode = HttpStatusCode.OK)
+    {
+        var response = new HttpResponseMessage(statusCode)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+        response.Headers.TryAddWithoutValidation("X-WP-Total", total);
+        response.Headers.TryAddWithoutValidation("X-WP-TotalPages", totalPages);
+
+        return response;
+    }
+
     internal static HttpResponseMessage HtmlResponse() =>
         new(HttpStatusCode.OK)
         {

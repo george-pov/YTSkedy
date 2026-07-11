@@ -13,6 +13,12 @@ export function platformByIdUrl(api: ApiConfig, id: string): string {
   return new URL(path, normalizeApiBaseUrl(api.baseUrl)).toString();
 }
 
+export function wordpressCategoriesUrl(api: ApiConfig, id: string): string {
+  const path = `${platformsPath}/${encodeURIComponent(id)}/wordpress/categories`;
+
+  return new URL(path, normalizeApiBaseUrl(api.baseUrl)).toString();
+}
+
 export function isPlatformsUrl(candidate: string, api: ApiConfig): boolean {
   const prefix = platformsUrl(api);
 

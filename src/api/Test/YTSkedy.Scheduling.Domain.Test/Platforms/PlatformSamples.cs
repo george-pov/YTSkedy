@@ -37,6 +37,7 @@ internal static class PlatformSamples
         string username = "editor",
         string applicationPassword = "application-password",
         string postStatus = "publish",
+        IReadOnlyList<long>? categoryIds = null,
         bool sticky = false,
         int? scheduleOffsetHours = null) =>
         SchedulingSamples.WordPressSettings(
@@ -44,6 +45,7 @@ internal static class PlatformSamples
             username,
             applicationPassword,
             postStatus,
+            categoryIds,
             sticky,
             scheduleOffsetHours);
 

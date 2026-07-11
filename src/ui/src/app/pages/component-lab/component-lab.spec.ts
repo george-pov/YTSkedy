@@ -63,4 +63,19 @@ describe('ComponentLab', () => {
 
     expect(fixture.nativeElement.querySelector('app-checkbox-lab')).not.toBeNull();
   });
+
+  it('renders the registered Chip List lab with Basic and Disabled examples', () => {
+    const chipListNav = navButtons().find(
+      (button) => button.textContent?.trim() === 'Chip List',
+    );
+
+    chipListNav?.click();
+    fixture.detectChanges();
+
+    const lab = fixture.nativeElement.querySelector('app-chip-list-lab') as HTMLElement;
+    expect(lab).not.toBeNull();
+    expect(lab.textContent).toContain('Basic');
+    expect(lab.textContent).toContain('Disabled');
+    expect(lab.querySelectorAll('app-chip-list')).toHaveLength(2);
+  });
 });

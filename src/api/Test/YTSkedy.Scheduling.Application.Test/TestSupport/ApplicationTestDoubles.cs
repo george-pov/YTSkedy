@@ -3,6 +3,7 @@ using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
+using YTSkedy.Scheduling.Application.Platforms.WordPressCategory;
 using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
@@ -146,6 +147,36 @@ internal sealed class FakePlatformReader : IPlatformReader
                 string.Equals(candidate.PlatformId, platformId, StringComparison.Ordinal));
 
         return Task.FromResult(result);
+    }
+}
+
+internal sealed class FakeCategoryReader : ICategoryReader
+{
+    public CategoryPage Result { get; init; } = new([], 1, 25, 0, 0);
+
+    public Exception? Exception { get; init; }
+
+    public int CallCount { get; private set; }
+
+    public WordPressSettings? Settings { get; private set; }
+
+    public CategoryQuery? Query { get; private set; }
+
+    public CancellationToken CancellationToken { get; private set; }
+
+    public Task<CategoryPage> ListAsync(
+        WordPressSettings settings,
+        CategoryQuery query,
+        CancellationToken cancellationToken)
+    {
+        CallCount++;
+        Settings = settings;
+        Query = query;
+        CancellationToken = cancellationToken;
+
+        return Exception is null
+            ? Task.FromResult(Result)
+            : Task.FromException<CategoryPage>(Exception);
     }
 }
 

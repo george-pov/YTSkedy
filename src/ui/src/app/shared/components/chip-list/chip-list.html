@@ -1,0 +1,54 @@
+<mat-form-field appearance="outline">
+  @if (label()) {
+    <mat-label>{{ label() }}</mat-label>
+  }
+
+  <mat-chip-grid #chipGrid [attr.aria-label]="label() || 'Selected items'">
+    @for (item of items(); track item.value) {
+      <mat-chip-row
+        [disabled]="disabled()"
+        [aria-label]="itemAccessibleName(item)"
+      >
+        <span class="chip-content">
+          <span>{{ item.label }}</span>
+          @if (item.secondaryText) {
+            <span class="secondary-text">{{ item.secondaryText }}</span>
+          }
+        </span>
+        <button
+          type="button"
+          matChipRemove
+          [disabled]="disabled()"
+          [attr.aria-label]="'Remove ' + itemAccessibleName(item)"
+          (click)="remove(item.value)"
+        >
+          &times;
+        </button>
+      </mat-chip-row>
+    }
+
+    <input
+      matInput
+      [matChipInputFor]="chipGrid"
+      [matAutocomplete]="autocomplete"
+      [placeholder]="placeholder()"
+      [value]="query()"
+      [disabled]="disabled()"
+      [attr.aria-label]="label() || 'Search items'"
+      (input)="onQueryInput($event)"
+    />
+  </mat-chip-grid>
+
+  <mat-autocomplete #autocomplete="matAutocomplete" (optionSelected)="onOptionSelected($event)">
+    @for (option of availableOptions(); track option.value) {
+      <mat-option [value]="option" [attr.aria-label]="itemAccessibleName(option)">
+        <span class="option-content">
+          <span>{{ option.label }}</span>
+          @if (option.secondaryText) {
+            <span class="secondary-text">{{ option.secondaryText }}</span>
+          }
+        </span>
+      </mat-option>
+    }
+  </mat-autocomplete>
+</mat-form-field>

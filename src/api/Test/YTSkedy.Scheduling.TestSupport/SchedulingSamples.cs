@@ -79,9 +79,17 @@ public static class SchedulingSamples
         string username = "publisher",
         string applicationPassword = "application-password",
         string postStatus = "publish",
+        IReadOnlyList<long>? categoryIds = null,
         bool sticky = false,
         int? scheduleOffsetHours = null) =>
-        new(siteUrl, username, applicationPassword, postStatus, sticky, scheduleOffsetHours);
+        new(
+            siteUrl,
+            username,
+            applicationPassword,
+            postStatus,
+            categoryIds ?? [],
+            sticky,
+            scheduleOffsetHours);
 
     public static PublishingContent PublishingContent(
         string titleTemplateId = SchedulingSampleIds.TitleTemplateId,

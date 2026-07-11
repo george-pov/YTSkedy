@@ -20,6 +20,7 @@ export const wordpressSettingsFormDefaults: Pick<
   | 'wordPressUsername'
   | 'wordPressApplicationPassword'
   | 'wordPressPostStatus'
+  | 'wordPressCategoryIds'
   | 'wordPressSticky'
   | 'wordPressScheduleOffsetHours'
   | 'wordPressApplicationPasswordConfigured'
@@ -29,6 +30,7 @@ export const wordpressSettingsFormDefaults: Pick<
   wordPressUsername: '',
   wordPressApplicationPassword: '',
   wordPressPostStatus: 'draft',
+  wordPressCategoryIds: [],
   wordPressSticky: false,
   wordPressScheduleOffsetHours: '',
   wordPressApplicationPasswordConfigured: 'false',
@@ -100,6 +102,7 @@ export function toWordPressPublishSettings(model: PlatformFormModel): WordPressP
     siteUrl: model.wordPressSiteUrl.trim(),
     username: model.wordPressUsername.trim(),
     postStatus: model.wordPressPostStatus as WordPressPostStatus,
+    categoryIds: [...model.wordPressCategoryIds],
     sticky: model.wordPressSticky,
   };
 
@@ -126,6 +129,10 @@ export function withWordPressSettingsFormModel(
     wordPressApplicationPassword: '',
     wordPressPostStatus:
       wordPressSettings?.postStatus ?? wordpressSettingsFormDefaults.wordPressPostStatus,
+    wordPressCategoryIds:
+      wordPressSettings === undefined
+        ? [...wordpressSettingsFormDefaults.wordPressCategoryIds]
+        : [...wordPressSettings.categoryIds],
     wordPressSticky: wordPressSettings?.sticky ?? wordpressSettingsFormDefaults.wordPressSticky,
     wordPressScheduleOffsetHours:
       wordPressSettings?.scheduleOffsetHours?.toString() ??

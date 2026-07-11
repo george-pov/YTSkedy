@@ -4,7 +4,7 @@ import { catchError, map, Observable, throwError } from 'rxjs';
 
 import { APP_CONFIG } from 'src/app/shared/config/app-config';
 import type { PlatformType } from 'src/app/shared/platforms/platform-types';
-import { platformByIdUrl, platformsUrl } from './platforms-endpoint';
+import { platformByIdUrl, platformsUrl, wordpressCategoriesUrl } from './platforms-endpoint';
 
 export type { PlatformType } from 'src/app/shared/platforms/platform-types';
 
@@ -36,11 +36,33 @@ export interface WordPressPublishSettings {
   siteUrl: string;
   username: string;
   postStatus: WordPressPostStatus;
+  categoryIds: number[];
   sticky?: boolean;
   scheduleOffsetHours?: number;
   applicationPasswordConfigured?: boolean;
   passwordDisplayValue?: string;
   applicationPassword?: string;
+}
+
+export interface WordPressCategory {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface WordPressCategoryQuery {
+  search?: string;
+  includeIds?: readonly number[];
+  page?: number;
+  pageSize?: number;
+}
+
+export interface WordPressCategoryListResponse {
+  items: WordPressCategory[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
 
 export type PlatformPublishSettings = YouTubePublishSettings | WordPressPublishSettings;
@@ -127,6 +149,30 @@ export class PlatformsService {
       .pipe(map(toPlatform), catchError(mapCreateError));
   }
 
+  listWordPressCategories(
+    platformId: string,
+    query: WordPressCategoryQuery,
+  ): Observable<WordPressCategoryListResponse> {
+    let params = new HttpParams();
+    if (query.search !== undefined) {
+      params = params.set('search', query.search);
+    }
+    if (query.includeIds !== undefined) {
+      params = params.set('includeIds', query.includeIds.join(','));
+    }
+    if (query.page !== undefined) {
+      params = params.set('page', query.page);
+    }
+    if (query.pageSize !== undefined) {
+      params = params.set('pageSize', query.pageSize);
+    }
+
+    return this.http.get<WordPressCategoryListResponse>(
+      wordpressCategoriesUrl(this.appConfig.api, platformId),
+      { params },
+    );
+  }
+
   update(
     _type: PlatformType,
     id: string,
@@ -161,10 +207,23 @@ function toPlatform(platform: ApiPlatform): Platform {
     name: platform.name,
     referenceKey: platform.referenceKey ?? null,
     type: platform.type,
-    publishSettings:
-      platform.publishSettings === undefined ? undefined : { ...platform.publishSettings },
+    publishSettings: copyPublishSettings(platform.publishSettings),
     publishingContent: { ...platform.publishingContent },
   };
+}
+
+function copyPublishSettings(
+  settings: PlatformPublishSettings | undefined,
+): PlatformPublishSettings | undefined {
+  if (settings === undefined) {
+    return undefined;
+  }
+
+  if ('siteUrl' in settings) {
+    return { ...settings, categoryIds: [...settings.categoryIds] };
+  }
+
+  return { ...settings, credentials: { ...settings.credentials } };
 }
 
 function mapCreateError(error: unknown): Observable<never> {

@@ -100,7 +100,8 @@ public class YouTubePublicationDeleterTests
                 "https://example.com",
                 "editor",
                 "application-password",
-                "publish")),
+                "publish",
+                [])),
             CancellationToken.None);
 
         Assert.Equal(PublicationDeleteStatus.Failed, result.Status);

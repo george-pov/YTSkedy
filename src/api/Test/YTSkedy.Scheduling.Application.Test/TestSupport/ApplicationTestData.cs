@@ -60,10 +60,12 @@ internal static class ApplicationTestData
 
     public static WordPressSettings WordPressSettings(
         string postStatus = "publish",
+        IReadOnlyList<long>? categoryIds = null,
         bool sticky = false,
         int? scheduleOffsetHours = null) =>
         SchedulingSamples.WordPressSettings(
             postStatus: postStatus,
+            categoryIds: categoryIds,
             sticky: sticky,
             scheduleOffsetHours: scheduleOffsetHours);
 

@@ -5,6 +5,7 @@ import { Checkbox } from 'src/app/shared/components/checkbox/checkbox';
 import { Input } from 'src/app/shared/components/input/input';
 import { MaskedInput } from 'src/app/shared/components/masked-input/masked-input';
 import { Select, SelectOption } from 'src/app/shared/components/select/select';
+import { WordPressCategorySelector } from './wordpress-category-selector/wordpress-category-selector';
 
 /**
  * Editor settings specific to a WordPress platform. Presentational only: the
@@ -12,16 +13,18 @@ import { Select, SelectOption } from 'src/app/shared/components/select/select';
  */
 @Component({
   selector: 'app-wordpress-settings',
-  imports: [Checkbox, Input, MaskedInput, Select],
+  imports: [Checkbox, Input, MaskedInput, Select, WordPressCategorySelector],
   templateUrl: './wordpress-settings.html',
   styleUrl: './wordpress-settings.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WordPressSettings {
+  readonly platformId = input<string | null>(null);
   readonly siteUrl = input.required<Field<string>>();
   readonly username = input.required<Field<string>>();
   readonly applicationPassword = input.required<Field<string>>();
   readonly postStatus = input.required<Field<string>>();
+  readonly categoryIds = input.required<Field<number[]>>();
   readonly sticky = input.required<Field<boolean>>();
   readonly scheduleOffsetHours = input.required<Field<string>>();
   readonly passwordDisplayValue = input('');

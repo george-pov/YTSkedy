@@ -19,6 +19,7 @@ describe('platforms form request mapping', () => {
   it('uses non-sticky Draft defaults with no scheduled offset', () => {
     expect(createPlatformFormModel()).toMatchObject({
       wordPressPostStatus: 'draft',
+      wordPressCategoryIds: [],
       wordPressSticky: false,
       wordPressScheduleOffsetHours: '',
     });
@@ -81,6 +82,7 @@ describe('platforms form request mapping', () => {
       siteUrl: 'https://blog.example.test/',
       username: 'publisher',
       postStatus: 'draft',
+      categoryIds: [],
       sticky: false,
     });
   });
@@ -93,6 +95,7 @@ describe('platforms form request mapping', () => {
         wordPressUsername: 'publisher',
         wordPressApplicationPassword: 'local-test-password',
         wordPressPostStatus: 'future',
+        wordPressCategoryIds: [12, 34],
         wordPressSticky: true,
         wordPressScheduleOffsetHours: ' 24 ',
       }),
@@ -102,10 +105,42 @@ describe('platforms form request mapping', () => {
       siteUrl: 'https://blog.example.test/',
       username: 'publisher',
       postStatus: 'future',
+      categoryIds: [12, 34],
       sticky: true,
       scheduleOffsetHours: 24,
       applicationPassword: 'local-test-password',
     });
+  });
+
+  it('maps WordPress create defaults to an empty category ID array', () => {
+    const request = toCreatePlatformRequest(
+      validModel({
+        type: 'WordPress',
+        wordPressSiteUrl: 'https://blog.example.test/',
+        wordPressUsername: 'publisher',
+        wordPressApplicationPassword: 'local-test-password',
+      }),
+    );
+
+    expect(request.publishSettings).toMatchObject({ categoryIds: [] });
+  });
+
+  it('maps selected category IDs to copied create and update requests', () => {
+    const categoryIds = [34, 12];
+    const model = validModel({
+      type: 'WordPress',
+      wordPressSiteUrl: 'https://blog.example.test/',
+      wordPressUsername: 'publisher',
+      wordPressApplicationPassword: 'local-test-password',
+      wordPressCategoryIds: categoryIds,
+    });
+
+    const create = toCreatePlatformRequest(model);
+    const update = toUpdatePlatformRequest(model);
+    categoryIds[0] = 99;
+
+    expect(create.publishSettings).toMatchObject({ categoryIds: [34, 12] });
+    expect(update.publishSettings).toMatchObject({ categoryIds: [34, 12] });
   });
 
   it('omits a retained scheduled offset from non-scheduled requests', () => {
@@ -123,6 +158,7 @@ describe('platforms form request mapping', () => {
       siteUrl: 'https://blog.example.test/',
       username: 'publisher',
       postStatus: 'pending',
+      categoryIds: [],
       sticky: false,
     });
   });
@@ -263,6 +299,32 @@ describe('platforms form request mapping', () => {
     expect(sameUpdatePlatformRequest(edited, saved)).toBe(false);
   });
 
+  it('sameUpdatePlatformRequest_CategoryOrderChangeComparesDirty', () => {
+    const saved = toUpdatePlatformRequest(
+      validModel({ type: 'WordPress', wordPressCategoryIds: [12, 34] }),
+    );
+    const edited = toUpdatePlatformRequest(
+      validModel({ type: 'WordPress', wordPressCategoryIds: [34, 12] }),
+    );
+
+    expect(sameUpdatePlatformRequest(edited, saved)).toBe(false);
+  });
+
+  it('sameUpdatePlatformRequest_CategoryAddOrRemoveComparesDirty', () => {
+    const saved = toUpdatePlatformRequest(
+      validModel({ type: 'WordPress', wordPressCategoryIds: [12] }),
+    );
+    const added = toUpdatePlatformRequest(
+      validModel({ type: 'WordPress', wordPressCategoryIds: [12, 34] }),
+    );
+    const removed = toUpdatePlatformRequest(
+      validModel({ type: 'WordPress', wordPressCategoryIds: [] }),
+    );
+
+    expect(sameUpdatePlatformRequest(added, saved)).toBe(false);
+    expect(sameUpdatePlatformRequest(removed, saved)).toBe(false);
+  });
+
   it('sameUpdatePlatformRequest_ScheduledOffsetChangeComparesDirty', () => {
     const saved = toUpdatePlatformRequest(
       validModel({
@@ -390,6 +452,7 @@ describe('platforms form request mapping', () => {
           siteUrl: 'https://blog.example.test/',
           username: 'publisher',
           postStatus: 'publish',
+          categoryIds: [34, 12],
           applicationPasswordConfigured: true,
           passwordDisplayValue: '*******',
         },
@@ -403,11 +466,32 @@ describe('platforms form request mapping', () => {
       wordPressUsername: 'publisher',
       wordPressApplicationPassword: '',
       wordPressPostStatus: 'publish',
+      wordPressCategoryIds: [34, 12],
       wordPressSticky: false,
       wordPressScheduleOffsetHours: '',
       wordPressApplicationPasswordConfigured: 'true',
       wordPressPasswordDisplayValue: '*******',
     });
+  });
+
+  it('copies response category IDs and restores them from the saved platform baseline', () => {
+    const categoryIds = [34, 12];
+    const saved = platform({
+      type: 'WordPress',
+      publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'draft',
+        categoryIds,
+      },
+    });
+
+    const editedModel = toPlatformFormModel(saved);
+    editedModel.wordPressCategoryIds.splice(0, 1);
+    const restoredModel = toPlatformFormModel(saved);
+    categoryIds[0] = 99;
+
+    expect(restoredModel.wordPressCategoryIds).toEqual([34, 12]);
   });
 
   it('restores Scheduled response settings into the form', () => {
@@ -418,6 +502,7 @@ describe('platforms form request mapping', () => {
           siteUrl: 'https://blog.example.test/',
           username: 'publisher',
           postStatus: 'future',
+          categoryIds: [12, 34],
           sticky: true,
           scheduleOffsetHours: 24,
           applicationPasswordConfigured: true,
@@ -428,6 +513,7 @@ describe('platforms form request mapping', () => {
 
     expect(model).toMatchObject({
       wordPressPostStatus: 'future',
+      wordPressCategoryIds: [12, 34],
       wordPressSticky: true,
       wordPressScheduleOffsetHours: '24',
       wordPressApplicationPassword: '',
@@ -455,6 +541,7 @@ describe('platforms form request mapping', () => {
       wordPressUsername: '',
       wordPressApplicationPassword: '',
       wordPressPostStatus: 'draft',
+      wordPressCategoryIds: [],
       wordPressSticky: false,
       wordPressScheduleOffsetHours: '',
       wordPressApplicationPasswordConfigured: 'false',

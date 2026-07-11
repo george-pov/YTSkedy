@@ -47,6 +47,7 @@ internal static class PublishSettingsMapper
             wordPress.PostStatus,
             wordPress.Sticky,
             wordPress.ScheduleOffsetHours,
+            wordPress.CategoryIds.ToArray(),
             applicationPasswordConfigured,
             applicationPasswordConfigured
                 ? RedactSecret(
@@ -272,6 +273,18 @@ internal static class PublishSettingsMapper
             return false;
         }
 
+        if (payload.CategoryIds is null)
+        {
+            error = MissingWordPressCategoryIdsResult();
+            return false;
+        }
+
+        if (!WordPressSettings.AreValidCategoryIds(payload.CategoryIds))
+        {
+            error = InvalidWordPressCategoryIdsResult();
+            return false;
+        }
+
         var scheduleOffsetValidation = WordPressSettings.ValidateScheduleOffsetHours(
             payload.PostStatus,
             payload.ScheduleOffsetHours);
@@ -286,6 +299,7 @@ internal static class PublishSettingsMapper
             payload.Username!,
             applicationPassword,
             payload.PostStatus!,
+            payload.CategoryIds,
             payload.Sticky ?? false,
             payload.ScheduleOffsetHours);
         return true;
@@ -356,6 +370,13 @@ internal static class PublishSettingsMapper
     private static IActionResult InvalidWordPressPostStatusResult() =>
         new BadRequestObjectResult(
             "Publish settings post status must be 'draft', 'pending', 'private', 'future', or 'publish'.");
+
+    private static IActionResult MissingWordPressCategoryIdsResult() =>
+        new BadRequestObjectResult("Publish settings categoryIds are required.");
+
+    private static IActionResult InvalidWordPressCategoryIdsResult() =>
+        new BadRequestObjectResult(
+            "Publish settings categoryIds must contain distinct positive integers.");
 
     private static IActionResult ScheduleOffsetHoursResult(
         WordPressScheduleOffsetValidationResult validation) =>

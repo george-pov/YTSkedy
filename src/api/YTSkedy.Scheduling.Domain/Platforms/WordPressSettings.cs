@@ -20,6 +20,7 @@ public sealed record WordPressSettings : PublishSettings
         string username,
         string applicationPassword,
         string postStatus,
+        IReadOnlyList<long> categoryIds,
         bool sticky = false,
         int? scheduleOffsetHours = null)
     {
@@ -51,6 +52,13 @@ public sealed record WordPressSettings : PublishSettings
                 nameof(postStatus));
         }
 
+        if (!AreValidCategoryIds(categoryIds))
+        {
+            throw new ArgumentException(
+                "Category IDs must contain distinct positive integers.",
+                nameof(categoryIds));
+        }
+
         switch (ValidateScheduleOffsetHours(postStatus, scheduleOffsetHours))
         {
             case WordPressScheduleOffsetValidationResult.Valid:
@@ -77,6 +85,7 @@ public sealed record WordPressSettings : PublishSettings
         Username = username;
         ApplicationPassword = applicationPassword;
         PostStatus = postStatus;
+        CategoryIds = categoryIds.ToArray();
         Sticky = sticky;
         ScheduleOffsetHours = scheduleOffsetHours;
     }
@@ -88,6 +97,8 @@ public sealed record WordPressSettings : PublishSettings
     public string ApplicationPassword { get; }
 
     public string PostStatus { get; }
+
+    public IReadOnlyList<long> CategoryIds { get; }
 
     public bool Sticky { get; }
 
@@ -127,6 +138,17 @@ public sealed record WordPressSettings : PublishSettings
     public static bool IsValidPostStatus(string? postStatus) =>
         postStatus is not null &&
         AllowedPostStatuses.Contains(postStatus, StringComparer.Ordinal);
+
+    public static bool AreValidCategoryIds(IReadOnlyList<long>? categoryIds)
+    {
+        if (categoryIds is null)
+        {
+            return false;
+        }
+
+        var seen = new HashSet<long>();
+        return categoryIds.All(categoryId => categoryId > 0 && seen.Add(categoryId));
+    }
 
     public static bool RequiresScheduleOffsetHours(string? postStatus) =>
         string.Equals(postStatus, ScheduledPostStatus, StringComparison.Ordinal);

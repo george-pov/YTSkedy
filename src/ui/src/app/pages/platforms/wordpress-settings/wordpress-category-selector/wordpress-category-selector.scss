@@ -1,0 +1,16 @@
+@use 'src/styles/variables' as *;
+
+.guidance,
+.status,
+.error {
+  margin: 0;
+}
+
+.guidance,
+.status {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.error {
+  color: var(--mat-sys-error);
+}

@@ -12,12 +12,14 @@ public class WordPressSettingsTests
             "editor",
             "application-password",
             "draft",
+            [12, 34],
             sticky: true);
 
         Assert.Equal("https://example.com/blog", settings.SiteUrl);
         Assert.Equal("editor", settings.Username);
         Assert.Equal("application-password", settings.ApplicationPassword);
         Assert.Equal("draft", settings.PostStatus);
+        Assert.Equal([12, 34], settings.CategoryIds);
         Assert.True(settings.Sticky);
         Assert.Null(settings.ScheduleOffsetHours);
     }
@@ -34,7 +36,7 @@ public class WordPressSettingsTests
     public void Constructor_InvalidSiteUrl_Throws(string? siteUrl)
     {
         Assert.Throws<ArgumentException>(
-            () => new WordPressSettings(siteUrl!, "editor", "password", "publish"));
+            () => new WordPressSettings(siteUrl!, "editor", "password", "publish", []));
     }
 
     [Theory]
@@ -48,7 +50,8 @@ public class WordPressSettingsTests
                 "https://example.com",
                 username!,
                 "password",
-                "publish"));
+                "publish",
+                []));
     }
 
     [Theory]
@@ -62,7 +65,8 @@ public class WordPressSettingsTests
                 "https://example.com",
                 "editor",
                 applicationPassword!,
-                "publish"));
+                "publish",
+                []));
     }
 
     [Theory]
@@ -76,7 +80,8 @@ public class WordPressSettingsTests
                 "https://example.com",
                 "editor",
                 "password",
-                postStatus));
+                postStatus,
+                []));
     }
 
     [Theory]
@@ -91,6 +96,7 @@ public class WordPressSettingsTests
             "editor",
             "password",
             WordPressSettings.ScheduledPostStatus,
+            [],
             scheduleOffsetHours: scheduleOffsetHours);
 
         Assert.Equal(WordPressSettings.ScheduledPostStatus, settings.PostStatus);
@@ -105,7 +111,8 @@ public class WordPressSettingsTests
                 "https://example.com",
                 "editor",
                 "password",
-                WordPressSettings.ScheduledPostStatus));
+                WordPressSettings.ScheduledPostStatus,
+                []));
     }
 
     [Theory]
@@ -120,6 +127,7 @@ public class WordPressSettingsTests
                 "editor",
                 "password",
                 WordPressSettings.ScheduledPostStatus,
+                [],
                 scheduleOffsetHours: scheduleOffsetHours));
     }
 
@@ -157,7 +165,91 @@ public class WordPressSettingsTests
                 "editor",
                 "password",
                 "draft",
+                [],
                 scheduleOffsetHours: 2));
+    }
+
+    [Fact]
+    public void Constructor_EmptyCategoryIds_SetsEmptyCollection()
+    {
+        var settings = new WordPressSettings(
+            "https://example.com",
+            "editor",
+            "password",
+            "draft",
+            []);
+
+        Assert.Empty(settings.CategoryIds);
+    }
+
+    [Fact]
+    public void Constructor_CategoryIds_PreservesOrderAndCopiesInput()
+    {
+        long[] categoryIds = [34, 12];
+
+        var settings = new WordPressSettings(
+            "https://example.com",
+            "editor",
+            "password",
+            "draft",
+            categoryIds);
+        categoryIds[0] = 99;
+
+        Assert.Equal([34, 12], settings.CategoryIds);
+    }
+
+    [Fact]
+    public void Constructor_NullCategoryIds_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => new WordPressSettings(
+            "https://example.com",
+            "editor",
+            "password",
+            "draft",
+            null!));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Constructor_NonPositiveCategoryId_Throws(long categoryId)
+    {
+        Assert.Throws<ArgumentException>(() => new WordPressSettings(
+            "https://example.com",
+            "editor",
+            "password",
+            "draft",
+            [categoryId]));
+    }
+
+    [Fact]
+    public void Constructor_DuplicateCategoryIds_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => new WordPressSettings(
+            "https://example.com",
+            "editor",
+            "password",
+            "draft",
+            [12, 12]));
+    }
+
+    [Theory]
+    [InlineData(true, new long[] { })]
+    [InlineData(true, new long[] { 12, 34 })]
+    [InlineData(false, new long[] { 0 })]
+    [InlineData(false, new long[] { -1 })]
+    [InlineData(false, new long[] { 12, 12 })]
+    public void AreValidCategoryIds_Values_ReturnsExpected(
+        bool expected,
+        long[] categoryIds)
+    {
+        Assert.Equal(expected, WordPressSettings.AreValidCategoryIds(categoryIds));
+    }
+
+    [Fact]
+    public void AreValidCategoryIds_Null_ReturnsFalse()
+    {
+        Assert.False(WordPressSettings.AreValidCategoryIds(null));
     }
 
     [Theory]

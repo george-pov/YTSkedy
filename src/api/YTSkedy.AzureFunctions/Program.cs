@@ -23,6 +23,7 @@ using YTSkedy.Scheduling.Application.Platforms.Content;
 using YTSkedy.Scheduling.Application.Platforms.Providers;
 using YTSkedy.Scheduling.Application.Platforms.PublicationThumbnails;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
+using YTSkedy.Scheduling.Application.Platforms.WordPressCategory;
 using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Application.Templates;
 
@@ -247,6 +248,7 @@ builder.Services.AddScoped<GetPlatformHandler>();
 builder.Services.AddScoped<CreatePlatformHandler>();
 builder.Services.AddScoped<UpdatePlatformHandler>();
 builder.Services.AddScoped<DeletePlatformHandler>();
+builder.Services.AddScoped<CategoryListHandler>();
 builder.Services.AddScoped<PublishingContentRenderer>();
 builder.Services.AddScoped<GetPublishingContentHandler>();
 builder.Services.AddScoped(serviceProvider =>
@@ -315,6 +317,13 @@ builder.Services.AddSingleton(serviceProvider =>
         serviceProvider.GetRequiredService<ILogger<WordPressPublisher>>()));
 builder.Services.AddSingleton<IPlatformPublisher>(
     serviceProvider => serviceProvider.GetRequiredService<WordPressPublisher>());
+builder.Services.AddSingleton(serviceProvider =>
+    new WordPressCategoryReader(
+        serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(wordPressHttpClientName),
+        serviceProvider.GetRequiredService<WordPressEndpointResolver>(),
+        serviceProvider.GetRequiredService<ILogger<WordPressCategoryReader>>()));
+builder.Services.AddSingleton<ICategoryReader>(
+    serviceProvider => serviceProvider.GetRequiredService<WordPressCategoryReader>());
 builder.Services.AddSingleton(serviceProvider =>
     new WordPressPublicationDeleter(
         serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(wordPressHttpClientName),

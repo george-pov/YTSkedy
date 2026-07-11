@@ -238,8 +238,10 @@ than duplicated in documentation.
     `credentials.clientSecret`, `credentials.refreshToken`, `privacyStatus`,
     and `selfDeclaredMadeForKids` so the provider can publish at request time.
   - For WordPress rows, `PublishSettingsJson` is secret-bearing. It stores
-    `siteUrl`, `username`, `applicationPassword`, `postStatus`, `sticky`, and
-    `scheduleOffsetHours` so the provider can publish at request time.
+    `siteUrl`, `username`, `applicationPassword`, `postStatus`, `sticky`,
+    `scheduleOffsetHours`, and the ordered `categoryIds` array so the provider
+    can publish at request time. `categoryIds` is required and may be empty;
+    rows using the previous WordPress JSON shape without it are not supported.
   - HTTP responses must project platform settings through redacted response
     DTOs. YouTube responses return configured flags and redacted display values,
     not `clientSecret` or `refreshToken`. WordPress responses return
@@ -312,8 +314,8 @@ one platform.
   site URL. WordPress snapshots store only the site URL as cleanup target
   identity. They must omit publish-shape fields, secrets, and response-only
   display values such as `username`, `postStatus`, `sticky`,
-  `scheduleOffsetHours`, refresh tokens, client secrets, Application Passwords,
-  and `passwordDisplayValue`.
+  `scheduleOffsetHours`, `categoryIds`, refresh tokens, client secrets,
+  Application Passwords, and `passwordDisplayValue`.
 - Calendar event ids reach the partition filter from the request route, so the
   partition literal is escaped (single quotes doubled) as defense in depth.
 

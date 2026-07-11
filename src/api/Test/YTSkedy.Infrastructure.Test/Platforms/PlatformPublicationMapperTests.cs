@@ -153,6 +153,7 @@ public class PlatformPublicationMapperTests
                 "editor",
                 "application-password",
                 WordPressSettings.ScheduledPostStatus,
+                [12, 34],
                 sticky: true,
                 scheduleOffsetHours: 25),
             new ContentSnapshot("Rendered title", null));
@@ -168,6 +169,7 @@ public class PlatformPublicationMapperTests
         Assert.DoesNotContain("postStatus", entity.PublishSettingsJson);
         Assert.DoesNotContain("sticky", entity.PublishSettingsJson);
         Assert.DoesNotContain("scheduleOffsetHours", entity.PublishSettingsJson);
+        Assert.DoesNotContain("categoryIds", entity.PublishSettingsJson);
         Assert.DoesNotContain("applicationPassword", entity.PublishSettingsJson);
         Assert.DoesNotContain("passwordDisplayValue", entity.PublishSettingsJson);
         Assert.DoesNotContain("application-password", entity.PublishSettingsJson);

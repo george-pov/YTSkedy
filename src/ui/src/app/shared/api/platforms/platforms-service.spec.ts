@@ -80,6 +80,7 @@ describe('PlatformsService', () => {
             siteUrl: 'https://blog.example.test/',
             username: 'publisher',
             postStatus: 'future',
+            categoryIds: [12, 34],
             sticky: true,
             scheduleOffsetHours: 24,
             applicationPasswordConfigured: true,
@@ -126,6 +127,7 @@ describe('PlatformsService', () => {
             siteUrl: 'https://blog.example.test/',
             username: 'publisher',
             postStatus: 'future',
+            categoryIds: [12, 34],
             sticky: true,
             scheduleOffsetHours: 24,
             applicationPasswordConfigured: true,
@@ -150,6 +152,72 @@ describe('PlatformsService', () => {
     expect(request.request.method).toBe('GET');
 
     request.flush({ items: [] });
+  });
+
+  it('lists WordPress categories from the encoded platform route without query values', async () => {
+    const responsePromise = firstValueFrom(service.listWordPressCategories('wp platform/1', {}));
+
+    const request = http.expectOne(
+      'https://api.example.test/api/platforms/wp%20platform%2F1/wordpress/categories',
+    );
+
+    expect(request.request.method).toBe('GET');
+    request.flush({ items: [], page: 1, pageSize: 25, total: 0, totalPages: 0 });
+
+    await expect(responsePromise).resolves.toEqual({
+      items: [],
+      page: 1,
+      pageSize: 25,
+      total: 0,
+      totalPages: 0,
+    });
+  });
+
+  it('lists WordPress categories with search and paging values', async () => {
+    const responsePromise = firstValueFrom(
+      service.listWordPressCategories('wp-platform', {
+        search: 'live events',
+        page: 2,
+        pageSize: 25,
+      }),
+    );
+
+    const request = http.expectOne(
+      (candidate) =>
+        candidate.url ===
+          'https://api.example.test/api/platforms/wp-platform/wordpress/categories' &&
+        candidate.params.get('search') === 'live events' &&
+        candidate.params.get('page') === '2' &&
+        candidate.params.get('pageSize') === '25',
+    );
+    request.flush({
+      items: [{ id: 12, name: 'Events', slug: 'events' }],
+      page: 2,
+      pageSize: 25,
+      total: 26,
+      totalPages: 2,
+    });
+
+    await expect(responsePromise).resolves.toEqual({
+      items: [{ id: 12, name: 'Events', slug: 'events' }],
+      page: 2,
+      pageSize: 25,
+      total: 26,
+      totalPages: 2,
+    });
+  });
+
+  it('lists selected WordPress categories with ordered include IDs', () => {
+    service
+      .listWordPressCategories('wp-platform', { includeIds: [34, 12], pageSize: 100 })
+      .subscribe();
+
+    const request = http.expectOne(
+      'https://api.example.test/api/platforms/wp-platform/wordpress/categories?includeIds=34,12&pageSize=100',
+    );
+
+    expect(request.request.method).toBe('GET');
+    request.flush({ items: [], page: 1, pageSize: 100, total: 0, totalPages: 0 });
   });
 
   it('maps a missing API reference key to null', async () => {
@@ -262,6 +330,7 @@ describe('PlatformsService', () => {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
         postStatus: 'future',
+        categoryIds: [12, 34],
         sticky: true,
         scheduleOffsetHours: 24,
         applicationPassword: 'local-test-password',
@@ -288,6 +357,7 @@ describe('PlatformsService', () => {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
         postStatus: 'future',
+        categoryIds: [12, 34],
         sticky: true,
         scheduleOffsetHours: 24,
         applicationPasswordConfigured: true,
@@ -308,6 +378,7 @@ describe('PlatformsService', () => {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
         postStatus: 'future',
+        categoryIds: [12, 34],
         sticky: true,
         scheduleOffsetHours: 24,
         applicationPasswordConfigured: true,
@@ -458,6 +529,7 @@ describe('PlatformsService', () => {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
         postStatus: 'future',
+        categoryIds: [12, 34],
         sticky: true,
         scheduleOffsetHours: 24,
       },
@@ -484,6 +556,7 @@ describe('PlatformsService', () => {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
         postStatus: 'future',
+        categoryIds: [12, 34],
         sticky: true,
         scheduleOffsetHours: 24,
         applicationPasswordConfigured: true,
@@ -501,6 +574,7 @@ describe('PlatformsService', () => {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
         postStatus: 'future',
+        categoryIds: [12, 34],
         sticky: true,
         scheduleOffsetHours: 24,
         applicationPasswordConfigured: true,

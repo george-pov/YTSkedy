@@ -20,6 +20,7 @@ public sealed class PlatformJsonContractTests
             "company-blog",
             WordPressSettings(
                 postStatus: DomainWordPressSettings.ScheduledPostStatus,
+                categoryIds: [12, 34],
                 sticky: true,
                 scheduleOffsetHours: 25),
             RequiredPublishingContent());
@@ -38,6 +39,12 @@ public sealed class PlatformJsonContractTests
         Assert.Equal(
             25,
             document.RootElement.GetProperty("publishSettings").GetProperty("scheduleOffsetHours").GetInt32());
+        Assert.Equal(
+            [12, 34],
+            document.RootElement.GetProperty("publishSettings")
+                .GetProperty("categoryIds")
+                .EnumerateArray()
+                .Select(item => item.GetInt64()));
         Assert.DoesNotContain("applicationPassword\":\"", json);
         Assert.DoesNotContain("application-password", json);
     }

@@ -71,6 +71,30 @@ public sealed class AzurePlatformRepositoryTests
     }
 
     [Fact]
+    public async Task CreateAsync_WordPressCategoryIds_ReadAndListPreserveOrder()
+    {
+        var tableClient = new PlatformTableClient();
+        var repository = CreateRepository(tableClient);
+        var platform = new Platform(
+            "Main WordPress site",
+            PlatformType.WordPress,
+            SchedulingSamples.WordPressSettings(categoryIds: [34, 12]),
+            SchedulingSamples.PublishingContent());
+
+        var result = await repository.CreateAsync(platform, CancellationToken.None);
+        var read = await repository.GetAsync(result.PlatformId!, CancellationToken.None);
+        var listed = await repository.ListAsync(PlatformType.WordPress, CancellationToken.None);
+
+        Assert.Equal(CreatePlatformStatus.Created, result.Status);
+        Assert.Equal(
+            [34, 12],
+            Assert.IsType<WordPressSettings>(read!.PublishSettings).CategoryIds);
+        Assert.Equal(
+            [34, 12],
+            Assert.IsType<WordPressSettings>(Assert.Single(listed).PublishSettings).CategoryIds);
+    }
+
+    [Fact]
     public async Task ListIdsAsync_PlatformRows_ReturnsOrdinalSetUsingIdOnlySelection()
     {
         var tableClient = new PlatformTableClient();

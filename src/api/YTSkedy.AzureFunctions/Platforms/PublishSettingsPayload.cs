@@ -15,7 +15,8 @@ internal sealed record PublishSettingsPayload(
     string? ApplicationPassword,
     string? PostStatus,
     bool? Sticky = null,
-    int? ScheduleOffsetHours = null);
+    int? ScheduleOffsetHours = null,
+    IReadOnlyList<long>? CategoryIds = null);
 
 internal sealed record YouTubeCredentialsPayload(
     string? ClientId,

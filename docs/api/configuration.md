@@ -117,6 +117,7 @@ enter WordPress connection details through platform create or update requests:
 | `publishSettings.postStatus` | Non-secret | Initial WordPress post status: `draft`, `pending`, `private`, `future`, or `publish`. |
 | `publishSettings.sticky` | Non-secret | Whether WordPress treats the created post as sticky. |
 | `publishSettings.scheduleOffsetHours` | Non-secret | Hour offset from `1` through `168` used only when `postStatus` is `future`; the provider `date_gmt` is computed from the calendar event scheduled start minus this offset. |
+| `publishSettings.categoryIds` | Non-secret | Required ordered array of existing WordPress category term IDs. `[]` selects normal site default behavior. |
 
 `applicationPassword` is accepted on platform create and update but is never
 returned by platform reads. Responses return `applicationPasswordConfigured`
@@ -140,9 +141,17 @@ This is a first-slice integration with deliberate limitations:
   `PublishSettingsJson` so the provider can publish at request time. An app-managed
   secret store is not part of the current implementation.
 - The publish request sends the rendered title, optional rendered description,
-  configured WordPress status, sticky flag, and conditional scheduled
-  `date_gmt`. Categories, tags, excerpts, slugs, and featured media are out of
-  scope for this slice.
+  configured WordPress status, sticky flag, conditional scheduled `date_gmt`,
+  and every configured category ID. When `categoryIds` is `[]`, the backend
+  omits the WordPress `categories` property so the site applies its normal
+  default-category behavior. WordPress may accept a stale positive ID and drop
+  it rather than rejecting the post, so operators must inspect the created
+  post when verifying category assignment.
+- Category lookup reuses the saved site URL and credentials through the backend.
+  It adds no API host configuration key and exposes no WordPress credential to
+  browser runtime configuration.
+- Category creation, tags, custom taxonomies, excerpts, slugs, and featured
+  media are not part of the current integration.
 
 ## CORS
 

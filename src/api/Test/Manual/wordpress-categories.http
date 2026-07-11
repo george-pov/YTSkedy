@@ -1,0 +1,84 @@
+@apiBaseUrl = http://localhost:7071
+@bearerToken = replace-with-local-bearer-token
+@wordpressPlatformId = replace-with-local-wordpress-platform-id
+@calendarEventId = replace-with-local-calendar-event-id
+@categoryId1 = 0
+@categoryId2 = 0
+
+### Read the saved platform used by both update requests
+# @name getWordPressPlatform
+GET {{apiBaseUrl}}/api/platforms/{{wordpressPlatformId}}
+Authorization: Bearer {{bearerToken}}
+
+### Category first page
+# @name categoryFirstPage
+GET {{apiBaseUrl}}/api/platforms/{{wordpressPlatformId}}/wordpress/categories?page=1&pageSize=25
+Authorization: Bearer {{bearerToken}}
+
+### Category search
+# @name categorySearch
+GET {{apiBaseUrl}}/api/platforms/{{wordpressPlatformId}}/wordpress/categories?search=events&page=1&pageSize=25
+Authorization: Bearer {{bearerToken}}
+
+### Include selected category IDs
+# @name categoryIncludeIds
+GET {{apiBaseUrl}}/api/platforms/{{wordpressPlatformId}}/wordpress/categories?includeIds={{categoryId1}},{{categoryId2}}&page=1&pageSize=100
+Authorization: Bearer {{bearerToken}}
+
+### Update the platform with two selected category IDs
+# @name updatePlatformWithCategories
+PUT {{apiBaseUrl}}/api/platforms/{{wordpressPlatformId}}
+Authorization: Bearer {{bearerToken}}
+Content-Type: application/json
+
+{
+  "name": "{{getWordPressPlatform.response.body.$.name}}",
+  "referenceKey": {{getWordPressPlatform.response.body.$.referenceKey}},
+  "publishingContent": {
+    "titleTemplateId": "{{getWordPressPlatform.response.body.$.publishingContent.titleTemplateId}}",
+    "descriptionTemplateId": "{{getWordPressPlatform.response.body.$.publishingContent.descriptionTemplateId}}"
+  },
+  "publishSettings": {
+    "siteUrl": "{{getWordPressPlatform.response.body.$.publishSettings.siteUrl}}",
+    "username": "{{getWordPressPlatform.response.body.$.publishSettings.username}}",
+    "applicationPassword": "",
+    "postStatus": "{{getWordPressPlatform.response.body.$.publishSettings.postStatus}}",
+    "sticky": {{getWordPressPlatform.response.body.$.publishSettings.sticky}},
+    "scheduleOffsetHours": {{getWordPressPlatform.response.body.$.publishSettings.scheduleOffsetHours}},
+    "categoryIds": [{{categoryId1}}, {{categoryId2}}]
+  }
+}
+
+### Publish with two selected categories
+# @name publishWithCategories
+POST {{apiBaseUrl}}/api/calendar-events/{{calendarEventId}}/platforms/{{wordpressPlatformId}}/publish
+Authorization: Bearer {{bearerToken}}
+
+### Clear the platform category selection
+# @name updatePlatformWithoutCategories
+PUT {{apiBaseUrl}}/api/platforms/{{wordpressPlatformId}}
+Authorization: Bearer {{bearerToken}}
+Content-Type: application/json
+
+{
+  "name": "{{getWordPressPlatform.response.body.$.name}}",
+  "referenceKey": {{getWordPressPlatform.response.body.$.referenceKey}},
+  "publishingContent": {
+    "titleTemplateId": "{{getWordPressPlatform.response.body.$.publishingContent.titleTemplateId}}",
+    "descriptionTemplateId": "{{getWordPressPlatform.response.body.$.publishingContent.descriptionTemplateId}}"
+  },
+  "publishSettings": {
+    "siteUrl": "{{getWordPressPlatform.response.body.$.publishSettings.siteUrl}}",
+    "username": "{{getWordPressPlatform.response.body.$.publishSettings.username}}",
+    "applicationPassword": "",
+    "postStatus": "{{getWordPressPlatform.response.body.$.publishSettings.postStatus}}",
+    "sticky": {{getWordPressPlatform.response.body.$.publishSettings.sticky}},
+    "scheduleOffsetHours": {{getWordPressPlatform.response.body.$.publishSettings.scheduleOffsetHours}},
+    "categoryIds": []
+  }
+}
+
+### Publish a different event after changing calendarEventId above
+# @name publishWithDefaultCategory
+POST {{apiBaseUrl}}/api/calendar-events/{{calendarEventId}}/platforms/{{wordpressPlatformId}}/publish
+Authorization: Bearer {{bearerToken}}

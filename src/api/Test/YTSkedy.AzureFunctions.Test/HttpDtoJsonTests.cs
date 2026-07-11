@@ -154,7 +154,8 @@ public sealed class HttpDtoJsonTests
                 "applicationPassword": "application-password",
                 "postStatus": "future",
                 "sticky": true,
-                "scheduleOffsetHours": 25
+                "scheduleOffsetHours": 25,
+                "categoryIds": [12, 34]
               }
             }
             """;
@@ -174,6 +175,7 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("future", request.PublishSettings.PostStatus);
         Assert.True(request.PublishSettings.Sticky);
         Assert.Equal(25, request.PublishSettings.ScheduleOffsetHours);
+        Assert.Equal([12, 34], request.PublishSettings.CategoryIds);
     }
 
     [Fact]
@@ -296,6 +298,7 @@ public sealed class HttpDtoJsonTests
                 "editor",
                 "local-test-password",
                 WordPressSettings.ScheduledPostStatus,
+                [12, 34],
                 sticky: true,
                 scheduleOffsetHours: 25),
             new PublishingContent(
@@ -318,6 +321,9 @@ public sealed class HttpDtoJsonTests
         Assert.Equal(WordPressSettings.ScheduledPostStatus, settings.GetProperty("postStatus").GetString());
         Assert.True(settings.GetProperty("sticky").GetBoolean());
         Assert.Equal(25, settings.GetProperty("scheduleOffsetHours").GetInt32());
+        Assert.Equal(
+            [12, 34],
+            settings.GetProperty("categoryIds").EnumerateArray().Select(item => item.GetInt64()));
         Assert.True(settings.GetProperty("applicationPasswordConfigured").GetBoolean());
         Assert.Equal("*******", settings.GetProperty("passwordDisplayValue").GetString());
         Assert.DoesNotContain("applicationPassword\":\"", json);

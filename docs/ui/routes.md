@@ -156,6 +156,22 @@ redacted display strings may appear in blank replacement inputs but are never
 copied into save requests. A typed replacement is visible while focused and
 masked again on blur.
 
+WordPress settings include an ordered category selection. New WordPress
+platforms send `categoryIds: []` and show save-first guidance because lookup
+uses stored platform credentials. After the first save, the operator searches
+existing categories through the protected
+[platform contract](../api/http/platforms.md), selects or removes category
+chips, and saves again. The form stores IDs only. Category names, search
+results, paging, loading, and inline provider errors remain transient selector
+state and do not affect normalized dirty comparison.
+
+Saved IDs are resolved in pages when the editor opens. If lookup fails or a
+category no longer exists, the selector keeps a `Category #{id}` fallback so
+the ID remains visible and removable. Save and Cancel preserve or restore the
+ordered ID array through the same normalized request baseline as other platform
+settings. Category lookup never receives the WordPress username or Application
+Password from browser code.
+
 Save is disabled when the normalized request matches the saved baseline. Route
 exit, row selection, Add Platform, Cancel, and dirty delete ask before
 discarding edits. Load, save, delete, duplicate-name, and duplicate-reference-key
@@ -182,6 +198,12 @@ the same page-owned dirty state through `pendingChangesGuard`.
 `/component-lab` is a public manual demonstration surface for shared UI
 components. It is not a production workflow or an alternative owner for shared
 component documentation.
+
+The lab includes interactive Basic and Disabled examples for the shared
+`app-chip-list`. That component owns Material chip and autocomplete
+presentation, controlled generic string-valued items, and accessible selection
+and removal interactions. Provider lookup, paging, loading, errors, and numeric
+category-ID mapping remain outside the shared component.
 
 ## Route Protection And Ownership
 

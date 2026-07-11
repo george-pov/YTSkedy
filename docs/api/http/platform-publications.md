@@ -134,6 +134,11 @@ optional rendered description to `content`, and the platform's `postStatus` to
 `postStatus` is `future`, it computes `date_gmt` by subtracting
 `scheduleOffsetHours` from the calendar event's `scheduledStartUtc`; the
 offset must be from `1` through `168`. Other statuses omit `date_gmt`. The
+platform's non-empty `categoryIds` array maps to the WordPress `categories`
+property in submitted order. When the array is empty, the backend omits
+`categories`, allowing WordPress to apply its normal default-category behavior.
+WordPress can accept a stale positive ID while silently dropping that category,
+so a successful create status alone does not prove category assignment. The
 numeric WordPress post id is returned as the provider-neutral
 `externalResourceId`. A local `Published` row means the provider resource was
 created; YTSkedy does not track the later WordPress transition from `future` to

@@ -28,6 +28,7 @@ public sealed class EndpointScopeTests
         new(typeof(PlatformsApi), nameof(PlatformsApi.CreatePlatformAsync), "CreatePlatform", "CalendarEvents.Write"),
         new(typeof(PlatformsApi), nameof(PlatformsApi.UpdatePlatformAsync), "UpdatePlatform", "CalendarEvents.Write"),
         new(typeof(PlatformsApi), nameof(PlatformsApi.DeletePlatformAsync), "DeletePlatform", "CalendarEvents.Write"),
+        new(typeof(WordPressCategoryApi), nameof(WordPressCategoryApi.ListAsync), "ListWordPressCategories", "CalendarEvents.Write"),
         new(typeof(TemplatesApi), nameof(TemplatesApi.ListTemplatesAsync), "ListTemplates", "CalendarEvents.Read"),
         new(typeof(TemplatesApi), nameof(TemplatesApi.CreateTemplateAsync), "CreateTemplate", "CalendarEvents.Write"),
         new(typeof(TemplatesApi), nameof(TemplatesApi.UpdateTemplateAsync), "UpdateTemplate", "CalendarEvents.Write"),

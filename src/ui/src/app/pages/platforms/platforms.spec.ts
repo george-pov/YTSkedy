@@ -13,6 +13,8 @@ import {
   PlatformsService,
   UpdatePlatformRequest,
   UpdatePlatformResponse,
+  WordPressCategoryListResponse,
+  WordPressCategoryQuery,
 } from 'src/app/shared/api/platforms/platforms-service';
 import {
   TemplateListResponse,
@@ -43,6 +45,12 @@ describe('Platforms', () => {
         request: UpdatePlatformRequest,
       ) => Observable<UpdatePlatformResponse>
     >;
+    listWordPressCategories: Mock<
+      (
+        platformId: string,
+        query: WordPressCategoryQuery,
+      ) => Observable<WordPressCategoryListResponse>
+    >;
     delete: Mock<(type: Platform['type'], id: string) => Observable<void>>;
   };
   let templatesService: {
@@ -56,8 +64,12 @@ describe('Platforms', () => {
       list: vi.fn<() => Observable<PlatformListResponse>>(),
       create: vi.fn(),
       update: vi.fn(),
+      listWordPressCategories: vi.fn(),
       delete: vi.fn(),
     };
+    service.listWordPressCategories.mockReturnValue(
+      of({ items: [], page: 1, pageSize: 25, total: 0, totalPages: 0 }),
+    );
     templatesService = {
       list: vi.fn<(type?: Platform['type']) => Observable<TemplateListResponse>>(),
     };
@@ -105,6 +117,7 @@ describe('Platforms', () => {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
         postStatus: 'draft',
+        categoryIds: [],
         sticky: false,
         applicationPasswordConfigured: true,
         passwordDisplayValue: '*******',
@@ -152,6 +165,7 @@ describe('Platforms', () => {
       wordPressUsername: '',
       wordPressApplicationPassword: '',
       wordPressPostStatus: 'draft',
+      wordPressCategoryIds: [],
       wordPressSticky: false,
       wordPressScheduleOffsetHours: '',
       wordPressApplicationPasswordConfigured: 'false',
@@ -519,6 +533,7 @@ describe('Platforms', () => {
               siteUrl: 'https://blog.example.test/',
               username: 'publisher',
               postStatus: 'future',
+              categoryIds: [],
               sticky: true,
               scheduleOffsetHours: 24,
               applicationPasswordConfigured: true,
@@ -643,6 +658,7 @@ describe('Platforms', () => {
           siteUrl: 'https://blog.example.test/',
           username: 'publisher',
           postStatus: 'future',
+          categoryIds: [],
           sticky: true,
           scheduleOffsetHours: 24,
           applicationPasswordConfigured: true,
@@ -680,6 +696,7 @@ describe('Platforms', () => {
       wordPressUsername: ' publisher ',
       wordPressApplicationPassword: 'local-test-password',
       wordPressPostStatus: 'future',
+      wordPressCategoryIds: [],
       wordPressSticky: true,
       wordPressScheduleOffsetHours: '24',
       wordPressApplicationPasswordConfigured: 'false',
@@ -697,6 +714,7 @@ describe('Platforms', () => {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
         postStatus: 'future',
+        categoryIds: [],
         sticky: true,
         scheduleOffsetHours: 24,
         applicationPassword: 'local-test-password',
@@ -707,6 +725,10 @@ describe('Platforms', () => {
       },
     });
     expect(rows()).toHaveLength(1);
+    expect(fixture.nativeElement.textContent).not.toContain(
+      'Save the WordPress platform before choosing categories.',
+    );
+    expect(fixture.nativeElement.querySelector('app-chip-list')).not.toBeNull();
   });
 
   it('requires Hours before event start for Scheduled WordPress settings', async () => {
@@ -718,6 +740,7 @@ describe('Platforms', () => {
               siteUrl: 'https://blog.example.test/',
               username: 'publisher',
               postStatus: 'future',
+              categoryIds: [],
               sticky: false,
               applicationPasswordConfigured: true,
               passwordDisplayValue: '*******',
@@ -749,6 +772,7 @@ describe('Platforms', () => {
           siteUrl: 'https://blog.example.test/',
           username: 'publisher',
           postStatus: 'future',
+          categoryIds: [],
           sticky: true,
           scheduleOffsetHours: 24,
           applicationPasswordConfigured: true,
@@ -767,6 +791,7 @@ describe('Platforms', () => {
     componentModel().set({
       ...componentModel().get(),
       wordPressPostStatus: 'future',
+      wordPressCategoryIds: [],
       wordPressSticky: true,
       wordPressScheduleOffsetHours: '24',
     });
@@ -781,6 +806,7 @@ describe('Platforms', () => {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
         postStatus: 'future',
+        categoryIds: [],
         sticky: true,
         scheduleOffsetHours: 24,
       },
@@ -789,6 +815,75 @@ describe('Platforms', () => {
         descriptionTemplateId: 'wordpress-description-template',
       }),
     });
+  });
+
+  it('treats category edits as dirty, saves them, and resets the saved baseline', async () => {
+    service.list.mockReturnValue(
+      of({ platforms: [wordPressPlatform({ publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'draft',
+        categoryIds: [12],
+        sticky: false,
+        applicationPasswordConfigured: true,
+        passwordDisplayValue: '*******',
+      } })] }),
+    );
+    service.update.mockReturnValue(
+      of(wordPressPlatform({ publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'draft',
+        categoryIds: [12, 34],
+        sticky: false,
+        applicationPasswordConfigured: true,
+        passwordDisplayValue: '*******',
+      } })),
+    );
+
+    await createComponent();
+    componentModel().set({ ...componentModel().get(), wordPressCategoryIds: [12, 34] });
+    fixture.detectChanges();
+
+    expect(buttonByText('Save changes').disabled).toBe(false);
+    await submitEditor();
+
+    expect(service.update).toHaveBeenCalledWith(
+      'WordPress',
+      'id-2',
+      expect.objectContaining({
+        publishSettings: expect.objectContaining({ categoryIds: [12, 34] }),
+      }),
+    );
+    expect(componentModel().get().wordPressCategoryIds).toEqual([12, 34]);
+    expect(buttonByText('Save changes').disabled).toBe(true);
+  });
+
+  it('restores saved category IDs after discarding category edits and reopening the row', async () => {
+    service.list.mockReturnValue(
+      of({ platforms: [wordPressPlatform({ publishSettings: {
+        siteUrl: 'https://blog.example.test/',
+        username: 'publisher',
+        postStatus: 'draft',
+        categoryIds: [12],
+        sticky: false,
+        applicationPasswordConfigured: true,
+        passwordDisplayValue: '*******',
+      } })] }),
+    );
+    confirmation.confirm.mockReturnValue(of('discard'));
+
+    await createComponent();
+    componentModel().set({ ...componentModel().get(), wordPressCategoryIds: [12, 34] });
+    fixture.detectChanges();
+    buttonByText('Cancel').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(editor()).toBeNull();
+    await selectRow(0);
+    expect(componentModel().get().wordPressCategoryIds).toEqual([12]);
   });
 
   it('updates a WordPress platform with a replacement Application Password when supplied', async () => {
@@ -803,6 +898,7 @@ describe('Platforms', () => {
           siteUrl: 'https://blog.example.test/',
           username: 'publisher',
           postStatus: 'publish',
+          categoryIds: [],
           sticky: false,
           applicationPasswordConfigured: true,
           passwordDisplayValue: '*******',
@@ -836,6 +932,7 @@ describe('Platforms', () => {
       wordPressUsername: 'publisher',
       wordPressApplicationPassword: 'replacement-local-password',
       wordPressPostStatus: 'publish',
+      wordPressCategoryIds: [],
       wordPressSticky: false,
       wordPressScheduleOffsetHours: '24',
       wordPressApplicationPasswordConfigured: 'true',
@@ -852,6 +949,7 @@ describe('Platforms', () => {
         siteUrl: 'https://blog.example.test/',
         username: 'publisher',
         postStatus: 'publish',
+        categoryIds: [],
         sticky: false,
         applicationPassword: 'replacement-local-password',
       },

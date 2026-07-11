@@ -26,6 +26,7 @@ request, response, status-code, and manual-check details belong in
 | Event text fields settings reads and writes | Azure Functions API | `Settings` and `CalendarEventDetails` pages | [`../api/http/event-text-fields.md`](../api/http/event-text-fields.md) |
 | Calendar-event thumbnail storage and retrieval | Azure Functions API | `CalendarEventDetails` page and provider publication flow | [`../api/http/calendar-event-thumbnails.md`](../api/http/calendar-event-thumbnails.md) |
 | Platform CRUD, `referenceKey`, and provider-specific settings | Azure Functions API | `Platforms` page | [`../api/http/platforms.md`](../api/http/platforms.md) |
+| Saved WordPress platform category lookup | Azure Functions API and WordPress REST API | `Platforms` page category selector | [`../api/http/platforms.md`](../api/http/platforms.md) |
 | Publishing-content preview, publish, publication state, and publication delete | Azure Functions API | `CalendarEventDetails` page | [`../api/http/platform-publications.md`](../api/http/platform-publications.md) |
 | Template CRUD and template-token reads | Azure Functions API | `Templates` page and template editor clients | [`../api/http/templates.md`](../api/http/templates.md) |
 | Browser routes, page orchestration, and client interaction state | Angular UI | Browser users and API contract consumers checking UI behavior | [`../ui/routes.md`](../ui/routes.md) |
@@ -93,6 +94,10 @@ Cross-boundary rules:
 - Platform CRUD requires both `publishingContent.titleTemplateId` and
   `publishingContent.descriptionTemplateId`. There is no `(none)` option and no
   direct text-field fallback during preview or publish.
+- WordPress platform CRUD carries required non-null `categoryIds`. Category
+  names and slugs are provider lookup data only. The `Platforms` page searches
+  them through the protected backend route after the platform is saved; browser
+  code never receives WordPress credentials or calls WordPress directly.
 - Secret-bearing settings may be accepted by write routes, but read models must
   return redacted configuration flags instead of secrets.
 - Function keys are not part of the frontend-backend contract.
@@ -188,6 +193,9 @@ HTTP routes.
 - Thumbnail application uses `IThumbnailPublisher` selected by platform type.
 - Publication cleanup uses `IPlatformPublicationDeleter` selected by platform
   type.
+- WordPress category lookup uses an application reader port and infrastructure
+  adapter. It reuses backend-owned endpoint discovery and Basic Auth, and it
+  performs provider reads only.
 - Provider-specific request mapping, cleanup behavior, and recovery notes are
   documented in
   [`../api/http/platform-publications.md`](../api/http/platform-publications.md)

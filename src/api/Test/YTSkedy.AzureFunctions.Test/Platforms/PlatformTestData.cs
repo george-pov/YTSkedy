@@ -31,7 +31,9 @@ internal static class PlatformTestData
         string? applicationPassword = null,
         string? postStatus = "publish",
         bool? sticky = null,
-        int? scheduleOffsetHours = null) =>
+        int? scheduleOffsetHours = null,
+        IReadOnlyList<long>? categoryIds = null,
+        bool useNullCategoryIds = false) =>
         new(
             null,
             null,
@@ -41,7 +43,8 @@ internal static class PlatformTestData
             applicationPassword,
             postStatus,
             sticky,
-            scheduleOffsetHours);
+            scheduleOffsetHours,
+            useNullCategoryIds ? null : categoryIds ?? []);
 
     public static PublishingContentPayload PublishingPayload(
         string? titleTemplateId = SchedulingSampleIds.TitleTemplateId,
@@ -72,6 +75,7 @@ internal static class PlatformTestData
     public static WordPressSettings WordPressSettings(
         string applicationPassword = "application-password",
         string postStatus = "publish",
+        IReadOnlyList<long>? categoryIds = null,
         bool sticky = false,
         int? scheduleOffsetHours = null) =>
         new(
@@ -79,16 +83,18 @@ internal static class PlatformTestData
             "editor",
             applicationPassword,
             postStatus,
+            categoryIds ?? [],
             sticky,
             scheduleOffsetHours);
 
     public static CreatePlatformCommand WordPressCreateCommand(
         string? referenceKey = "company-blog",
-        PublishingContent? publishingContent = null) =>
+        PublishingContent? publishingContent = null,
+        IReadOnlyList<long>? categoryIds = null) =>
         new(
             "Main WordPress site",
             PlatformType.WordPress,
-            WordPressSettings(),
+            WordPressSettings(categoryIds: categoryIds),
             publishingContent ?? RequiredPublishingContent(),
             referenceKey);
 
@@ -96,18 +102,20 @@ internal static class PlatformTestData
         string platformId = "wp-platform",
         string? referenceKey = "company-blog",
         PublishingContent? publishingContent = null,
-        string postStatus = "draft") =>
+        string postStatus = "draft",
+        IReadOnlyList<long>? categoryIds = null) =>
         new(
             platformId,
             "Main WordPress site",
             referenceKey,
-            WordPressSettings(postStatus: postStatus),
+            WordPressSettings(postStatus: postStatus, categoryIds: categoryIds),
             publishingContent ?? RequiredPublishingContent());
 
     public static void AssertWordPressRedacted(
         PublishSettingsResponse response,
         string postStatus = "publish",
-        string rawApplicationPassword = "application-password")
+        string rawApplicationPassword = "application-password",
+        IReadOnlyList<long>? categoryIds = null)
     {
         Assert.Null(response.Credentials);
         Assert.Null(response.PrivacyStatus);
@@ -117,6 +125,7 @@ internal static class PlatformTestData
         Assert.Equal(postStatus, response.PostStatus);
         Assert.False(response.Sticky);
         Assert.Null(response.ScheduleOffsetHours);
+        Assert.Equal(categoryIds ?? [], response.CategoryIds);
         Assert.True(response.ApplicationPasswordConfigured);
         Assert.Equal("*******", response.PasswordDisplayValue);
 
@@ -126,6 +135,11 @@ internal static class PlatformTestData
             "*******",
             document.RootElement.GetProperty("passwordDisplayValue").GetString());
         Assert.False(document.RootElement.TryGetProperty("applicationPassword", out _));
+        Assert.Equal(
+            categoryIds ?? [],
+            document.RootElement.GetProperty("categoryIds")
+                .EnumerateArray()
+                .Select(item => item.GetInt64()));
         Assert.DoesNotContain(rawApplicationPassword, json);
     }
 }

@@ -212,6 +212,7 @@ public class WordPressPublicationDeleterTests
                 "https://example.com",
                 "editor",
                 ApplicationPassword,
-            "publish"),
+                "publish",
+                []),
             externalResourceId);
 }

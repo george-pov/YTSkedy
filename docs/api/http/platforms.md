@@ -23,9 +23,10 @@ Every call must:
 - Present a Microsoft Entra External ID access token via
   `Authorization: Bearer <token>`. Missing, invalid, expired, wrong-audience,
   or wrong-issuer tokens return `401`.
-- Carry the scope required by the endpoint (`CalendarEvents.Read` for `GET`,
-  `CalendarEvents.Write` for `POST`, `PUT`, `DELETE`, publish, and
-  publication delete). Wrong scope returns `403`.
+- Carry the scope required by the endpoint (`CalendarEvents.Read` for normal
+  platform `GET` routes, and `CalendarEvents.Write` for category lookup,
+  `POST`, `PUT`, `DELETE`, publish, and publication delete). Wrong scope
+  returns `403`.
 - Carry the `CalendarEvents.Operator` app role in the `roles` claim. Missing
   role returns `403`.
 
@@ -77,6 +78,7 @@ A WordPress platform is returned as:
     "postStatus": "future",
     "sticky": true,
     "scheduleOffsetHours": 25,
+    "categoryIds": [12, 34],
     "applicationPasswordConfigured": true,
     "passwordDisplayValue": "*******"
   }
@@ -128,6 +130,13 @@ A WordPress platform is returned as:
 - WordPress `publishSettings.scheduleOffsetHours` is required when
   `postStatus` is `future`, must be from `1` through `168`, and must be
   omitted or `null` for every other WordPress post status.
+- WordPress `publishSettings.categoryIds` is required and non-null in every
+  create request, update request, and response. `[]` is valid. Non-empty arrays
+  must contain distinct positive integers and preserve submitted order. These
+  are existing WordPress category term IDs; names and slugs are lookup data and
+  are not stored in platform settings. Payloads and stored WordPress settings
+  from the previous shape without `categoryIds` are not compatible with the
+  current contract.
 - WordPress create and update requests can include
   `publishSettings.applicationPassword`, but responses never return it.
   Responses return `applicationPasswordConfigured` and `passwordDisplayValue`
@@ -241,7 +250,8 @@ WordPress request body:
     "applicationPassword": "<wordpress-application-password>",
     "postStatus": "future",
     "sticky": true,
-    "scheduleOffsetHours": 25
+    "scheduleOffsetHours": 25,
+    "categoryIds": []
   }
 }
 ```
@@ -276,6 +286,8 @@ Status codes:
 - `400 Bad Request` for invalid WordPress settings: missing `siteUrl`, invalid
   or insecure `siteUrl`, missing `username`, missing `applicationPassword`, or
   `postStatus` not `draft`, `pending`, `private`, `future`, or `publish`.
+- `400 Bad Request` when WordPress `categoryIds` is missing or `null`, or when
+  it contains a non-positive or duplicate value.
 - `400 Bad Request` when WordPress `postStatus` is `future` and
   `scheduleOffsetHours` is missing or outside `1..168`.
 - `400 Bad Request` when WordPress `scheduleOffsetHours` is supplied for any
@@ -338,7 +350,8 @@ WordPress request body that preserves the stored Application Password:
     "username": "publisher",
     "postStatus": "future",
     "sticky": true,
-    "scheduleOffsetHours": 25
+    "scheduleOffsetHours": 25,
+    "categoryIds": [12, 34]
   }
 }
 ```
@@ -358,7 +371,8 @@ WordPress request body that replaces the stored Application Password:
     "username": "publisher",
     "applicationPassword": "<replacement-wordpress-application-password>",
     "postStatus": "publish",
-    "sticky": false
+    "sticky": false,
+    "categoryIds": []
   }
 }
 ```
@@ -397,6 +411,70 @@ unchanged by `referenceKey`; publication rows continue to store
 provider-neutral `externalResourceId` values, not platform reference keys.
 During template rendering, an active platform's `referenceKey` can resolve to
 that stored external resource id for the same calendar event.
+
+## List WordPress Categories
+
+```text
+GET /api/platforms/{platformId}/wordpress/categories
+```
+
+Lists existing categories from the WordPress site configured on a saved
+platform. The backend reads that platform's stored site URL, username, and
+Application Password, discovers the WordPress REST API root, and performs the
+provider request. Provider credentials are never returned to the browser. The
+route is read-only at WordPress but requires `CalendarEvents.Write` because its
+results configure later provider writes.
+
+Optional query parameters:
+
+- `search`: trimmed non-empty text of at most 100 characters.
+- `includeIds`: one comma-separated list of distinct positive integer IDs.
+- `page`: an integer at least `1`; default `1`.
+- `pageSize`: an integer from `1` through `100`; default `25`.
+
+`search` and `includeIds` cannot be combined. Repeating any query parameter is
+invalid. With neither filter, WordPress returns the first name-ascending page.
+The backend always requests `hide_empty=false` and maps WordPress paging
+headers to the response.
+
+Success response (`200 OK`):
+
+```json
+{
+  "items": [
+    {
+      "id": 12,
+      "name": "Events",
+      "slug": "events"
+    }
+  ],
+  "page": 1,
+  "pageSize": 25,
+  "total": 1,
+  "totalPages": 1
+}
+```
+
+Status codes:
+
+- `200 OK` with the ordered category page, including `items: []` when no
+  category matches.
+- `400 Bad Request` for invalid, empty, repeated, mutually exclusive, or
+  out-of-range query values.
+- `404 Not Found` when the saved platform does not exist.
+- `409 Conflict` when the saved platform is not a WordPress platform or its
+  type and settings do not match.
+- `502 Bad Gateway` when endpoint discovery, transport, provider status,
+  provider JSON, category records, or paging metadata fails. The response is
+  fixed and contains no provider detail or credentials.
+
+The route never creates or mutates categories. It is unavailable for a new
+unsaved platform because no stored provider settings exist yet.
+
+The variable-only manual acceptance client is
+`src/api/Test/Manual/wordpress-categories.http`. Keep bearer tokens, WordPress
+credentials, real platform and event IDs, and raw provider responses out of the
+tracked file.
 
 ## Delete Platform
 

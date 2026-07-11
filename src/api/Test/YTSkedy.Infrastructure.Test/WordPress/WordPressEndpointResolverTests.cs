@@ -283,5 +283,5 @@ public class WordPressEndpointResolverTests
         new(new HttpClient(handler), logger ?? new CapturingLogger<WordPressEndpointResolver>());
 
     private static WordPressSettings Settings(string siteUrl = "https://example.com") =>
-        new(siteUrl, "editor", ApplicationPassword, "publish");
+        new(siteUrl, "editor", ApplicationPassword, "publish", []);
 }

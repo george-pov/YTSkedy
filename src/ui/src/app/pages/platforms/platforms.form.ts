@@ -58,6 +58,7 @@ export interface PlatformFormModel {
   wordPressUsername: string;
   wordPressApplicationPassword: string;
   wordPressPostStatus: string;
+  wordPressCategoryIds: number[];
   wordPressSticky: boolean;
   wordPressScheduleOffsetHours: string;
   wordPressApplicationPasswordConfigured: string;

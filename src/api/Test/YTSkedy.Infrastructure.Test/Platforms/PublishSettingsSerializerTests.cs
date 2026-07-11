@@ -32,6 +32,7 @@ public class PublishSettingsSerializerTests
                 "editor",
                 "application-password",
                 WordPressSettings.ScheduledPostStatus,
+                [12, 34],
                 sticky: true,
                 scheduleOffsetHours: 25));
 
@@ -41,12 +42,19 @@ public class PublishSettingsSerializerTests
         Assert.Equal("editor", settings.Username);
         Assert.Equal("application-password", settings.ApplicationPassword);
         Assert.Equal(WordPressSettings.ScheduledPostStatus, settings.PostStatus);
+        Assert.Equal([12, 34], settings.CategoryIds);
         Assert.True(settings.Sticky);
         Assert.Equal(25, settings.ScheduleOffsetHours);
+        using var document = JsonDocument.Parse(json);
+        Assert.Equal(
+            [12, 34],
+            document.RootElement.GetProperty("categoryIds")
+                .EnumerateArray()
+                .Select(item => item.GetInt64()));
     }
 
     [Fact]
-    public void Deserialize_WordPressLegacySettingsJson_UsesSafeDefaults()
+    public void Deserialize_WordPressLegacySettingsJson_ThrowsInvalidOperationException()
     {
         const string json = """
             {
@@ -57,12 +65,8 @@ public class PublishSettingsSerializerTests
             }
             """;
 
-        var settings = Assert.IsType<WordPressSettings>(
-            PublishSettingsSerializer.Deserialize(PlatformType.WordPress, json));
-
-        Assert.Equal("publish", settings.PostStatus);
-        Assert.False(settings.Sticky);
-        Assert.Null(settings.ScheduleOffsetHours);
+        Assert.Throws<InvalidOperationException>(
+            () => PublishSettingsSerializer.Deserialize(PlatformType.WordPress, json));
     }
 
     [Fact]
@@ -156,6 +160,7 @@ public class PublishSettingsSerializerTests
                 "editor",
                 "application-password",
                 WordPressSettings.ScheduledPostStatus,
+                [12, 34],
                 sticky: true,
                 scheduleOffsetHours: 25));
 
@@ -166,6 +171,7 @@ public class PublishSettingsSerializerTests
         Assert.False(root.TryGetProperty("postStatus", out _));
         Assert.False(root.TryGetProperty("sticky", out _));
         Assert.False(root.TryGetProperty("scheduleOffsetHours", out _));
+        Assert.False(root.TryGetProperty("categoryIds", out _));
         Assert.False(root.TryGetProperty("applicationPassword", out _));
         Assert.False(root.TryGetProperty("passwordDisplayValue", out _));
         Assert.DoesNotContain("application-password", json);
@@ -180,7 +186,8 @@ public class PublishSettingsSerializerTests
                 "https://example.com",
                 "editor",
                 "application-password",
-                "draft"));
+                "draft",
+                [12, 34]));
 
         var snapshot = PublishSettingsSerializer.DeserializeSnapshot(PlatformType.WordPress, json);
 

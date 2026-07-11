@@ -97,6 +97,7 @@ public sealed class PlatformsApiCommandTests
         Assert.Equal("https://example.com", settings.SiteUrl);
         Assert.Equal("editor", settings.Username);
         Assert.Equal("application-password", settings.ApplicationPassword);
+        Assert.Empty(settings.CategoryIds);
         Assert.Equal("publish", settings.PostStatus);
         Assert.False(settings.Sticky);
         Assert.Null(settings.ScheduleOffsetHours);
@@ -105,6 +106,99 @@ public sealed class PlatformsApiCommandTests
             SchedulingSampleIds.DescriptionTemplateId,
             command.PublishingContent.DescriptionTemplateId);
     }
+
+    [Fact]
+    public void TryBuildCreateCommand_WordPressCategoryIds_BuildsCommandInOrder()
+    {
+        var request = new CreatePlatformRequest(
+            "Main WordPress site",
+            "WordPress",
+            null,
+            WordPressPayload(
+                applicationPassword: "application-password",
+                categoryIds: [34, 12]),
+            PublishingPayload());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
+
+        Assert.True(built);
+        Assert.Equal(
+            [34, 12],
+            Assert.IsType<WordPressSettings>(command.PublishSettings).CategoryIds);
+    }
+
+    [Fact]
+    public void TryBuildCreateCommand_WordPressMissingCategoryIds_ReturnsBadRequest()
+    {
+        var request = new CreatePlatformRequest(
+            "Main WordPress site",
+            "WordPress",
+            null,
+            WordPressPayload(
+                applicationPassword: "application-password",
+                useNullCategoryIds: true),
+            PublishingPayload());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
+
+        Assert.False(built);
+        Assert.Equal(
+            "Publish settings categoryIds are required.",
+            ActionResultAssertions.BadRequestMessage(error));
+    }
+
+    [Theory]
+    [MemberData(nameof(InvalidCategoryIds))]
+    public void TryBuildCreateCommand_WordPressInvalidCategoryIds_ReturnsBadRequest(
+        IReadOnlyList<long> categoryIds)
+    {
+        var request = new CreatePlatformRequest(
+            "Main WordPress site",
+            "WordPress",
+            null,
+            WordPressPayload(
+                applicationPassword: "application-password",
+                categoryIds: categoryIds),
+            PublishingPayload());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
+
+        Assert.False(built);
+        Assert.Equal(
+            "Publish settings categoryIds must contain distinct positive integers.",
+            ActionResultAssertions.BadRequestMessage(error));
+    }
+
+    [Fact]
+    public void TryBuildUpdateCommand_WordPressCategoryIds_ReplacesSelection()
+    {
+        var request = new UpdatePlatformRequest(
+            "Renamed WordPress site",
+            null,
+            WordPressPayload(
+                applicationPassword: "   ",
+                categoryIds: [34, 12]),
+            PublishingPayload());
+
+        var built = PlatformsApi.TryBuildUpdateCommand(
+            WordPressPlatform(),
+            request,
+            out var command,
+            out _);
+
+        Assert.True(built);
+        var settings = Assert.IsType<WordPressSettings>(command.PublishSettings);
+        Assert.Equal([34, 12], settings.CategoryIds);
+        Assert.Equal("stored-password", settings.ApplicationPassword);
+    }
+
+    public static TheoryData<IReadOnlyList<long>> InvalidCategoryIds =>
+        new()
+        {
+            new long[] { 0 },
+            new long[] { -1 },
+            new long[] { 12, 12 }
+        };
 
     [Theory]
     [InlineData("pending")]

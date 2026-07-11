@@ -70,10 +70,12 @@
               />
             } @else if (selectedType() === 'WordPress') {
               <app-wordpress-settings
+                [platformId]="selected()?.id ?? null"
                 [siteUrl]="form.wordPressSiteUrl"
                 [username]="form.wordPressUsername"
                 [applicationPassword]="form.wordPressApplicationPassword"
                 [postStatus]="form.wordPressPostStatus"
+                [categoryIds]="form.wordPressCategoryIds"
                 [sticky]="form.wordPressSticky"
                 [scheduleOffsetHours]="form.wordPressScheduleOffsetHours"
                 [passwordDisplayValue]="model().wordPressPasswordDisplayValue"

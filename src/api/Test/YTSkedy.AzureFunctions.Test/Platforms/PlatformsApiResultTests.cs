@@ -14,7 +14,7 @@ public sealed class PlatformsApiResultTests
     {
         var actionResult = PlatformsApi.ToCreateResult(
             CreatePlatformResult.Created("wp-platform"),
-            WordPressCreateCommand());
+            WordPressCreateCommand(categoryIds: [12, 34]));
 
         var response = ActionResultAssertions.OkObject<PlatformResponse>(actionResult);
         Assert.Equal("wp-platform", response.PlatformId);
@@ -22,7 +22,7 @@ public sealed class PlatformsApiResultTests
         Assert.Equal("WordPress", response.Type);
         Assert.Equal("title-template", response.PublishingContent.TitleTemplateId);
         Assert.Equal("description-template", response.PublishingContent.DescriptionTemplateId);
-        AssertWordPressRedacted(response.PublishSettings);
+        AssertWordPressRedacted(response.PublishSettings, categoryIds: [12, 34]);
     }
 
     [Fact]
@@ -54,14 +54,14 @@ public sealed class PlatformsApiResultTests
     {
         var actionResult = PlatformsApi.ToUpdateResult(
             UpdatePlatformResult.Updated,
-            WordPressUpdateCommand());
+            WordPressUpdateCommand(categoryIds: [34, 12]));
 
         var response = ActionResultAssertions.OkObject<PlatformResponse>(actionResult);
         Assert.Equal("company-blog", response.ReferenceKey);
         Assert.Equal("WordPress", response.Type);
         Assert.Equal("title-template", response.PublishingContent.TitleTemplateId);
         Assert.Equal("description-template", response.PublishingContent.DescriptionTemplateId);
-        AssertWordPressRedacted(response.PublishSettings, "draft");
+        AssertWordPressRedacted(response.PublishSettings, "draft", categoryIds: [34, 12]);
     }
 
     [Fact]

@@ -198,7 +198,10 @@ public sealed class WordPressPublisher : IPlatformPublisher
             request.Description ?? string.Empty,
             settings.PostStatus,
             settings.Sticky,
-            dateGmt);
+            dateGmt,
+            settings.CategoryIds.Count == 0
+                ? null
+                : settings.CategoryIds);
     }
 
     private static string FormatDateGmt(DateTimeOffset scheduledPostUtc) =>
@@ -213,7 +216,9 @@ public sealed class WordPressPublisher : IPlatformPublisher
         bool Sticky,
         [property: JsonPropertyName("date_gmt")]
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        string? DateGmt);
+        string? DateGmt,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        IReadOnlyList<long>? Categories);
 
     private sealed record WordPressPostResponse(long? Id, string? Link);
 }

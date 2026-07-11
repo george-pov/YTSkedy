@@ -1,0 +1,20 @@
+@if (platformId() === null) {
+  <p class="guidance">Save the WordPress platform before choosing categories.</p>
+} @else {
+  <app-chip-list
+    label="Categories"
+    placeholder="Search existing categories"
+    [items]="selectedItems()"
+    [options]="optionItems()"
+    (queryChange)="onQueryChange($event)"
+    (itemSelected)="selectItem($event)"
+    (itemRemoved)="removeItem($event)"
+  />
+
+  @if (isLoading()) {
+    <p class="status" role="status">Loading categories...</p>
+  }
+  @if (errorMessage(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+  }
+}

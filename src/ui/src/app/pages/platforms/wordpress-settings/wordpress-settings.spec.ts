@@ -1,8 +1,9 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { form } from '@angular/forms/signals';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { PlatformsService } from 'src/app/shared/api/platforms/platforms-service';
 import { WordPressSettings } from './wordpress-settings';
 
 interface WordPressSettingsModel {
@@ -10,6 +11,7 @@ interface WordPressSettingsModel {
   username: string;
   applicationPassword: string;
   postStatus: string;
+  categoryIds: number[];
   sticky: boolean;
   scheduleOffsetHours: string;
 }
@@ -22,6 +24,7 @@ interface WordPressSettingsModel {
     [username]="form.username"
     [applicationPassword]="form.applicationPassword"
     [postStatus]="form.postStatus"
+    [categoryIds]="form.categoryIds"
     [sticky]="form.sticky"
     [scheduleOffsetHours]="form.scheduleOffsetHours"
     passwordDisplayValue="*******"
@@ -33,6 +36,7 @@ class WordPressSettingsHost {
     username: 'publisher',
     applicationPassword: '',
     postStatus: 'draft',
+    categoryIds: [],
     sticky: false,
     scheduleOffsetHours: '',
   });
@@ -45,7 +49,13 @@ describe('WordPressSettings', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection()],
+      providers: [
+        provideZonelessChangeDetection(),
+        {
+          provide: PlatformsService,
+          useValue: { listWordPressCategories: vi.fn() },
+        },
+      ],
     });
     fixture = TestBed.createComponent(WordPressSettingsHost);
     host = fixture.componentInstance;
@@ -57,6 +67,12 @@ describe('WordPressSettings', () => {
     expect(fixture.nativeElement.querySelectorAll('app-masked-input input')).toHaveLength(1);
     expect(fixture.nativeElement.querySelectorAll('app-select')).toHaveLength(1);
     expect(fixture.nativeElement.querySelectorAll('app-checkbox')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelectorAll('app-wordpress-category-selector')).toHaveLength(
+      1,
+    );
+    expect(fixture.nativeElement.textContent).toContain(
+      'Save the WordPress platform before choosing categories.',
+    );
   });
 
   it('offers all five post statuses in display order', async () => {

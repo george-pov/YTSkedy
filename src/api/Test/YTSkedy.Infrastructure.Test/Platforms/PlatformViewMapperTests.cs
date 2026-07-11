@@ -76,16 +76,20 @@ public class PlatformViewMapperTests
                     "https://example.com",
                     "editor",
                     "application-password",
-                    "publish")));
+                    "publish",
+                    [12, 34])));
 
         var view = PlatformViewMapper.ToView(entity);
 
         Assert.Equal(PlatformType.WordPress, view.Type);
+        Assert.Equal(
+            [12, 34],
+            Assert.IsType<WordPressSettings>(view.PublishSettings).CategoryIds);
         Assert.IsType<WordPressSettings>(view.PublishSettings);
     }
 
     [Fact]
-    public void ToView_LegacyWordPressEntity_MapsDefaultStickyAndScheduleOffset()
+    public void ToView_LegacyWordPressEntityWithoutCategoryIds_Throws()
     {
         const string legacyJson = """
             {
@@ -97,12 +101,7 @@ public class PlatformViewMapperTests
             """;
         var entity = CreateEntity("WordPress", legacyJson);
 
-        var view = PlatformViewMapper.ToView(entity);
-
-        var settings = Assert.IsType<WordPressSettings>(view.PublishSettings);
-        Assert.Equal("publish", settings.PostStatus);
-        Assert.False(settings.Sticky);
-        Assert.Null(settings.ScheduleOffsetHours);
+        Assert.Throws<InvalidOperationException>(() => PlatformViewMapper.ToView(entity));
     }
 
     [Theory]

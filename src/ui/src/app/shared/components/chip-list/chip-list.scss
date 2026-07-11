@@ -1,0 +1,15 @@
+@use 'src/styles/mixins' as app;
+
+@include app.full-width-form-field;
+
+.chip-content,
+.option-content {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.secondary-text {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.85em;
+}

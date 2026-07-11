@@ -89,6 +89,7 @@ public sealed class PublishSettingsMapperTests
         Assert.Equal("private", response.PrivacyStatus);
         Assert.False(response.SelfDeclaredMadeForKids);
         Assert.Null(response.SiteUrl);
+        Assert.Null(response.CategoryIds);
         Assert.Null(response.ApplicationPasswordConfigured);
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
@@ -105,6 +106,19 @@ public sealed class PublishSettingsMapperTests
             WordPressSettings(applicationPassword: "local-test-password"));
 
         AssertWordPressRedacted(response, rawApplicationPassword: "local-test-password");
+    }
+
+    [Fact]
+    public void ToPublishSettingsResponse_WordPressSettings_ReturnsCopiedCategoryIds()
+    {
+        long[] categoryIds = [34, 12];
+        var settings = WordPressSettings(categoryIds: categoryIds);
+
+        var response = PublishSettingsMapper.ToResponse(settings);
+        categoryIds[0] = 99;
+
+        AssertWordPressRedacted(response, categoryIds: [34, 12]);
+        Assert.NotSame(settings.CategoryIds, response.CategoryIds);
     }
 
     [Fact]

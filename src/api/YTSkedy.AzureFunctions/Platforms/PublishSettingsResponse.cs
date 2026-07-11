@@ -24,6 +24,8 @@ internal sealed record PublishSettingsResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     int? ScheduleOffsetHours,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyList<long>? CategoryIds,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     bool? ApplicationPasswordConfigured,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? PasswordDisplayValue)
@@ -41,6 +43,7 @@ internal sealed record PublishSettingsResponse(
             PostStatus: null,
             Sticky: null,
             ScheduleOffsetHours: null,
+            CategoryIds: null,
             ApplicationPasswordConfigured: null,
             PasswordDisplayValue: null);
 
@@ -50,6 +53,7 @@ internal sealed record PublishSettingsResponse(
         string postStatus,
         bool sticky,
         int? scheduleOffsetHours,
+        IReadOnlyList<long> categoryIds,
         bool applicationPasswordConfigured,
         string? passwordDisplayValue) =>
         new(
@@ -61,6 +65,7 @@ internal sealed record PublishSettingsResponse(
             PostStatus: postStatus,
             Sticky: sticky,
             ScheduleOffsetHours: scheduleOffsetHours,
+            CategoryIds: categoryIds,
             ApplicationPasswordConfigured: applicationPasswordConfigured,
             PasswordDisplayValue: passwordDisplayValue);
 }

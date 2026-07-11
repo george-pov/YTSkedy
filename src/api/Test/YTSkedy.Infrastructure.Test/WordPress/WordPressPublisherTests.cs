@@ -48,7 +48,8 @@ public class WordPressPublisherTests
                 "https://example.com/blog/",
                 "editor",
                 ApplicationPassword,
-                "publish")),
+                "publish",
+                [])),
             CancellationToken.None);
 
         Assert.Equal("74", result.ExternalResourceId);
@@ -70,8 +71,42 @@ public class WordPressPublisherTests
         Assert.Equal("publish", root.GetProperty("status").GetString());
         Assert.False(root.GetProperty("sticky").GetBoolean());
         Assert.False(root.TryGetProperty("date_gmt", out _));
+        Assert.False(root.TryGetProperty("categories", out _));
 
         AssertDiscoveryRequestsAreAnonymous(handler);
+    }
+
+    [Fact]
+    public async Task PublishAsync_SelectedCategoryIds_SerializesInSubmittedOrder()
+    {
+        var settings = new WordPressSettings(
+            "https://example.com",
+            "editor",
+            ApplicationPassword,
+            "draft",
+            [12, 34]);
+
+        var publishedPost = await PublishAndReadPostJsonAsync(settings);
+
+        Assert.Equal(
+            [12, 34],
+            publishedPost.Body.GetProperty("categories")
+                .EnumerateArray()
+                .Select(item => item.GetInt64()));
+    }
+
+    [Fact]
+    public async Task PublishAsync_EmptyCategoryIds_OmitsCategories()
+    {
+        var publishedPost = await PublishAndReadPostJsonAsync(
+            new WordPressSettings(
+                "https://example.com",
+                "editor",
+                ApplicationPassword,
+                "draft",
+                []));
+
+        Assert.False(publishedPost.Body.TryGetProperty("categories", out _));
     }
 
     [Theory]
@@ -87,6 +122,7 @@ public class WordPressPublisherTests
             "editor",
             ApplicationPassword,
             postStatus,
+            [],
             scheduleOffsetHours: postStatus == WordPressSettings.ScheduledPostStatus ? 25 : null);
 
         var publishedPost = await PublishAndReadPostJsonAsync(settings);
@@ -104,6 +140,7 @@ public class WordPressPublisherTests
             "editor",
             ApplicationPassword,
             "publish",
+            [],
             sticky);
 
         var publishedPost = await PublishAndReadPostJsonAsync(settings);
@@ -119,6 +156,7 @@ public class WordPressPublisherTests
             "editor",
             ApplicationPassword,
             WordPressSettings.ScheduledPostStatus,
+            [12, 34],
             scheduleOffsetHours: WordPressSettings.MaxScheduleOffsetHours);
 
         var publishedPost = await PublishAndReadPostJsonAsync(
@@ -128,6 +166,11 @@ public class WordPressPublisherTests
         Assert.Equal(
             "2026-06-24T17:00:00Z",
             publishedPost.Body.GetProperty("date_gmt").GetString());
+        Assert.Equal(
+            [12, 34],
+            publishedPost.Body.GetProperty("categories")
+                .EnumerateArray()
+                .Select(item => item.GetInt64()));
     }
 
     [Fact]
@@ -141,6 +184,7 @@ public class WordPressPublisherTests
             "editor",
             ApplicationPassword,
             WordPressSettings.ScheduledPostStatus,
+            [],
             scheduleOffsetHours: 80);
 
         var exception = await Assert.ThrowsAsync<PlatformPublishValidationException>(
@@ -185,7 +229,8 @@ public class WordPressPublisherTests
                 "https://example.com",
                 "editor",
                 ApplicationPassword,
-                "draft"),
+                "draft",
+                []),
             description: null);
 
         Assert.Equal("", publishedPost.Body.GetProperty("content").GetString());
@@ -362,7 +407,8 @@ public class WordPressPublisherTests
                 "https://example.com",
                 "editor",
                 ApplicationPassword,
-                "publish"),
+                "publish",
+                []),
             "English title",
             description,
             scheduledStartUtc ?? new DateTimeOffset(2026, 6, 25, 17, 0, 0, TimeSpan.Zero));

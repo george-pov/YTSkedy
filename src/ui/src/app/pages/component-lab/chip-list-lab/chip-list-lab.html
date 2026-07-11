@@ -1,0 +1,24 @@
+<app-lab-page titleId="chip-list-lab-title" title="Chip List">
+  <app-lab-example titleId="chip-list-basic-example-title" title="Basic">
+    <app-chip-list
+      label="Categories"
+      placeholder="Search categories"
+      [items]="selectedItems()"
+      [options]="availableItems()"
+      (queryChange)="onQueryChange($event)"
+      (itemSelected)="selectItem($event)"
+      (itemRemoved)="removeItem($event)"
+    />
+    <p>Last search: {{ searchText() || 'None' }}</p>
+  </app-lab-example>
+
+  <app-lab-example titleId="chip-list-disabled-example-title" title="Disabled">
+    <app-chip-list
+      label="Categories"
+      placeholder="Search categories"
+      [items]="selectedItems()"
+      [options]="availableItems()"
+      [disabled]="true"
+    />
+  </app-lab-example>
+</app-lab-page>
