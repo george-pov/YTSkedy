@@ -261,9 +261,13 @@ public sealed class CalendarEventsApi(
                 case "title":
                     sort = CalendarEventSortField.Title;
                     break;
+                case "publicationstatus":
+                    sort = CalendarEventSortField.PublicationStatus;
+                    break;
                 default:
                     error = new BadRequestObjectResult(
-                        "Query parameter 'sort' must be 'scheduledStart', 'timeZone', or 'title'.");
+                        "Query parameter 'sort' must be 'scheduledStart', 'timeZone', 'title', " +
+                        "or 'publicationStatus'.");
                     return false;
             }
         }
@@ -432,6 +436,7 @@ public sealed class CalendarEventsApi(
         {
             CalendarEventSortField.TimeZone => "timeZone",
             CalendarEventSortField.Title => "title",
+            CalendarEventSortField.PublicationStatus => "publicationStatus",
             _ => "scheduledStart"
         };
 

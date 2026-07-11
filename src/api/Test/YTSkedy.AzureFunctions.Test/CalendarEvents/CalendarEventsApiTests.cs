@@ -113,6 +113,29 @@ public sealed class CalendarEventsApiTests
         Assert.Equal("NotPublished", item.GetProperty("publicationStatus").GetString());
     }
 
+    [Fact]
+    public async Task ListAsync_PublicationStatusSort_EchoesContractValue()
+    {
+        var api = new CalendarEventsApi(
+            null!,
+            new ListEventsHandler(
+                new FakeCalendarEventReader([CreateEvent()]),
+                new FakePlatformReader()),
+            null!,
+            null!,
+            null!);
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString(
+            "?sort=publicationStatus&direction=asc");
+
+        var result = await api.ListAsync(context.Request, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<CalendarEventListResponse>(ok.Value);
+        Assert.Equal("publicationStatus", response.Sort);
+        Assert.Equal("asc", response.Direction);
+    }
+
     [Theory]
     [InlineData(PublishingStatus.NotPublished, "NotPublished")]
     [InlineData(PublishingStatus.PartiallyPublished, "PartiallyPublished")]

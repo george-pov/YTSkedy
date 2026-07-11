@@ -114,6 +114,39 @@ public class ListEventsHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_PublicationStatusAscending_SortsBeforePaging()
+    {
+        var reader = new FakeCalendarEventReader(
+            listRecords:
+            [
+                Record(
+                    CreateView(ThirdId, ScheduledStartUtc(2026, 1, 3)),
+                    ["platform-a", "platform-b"]),
+                Record(
+                    CreateView(FirstId, ScheduledStartUtc(2026, 1, 1)),
+                    []),
+                Record(
+                    CreateView(SecondId, ScheduledStartUtc(2026, 1, 2)),
+                    ["platform-a"])
+            ]);
+        var platformReader = new FakePlatformReader(
+            platformIds: Set("platform-a", "platform-b"));
+        var handler = CreateHandler(reader, platformReader);
+
+        var result = await handler.HandleAsync(
+            Query(
+                pageSize: 2,
+                sort: CalendarEventSortField.PublicationStatus,
+                direction: SortDirection.Ascending),
+            CancellationToken.None);
+
+        Assert.Equal([FirstId, SecondId], Ids(result));
+        Assert.Equal(
+            [PublishingStatus.NotPublished, PublishingStatus.PartiallyPublished],
+            result.Items.Select(item => item.PublicationStatus));
+    }
+
+    [Fact]
     public async Task HandleAsync_FirstPage_ReturnsFirstSlice()
     {
         var handler = CreateHandler(new FakeCalendarEventReader(FiveAscendingItems()));

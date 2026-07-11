@@ -52,12 +52,10 @@ sorted by scheduled start descending. Page, page-size, and supported sort
 changes trigger a refetch.
 
 The table shows Scheduled Start, Title, and Publication Status in that order.
-Scheduled Start and Title are sortable. Publication Status is plain text and is
-not sortable, so it never emits an unsupported API sort. Scheduled Start
-displays the submitted local date-time followed by its IANA time-zone id while
-server ordering uses the corresponding UTC instant. The Title displays the
-backend `displayTitle`. Publication Status maps the required API aggregate as
-follows:
+All three columns are sortable through the API. Scheduled Start displays the
+submitted local date-time followed by its IANA time-zone id while server
+ordering uses the corresponding UTC instant. The Title displays the backend
+`displayTitle`. Publication Status maps the required API aggregate as follows:
 
 - `NotPublished`: empty cell.
 - `PartiallyPublished`: `Partially Published`.

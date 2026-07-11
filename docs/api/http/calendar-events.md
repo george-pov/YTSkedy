@@ -94,9 +94,12 @@ Query parameters (all optional):
 
 - `page`: zero-based page index. Non-negative integer. Default `0`.
 - `pageSize`: page size from `1` through `100`. Default `10`.
-- `sort`: sort field, one of `scheduledStart`, `timeZone`, or `title`
+- `sort`: sort field, one of `scheduledStart`, `timeZone`, `title`, or
+  `publicationStatus`
   (case-insensitive). Default `scheduledStart`. `scheduledStart` orders by the
-  UTC start instant. `title` orders by `displayTitle`.
+  UTC start instant. `title` orders by `displayTitle`. `publicationStatus`
+  orders by aggregate lifecycle state: `NotPublished`, `PartiallyPublished`,
+  `FullyPublished`, then `Failed`.
 - `direction`: `asc` or `desc` (case-insensitive). Default `desc`.
 - `year` and `month`: optional local-calendar-month filter. When supplied they
   must be supplied together; `year` is `1000` through `9999` and `month` is `1`
@@ -162,8 +165,8 @@ Success response (`200 OK`) is a paged envelope:
   snapshot, falling back to the first text value when the snapshot has no short
   text field.
 - `publicationStatus` is a required informational aggregate with values
-  `NotPublished`, `PartiallyPublished`, `FullyPublished`, or `Failed`. It is not
-  a supported sort field and it does not control any write action.
+  `NotPublished`, `PartiallyPublished`, `FullyPublished`, or `Failed`. It is a
+  supported list sort field but does not control any write action.
   - `NotPublished` means the event's derived published-platform-id set is empty.
   - `FullyPublished` means at least one active platform exists and every active
     platform id is in the derived set.
@@ -185,7 +188,8 @@ Current invalid query behavior:
 - `page` that is not a non-negative integer returns `400 Bad Request`.
 - `pageSize` outside `1` through `100`, or not an integer, returns
   `400 Bad Request`.
-- `sort` outside `scheduledStart`, `timeZone`, `title` returns
+- `sort` outside `scheduledStart`, `timeZone`, `title`, `publicationStatus`
+  returns
   `400 Bad Request`.
 - `direction` outside `asc`, `desc` returns `400 Bad Request`.
 - Supplying only one of `year`/`month` returns `400 Bad Request`; an

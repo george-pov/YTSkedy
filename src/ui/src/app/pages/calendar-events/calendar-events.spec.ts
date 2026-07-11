@@ -88,7 +88,7 @@ describe('CalendarEvents', () => {
     },
   );
 
-  it('renders Publication Status as a non-sortable third column', async () => {
+  it('renders Publication Status as a sortable third column', async () => {
     service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)])));
 
     await createComponent();
@@ -101,7 +101,7 @@ describe('CalendarEvents', () => {
       'Title',
       'Publication Status',
     ]);
-    expect(headers[2].querySelector('[role="button"]')).toBeNull();
+    expect(headers[2].querySelector('[role="button"]')).not.toBeNull();
   });
 
   it('does not render an Actions column for a single edit affordance', async () => {
@@ -279,6 +279,27 @@ describe('CalendarEvents', () => {
       page: 0,
       pageSize: 10,
       sort: 'title',
+      direction: 'asc',
+    });
+  });
+
+  it('maps the Publication Status column to the publication status sort field', async () => {
+    service.list.mockReturnValue(of(pageOf([draftEvent(calendarEventId)], 40)));
+
+    await createComponent();
+    service.list.mockClear();
+
+    emitTableState({
+      pageIndex: 0,
+      pageSize: 10,
+      sortActive: 'publicationStatus',
+      sortDirection: 'asc',
+    });
+
+    expect(service.list).toHaveBeenCalledWith({
+      page: 0,
+      pageSize: 10,
+      sort: 'publicationStatus',
       direction: 'asc',
     });
   });

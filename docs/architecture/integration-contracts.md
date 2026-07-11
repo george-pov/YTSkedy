@@ -60,9 +60,9 @@ Cross-boundary rules:
   `PartiallyPublished`, `FullyPublished`, or `Failed`. The API calculates this
   aggregate from the event's derived published-platform-id index and the
   platforms active at list-read time. The UI maps the tokens to page-owned
-  labels and must not use the aggregate for action eligibility. `Failed` is a
-  reserved contract value; failure capture and stale-`Publishing` recovery are
-  not part of the current lifecycle.
+  labels and may request server-side sorting by the aggregate, but must not use
+  it for action eligibility. `Failed` is a reserved contract value; failure
+  capture and stale-`Publishing` recovery are not part of the current lifecycle.
 - Per-platform publication state and root event mutation flags are exposed
   through the calendar event details read model. Details do not include the
   list aggregate and continue to use authoritative publication rows.

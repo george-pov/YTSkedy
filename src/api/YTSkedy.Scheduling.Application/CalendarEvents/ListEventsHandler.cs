@@ -23,14 +23,9 @@ public sealed class ListEventsHandler(
             ? new CalendarEventMonthCriteria(query.Year.Value, query.Month.Value)
             : null;
 
-        var candidates = await calendarEvents.ListAsync(criteria, cancellationToken);
-
-        var pageRecords = Sort(candidates, query.Sort, query.Direction)
-            .Skip(query.Page * query.PageSize)
-            .Take(query.PageSize)
-            .ToArray();
+        var records = await calendarEvents.ListAsync(criteria, cancellationToken);
         var activePlatformIds = await platforms.ListIdsAsync(cancellationToken);
-        var items = pageRecords
+        var candidates = records
             .Select(record => new CalendarEventListItem(
                 record.Event,
                 PublishingStatusMapper.Map(
@@ -38,17 +33,22 @@ public sealed class ListEventsHandler(
                     activePlatformIds)))
             .ToArray();
 
+        var items = Sort(candidates, query.Sort, query.Direction)
+            .Skip(query.Page * query.PageSize)
+            .Take(query.PageSize)
+            .ToArray();
+
         return new CalendarEventListPage(
             items,
             query.Page,
             query.PageSize,
-            candidates.Count,
+            records.Count,
             query.Sort,
             query.Direction);
     }
 
-    private static IEnumerable<CalendarEventListRecord> Sort(
-        IReadOnlyList<CalendarEventListRecord> candidates,
+    private static IEnumerable<CalendarEventListItem> Sort(
+        IReadOnlyList<CalendarEventListItem> candidates,
         CalendarEventSortField sort,
         SortDirection direction)
     {
@@ -68,6 +68,10 @@ public sealed class ListEventsHandler(
                 : candidates.OrderBy(
                     item => item.Event.Text.DisplayTitle,
                     StringComparer.Ordinal),
+            CalendarEventSortField.PublicationStatus =>
+                direction == SortDirection.Descending
+                    ? candidates.OrderByDescending(item => item.PublicationStatus)
+                    : candidates.OrderBy(item => item.PublicationStatus),
             _ => direction == SortDirection.Descending
                 ? candidates.OrderByDescending(item => item.Event.ScheduledStartUtc)
                 : candidates.OrderBy(item => item.Event.ScheduledStartUtc)

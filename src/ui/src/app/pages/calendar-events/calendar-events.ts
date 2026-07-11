@@ -71,7 +71,7 @@ export class CalendarEvents implements OnInit {
       key: 'publicationStatus',
       header: 'Publication Status',
       value: (event) => publicationStatusLabel(event.publicationStatus),
-      sortable: false,
+      sortable: true,
     },
   ];
 
@@ -160,6 +160,8 @@ function toSortField(columnKey: string): CalendarEventSortField {
   switch (columnKey) {
     case 'title':
       return 'title';
+    case 'publicationStatus':
+      return 'publicationStatus';
     default:
       return 'scheduledStart';
   }
