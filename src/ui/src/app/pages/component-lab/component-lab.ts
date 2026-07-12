@@ -1,18 +1,18 @@
 import { NgComponentOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatMenuModule } from '@angular/material/menu';
 
+import { Icon } from 'src/app/shared/components/icon/icon';
 import { ComponentLabItem, componentLabItems } from './component-lab.registry';
 
 @Component({
   selector: 'app-component-lab',
   imports: [
     NgComponentOutlet,
+    Icon,
     MatButtonModule,
-    MatIconModule,
     MatListModule,
     MatMenuModule,
   ],

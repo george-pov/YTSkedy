@@ -1,4 +1,4 @@
-<mat-icon class="icon" aria-hidden="true">{{ icon() }}</mat-icon>
+<app-icon class="icon" [name]="icon()" />
 
 <div class="content">
   <ng-content />
@@ -11,6 +11,6 @@
     aria-label="Dismiss"
     (click)="dismiss()"
   >
-    <mat-icon aria-hidden="true">close</mat-icon>
+    <app-icon name="close" />
   </button>
 }

@@ -8,9 +8,10 @@ import {
   output,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
+
+import { Icon } from 'src/app/shared/components/icon/icon';
 
 /**
  * Pure presentational user badge: a monogram circle plus the full name, with a
@@ -23,7 +24,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
  */
 @Component({
   selector: 'app-user-badge',
-  imports: [MatIconModule, MatMenuModule, MatTooltipModule],
+  imports: [Icon, MatMenuModule, MatTooltipModule],
   templateUrl: './user-badge.html',
   styleUrl: './user-badge.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

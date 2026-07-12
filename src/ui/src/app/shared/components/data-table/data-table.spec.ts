@@ -193,14 +193,40 @@ describe('DataTable', () => {
     expect(fixture.componentInstance.clicked).toHaveLength(1);
     expect(dataRows(fixture)[0].classList.contains('clickable')).toBe(true);
     expect(dataRows(fixture)[0].classList.contains('selectable')).toBe(false);
-    expect(dataRows(fixture)[0].getAttribute('role')).toBeNull();
-    expect(dataRows(fixture)[0].getAttribute('tabindex')).toBeNull();
+    expect(dataRows(fixture)[0].getAttribute('role')).toBe('button');
+    expect(dataRows(fixture)[0].getAttribute('tabindex')).toBe('0');
+    expect(dataRows(fixture)[0].getAttribute('aria-pressed')).toBeNull();
+  });
+
+  it('activates a clickable row with Enter and Space', () => {
+    fixture.componentInstance.clickableRows.set(true);
+    fixture.detectChanges();
+    const row = dataRows(fixture)[0];
+    const enter = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+    });
+    const space = new KeyboardEvent('keydown', {
+      key: ' ',
+      bubbles: true,
+      cancelable: true,
+    });
+
+    row.dispatchEvent(enter);
+    row.dispatchEvent(space);
+
+    expect(fixture.componentInstance.clicked).toHaveLength(2);
+    expect(space.defaultPrevented).toBe(true);
   });
 
   it('does not emit rowClick when rows are not clickable', () => {
-    dataRows(fixture)[0].dispatchEvent(new Event('click'));
+    const row = dataRows(fixture)[0];
+    row.dispatchEvent(new Event('click'));
 
     expect(fixture.componentInstance.clicked).toHaveLength(0);
+    expect(row.getAttribute('role')).toBeNull();
+    expect(row.getAttribute('tabindex')).toBeNull();
   });
 
   it('marks the selected row with the selected class', () => {
@@ -212,6 +238,8 @@ describe('DataTable', () => {
 
     expect(dataRows(fixture)[0].classList.contains('selected')).toBe(true);
     expect(dataRows(fixture)[1].classList.contains('selected')).toBe(false);
+    expect(dataRows(fixture)[0].getAttribute('aria-pressed')).toBe('true');
+    expect(dataRows(fixture)[1].getAttribute('aria-pressed')).toBe('false');
   });
 
   it('marks rows for hover highlighting only when enabled', () => {

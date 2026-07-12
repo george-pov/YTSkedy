@@ -5,7 +5,9 @@
     [type]="type()"
     [attr.aria-label]="ariaLabel()"
   >
-    <mat-icon aria-hidden="true">{{ icon() }}</mat-icon>
+    @if (icon(); as iconName) {
+      <app-icon matButtonIcon [name]="iconName" />
+    }
   </button>
 } @else {
   <button
@@ -15,7 +17,7 @@
     [attr.aria-label]="ariaLabel() || null"
   >
     @if (icon(); as iconName) {
-      <mat-icon aria-hidden="true">{{ iconName }}</mat-icon>
+      <app-icon matButtonIcon [name]="iconName" />
     }
     <ng-content />
   </button>

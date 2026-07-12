@@ -5,7 +5,11 @@ import {
   input,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
+
+import {
+  Icon,
+  type IconName,
+} from 'src/app/shared/components/icon/icon';
 
 export type ButtonAppearance =
   | 'text'
@@ -17,7 +21,7 @@ type ButtonType = 'button' | 'submit' | 'reset';
 
 @Component({
   selector: 'app-button',
-  imports: [MatButtonModule, MatIconModule],
+  imports: [MatButtonModule, Icon],
   templateUrl: './button.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -26,8 +30,8 @@ export class Button {
   readonly disabled = input(false, { transform: booleanAttribute });
   readonly type = input<ButtonType>('button');
 
-  /** Optional Material Icons name rendered inside the button. */
-  readonly icon = input<string>();
+  /** Optional app icon rendered inside the button. */
+  readonly icon = input<IconName>();
 
   /**
    * Renders a compact, icon-only button (no projected label). Requires

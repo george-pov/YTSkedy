@@ -2,6 +2,7 @@ import { Component, provideZonelessChangeDetection, signal } from '@angular/core
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { type IconName } from 'src/app/shared/components/icon/icon';
 import { Button } from './button';
 
 @Component({
@@ -19,7 +20,7 @@ import { Button } from './button';
   `,
 })
 class ButtonHost {
-  readonly icon = signal<string | undefined>(undefined);
+  readonly icon = signal<IconName | undefined>(undefined);
   readonly iconButton = signal(false);
   readonly ariaLabel = signal<string | undefined>(undefined);
   readonly disabled = signal(false);
@@ -45,7 +46,7 @@ describe('Button', () => {
 
   it('renders a text button with no icon by default', () => {
     expect(buttonEl(fixture).textContent).toContain('Save');
-    expect(fixture.nativeElement.querySelector('mat-icon')).toBeNull();
+    expect(fixture.nativeElement.querySelector('app-icon')).toBeNull();
     expect(buttonEl(fixture).classList).not.toContain('mat-mdc-icon-button');
   });
 
@@ -53,8 +54,8 @@ describe('Button', () => {
     host.icon.set('save');
     fixture.detectChanges();
 
-    const icon = fixture.nativeElement.querySelector('mat-icon');
-    expect(icon?.textContent).toBe('save');
+    const icon = fixture.nativeElement.querySelector('app-icon');
+    expect(icon?.querySelector('svg')).not.toBeNull();
     expect(buttonEl(fixture).textContent).toContain('Save');
     expect(buttonEl(fixture).classList).not.toContain('mat-mdc-icon-button');
   });
@@ -68,9 +69,7 @@ describe('Button', () => {
     const button = buttonEl(fixture);
     expect(button.classList).toContain('mat-mdc-icon-button');
     expect(button.getAttribute('aria-label')).toBe('Edit');
-    expect(fixture.nativeElement.querySelector('mat-icon')?.textContent).toBe(
-      'edit',
-    );
+    expect(fixture.nativeElement.querySelector('app-icon svg')).not.toBeNull();
   });
 
   it('hides the icon glyph from assistive technology', () => {
@@ -79,7 +78,7 @@ describe('Button', () => {
 
     expect(
       fixture.nativeElement
-        .querySelector('mat-icon')
+        .querySelector('app-icon')
         ?.getAttribute('aria-hidden'),
     ).toBe('true');
   });

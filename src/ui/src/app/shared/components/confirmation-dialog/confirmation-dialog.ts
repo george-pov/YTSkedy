@@ -4,12 +4,15 @@ import {
   MatDialogModule,
   MatDialogRef,
 } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
 
 import {
   Button,
   ButtonAppearance,
 } from 'src/app/shared/components/button/button';
+import {
+  Icon,
+  type IconName,
+} from 'src/app/shared/components/icon/icon';
 
 /**
  * Visual treatment for a confirmation. Mirrors the alert variants so a delete,
@@ -77,7 +80,7 @@ export interface ConfirmationDialogContent extends ConfirmationDialogData {
  */
 @Component({
   selector: 'app-confirmation-dialog',
-  imports: [MatDialogModule, MatIconModule, Button],
+  imports: [MatDialogModule, Button, Icon],
   templateUrl: './confirmation-dialog.html',
   styleUrl: './confirmation-dialog.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -100,7 +103,7 @@ export class ConfirmationDialog {
   }
 }
 
-const kindIcons: Record<ConfirmationKind, string> = {
+const kindIcons: Record<ConfirmationKind, IconName> = {
   success: 'check_circle',
   error: 'error',
   info: 'info',

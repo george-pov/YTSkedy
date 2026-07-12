@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type ButtonAppearance } from 'src/app/shared/components/button/button';
+import { type IconName } from 'src/app/shared/components/icon/icon';
 import { FileButton } from './file-button';
 
 @Component({
@@ -23,7 +24,7 @@ class FileButtonHost {
   readonly label = signal('Choose image');
   readonly accept = signal('image/png');
   readonly appearance = signal<ButtonAppearance>('filled');
-  readonly icon = signal('upload');
+  readonly icon = signal<IconName>('upload');
   readonly disabled = signal(false);
   readonly selectedFiles: File[] = [];
 
@@ -71,7 +72,7 @@ describe('FileButton', () => {
 
   it('renders a Material button and hidden file input', () => {
     expect(buttonEl(fixture).textContent).toContain('Choose image');
-    expect(fixture.nativeElement.querySelector('mat-icon')?.textContent).toBe('upload');
+    expect(fixture.nativeElement.querySelector('app-icon svg')).not.toBeNull();
     expect(inputEl(fixture).accept).toBe('image/png');
   });
 

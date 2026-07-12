@@ -1,8 +1,10 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { Icon } from 'src/app/shared/components/icon/icon';
 import {
   ConfirmationDialog,
   ConfirmationDialogContent,
@@ -71,19 +73,25 @@ describe('ConfirmationDialog', () => {
   });
 
   it('renders the kind icon with the matching status class', () => {
-    const el = setup(content({ kind: 'warning' })).nativeElement as HTMLElement;
+    const fixture = setup(content({ kind: 'warning' }));
+    const el = fixture.nativeElement as HTMLElement;
     const icon = el.querySelector('.icon');
+    const iconComponent = fixture.debugElement.query(By.directive(Icon))
+      .componentInstance as Icon;
 
     expect(icon?.classList).toContain('warning');
-    expect(icon?.textContent?.trim()).toBe('warning');
+    expect(iconComponent.name()).toBe('warning');
   });
 
   it('defaults to the info kind when none is supplied', () => {
-    const el = setup(content({ kind: undefined })).nativeElement as HTMLElement;
+    const fixture = setup(content({ kind: undefined }));
+    const el = fixture.nativeElement as HTMLElement;
     const icon = el.querySelector('.icon');
+    const iconComponent = fixture.debugElement.query(By.directive(Icon))
+      .componentInstance as Icon;
 
     expect(icon?.classList).toContain('info');
-    expect(icon?.textContent?.trim()).toBe('info');
+    expect(iconComponent.name()).toBe('info');
   });
 
   it('renders one button per action in order', () => {

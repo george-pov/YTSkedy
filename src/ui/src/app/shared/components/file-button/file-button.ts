@@ -10,6 +10,7 @@ import {
   Button,
   type ButtonAppearance,
 } from 'src/app/shared/components/button/button';
+import { type IconName } from 'src/app/shared/components/icon/icon';
 
 @Component({
   selector: 'app-file-button',
@@ -22,7 +23,7 @@ export class FileButton {
   readonly label = input.required<string>();
   readonly accept = input('');
   readonly appearance = input<ButtonAppearance>('filled');
-  readonly icon = input('upload');
+  readonly icon = input<IconName>('upload');
   readonly disabled = input(false, { transform: booleanAttribute });
   readonly fileSelected = output<File>();
 

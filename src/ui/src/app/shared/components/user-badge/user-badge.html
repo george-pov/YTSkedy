@@ -15,7 +15,7 @@
 <mat-menu #menu="matMenu">
   <div class="menu-header">{{ fullName() }}</div>
   <button mat-menu-item (click)="signOut.emit()">
-    <mat-icon>logout</mat-icon>
+    <app-icon name="logout" />
     <span>Sign Out</span>
   </button>
 </mat-menu>

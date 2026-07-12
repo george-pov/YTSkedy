@@ -6,7 +6,11 @@ import {
   input,
   output,
 } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
+
+import {
+  Icon,
+  type IconName,
+} from 'src/app/shared/components/icon/icon';
 
 export type AlertVariant = 'success' | 'error' | 'info' | 'warning';
 
@@ -24,7 +28,7 @@ export type AlertVariant = 'success' | 'error' | 'info' | 'warning';
  */
 @Component({
   selector: 'app-alert',
-  imports: [MatIconModule],
+  imports: [Icon],
   templateUrl: './alert.html',
   styleUrl: './alert.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -55,7 +59,7 @@ export class Alert {
   }
 }
 
-const variantIcons: Record<AlertVariant, string> = {
+const variantIcons: Record<AlertVariant, IconName> = {
   success: 'check_circle',
   error: 'error',
   info: 'info',
