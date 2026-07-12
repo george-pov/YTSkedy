@@ -7,12 +7,10 @@ public class WordPressSettingsTests
     [Fact]
     public void Constructor_ValidInput_SetsProperties()
     {
-        var settings = new WordPressSettings(
-            "  https://example.com/blog  ",
-            "editor",
-            "application-password",
-            "draft",
-            [12, 34],
+        var settings = CreateSettings(
+            siteUrl: "  https://example.com/blog  ",
+            applicationPassword: "application-password",
+            categoryIds: [12, 34],
             sticky: true);
 
         Assert.Equal("https://example.com/blog", settings.SiteUrl);
@@ -36,7 +34,7 @@ public class WordPressSettingsTests
     public void Constructor_InvalidSiteUrl_Throws(string? siteUrl)
     {
         Assert.Throws<ArgumentException>(
-            () => new WordPressSettings(siteUrl!, "editor", "password", "publish", []));
+            () => CreateSettings(siteUrl: siteUrl!, postStatus: "publish"));
     }
 
     [Theory]
@@ -46,12 +44,7 @@ public class WordPressSettingsTests
     public void Constructor_EmptyUsername_Throws(string? username)
     {
         Assert.Throws<ArgumentException>(
-            () => new WordPressSettings(
-                "https://example.com",
-                username!,
-                "password",
-                "publish",
-                []));
+            () => CreateSettings(username: username!, postStatus: "publish"));
     }
 
     [Theory]
@@ -61,12 +54,9 @@ public class WordPressSettingsTests
     public void Constructor_EmptyApplicationPassword_Throws(string? applicationPassword)
     {
         Assert.Throws<ArgumentException>(
-            () => new WordPressSettings(
-                "https://example.com",
-                "editor",
-                applicationPassword!,
-                "publish",
-                []));
+            () => CreateSettings(
+                applicationPassword: applicationPassword!,
+                postStatus: "publish"));
     }
 
     [Theory]
@@ -76,12 +66,7 @@ public class WordPressSettingsTests
     public void Constructor_InvalidPostStatus_Throws(string postStatus)
     {
         Assert.Throws<ArgumentException>(
-            () => new WordPressSettings(
-                "https://example.com",
-                "editor",
-                "password",
-                postStatus,
-                []));
+            () => CreateSettings(postStatus: postStatus));
     }
 
     [Theory]
@@ -91,12 +76,8 @@ public class WordPressSettingsTests
     public void Constructor_ScheduledPostWithValidOffset_SetsScheduleOffsetHours(
         int scheduleOffsetHours)
     {
-        var settings = new WordPressSettings(
-            "https://example.com",
-            "editor",
-            "password",
-            WordPressSettings.ScheduledPostStatus,
-            [],
+        var settings = CreateSettings(
+            postStatus: WordPressSettings.ScheduledPostStatus,
             scheduleOffsetHours: scheduleOffsetHours);
 
         Assert.Equal(WordPressSettings.ScheduledPostStatus, settings.PostStatus);
@@ -107,12 +88,7 @@ public class WordPressSettingsTests
     public void Constructor_ScheduledPostWithoutOffset_Throws()
     {
         Assert.Throws<ArgumentException>(
-            () => new WordPressSettings(
-                "https://example.com",
-                "editor",
-                "password",
-                WordPressSettings.ScheduledPostStatus,
-                []));
+            () => CreateSettings(postStatus: WordPressSettings.ScheduledPostStatus));
     }
 
     [Theory]
@@ -122,12 +98,8 @@ public class WordPressSettingsTests
     public void Constructor_ScheduledPostWithInvalidOffset_Throws(int scheduleOffsetHours)
     {
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => new WordPressSettings(
-                "https://example.com",
-                "editor",
-                "password",
-                WordPressSettings.ScheduledPostStatus,
-                [],
+            () => CreateSettings(
+                postStatus: WordPressSettings.ScheduledPostStatus,
                 scheduleOffsetHours: scheduleOffsetHours));
     }
 
@@ -160,24 +132,13 @@ public class WordPressSettingsTests
     public void Constructor_NonScheduledPostWithOffset_Throws()
     {
         Assert.Throws<ArgumentException>(
-            () => new WordPressSettings(
-                "https://example.com",
-                "editor",
-                "password",
-                "draft",
-                [],
-                scheduleOffsetHours: 2));
+            () => CreateSettings(scheduleOffsetHours: 2));
     }
 
     [Fact]
     public void Constructor_EmptyCategoryIds_SetsEmptyCollection()
     {
-        var settings = new WordPressSettings(
-            "https://example.com",
-            "editor",
-            "password",
-            "draft",
-            []);
+        var settings = CreateSettings();
 
         Assert.Empty(settings.CategoryIds);
     }
@@ -187,12 +148,7 @@ public class WordPressSettingsTests
     {
         long[] categoryIds = [34, 12];
 
-        var settings = new WordPressSettings(
-            "https://example.com",
-            "editor",
-            "password",
-            "draft",
-            categoryIds);
+        var settings = CreateSettings(categoryIds: categoryIds);
         categoryIds[0] = 99;
 
         Assert.Equal([34, 12], settings.CategoryIds);
@@ -201,12 +157,9 @@ public class WordPressSettingsTests
     [Fact]
     public void Constructor_NullCategoryIds_Throws()
     {
-        Assert.Throws<ArgumentException>(() => new WordPressSettings(
-            "https://example.com",
-            "editor",
-            "password",
-            "draft",
-            null!));
+        Assert.Throws<ArgumentException>(() => CreateSettings(
+            categoryIds: null,
+            useDefaultCategoryIds: false));
     }
 
     [Theory]
@@ -214,23 +167,13 @@ public class WordPressSettingsTests
     [InlineData(-1)]
     public void Constructor_NonPositiveCategoryId_Throws(long categoryId)
     {
-        Assert.Throws<ArgumentException>(() => new WordPressSettings(
-            "https://example.com",
-            "editor",
-            "password",
-            "draft",
-            [categoryId]));
+        Assert.Throws<ArgumentException>(() => CreateSettings(categoryIds: [categoryId]));
     }
 
     [Fact]
     public void Constructor_DuplicateCategoryIds_Throws()
     {
-        Assert.Throws<ArgumentException>(() => new WordPressSettings(
-            "https://example.com",
-            "editor",
-            "password",
-            "draft",
-            [12, 12]));
+        Assert.Throws<ArgumentException>(() => CreateSettings(categoryIds: [12, 12]));
     }
 
     [Theory]
@@ -277,10 +220,11 @@ public class WordPressSettingsTests
         Assert.False(WordPressSettings.IsValidSiteUrl(siteUrl));
     }
 
-    [Fact]
-    public void IsValidUsername_NonEmpty_ReturnsTrue()
+    [Theory]
+    [InlineData("editor")]
+    public void IsValidUsername_NonEmpty_ReturnsTrue(string username)
     {
-        Assert.True(WordPressSettings.IsValidUsername("editor"));
+        Assert.True(WordPressSettings.IsValidUsername(username));
     }
 
     [Theory]
@@ -292,10 +236,11 @@ public class WordPressSettingsTests
         Assert.False(WordPressSettings.IsValidUsername(username));
     }
 
-    [Fact]
-    public void IsValidApplicationPassword_NonEmpty_ReturnsTrue()
+    [Theory]
+    [InlineData("application-password")]
+    public void IsValidApplicationPassword_NonEmpty_ReturnsTrue(string applicationPassword)
     {
-        Assert.True(WordPressSettings.IsValidApplicationPassword("application-password"));
+        Assert.True(WordPressSettings.IsValidApplicationPassword(applicationPassword));
     }
 
     [Theory]
@@ -342,5 +287,25 @@ public class WordPressSettingsTests
         bool expected)
     {
         Assert.Equal(expected, WordPressSettings.RequiresScheduleOffsetHours(postStatus));
+    }
+
+    private static WordPressSettings CreateSettings(
+        string siteUrl = "https://example.com",
+        string username = "editor",
+        string applicationPassword = "password",
+        string postStatus = "draft",
+        IReadOnlyCollection<long>? categoryIds = null,
+        bool sticky = false,
+        bool useDefaultCategoryIds = true,
+        int? scheduleOffsetHours = null)
+    {
+        return new WordPressSettings(
+            siteUrl,
+            username,
+            applicationPassword,
+            postStatus,
+            useDefaultCategoryIds ? categoryIds ?? [] : categoryIds!,
+            sticky,
+            scheduleOffsetHours);
     }
 }
