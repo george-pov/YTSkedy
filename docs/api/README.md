@@ -21,7 +21,7 @@ Durable documentation for the backend API under `src/api/`.
   [`http/event-text-fields.md`](http/event-text-fields.md)
 - Calendar-event thumbnails HTTP contract:
   [`http/calendar-event-thumbnails.md`](http/calendar-event-thumbnails.md)
-- Platform publishing HTTP contract:
+- Configured platforms HTTP contract:
   [`http/platforms.md`](http/platforms.md)
 - Platform publications HTTP contract:
   [`http/platform-publications.md`](http/platform-publications.md)

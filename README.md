@@ -5,7 +5,7 @@ automation of YouTube streams.
 
 ## Purpose
 
-This README is the human developer entrypoint for YTSkedy. It points to the
+This README is the human developer entry point for YTSkedy. It points to the
 main durable documentation entry points. The complete durable docs inventory
 lives in [`docs/README.md`](docs/README.md).
 

@@ -1,4 +1,4 @@
-# Platform Publishing HTTP Contract
+# Configured Platforms HTTP Contract
 
 Platform and platform-publishing endpoints are hosted by `YTSkedy.AzureFunctions`
 under the Azure Functions `/api` prefix.
