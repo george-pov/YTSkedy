@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { provideRouter, Router, UrlTree } from '@angular/router';
 import { By } from '@angular/platform-browser';
-import { Observable, of, throwError } from 'rxjs';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -354,6 +354,73 @@ describe('CalendarEvents', () => {
       sort: 'scheduledStart',
       direction: 'desc',
     });
+  });
+
+  it('keeps the newest page when an older response arrives last', async () => {
+    const firstRequest = new Subject<CalendarEventListPage>();
+    const secondRequest = new Subject<CalendarEventListPage>();
+    service.list
+      .mockReturnValueOnce(firstRequest)
+      .mockReturnValueOnce(secondRequest);
+
+    await createComponent();
+
+    emitTableState({
+      pageIndex: 0,
+      pageSize: 10,
+      sortActive: 'title',
+      sortDirection: 'asc',
+    });
+
+    secondRequest.next(
+      pageOf([
+        draftEvent('newer-event', { displayTitle: 'Newest response' }),
+      ]),
+    );
+    fixture.detectChanges();
+
+    firstRequest.next(
+      pageOf([
+        draftEvent('older-event', { displayTitle: 'Stale response' }),
+      ]),
+    );
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Newest response');
+    expect(fixture.nativeElement.textContent).not.toContain('Stale response');
+  });
+
+  it('ignores an older request error after the newest request succeeds', async () => {
+    const firstRequest = new Subject<CalendarEventListPage>();
+    const secondRequest = new Subject<CalendarEventListPage>();
+    service.list
+      .mockReturnValueOnce(firstRequest)
+      .mockReturnValueOnce(secondRequest);
+
+    await createComponent();
+
+    emitTableState({
+      pageIndex: 1,
+      pageSize: 10,
+      sortActive: 'start',
+      sortDirection: 'desc',
+    });
+
+    secondRequest.next(
+      pageOf([
+        draftEvent('newer-event', { displayTitle: 'Current page' }),
+      ]),
+    );
+    fixture.detectChanges();
+
+    firstRequest.error(new Error('Stale request failed'));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Current page');
+    expect(fixture.nativeElement.textContent).not.toContain(
+      'Calendar events could not be loaded.',
+    );
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 
   it('does not show a list-level Publish action because publishing is platform-scoped', async () => {

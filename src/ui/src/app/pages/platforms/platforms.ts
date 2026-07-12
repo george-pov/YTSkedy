@@ -2,11 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   type OnInit,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, map, Observable } from 'rxjs';
 
 import {
@@ -54,6 +56,7 @@ export class Platforms implements OnInit, PendingChangesAware {
   private readonly templatesService = inject(TemplatesService);
   private readonly confirmation = inject(ConfirmationDialogService);
   private readonly notifications = inject(NotificationService);
+  private readonly destroyRef = inject(DestroyRef);
   private latestTemplateLoadId = 0;
   private loadedTemplateType: Platform['type'] | null = null;
   protected readonly editor = new PlatformsEditorState();
@@ -199,7 +202,10 @@ export class Platforms implements OnInit, PendingChangesAware {
 
     this.platformsService
       .delete(current.type, current.id)
-      .pipe(finalize(() => this.editor.setDeleting(false)))
+      .pipe(
+        finalize(() => this.editor.setDeleting(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: () => {
           this.editor.removeDeletedPlatform(current.id);
@@ -222,7 +228,10 @@ export class Platforms implements OnInit, PendingChangesAware {
           { id: 'discard', label: 'Discard changes', primary: true },
         ],
       })
-      .pipe(map((result) => result === 'discard'));
+      .pipe(
+        map((result) => result === 'discard'),
+        takeUntilDestroyed(this.destroyRef),
+      );
   }
 
   private discardPlatformChangesBefore(action: () => void): void {
@@ -244,7 +253,10 @@ export class Platforms implements OnInit, PendingChangesAware {
 
     this.platformsService
       .list()
-      .pipe(finalize(() => this.isLoading.set(false)))
+      .pipe(
+        finalize(() => this.isLoading.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (response) => {
           this.editor.applyLoadedPlatforms(response.platforms);
@@ -264,7 +276,10 @@ export class Platforms implements OnInit, PendingChangesAware {
 
     this.platformsService
       .create(request)
-      .pipe(finalize(() => this.editor.setSaving(false)))
+      .pipe(
+        finalize(() => this.editor.setSaving(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (response) => {
           this.editor.applyCreatedPlatform(response);
@@ -290,7 +305,10 @@ export class Platforms implements OnInit, PendingChangesAware {
     // The type is immutable, so the original type and id locate the row.
     this.platformsService
       .update(current.type, current.id, request)
-      .pipe(finalize(() => this.editor.setSaving(false)))
+      .pipe(
+        finalize(() => this.editor.setSaving(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (response) => {
           this.editor.applyUpdatedPlatform(response);
@@ -310,25 +328,28 @@ export class Platforms implements OnInit, PendingChangesAware {
     const loadId = ++this.latestTemplateLoadId;
     this.templateLoadFailed.set(false);
 
-    this.templatesService.list(type).subscribe({
-      next: (response) => {
-        if (loadId !== this.latestTemplateLoadId) {
-          return;
-        }
+    this.templatesService
+      .list(type)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          if (loadId !== this.latestTemplateLoadId) {
+            return;
+          }
 
-        this.availableTemplates.set(sortTemplates(response.templates));
-        this.editor.clearUnavailableTemplateIds(response.templates);
-      },
-      error: () => {
-        if (loadId !== this.latestTemplateLoadId) {
-          return;
-        }
+          this.availableTemplates.set(sortTemplates(response.templates));
+          this.editor.clearUnavailableTemplateIds(response.templates);
+        },
+        error: () => {
+          if (loadId !== this.latestTemplateLoadId) {
+            return;
+          }
 
-        this.loadedTemplateType = null;
-        this.availableTemplates.set([]);
-        this.templateLoadFailed.set(true);
-      },
-    });
+          this.loadedTemplateType = null;
+          this.availableTemplates.set([]);
+          this.templateLoadFailed.set(true);
+        },
+      });
   }
 }
 

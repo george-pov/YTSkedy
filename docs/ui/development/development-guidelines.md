@@ -145,6 +145,17 @@ Use `computed()` for derived signal state. Keep signal updates predictable and
 immutable by using `set()` or `update()` rather than mutating existing arrays,
 objects, or signal values in place.
 
+Subscriptions owned by a page or component must be bound to that owner's
+lifecycle with `takeUntilDestroyed()` and an injected `DestroyRef`. This
+includes HTTP requests, dialog results, and long-lived UI streams that could
+otherwise emit after navigation. Clearly finite service-internal observables
+may remain self-contained when they do not update component state.
+
+When a newer user action supersedes an in-flight request, model the actions as
+an observable stream and use `switchMap` so an older response cannot overwrite
+newer state. Handle request errors inside the switched inner observable so one
+failed request does not terminate future page, sort, filter, or search actions.
+
 ## Forms
 
 Prefer Angular Signal Forms (`@angular/forms/signals`) for complex validated

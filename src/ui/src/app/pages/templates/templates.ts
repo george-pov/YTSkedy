@@ -3,10 +3,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   inject,
   type OnInit,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { form } from '@angular/forms/signals';
 import { finalize, map, Observable } from 'rxjs';
 
@@ -53,6 +55,7 @@ export class Templates implements OnInit, PendingChangesAware {
   private readonly templatesService = inject(TemplatesService);
   private readonly confirmation = inject(ConfirmationDialogService);
   private readonly notifications = inject(NotificationService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly templates = signal<Template[]>([]);
   protected readonly selected = signal<Template | null>(null);
@@ -194,7 +197,10 @@ export class Templates implements OnInit, PendingChangesAware {
 
     this.templatesService
       .delete(current.type, current.id)
-      .pipe(finalize(() => this.isDeleting.set(false)))
+      .pipe(
+        finalize(() => this.isDeleting.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: () => {
           this.removeFromList(current.id);
@@ -226,7 +232,10 @@ export class Templates implements OnInit, PendingChangesAware {
           { id: 'discard', label: 'Discard changes', primary: true },
         ],
       })
-      .pipe(map((result) => result === 'discard'));
+      .pipe(
+        map((result) => result === 'discard'),
+        takeUntilDestroyed(this.destroyRef),
+      );
   }
 
   private discardTemplateChangesBefore(action: () => void): void {
@@ -248,7 +257,10 @@ export class Templates implements OnInit, PendingChangesAware {
 
     this.templatesService
       .list()
-      .pipe(finalize(() => this.isLoading.set(false)))
+      .pipe(
+        finalize(() => this.isLoading.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (response) => {
           const templates = sortTemplates(response.templates);
@@ -273,7 +285,10 @@ export class Templates implements OnInit, PendingChangesAware {
 
     this.templatesService
       .create(request)
-      .pipe(finalize(() => this.isSaving.set(false)))
+      .pipe(
+        finalize(() => this.isSaving.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (response) => {
           // The create response omits content, so keep the submitted content
@@ -315,7 +330,10 @@ export class Templates implements OnInit, PendingChangesAware {
     // The type is immutable, so the original type and id locate the row.
     this.templatesService
       .update(current.type, current.id, request)
-      .pipe(finalize(() => this.isSaving.set(false)))
+      .pipe(
+        finalize(() => this.isSaving.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (response) => {
           const updated: Template = {

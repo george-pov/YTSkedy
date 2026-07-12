@@ -1,15 +1,26 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   inject,
   type OnInit,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
-import { finalize } from 'rxjs';
+import {
+  catchError,
+  map,
+  type Observable,
+  of,
+  startWith,
+  Subject,
+  switchMap,
+} from 'rxjs';
 
 import {
   CalendarEvent,
+  CalendarEventListPage,
   CalendarEventListQuery,
   CalendarEventPublishingStatus,
   CalendarEventSortField,
@@ -35,6 +46,8 @@ import { Router, RouterLink } from '@angular/router';
 export class CalendarEvents implements OnInit {
   private readonly router = inject(Router);
   private readonly calendarEventsService = inject(CalendarEventsService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly pageQueries = new Subject<CalendarEventListQuery>();
 
   protected readonly events = signal<CalendarEvent[]>([]);
   protected readonly errorMessage = signal<string | null>(null);
@@ -76,6 +89,13 @@ export class CalendarEvents implements OnInit {
   ];
 
   ngOnInit(): void {
+    this.pageQueries
+      .pipe(
+        switchMap((query) => this.loadPage(query)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((result) => this.applyPageLoadResult(result));
+
     this.fetchPage();
   }
 
@@ -101,9 +121,6 @@ export class CalendarEvents implements OnInit {
   }
 
   private fetchPage(): void {
-    this.isLoading.set(true);
-    this.errorMessage.set(null);
-
     const query: CalendarEventListQuery = {
       page: this.pageIndex(),
       pageSize: this.pageSize(),
@@ -111,22 +128,44 @@ export class CalendarEvents implements OnInit {
       direction: this.sortDirection() === 'asc' ? 'asc' : 'desc',
     };
 
-    this.calendarEventsService
-      .list(query)
-      .pipe(finalize(() => this.isLoading.set(false)))
-      .subscribe({
-        next: (page) => {
-          this.events.set(page.items);
-          this.totalCount.set(page.totalCount);
-        },
-        error: (error: unknown) => {
-          this.events.set([]);
-          this.totalCount.set(0);
-          this.errorMessage.set(describeLoadError(error));
-        },
-      });
+    this.pageQueries.next(query);
+  }
+
+  private loadPage(query: CalendarEventListQuery): Observable<PageLoadResult> {
+    return this.calendarEventsService.list(query).pipe(
+      map((page): PageLoadResult => ({ state: 'loaded', page })),
+      catchError((error: unknown) =>
+        of<PageLoadResult>({ state: 'failed', error }),
+      ),
+      startWith<PageLoadResult>({ state: 'loading' }),
+    );
+  }
+
+  private applyPageLoadResult(result: PageLoadResult): void {
+    switch (result.state) {
+      case 'loading':
+        this.isLoading.set(true);
+        this.errorMessage.set(null);
+        break;
+      case 'loaded':
+        this.events.set(result.page.items);
+        this.totalCount.set(result.page.totalCount);
+        this.isLoading.set(false);
+        break;
+      case 'failed':
+        this.events.set([]);
+        this.totalCount.set(0);
+        this.errorMessage.set(describeLoadError(result.error));
+        this.isLoading.set(false);
+        break;
+    }
   }
 }
+
+type PageLoadResult =
+  | { readonly state: 'loading' }
+  | { readonly state: 'loaded'; readonly page: CalendarEventListPage }
+  | { readonly state: 'failed'; readonly error: unknown };
 
 // Presentation uses the submitted wall-clock start and its explicit time-zone
 // id. Sorting stays server-side by the UTC instant through the `scheduledStart`

@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   inject,
   signal,
   type OnInit,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { form } from '@angular/forms/signals';
 import { finalize, map, Observable } from 'rxjs';
 
@@ -44,6 +46,7 @@ export class Settings implements OnInit, PendingChangesAware {
   private readonly eventTextFields = inject(EventTextFieldsService);
   private readonly confirmation = inject(ConfirmationDialogService);
   private readonly notifications = inject(NotificationService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly model = signal<SettingsModel>(createSettingsModel());
   protected readonly form = form(this.model, applySettingsRules);
@@ -130,7 +133,10 @@ export class Settings implements OnInit, PendingChangesAware {
 
     this.eventTextFields
       .update(toUpdateEventTextFieldsRequest(this.model()))
-      .pipe(finalize(() => this.isSaving.set(false)))
+      .pipe(
+        finalize(() => this.isSaving.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (response) => {
           this.applyFields(response.fields);
@@ -148,7 +154,10 @@ export class Settings implements OnInit, PendingChangesAware {
 
     this.eventTextFields
       .get()
-      .pipe(finalize(() => this.isLoading.set(false)))
+      .pipe(
+        finalize(() => this.isLoading.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: (response) => {
           this.applyFields(response.fields);
@@ -172,7 +181,10 @@ export class Settings implements OnInit, PendingChangesAware {
           { id: 'discard', label: 'Discard changes', primary: true },
         ],
       })
-      .pipe(map((result) => result === 'discard'));
+      .pipe(
+        map((result) => result === 'discard'),
+        takeUntilDestroyed(this.destroyRef),
+      );
   }
 
   private applyFields(fields: readonly EventTextField[]): void {
