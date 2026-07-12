@@ -17,7 +17,7 @@ public sealed class DeletePublicationHandler(
     IPlatformReader platforms,
     IPlatformPublicationReader publications,
     IPublicationCleanupWriter publicationCleanup,
-    IPublicationIndexWriter publicationIndex,
+    PublicationIndexUpdater publicationIndexUpdater,
     IPlatformTypeAdapterSelector<IPlatformPublicationDeleter> deleters,
     TimeProvider timeProvider,
     ILogger<DeletePublicationHandler> logger)
@@ -59,35 +59,14 @@ public sealed class DeletePublicationHandler(
                     timeProvider.GetUtcNow()));
         }
 
-        if (publication.IsOrphaned)
+        var eligibilityStatus = ValidateDeletionEligibility(
+            calendarEvent,
+            platform,
+            publication,
+            timeProvider.GetUtcNow());
+        if (eligibilityStatus is not null)
         {
-            return DeletePublicationResult.ForStatus(DeletePublicationStatus.Orphaned);
-        }
-
-        if (publication.Status == PublishStatus.Publishing)
-        {
-            return DeletePublicationResult.ForStatus(DeletePublicationStatus.PublishInProgress);
-        }
-
-        if (publication.Status != PublishStatus.Published)
-        {
-            return DeletePublicationResult.ForStatus(DeletePublicationStatus.RowChanged);
-        }
-
-        if (calendarEvent.ScheduledStartUtc <= timeProvider.GetUtcNow())
-        {
-            return DeletePublicationResult.ForStatus(DeletePublicationStatus.PastStart);
-        }
-
-        if (string.IsNullOrWhiteSpace(publication.ExternalResourceId))
-        {
-            return DeletePublicationResult.ForStatus(
-                DeletePublicationStatus.MissingExternalResourceId);
-        }
-
-        if (!PublicationTargetPolicy.Matches(platform, publication.TargetSnapshot))
-        {
-            return DeletePublicationResult.ForStatus(DeletePublicationStatus.TargetMismatch);
+            return DeletePublicationResult.ForStatus(eligibilityStatus.Value);
         }
 
         var deleter = deleters.Find(platform.Type);
@@ -148,31 +127,10 @@ public sealed class DeletePublicationHandler(
             return DeletePublicationResult.ForStatus(DeletePublicationStatus.RowChanged);
         }
 
-        try
-        {
-            if (!await publicationIndex.RemovePublishedPlatformAsync(
-                    command.CalendarEventId,
-                    command.PlatformId,
-                    cancellationToken))
-            {
-                logger.LogError(
-                    "Publication index operation {Operation} failed for calendar event " +
-                    "{CalendarEventId} and platform {PlatformId}.",
-                    "RemovePublishedPlatform",
-                    command.CalendarEventId,
-                    command.PlatformId);
-            }
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            logger.LogError(
-                exception,
-                "Publication index operation {Operation} failed for calendar event " +
-                "{CalendarEventId} and platform {PlatformId}.",
-                "RemovePublishedPlatform",
-                command.CalendarEventId,
-                command.PlatformId);
-        }
+        await publicationIndexUpdater.RemovePublishedPlatformAsync(
+            command.CalendarEventId,
+            command.PlatformId,
+            cancellationToken);
 
         return DeletePublicationResult.Success(
             DeletePublicationStatus.Deleted,
@@ -180,5 +138,41 @@ public sealed class DeletePublicationHandler(
                 calendarEvent,
                 platform,
                 timeProvider.GetUtcNow()));
+    }
+
+    private static DeletePublicationStatus? ValidateDeletionEligibility(
+        CalendarEventView calendarEvent,
+        PlatformView platform,
+        PlatformPublication publication,
+        DateTimeOffset nowUtc)
+    {
+        if (publication.IsOrphaned)
+        {
+            return DeletePublicationStatus.Orphaned;
+        }
+
+        if (publication.Status == PublishStatus.Publishing)
+        {
+            return DeletePublicationStatus.PublishInProgress;
+        }
+
+        if (publication.Status != PublishStatus.Published)
+        {
+            return DeletePublicationStatus.RowChanged;
+        }
+
+        if (calendarEvent.ScheduledStartUtc <= nowUtc)
+        {
+            return DeletePublicationStatus.PastStart;
+        }
+
+        if (string.IsNullOrWhiteSpace(publication.ExternalResourceId))
+        {
+            return DeletePublicationStatus.MissingExternalResourceId;
+        }
+
+        return PublicationTargetPolicy.Matches(platform, publication.TargetSnapshot)
+            ? null
+            : DeletePublicationStatus.TargetMismatch;
     }
 }

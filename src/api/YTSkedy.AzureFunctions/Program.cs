@@ -1,5 +1,4 @@
 using Azure.Data.Tables;
-using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
@@ -87,25 +86,10 @@ if (!string.IsNullOrWhiteSpace(configuredIssuer))
 }
 
 builder.Services.AddSingleton(_ =>
-{
-    var connectionString =
-        builder.Configuration["AzureStorage:ConnectionString"] ??
-        builder.Configuration["AzureWebJobsStorage"];
-
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        throw new InvalidOperationException(
-            "Azure Table Storage connection string is not configured.");
-    }
-
-    var tableName = builder.Configuration["AzureStorage:CalendarEventsTableName"];
-    if (string.IsNullOrWhiteSpace(tableName))
-    {
-        tableName = "CalendarEvents";
-    }
-
-    return new TableClient(connectionString, tableName);
-});
+    AzureStorageClientFactory.CreateTableClient(
+        builder.Configuration,
+        "AzureStorage:CalendarEventsTableName",
+        "CalendarEvents"));
 
 builder.Services.AddScoped<CreateCalendarEventHandler>();
 builder.Services.AddScoped<ListEventsHandler>();
@@ -129,21 +113,9 @@ builder.Services.AddScoped<ICalendarEventThumbnailReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
 
 builder.Services.AddSingleton(_ =>
-{
-    var connectionString =
-        builder.Configuration["AzureStorage:ConnectionString"] ??
-        builder.Configuration["AzureWebJobsStorage"];
-
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        throw new InvalidOperationException(
-            "Azure Blob Storage connection string is not configured.");
-    }
-
-    return new BlobContainerClient(
-        connectionString,
-        AzureStorageConfiguration.GetThumbnailsContainerName(builder.Configuration));
-});
+    AzureStorageClientFactory.CreateBlobContainerClient(
+        builder.Configuration,
+        AzureStorageConfiguration.GetThumbnailsContainerName(builder.Configuration)));
 
 builder.Services.AddScoped<IThumbnailStore, AzureThumbnailStore>();
 
@@ -152,25 +124,10 @@ builder.Services.AddSingleton(TimeProvider.System);
 // Templates persist in their own table bound through a keyed TableClient so the
 // calendar-event TableClient registration above is untouched.
 builder.Services.AddKeyedSingleton<TableClient>("templates", (_, _) =>
-{
-    var connectionString =
-        builder.Configuration["AzureStorage:ConnectionString"] ??
-        builder.Configuration["AzureWebJobsStorage"];
-
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        throw new InvalidOperationException(
-            "Azure Table Storage connection string is not configured.");
-    }
-
-    var tableName = builder.Configuration["AzureStorage:TemplatesTableName"];
-    if (string.IsNullOrWhiteSpace(tableName))
-    {
-        tableName = "Templates";
-    }
-
-    return new TableClient(connectionString, tableName);
-});
+    AzureStorageClientFactory.CreateTableClient(
+        builder.Configuration,
+        "AzureStorage:TemplatesTableName",
+        "Templates"));
 
 builder.Services.AddScoped<CreateTemplateHandler>();
 builder.Services.AddScoped<UpdateTemplateHandler>();
@@ -190,25 +147,10 @@ builder.Services.AddScoped<ITemplateReader>(
 // settings are rows inside that table, so adding event text fields does not add
 // a dedicated EventTextFields table.
 builder.Services.AddKeyedSingleton<TableClient>("applicationSettings", (_, _) =>
-{
-    var connectionString =
-        builder.Configuration["AzureStorage:ConnectionString"] ??
-        builder.Configuration["AzureWebJobsStorage"];
-
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        throw new InvalidOperationException(
-            "Azure Table Storage connection string is not configured.");
-    }
-
-    var tableName = builder.Configuration["AzureStorage:ApplicationSettingsTableName"];
-    if (string.IsNullOrWhiteSpace(tableName))
-    {
-        tableName = "ApplicationSettings";
-    }
-
-    return new TableClient(connectionString, tableName);
-});
+    AzureStorageClientFactory.CreateTableClient(
+        builder.Configuration,
+        "AzureStorage:ApplicationSettingsTableName",
+        "ApplicationSettings"));
 
 builder.Services.AddScoped<GetEventTextFieldsHandler>();
 builder.Services.AddScoped<UpdateEventTextFieldsHandler>();
@@ -223,25 +165,10 @@ builder.Services.AddScoped<IEventTextFieldsModifier>(
 // Platforms persist in their own table bound through a keyed TableClient so the
 // calendar-event and templates TableClient registrations above are untouched.
 builder.Services.AddKeyedSingleton<TableClient>("platforms", (_, _) =>
-{
-    var connectionString =
-        builder.Configuration["AzureStorage:ConnectionString"] ??
-        builder.Configuration["AzureWebJobsStorage"];
-
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        throw new InvalidOperationException(
-            "Azure Table Storage connection string is not configured.");
-    }
-
-    var tableName = builder.Configuration["AzureStorage:PlatformsTableName"];
-    if (string.IsNullOrWhiteSpace(tableName))
-    {
-        tableName = "Platforms";
-    }
-
-    return new TableClient(connectionString, tableName);
-});
+    AzureStorageClientFactory.CreateTableClient(
+        builder.Configuration,
+        "AzureStorage:PlatformsTableName",
+        "Platforms"));
 
 builder.Services.AddScoped<ListPlatformsHandler>();
 builder.Services.AddScoped<GetPlatformHandler>();
@@ -264,25 +191,10 @@ builder.Services.AddScoped<IPlatformReader>(
 // TableClient so the calendar-event, templates, and platforms TableClient
 // registrations above are untouched.
 builder.Services.AddKeyedSingleton<TableClient>("platformPublications", (_, _) =>
-{
-    var connectionString =
-        builder.Configuration["AzureStorage:ConnectionString"] ??
-        builder.Configuration["AzureWebJobsStorage"];
-
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        throw new InvalidOperationException(
-            "Azure Table Storage connection string is not configured.");
-    }
-
-    var tableName = builder.Configuration["AzureStorage:PlatformPublicationsTableName"];
-    if (string.IsNullOrWhiteSpace(tableName))
-    {
-        tableName = "PlatformPublications";
-    }
-
-    return new TableClient(connectionString, tableName);
-});
+    AzureStorageClientFactory.CreateTableClient(
+        builder.Configuration,
+        "AzureStorage:PlatformPublicationsTableName",
+        "PlatformPublications"));
 
 builder.Services.AddScoped(serviceProvider =>
     new AzurePlatformPublicationRepository(
@@ -337,6 +249,7 @@ builder.Services.AddSingleton<IThumbnailPublisher, YouTubeThumbnailPublisher>();
 builder.Services.AddSingleton<IPlatformTypeAdapterSelector<IThumbnailPublisher>,
     PlatformTypeAdapterSelector<IThumbnailPublisher>>();
 builder.Services.AddScoped<PublicationThumbnailApplier>();
+builder.Services.AddScoped<PublicationIndexUpdater>();
 builder.Services.AddScoped<PublishHandler>();
 
 // Platform publication cleanup: providers are selected by platform type and use

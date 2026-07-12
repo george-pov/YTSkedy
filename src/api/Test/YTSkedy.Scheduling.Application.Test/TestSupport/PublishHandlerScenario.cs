@@ -48,9 +48,11 @@ internal static class PublishHandlerScenario
         ThumbnailContent? thumbnailContent = null,
         IThumbnailPublisher? thumbnailPublisher = null,
         FakeCalendarEventPublicationIndexWriter? publicationIndex = null,
-        ILogger<PublishHandler>? logger = null)
+        ILogger<PublishHandler>? logger = null,
+        ILogger<PublicationIndexUpdater>? publicationIndexLogger = null)
     {
         var publicationRepository = repository ?? new PublishFakePublicationRepository();
+        var publicationIndexWriter = publicationIndex ?? new FakeCalendarEventPublicationIndexWriter();
 
         return new PublishHandler(
             new FakeCalendarEventReader(getResult: calendarEvent),
@@ -60,7 +62,9 @@ internal static class PublishHandlerScenario
             new FakePlatformPublicationReader(
                 publicationRows ?? (existing is null ? [] : [existing])),
             publicationRepository,
-            publicationIndex ?? new FakeCalendarEventPublicationIndexWriter(),
+            new PublicationIndexUpdater(
+                publicationIndexWriter,
+                publicationIndexLogger ?? NullLogger<PublicationIndexUpdater>.Instance),
             new PlatformTypeAdapterSelector<IPlatformPublisher>(
                 publisher is null ? [] : [publisher]),
             new PublicationThumbnailApplier(

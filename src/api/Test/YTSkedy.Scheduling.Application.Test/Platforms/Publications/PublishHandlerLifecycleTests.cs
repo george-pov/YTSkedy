@@ -157,13 +157,13 @@ public class PublishHandlerLifecycleTests
         {
             AddResult = false
         };
-        var logger = new CapturingLogger<PublishHandler>();
+        var logger = new CapturingLogger<PublicationIndexUpdater>();
         var handler = CreateHandler(
             Event(FutureStart),
             Platform(),
             new PublishFakePublisher(),
             publicationIndex: publicationIndex,
-            logger: logger);
+            publicationIndexLogger: logger);
 
         var result = await Handle(handler);
 
@@ -183,13 +183,13 @@ public class PublishHandlerLifecycleTests
         {
             AddException = new InvalidOperationException("storage unavailable")
         };
-        var logger = new CapturingLogger<PublishHandler>();
+        var logger = new CapturingLogger<PublicationIndexUpdater>();
         var handler = CreateHandler(
             Event(FutureStart),
             Platform(),
             new PublishFakePublisher(),
             publicationIndex: publicationIndex,
-            logger: logger);
+            publicationIndexLogger: logger);
 
         var result = await Handle(handler);
 

@@ -235,10 +235,10 @@ public class DeletePublicationHandlerTests
         {
             RemoveResult = false
         };
-        var logger = new CapturingLogger<DeletePublicationHandler>();
+        var logger = new CapturingLogger<PublicationIndexUpdater>();
         var handler = CreateHandler(
             publicationIndex: publicationIndex,
-            logger: logger);
+            publicationIndexLogger: logger);
 
         var result = await Handle(handler);
 
@@ -258,10 +258,10 @@ public class DeletePublicationHandlerTests
         {
             RemoveException = new InvalidOperationException("storage unavailable")
         };
-        var logger = new CapturingLogger<DeletePublicationHandler>();
+        var logger = new CapturingLogger<PublicationIndexUpdater>();
         var handler = CreateHandler(
             publicationIndex: publicationIndex,
-            logger: logger);
+            publicationIndexLogger: logger);
 
         var result = await Handle(handler);
 
@@ -288,7 +288,8 @@ public class DeletePublicationHandlerTests
         bool hasPublication = true,
         bool hasDeleter = true,
         FakeCalendarEventPublicationIndexWriter? publicationIndex = null,
-        ILogger<DeletePublicationHandler>? logger = null) =>
+        ILogger<DeletePublicationHandler>? logger = null,
+        ILogger<PublicationIndexUpdater>? publicationIndexLogger = null) =>
         new(
             new FakeCalendarEventReader(
                 getResult: hasCalendarEvent ? calendarEvent ?? Event(FutureStart) : null),
@@ -296,7 +297,9 @@ public class DeletePublicationHandlerTests
             new FakePlatformPublicationReader(
                 hasPublication ? [publication ?? Publication(PublishStatus.Published)] : []),
             repository ?? new FakePublicationRepository(),
-            publicationIndex ?? new FakeCalendarEventPublicationIndexWriter(),
+            new PublicationIndexUpdater(
+                publicationIndex ?? new FakeCalendarEventPublicationIndexWriter(),
+                publicationIndexLogger ?? NullLogger<PublicationIndexUpdater>.Instance),
             new PlatformTypeAdapterSelector<IPlatformPublicationDeleter>(
                 hasDeleter ? [deleter ?? new FakePublicationDeleter()] : []),
             new FixedTimeProvider(Now),

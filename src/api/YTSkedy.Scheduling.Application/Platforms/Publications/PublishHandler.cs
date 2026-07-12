@@ -26,7 +26,7 @@ public sealed class PublishHandler(
     IPlatformReader platforms,
     IPlatformPublicationReader publications,
     IPublicationAttemptWriter publicationAttempts,
-    IPublicationIndexWriter publicationIndex,
+    PublicationIndexUpdater publicationIndexUpdater,
     IPlatformTypeAdapterSelector<IPlatformPublisher> publishers,
     PublicationThumbnailApplier thumbnailApplier,
     PublishingContentRenderer contentRenderer,
@@ -65,23 +65,10 @@ public sealed class PublishHandler(
             command.CalendarEventId,
             command.PlatformId,
             cancellationToken);
-        if (existing is not null)
+        var existingPublicationStatus = ValidateExistingPublication(existing);
+        if (existingPublicationStatus is not null)
         {
-            // A NotPublished pair has no row. Orphaned history cannot be republished.
-            if (existing.IsOrphaned)
-            {
-                return PublishResult.ForStatus(PublishResultStatus.PlatformDeleted);
-            }
-
-            if (existing.Status == PublishStatus.Published)
-            {
-                return PublishResult.ForStatus(PublishResultStatus.AlreadyPublished);
-            }
-
-            if (existing.Status == PublishStatus.Publishing)
-            {
-                return PublishResult.ForStatus(PublishResultStatus.PublishInProgress);
-            }
+            return PublishResult.ForStatus(existingPublicationStatus.Value);
         }
 
         if (calendarEvent.ScheduledStartUtc <= timeProvider.GetUtcNow())
@@ -220,31 +207,10 @@ public sealed class PublishHandler(
             return PublishResult.ForStatus(PublishResultStatus.FinalizeFailed);
         }
 
-        try
-        {
-            if (!await publicationIndex.AddPublishedPlatformAsync(
-                    command.CalendarEventId,
-                    command.PlatformId,
-                    cancellationToken))
-            {
-                logger.LogError(
-                    "Publication index operation {Operation} failed for calendar event " +
-                    "{CalendarEventId} and platform {PlatformId}.",
-                    "AddPublishedPlatform",
-                    command.CalendarEventId,
-                    command.PlatformId);
-            }
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            logger.LogError(
-                exception,
-                "Publication index operation {Operation} failed for calendar event " +
-                "{CalendarEventId} and platform {PlatformId}.",
-                "AddPublishedPlatform",
-                command.CalendarEventId,
-                command.PlatformId);
-        }
+        await publicationIndexUpdater.AddPublishedPlatformAsync(
+            command.CalendarEventId,
+            command.PlatformId,
+            cancellationToken);
 
         var thumbnailStatus = await thumbnailApplier.ApplyAsync(
             new PublicationThumbnailCommand(
@@ -263,5 +229,27 @@ public sealed class PublishHandler(
                 publishedUtc.Value,
                 timeProvider.GetUtcNow(),
                 thumbnailStatus));
+    }
+
+    private static PublishResultStatus? ValidateExistingPublication(
+        PlatformPublication? existing)
+    {
+        if (existing is null)
+        {
+            return null;
+        }
+
+        // A NotPublished pair has no row. Orphaned history cannot be republished.
+        if (existing.IsOrphaned)
+        {
+            return PublishResultStatus.PlatformDeleted;
+        }
+
+        return existing.Status switch
+        {
+            PublishStatus.Published => PublishResultStatus.AlreadyPublished,
+            PublishStatus.Publishing => PublishResultStatus.PublishInProgress,
+            _ => null
+        };
     }
 }
