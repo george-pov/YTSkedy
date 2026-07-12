@@ -22,22 +22,17 @@ public class PlatformPublicationTests
         Assert.Equal("description-template", content.DescriptionTemplateId);
     }
 
-    [Fact]
-    public void RenderedContent_WhitespaceDescription_NormalizesToNull()
+    [Theory]
+    [MemberData(nameof(ContentWithWhitespaceDescription))]
+    public void ContentValue_WhitespaceDescription_NormalizesToNull(
+        string title,
+        Func<object> createContent,
+        Func<object, string?> description)
     {
-        var content = new RenderedContent("Rendered title", "   ");
+        var content = createContent();
 
-        Assert.Equal("Rendered title", content.Title);
-        Assert.Null(content.Description);
-    }
-
-    [Fact]
-    public void ContentSnapshot_WhitespaceDescription_NormalizesToNull()
-    {
-        var snapshot = new ContentSnapshot("Published title", "   ");
-
-        Assert.Equal("Published title", snapshot.Title);
-        Assert.Null(snapshot.Description);
+        Assert.Equal(title, GetTitle(content));
+        Assert.Null(description(content));
     }
 
     [Fact]
@@ -69,23 +64,44 @@ public class PlatformPublicationTests
         Assert.Equal(ThumbnailPublishStatus.Applied, publication.ThumbnailStatus);
     }
 
-    [Fact]
-    public void IsOrphaned_PlatformDeletedUtcSet_ReturnsTrue()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void IsOrphaned_PlatformDeletedUtc_ReturnsExpected(bool hasPlatformDeletedUtc)
     {
         var publication = PlatformSamples.PlatformPublication(
             PublishStatus.Published,
-            platformDeletedUtc: new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero));
+            platformDeletedUtc: hasPlatformDeletedUtc
+                ? new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
+                : null);
 
-        Assert.True(publication.IsOrphaned);
+        Assert.Equal(hasPlatformDeletedUtc, publication.IsOrphaned);
     }
 
-    [Fact]
-    public void IsOrphaned_PlatformDeletedUtcNull_ReturnsFalse()
+    public static TheoryData<string, Func<object>, Func<object, string?>> ContentWithWhitespaceDescription()
     {
-        var publication = PlatformSamples.PlatformPublication(
-            PublishStatus.Published,
-            platformDeletedUtc: null);
+        return new TheoryData<string, Func<object>, Func<object, string?>>
+        {
+            {
+                "Rendered title",
+                () => new RenderedContent("Rendered title", "   "),
+                content => ((RenderedContent)content).Description
+            },
+            {
+                "Published title",
+                () => new ContentSnapshot("Published title", "   "),
+                content => ((ContentSnapshot)content).Description
+            },
+        };
+    }
 
-        Assert.False(publication.IsOrphaned);
+    private static string GetTitle(object content)
+    {
+        return content switch
+        {
+            RenderedContent renderedContent => renderedContent.Title,
+            ContentSnapshot contentSnapshot => contentSnapshot.Title,
+            _ => throw new ArgumentException("Unsupported content type.", nameof(content)),
+        };
     }
 }
