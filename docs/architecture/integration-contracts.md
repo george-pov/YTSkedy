@@ -1,7 +1,7 @@
 # Integration Contracts
 
 This document records cross-boundary contracts and ownership. Endpoint route,
-request, response, status-code, and manual-check details belong in
+request, response, status code, and manual check details belong in
 [`../api/http/`](../api/http/). UI route and page behavior belongs in
 [`../ui/routes.md`](../ui/routes.md). Boundary implementation details belong in
 `docs/api/` or `docs/ui/`.

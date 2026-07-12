@@ -16,9 +16,9 @@ architecture, API, UI, development, or operations guidance.
 
 ## Entry Points
 
-- Root developer entrypoint: [`../README.md`](../README.md)
+- Root developer entry point: [`../README.md`](../README.md)
 - Project context: [`../CONTEXT.md`](../CONTEXT.md)
-- UI workspace entrypoint: [`../src/ui/README.md`](../src/ui/README.md)
+- UI workspace entry point: [`../src/ui/README.md`](../src/ui/README.md)
 - Durable docs inventory: [`README.md`](README.md)
 - Shared architecture overview: [`architecture/overview.md`](architecture/overview.md)
 - Cross-boundary integration contracts:
@@ -56,7 +56,7 @@ architecture, API, UI, development, or operations guidance.
   [`api/http/event-text-fields.md`](api/http/event-text-fields.md)
 - Calendar-event thumbnails HTTP contract:
   [`api/http/calendar-event-thumbnails.md`](api/http/calendar-event-thumbnails.md)
-- Platform publishing HTTP contract:
+- Configured platforms HTTP contract:
   [`api/http/platforms.md`](api/http/platforms.md)
 - Platform publications HTTP contract:
   [`api/http/platform-publications.md`](api/http/platform-publications.md)

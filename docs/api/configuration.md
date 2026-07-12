@@ -163,7 +163,7 @@ platform handles preflight `OPTIONS` and the `Access-Control-Allow-*`
 response headers.
 
 Platform CORS is managed manually in Azure. Deployment workflows must not add,
-remove, or update CORS settings, and the Function App app settings must not
+remove, or update CORS settings, and the Function App settings must not
 contain `Cors__AllowedOrigins__*` entries.
 
 Allowed origins:

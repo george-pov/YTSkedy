@@ -15,7 +15,7 @@ pages render through `src/ui/src/app/layout/app-layout/`.
 
 | Path | Access | Page |
 | --- | --- | --- |
-| `/` | Public | Home and sign-in entrypoint |
+| `/` | Public | Home and sign-in entry point |
 | `/calendar-events` | Protected | Calendar event list |
 | `/calendar-events/new` | Protected | Calendar event create page |
 | `/calendar-events/:calendarEventId/edit` | Protected | Calendar event details and publication actions |
@@ -35,7 +35,7 @@ placeholder. The badge does not call the backend for profile data.
 
 ## Home And Authentication Routes
 
-The home route shows the sign-in entrypoint and redirects authenticated users to
+The home route shows the sign-in entry point and redirects authenticated users to
 `/calendar-events`. `/signed-out` shows logout confirmation and also redirects
 an already-authenticated user to `/calendar-events`.
 

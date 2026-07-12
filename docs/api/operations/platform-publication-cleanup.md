@@ -21,7 +21,7 @@ DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication
 ```
 
 See [`../http/platform-publications.md`](../http/platform-publications.md) for the full request,
-response, and status-code contract.
+response, and status code contract.
 
 ## Preconditions
 
