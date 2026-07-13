@@ -2,7 +2,7 @@ import { Component, provideZonelessChangeDetection, signal } from '@angular/core
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { form } from '@angular/forms/signals';
 import { By } from '@angular/platform-browser';
-import { Observable, of, Subject, throwError } from 'rxjs';
+import { finalize, Observable, of, Subject, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -66,9 +66,7 @@ describe('WordPressCategorySelector', () => {
   it('loads selected category labels and sends no credential fields', async () => {
     host.platformId.set('wp-1');
     host.model.set({ categoryIds: [12] });
-    listCategories.mockReturnValue(
-      of(page([{ id: 12, name: 'Events', slug: 'events' }], 1, 1)),
-    );
+    listCategories.mockReturnValue(of(page([{ id: 12, name: 'Events', slug: 'events' }], 1, 1)));
 
     await render();
 
@@ -81,6 +79,24 @@ describe('WordPressCategorySelector', () => {
     });
     expect(JSON.stringify(listCategories.mock.calls)).not.toContain('applicationPassword');
     expect(JSON.stringify(listCategories.mock.calls)).not.toContain('username');
+  });
+
+  it('unsubscribes from a pending selected-category load when destroyed', async () => {
+    const response = new Subject<WordPressCategoryListResponse>();
+    const teardown = vi.fn();
+    listCategories.mockReturnValue(response.pipe(finalize(teardown)));
+    host.platformId.set('wp-1');
+    host.model.set({ categoryIds: [12] });
+
+    await render();
+
+    expect(teardown).not.toHaveBeenCalled();
+    fixture.destroy();
+    expect(teardown).toHaveBeenCalledTimes(1);
+
+    response.next(page([{ id: 12, name: 'Late', slug: 'late' }], 1, 1));
+    response.error(new Error('late failure'));
+    expect(listCategories).toHaveBeenCalledTimes(1);
   });
 
   it('loads every selected-category page', async () => {
@@ -111,7 +127,9 @@ describe('WordPressCategorySelector', () => {
     await render();
 
     expect(fixture.nativeElement.textContent).toContain('Category #12');
-    expect(fixture.nativeElement.textContent).toContain('Categories could not be loaded. Try again.');
+    expect(fixture.nativeElement.textContent).toContain(
+      'Categories could not be loaded. Try again.',
+    );
     const remove = fixture.nativeElement.querySelector(
       'button[aria-label="Remove Category #12, #12"]',
     ) as HTMLButtonElement;
@@ -141,9 +159,7 @@ describe('WordPressCategorySelector', () => {
     host.platformId.set('wp-1');
     await render();
     listCategories.mockClear();
-    listCategories.mockReturnValue(
-      of(page([{ id: 34, name: 'News', slug: 'news' }], 1, 1)),
-    );
+    listCategories.mockReturnValue(of(page([{ id: 34, name: 'News', slug: 'news' }], 1, 1)));
 
     selector().onQueryChange('  news  ');
     await vi.advanceTimersByTimeAsync(249);
@@ -241,9 +257,7 @@ describe('WordPressCategorySelector', () => {
   }
 
   function optionItems(): readonly ChipListItem[] {
-    return (
-      selector() as unknown as { optionItems: () => readonly ChipListItem[] }
-    ).optionItems();
+    return (selector() as unknown as { optionItems: () => readonly ChipListItem[] }).optionItems();
   }
 
   async function render(): Promise<void> {

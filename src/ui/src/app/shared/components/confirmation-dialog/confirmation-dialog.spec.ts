@@ -5,14 +5,9 @@ import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Icon } from 'src/app/shared/components/icon/icon';
-import {
-  ConfirmationDialog,
-  ConfirmationDialogContent,
-} from './confirmation-dialog';
+import { ConfirmationDialog, ConfirmationDialogContent } from './confirmation-dialog';
 
-function content(
-  overrides: Partial<ConfirmationDialogContent> = {},
-): ConfirmationDialogContent {
+function content(overrides: Partial<ConfirmationDialogContent> = {}): ConfirmationDialogContent {
   return {
     title: 'Delete calendar event?',
     body: 'This permanently removes the scheduled event.',
@@ -45,20 +40,14 @@ describe('ConfirmationDialog', () => {
     return fixture;
   }
 
-  function actionButtons(
-    fixture: ComponentFixture<ConfirmationDialog>,
-  ): HTMLButtonElement[] {
-    return Array.from(
-      fixture.nativeElement.querySelectorAll('app-button button'),
-    );
+  function actionButtons(fixture: ComponentFixture<ConfirmationDialog>): HTMLButtonElement[] {
+    return Array.from(fixture.nativeElement.querySelectorAll('app-button button'));
   }
 
   it('renders the title and body', () => {
     const el = setup().nativeElement as HTMLElement;
 
-    expect(el.querySelector('[mat-dialog-title]')?.textContent).toContain(
-      'Delete calendar event?',
-    );
+    expect(el.querySelector('h2')?.textContent).toContain('Delete calendar event?');
     expect(el.querySelector('.body')?.textContent).toContain(
       'This permanently removes the scheduled event.',
     );
@@ -67,17 +56,14 @@ describe('ConfirmationDialog', () => {
   it('exposes the body id used for aria-describedby', () => {
     const el = setup().nativeElement as HTMLElement;
 
-    expect(el.querySelector('.body')?.getAttribute('id')).toBe(
-      'confirmation-dialog-body-test',
-    );
+    expect(el.querySelector('.body')?.getAttribute('id')).toBe('confirmation-dialog-body-test');
   });
 
   it('renders the kind icon with the matching status class', () => {
     const fixture = setup(content({ kind: 'warning' }));
     const el = fixture.nativeElement as HTMLElement;
     const icon = el.querySelector('.icon');
-    const iconComponent = fixture.debugElement.query(By.directive(Icon))
-      .componentInstance as Icon;
+    const iconComponent = fixture.debugElement.query(By.directive(Icon)).componentInstance as Icon;
 
     expect(icon?.classList).toContain('warning');
     expect(iconComponent.name()).toBe('warning');
@@ -87,17 +73,14 @@ describe('ConfirmationDialog', () => {
     const fixture = setup(content({ kind: undefined }));
     const el = fixture.nativeElement as HTMLElement;
     const icon = el.querySelector('.icon');
-    const iconComponent = fixture.debugElement.query(By.directive(Icon))
-      .componentInstance as Icon;
+    const iconComponent = fixture.debugElement.query(By.directive(Icon)).componentInstance as Icon;
 
     expect(icon?.classList).toContain('info');
     expect(iconComponent.name()).toBe('info');
   });
 
   it('renders one button per action in order', () => {
-    const labels = actionButtons(setup()).map((button) =>
-      button.textContent?.trim(),
-    );
+    const labels = actionButtons(setup()).map((button) => button.textContent?.trim());
 
     expect(labels).toEqual(['Cancel', 'Delete']);
   });

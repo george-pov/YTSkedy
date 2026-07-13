@@ -1,6 +1,7 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { form, maxLength, required } from '@angular/forms/signals';
+import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { MaskedInput } from './masked-input';
@@ -51,15 +52,10 @@ describe('MaskedInput', () => {
     return fixture.nativeElement.querySelector('input') as HTMLInputElement;
   }
 
-  function errorText(): string | null {
-    const error = fixture.nativeElement.querySelector('mat-error');
-    return error ? (error.textContent?.trim() ?? null) : null;
-  }
-
   it('renders the label and native input', () => {
-    expect(
-      fixture.nativeElement.querySelector('mat-label')?.textContent?.trim(),
-    ).toBe('Secret');
+    const maskedInput = fixture.debugElement.query(By.directive(MaskedInput))
+      .componentInstance as MaskedInput;
+    expect(maskedInput.label()).toBe('Secret');
     expect(input()).not.toBeNull();
   });
 
@@ -142,11 +138,11 @@ describe('MaskedInput', () => {
   });
 
   it('shows the first error after blur touches the field', () => {
-    expect(errorText()).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Secret is required.');
 
     input().dispatchEvent(new Event('blur'));
     fixture.detectChanges();
 
-    expect(errorText()).toBe('Secret is required.');
+    expect(fixture.nativeElement.textContent).toContain('Secret is required.');
   });
 });

@@ -40,9 +40,7 @@ function setup(compact = false): {
       provideZonelessChangeDetection(),
       {
         provide: BreakpointObserver,
-        useValue: new FakeBreakpointObserver(
-          compact,
-        ) as unknown as BreakpointObserver,
+        useValue: new FakeBreakpointObserver(compact) as unknown as BreakpointObserver,
       },
     ],
   });
@@ -58,38 +56,28 @@ function badgeEl(fixture: ComponentFixture<UserBadgeHost>): HTMLElement {
 
 describe('UserBadge', () => {
   afterEach(() => {
-    document
-      .querySelectorAll('.cdk-overlay-container')
-      .forEach((element) => element.remove());
+    document.querySelectorAll('.cdk-overlay-container').forEach((element) => element.remove());
   });
 
   it('renders the provided initials in the monogram', () => {
     const { fixture } = setup();
-    expect(
-      fixture.nativeElement.querySelector('.monogram')?.textContent?.trim(),
-    ).toBe('JD');
+    expect(fixture.nativeElement.querySelector('.monogram')?.textContent?.trim()).toBe('JD');
   });
 
   it('shows the full name beside the monogram on wide screens', () => {
     const { fixture } = setup();
-    expect(
-      fixture.nativeElement.querySelector('.name')?.textContent?.trim(),
-    ).toBe('Jane Doe');
+    expect(fixture.nativeElement.querySelector('.name')?.textContent?.trim()).toBe('Jane Doe');
   });
 
   it('hides the name and keeps only the monogram when compact', () => {
     const { fixture } = setup(true);
     expect(fixture.nativeElement.querySelector('.name')).toBeNull();
-    expect(
-      fixture.nativeElement.querySelector('.monogram')?.textContent?.trim(),
-    ).toBe('JD');
+    expect(fixture.nativeElement.querySelector('.monogram')?.textContent?.trim()).toBe('JD');
   });
 
   it('labels the trigger with the full name', () => {
     const { fixture } = setup();
-    expect(badgeEl(fixture).getAttribute('aria-label')).toBe(
-      'Account menu for Jane Doe',
-    );
+    expect(badgeEl(fixture).getAttribute('aria-label')).toBe('Account menu for Jane Doe');
   });
 
   it('emits signOut when the Sign Out menu item is activated', async () => {
@@ -98,10 +86,9 @@ describe('UserBadge', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const item = document.querySelector(
-      '.mat-mdc-menu-item',
-    ) as HTMLButtonElement | null;
+    const item = document.querySelector('[role="menuitem"]') as HTMLButtonElement | null;
     expect(item).not.toBeNull();
+    expect(item?.textContent).toContain('Sign Out');
     item?.click();
 
     expect(host.signOutCount).toBe(1);

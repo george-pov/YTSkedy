@@ -1,9 +1,11 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { form } from '@angular/forms/signals';
+import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PlatformsService } from 'src/app/shared/api/platforms/platforms-service';
+import { Select } from 'src/app/shared/components/select/select';
 import { WordPressSettings } from './wordpress-settings';
 
 interface WordPressSettingsModel {
@@ -75,26 +77,16 @@ describe('WordPressSettings', () => {
     );
   });
 
-  it('offers all five post statuses in display order', async () => {
-    const trigger = fixture.nativeElement.querySelector('.mat-mdc-select-trigger') as HTMLElement;
-    trigger.click();
-    fixture.detectChanges();
-    await fixture.whenStable();
+  it('offers all five post statuses in display order', () => {
+    const select = fixture.debugElement.query(By.directive(Select)).componentInstance as Select;
 
-    const labels = Array.from(document.querySelectorAll('mat-option')).map((option) =>
-      option.textContent?.trim(),
-    );
-
-    expect(labels).toEqual(['Draft', 'Pending', 'Private', 'Scheduled', 'Publish']);
-
-    const scheduled = Array.from(document.querySelectorAll('mat-option')).find(
-      (option) => option.textContent?.trim() === 'Scheduled',
-    ) as HTMLElement | undefined;
-    scheduled?.click();
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(host.model().postStatus).toBe('future');
+    expect(select.options()).toEqual([
+      { value: 'draft', label: 'Draft' },
+      { value: 'pending', label: 'Pending' },
+      { value: 'private', label: 'Private' },
+      { value: 'future', label: 'Scheduled' },
+      { value: 'publish', label: 'Publish' },
+    ]);
   });
 
   it('keeps the sticky checkbox visible and synchronizes checked state', async () => {

@@ -71,7 +71,18 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "coverageInclude": ["src/app/**/*.ts"],
+            "coverageExclude": [
+              "src/app/**/*.spec.ts",
+              "src/app/testing/**",
+              "src/app/shared/auth/fake-auth-facade.ts",
+              "src/app/shared/config/testing/**",
+              "src/**/*.d.ts"
+            ],
+            "coverageReporters": ["text-summary", "html", "lcov", "json-summary"]
+          }
         }
       }
     }

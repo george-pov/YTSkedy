@@ -61,7 +61,16 @@ jobs:
 
       - name: Run UI tests
         working-directory: ${{ env.UI_WORKSPACE_PATH }}
-        run: npm test
+        run: npm run test:coverage
+
+      - name: Upload UI coverage report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ytskedy-ui-coverage
+          path: ${{ env.UI_WORKSPACE_PATH }}/coverage
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Verify build output
         shell: bash

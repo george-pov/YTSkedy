@@ -7,9 +7,7 @@ import { ProgressBar, ProgressBarMode } from './progress-bar';
 @Component({
   selector: 'app-progress-bar-host',
   imports: [ProgressBar],
-  template: `
-    <app-progress-bar [mode]="mode()" [value]="value()" [label]="label()" />
-  `,
+  template: ` <app-progress-bar [mode]="mode()" [value]="value()" [label]="label()" /> `,
 })
 class ProgressBarHost {
   readonly mode = signal<ProgressBarMode>('indeterminate');
@@ -18,7 +16,7 @@ class ProgressBarHost {
 }
 
 function barEl(fixture: ComponentFixture<ProgressBarHost>): HTMLElement {
-  return fixture.nativeElement.querySelector('mat-progress-bar') as HTMLElement;
+  return fixture.nativeElement.querySelector('[role="progressbar"]') as HTMLElement;
 }
 
 describe('ProgressBar', () => {
@@ -34,7 +32,7 @@ describe('ProgressBar', () => {
     fixture.detectChanges();
   });
 
-  it('renders a Material progress bar with the progressbar role', () => {
+  it('renders a progress bar with the progressbar role', () => {
     const bar = barEl(fixture);
     expect(bar).not.toBeNull();
     expect(bar.getAttribute('role')).toBe('progressbar');
@@ -56,8 +54,6 @@ describe('ProgressBar', () => {
     host.label.set('Loading calendar events');
     fixture.detectChanges();
 
-    expect(barEl(fixture).getAttribute('aria-label')).toBe(
-      'Loading calendar events',
-    );
+    expect(barEl(fixture).getAttribute('aria-label')).toBe('Loading calendar events');
   });
 });

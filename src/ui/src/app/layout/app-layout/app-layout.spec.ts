@@ -33,9 +33,7 @@ function configure(fake: FakeAuthFacade) {
 
 describe('AppLayout', () => {
   afterEach(() => {
-    document
-      .querySelectorAll('.cdk-overlay-container')
-      .forEach((element) => element.remove());
+    document.querySelectorAll('.cdk-overlay-container').forEach((element) => element.remove());
   });
 
   it('hides the user badge when unauthenticated', () => {
@@ -80,10 +78,9 @@ describe('AppLayout', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const item = document.querySelector(
-      '.mat-mdc-menu-item',
-    ) as HTMLButtonElement | null;
+    const item = document.querySelector('[role="menuitem"]') as HTMLButtonElement | null;
     expect(item).not.toBeNull();
+    expect(item?.textContent).toContain('Sign Out');
     item?.click();
 
     expect(fake.signOutCalls).toBe(1);

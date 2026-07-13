@@ -1,6 +1,7 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Observable, of, throwError } from 'rxjs';
+import { By } from '@angular/platform-browser';
+import { finalize, Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -21,6 +22,8 @@ import {
   TemplatesService,
 } from 'src/app/shared/api/templates/templates-service';
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
+import { Input } from 'src/app/shared/components/input/input';
+import { MaskedInput } from 'src/app/shared/components/masked-input/masked-input';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import {
   buttonByText as findButtonByText,
@@ -191,18 +194,16 @@ describe('Platforms', () => {
   }
 
   function inputByLabel(label: string): HTMLInputElement {
-    const field = Array.from(
-      fixture.nativeElement.querySelectorAll('app-input, app-masked-input'),
-    ).find(
-      (input) =>
-        ((input as HTMLElement).querySelector('mat-label')?.textContent ?? '').trim() === label,
-    ) as HTMLElement | undefined;
+    const field = [
+      ...fixture.debugElement.queryAll(By.directive(Input)),
+      ...fixture.debugElement.queryAll(By.directive(MaskedInput)),
+    ].find((entry) => (entry.componentInstance as Input | MaskedInput).label() === label);
 
     if (field === undefined) {
       throw new Error(`Input with label '${label}' was not found.`);
     }
 
-    return field.querySelector('input') as HTMLInputElement;
+    return field.nativeElement.querySelector('input') as HTMLInputElement;
   }
 
   function buttonByText(text: string): HTMLButtonElement {
@@ -267,6 +268,35 @@ describe('Platforms', () => {
     );
     expect(headers).toEqual(['Type', 'Name', 'Reference key']);
     expect(rows()).toHaveLength(2);
+  });
+
+  it('unsubscribes from pending platform and template loads when destroyed', async () => {
+    const platformResponse = new Subject<PlatformListResponse>();
+    const templateResponse = new Subject<TemplateListResponse>();
+    const platformTeardown = vi.fn();
+    const templateTeardown = vi.fn();
+    service.list.mockReturnValue(platformResponse.pipe(finalize(platformTeardown)));
+    templatesService.list.mockReturnValue(templateResponse.pipe(finalize(templateTeardown)));
+
+    await createComponent();
+    platformResponse.next({ platforms: [youTubePlatform()] });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(templatesService.list).toHaveBeenCalledTimes(1);
+    expect(platformTeardown).not.toHaveBeenCalled();
+    expect(templateTeardown).not.toHaveBeenCalled();
+
+    fixture.destroy();
+
+    expect(platformTeardown).toHaveBeenCalledTimes(1);
+    expect(templateTeardown).toHaveBeenCalledTimes(1);
+    platformResponse.next({ platforms: [wordPressPlatform()] });
+    platformResponse.error(new Error('late platform failure'));
+    templateResponse.next({ templates: [] });
+    templateResponse.error(new Error('late template failure'));
+    expect(templatesService.list).toHaveBeenCalledTimes(1);
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
   });
 
   it('preselects the first sorted platform on init', async () => {
@@ -819,26 +849,36 @@ describe('Platforms', () => {
 
   it('treats category edits as dirty, saves them, and resets the saved baseline', async () => {
     service.list.mockReturnValue(
-      of({ platforms: [wordPressPlatform({ publishSettings: {
-        siteUrl: 'https://blog.example.test/',
-        username: 'publisher',
-        postStatus: 'draft',
-        categoryIds: [12],
-        sticky: false,
-        applicationPasswordConfigured: true,
-        passwordDisplayValue: '*******',
-      } })] }),
+      of({
+        platforms: [
+          wordPressPlatform({
+            publishSettings: {
+              siteUrl: 'https://blog.example.test/',
+              username: 'publisher',
+              postStatus: 'draft',
+              categoryIds: [12],
+              sticky: false,
+              applicationPasswordConfigured: true,
+              passwordDisplayValue: '*******',
+            },
+          }),
+        ],
+      }),
     );
     service.update.mockReturnValue(
-      of(wordPressPlatform({ publishSettings: {
-        siteUrl: 'https://blog.example.test/',
-        username: 'publisher',
-        postStatus: 'draft',
-        categoryIds: [12, 34],
-        sticky: false,
-        applicationPasswordConfigured: true,
-        passwordDisplayValue: '*******',
-      } })),
+      of(
+        wordPressPlatform({
+          publishSettings: {
+            siteUrl: 'https://blog.example.test/',
+            username: 'publisher',
+            postStatus: 'draft',
+            categoryIds: [12, 34],
+            sticky: false,
+            applicationPasswordConfigured: true,
+            passwordDisplayValue: '*******',
+          },
+        }),
+      ),
     );
 
     await createComponent();
@@ -861,15 +901,21 @@ describe('Platforms', () => {
 
   it('restores saved category IDs after discarding category edits and reopening the row', async () => {
     service.list.mockReturnValue(
-      of({ platforms: [wordPressPlatform({ publishSettings: {
-        siteUrl: 'https://blog.example.test/',
-        username: 'publisher',
-        postStatus: 'draft',
-        categoryIds: [12],
-        sticky: false,
-        applicationPasswordConfigured: true,
-        passwordDisplayValue: '*******',
-      } })] }),
+      of({
+        platforms: [
+          wordPressPlatform({
+            publishSettings: {
+              siteUrl: 'https://blog.example.test/',
+              username: 'publisher',
+              postStatus: 'draft',
+              categoryIds: [12],
+              sticky: false,
+              applicationPasswordConfigured: true,
+              passwordDisplayValue: '*******',
+            },
+          }),
+        ],
+      }),
     );
     confirmation.confirm.mockReturnValue(of('discard'));
 

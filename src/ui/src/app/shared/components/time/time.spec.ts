@@ -1,14 +1,18 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { disabled, form, required } from '@angular/forms/signals';
+import { HarnessLoader } from '@angular/cdk/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatDateFormats } from '@angular/material/core';
+import { MatFormFieldHarness } from '@angular/material/form-field/testing';
+import {
+  MatTimepickerInputHarness,
+  MatTimepickerToggleHarness,
+} from '@angular/material/timepicker/testing';
 import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import {
-  DATE_INPUT_FORMAT,
-  TIME_INPUT_FORMAT,
-} from 'src/app/shared/date-time/date-time-format';
+import { DATE_INPUT_FORMAT, TIME_INPUT_FORMAT } from 'src/app/shared/date-time/date-time-format';
 import { TimeField } from './time';
 
 const testDateFormats: MatDateFormats = {
@@ -40,39 +44,31 @@ class TimeHost {
 describe('TimeField', () => {
   let fixture: ComponentFixture<TimeHost>;
   let host: TimeHost;
+  let loader: HarnessLoader;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [
-        provideZonelessChangeDetection(),
-        provideLuxonDateAdapter(testDateFormats),
-      ],
+      providers: [provideZonelessChangeDetection(), provideLuxonDateAdapter(testDateFormats)],
     });
     fixture = TestBed.createComponent(TimeHost);
     host = fixture.componentInstance;
     fixture.detectChanges();
+    loader = TestbedHarnessEnvironment.loader(fixture);
   });
 
-  it('renders the label and Material timepicker controls', () => {
-    expect(
-      fixture.nativeElement.querySelector('mat-label')?.textContent?.trim(),
-    ).toBe('Start time');
-    expect(
-      fixture.nativeElement.querySelector('input[matInput]'),
-    ).not.toBeNull();
-    expect(
-      fixture.nativeElement.querySelector('mat-timepicker-toggle'),
-    ).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('mat-timepicker')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('mat-hint')?.textContent).toContain(
-      'HH:mm',
-    );
+  it('renders the label and timepicker controls', async () => {
+    const formField = await loader.getHarness(MatFormFieldHarness);
+    const input = await loader.getHarness(MatTimepickerInputHarness);
+    const toggle = await loader.getHarness(MatTimepickerToggleHarness);
+
+    expect(await formField.getLabel()).toBe('Start time');
+    expect(await formField.getTextHints()).toEqual(['HH:mm']);
+    expect(await input.isDisabled()).toBe(false);
+    expect(await toggle.isDisabled()).toBe(false);
   });
 
   it('converts typed time changes into the string field value', async () => {
-    const input = fixture.nativeElement.querySelector(
-      'input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
     input.value = '14:30';
     input.dispatchEvent(new Event('input'));
     await fixture.whenStable();
@@ -81,9 +77,7 @@ describe('TimeField', () => {
   });
 
   it('allows a time to be typed one character at a time', async () => {
-    const input = fixture.nativeElement.querySelector(
-      'input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
     input.focus();
 
     for (const character of '14:30') {
@@ -98,9 +92,7 @@ describe('TimeField', () => {
   });
 
   it('ignores non-format text in typed time input', async () => {
-    const input = fixture.nativeElement.querySelector(
-      'input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
     input.value = '14:30 PM';
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -111,9 +103,7 @@ describe('TimeField', () => {
   });
 
   it('does not commit a typed time outside the HH:mm format', async () => {
-    const input = fixture.nativeElement.querySelector(
-      'input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
     input.value = '4:30';
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -123,28 +113,24 @@ describe('TimeField', () => {
   });
 
   it('shows the field error once the field is touched', async () => {
-    expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+    const formField = await loader.getHarness(MatFormFieldHarness);
+    expect(await formField.hasErrors()).toBe(false);
 
     host.form.time().markAsTouched();
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(
-      fixture.nativeElement.querySelector('mat-error')?.textContent?.trim(),
-    ).toBe('Start time is required.');
+    expect(await formField.getTextErrors()).toEqual(['Start time is required.']);
   });
 
-  it('disables the Material input and timepicker toggle when the field is disabled', async () => {
+  it('disables the input and timepicker toggle when the field is disabled', async () => {
     host.disabled.set(true);
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(
-      (fixture.nativeElement.querySelector('input') as HTMLInputElement).disabled,
-    ).toBe(true);
-    expect(
-      (fixture.nativeElement.querySelector('mat-timepicker-toggle button') as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
+    const input = await loader.getHarness(MatTimepickerInputHarness);
+    const toggle = await loader.getHarness(MatTimepickerToggleHarness);
+    expect(await input.isDisabled()).toBe(true);
+    expect(await toggle.isDisabled()).toBe(true);
   });
 });

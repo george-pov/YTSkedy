@@ -1,8 +1,8 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatPaginator } from '@angular/material/paginator';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatPaginatorHarness } from '@angular/material/paginator/testing';
 import { SortDirection } from '@angular/material/sort';
-import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { DataTable, DataTableState } from './data-table';
@@ -77,19 +77,12 @@ class DataTableHost {
 }
 
 function dataRows(fixture: ComponentFixture<unknown>): HTMLTableRowElement[] {
-  const rows = Array.from(
-    fixture.nativeElement.querySelectorAll('tr'),
-  ) as HTMLTableRowElement[];
+  const rows = Array.from(fixture.nativeElement.querySelectorAll('tr')) as HTMLTableRowElement[];
   return rows.filter((row) => row.querySelector('td') !== null);
 }
 
-function headerByText(
-  fixture: ComponentFixture<unknown>,
-  text: string,
-): HTMLElement | undefined {
-  const headers = Array.from(
-    fixture.nativeElement.querySelectorAll('th'),
-  ) as HTMLElement[];
+function headerByText(fixture: ComponentFixture<unknown>, text: string): HTMLElement | undefined {
+  const headers = Array.from(fixture.nativeElement.querySelectorAll('th')) as HTMLElement[];
   return headers.find((header) => header.textContent?.trim() === text);
 }
 
@@ -105,9 +98,9 @@ describe('DataTable', () => {
   });
 
   it('renders a header for each configured column', () => {
-    const headers = Array.from(
-      fixture.nativeElement.querySelectorAll('th'),
-    ).map((header) => (header as HTMLElement).textContent?.trim());
+    const headers = Array.from(fixture.nativeElement.querySelectorAll('th')).map((header) =>
+      (header as HTMLElement).textContent?.trim(),
+    );
 
     expect(headers).toEqual(['ID', 'Name', 'Size', 'Status', 'Actions']);
   });
@@ -133,9 +126,7 @@ describe('DataTable', () => {
 
     // One action per rendered row, each receiving its own row context.
     expect(actions).toHaveLength(10);
-    expect(actions.every((action) => action.textContent?.startsWith('Act Item'))).toBe(
-      true,
-    );
+    expect(actions.every((action) => action.textContent?.startsWith('Act Item'))).toBe(true);
   });
 
   it('limits rendered rows to the page size', () => {
@@ -150,12 +141,8 @@ describe('DataTable', () => {
     // A sortable header renders a focusable role="button" control; a
     // non-sortable column (disabled mat-sort-header) renders none. role is a
     // standard ARIA attribute, not a Material-internal class.
-    expect(
-      headerByText(fixture, 'Name')?.querySelector('[role="button"]'),
-    ).not.toBeNull();
-    expect(
-      headerByText(fixture, 'Size')?.querySelector('[role="button"]'),
-    ).toBeNull();
+    expect(headerByText(fixture, 'Name')?.querySelector('[role="button"]')).not.toBeNull();
+    expect(headerByText(fixture, 'Size')?.querySelector('[role="button"]')).toBeNull();
   });
 
   it('sorts rows client-side when a sortable header is activated', async () => {
@@ -179,9 +166,7 @@ describe('DataTable', () => {
     dataRows(fixture)[0].dispatchEvent(new Event('click'));
 
     expect(fixture.componentInstance.clicked).toHaveLength(1);
-    expect(fixture.componentInstance.clicked[0].id).toBe(
-      fixture.componentInstance.rows()[0].id,
-    );
+    expect(fixture.componentInstance.clicked[0].id).toBe(fixture.componentInstance.rows()[0].id);
   });
 
   it('emits rowClick for a clickable row without making it selectable', () => {
@@ -231,9 +216,7 @@ describe('DataTable', () => {
 
   it('marks the selected row with the selected class', () => {
     fixture.componentInstance.selectable.set(true);
-    fixture.componentInstance.selectedRow.set(
-      fixture.componentInstance.rows()[0],
-    );
+    fixture.componentInstance.selectedRow.set(fixture.componentInstance.rows()[0]);
     fixture.detectChanges();
 
     expect(dataRows(fixture)[0].classList.contains('selected')).toBe(true);
@@ -243,23 +226,19 @@ describe('DataTable', () => {
   });
 
   it('marks rows for hover highlighting only when enabled', () => {
-    expect(dataRows(fixture)[0].classList.contains('highlight-on-hover')).toBe(
-      false,
-    );
+    expect(dataRows(fixture)[0].classList.contains('highlight-on-hover')).toBe(false);
 
     fixture.componentInstance.highlightRowsOnHover.set(true);
     fixture.detectChanges();
 
-    expect(dataRows(fixture)[0].classList.contains('highlight-on-hover')).toBe(
-      true,
-    );
+    expect(dataRows(fixture)[0].classList.contains('highlight-on-hover')).toBe(true);
   });
 
   it('hides the paginator and renders all rows when showPaginator is false', () => {
     fixture.componentInstance.showPaginator.set(false);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
+    expect(fixture.nativeElement.querySelector('button[aria-label="Next page"]')).toBeNull();
     expect(dataRows(fixture)).toHaveLength(12);
   });
 });
@@ -330,12 +309,11 @@ describe('DataTable server mode', () => {
     expect(dataRows(fixture)).toHaveLength(12);
   });
 
-  it('reflects the total count in the paginator range, not the row count', () => {
-    const paginator = fixture.nativeElement.querySelector(
-      'mat-paginator',
-    ) as HTMLElement;
+  it('reflects the total count in the paginator range, not the row count', async () => {
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const paginator = await loader.getHarness(MatPaginatorHarness);
 
-    expect(paginator.textContent).toContain('of 40');
+    expect(await paginator.getRangeLabel()).toContain('of 40');
   });
 
   it('emits stateChange with the new column on a sort column change', () => {
@@ -379,17 +357,10 @@ describe('DataTable server mode', () => {
     expect(host.states[0].sortActive).toBe('name');
   });
 
-  it('emits stateChange with the new page size on a page size change', () => {
-    const paginator = fixture.debugElement.query(By.directive(MatPaginator))
-      .componentInstance as MatPaginator;
-    paginator.pageSize = 25;
-    paginator.page.emit({
-      previousPageIndex: 0,
-      pageIndex: 0,
-      pageSize: 25,
-      length: 40,
-    });
-    fixture.detectChanges();
+  it('emits stateChange with the new page size on a page size change', async () => {
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const paginator = await loader.getHarness(MatPaginatorHarness);
+    await paginator.setPageSize(25);
 
     expect(host.states).toHaveLength(1);
     expect(host.states[0].pageSize).toBe(25);

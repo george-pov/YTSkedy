@@ -1,7 +1,14 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { disabled, form, required } from '@angular/forms/signals';
+import { HarnessLoader } from '@angular/cdk/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatDateFormats } from '@angular/material/core';
+import {
+  MatDatepickerInputHarness,
+  MatDatepickerToggleHarness,
+} from '@angular/material/datepicker/testing';
+import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -38,39 +45,31 @@ class DateHost {
 describe('DateField', () => {
   let fixture: ComponentFixture<DateHost>;
   let host: DateHost;
+  let loader: HarnessLoader;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [
-        provideZonelessChangeDetection(),
-        provideLuxonDateAdapter(testDateFormats),
-      ],
+      providers: [provideZonelessChangeDetection(), provideLuxonDateAdapter(testDateFormats)],
     });
     fixture = TestBed.createComponent(DateHost);
     host = fixture.componentInstance;
     fixture.detectChanges();
+    loader = TestbedHarnessEnvironment.loader(fixture);
   });
 
-  it('renders the label and Material datepicker controls', () => {
-    expect(
-      fixture.nativeElement.querySelector('mat-label')?.textContent?.trim(),
-    ).toBe('Start date');
-    expect(
-      fixture.nativeElement.querySelector('input[matInput]'),
-    ).not.toBeNull();
-    expect(
-      fixture.nativeElement.querySelector('mat-datepicker-toggle'),
-    ).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('mat-datepicker')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('mat-hint')?.textContent).toContain(
-      'YYYY-MM-DD',
-    );
+  it('renders the label and datepicker controls', async () => {
+    const formField = await loader.getHarness(MatFormFieldHarness);
+    const input = await loader.getHarness(MatDatepickerInputHarness);
+    const toggle = await loader.getHarness(MatDatepickerToggleHarness);
+
+    expect(await formField.getLabel()).toBe('Start date');
+    expect(await formField.getTextHints()).toEqual(['YYYY-MM-DD']);
+    expect(await input.hasCalendar()).toBe(true);
+    expect(await toggle.isDisabled()).toBe(false);
   });
 
   it('converts typed date changes into the string field value', async () => {
-    const input = fixture.nativeElement.querySelector(
-      'input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
     input.value = '2026-07-01';
     input.dispatchEvent(new Event('input'));
     await fixture.whenStable();
@@ -90,9 +89,7 @@ describe('DateField', () => {
   });
 
   it('allows a date to be typed one character at a time', async () => {
-    const input = fixture.nativeElement.querySelector(
-      'input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
     input.focus();
 
     for (const character of '2026-07-31') {
@@ -106,9 +103,7 @@ describe('DateField', () => {
   });
 
   it('ignores non-format text in typed date input', async () => {
-    const input = fixture.nativeElement.querySelector(
-      'input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
     input.value = '2026-07-31 Sunday';
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -119,9 +114,7 @@ describe('DateField', () => {
   });
 
   it('does not commit a typed date outside the YYYY-MM-DD format', async () => {
-    const input = fixture.nativeElement.querySelector(
-      'input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
     input.value = '2026-7-31';
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -131,28 +124,24 @@ describe('DateField', () => {
   });
 
   it('shows the field error once the field is touched', async () => {
-    expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+    const formField = await loader.getHarness(MatFormFieldHarness);
+    expect(await formField.hasErrors()).toBe(false);
 
     host.form.date().markAsTouched();
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(
-      fixture.nativeElement.querySelector('mat-error')?.textContent?.trim(),
-    ).toBe('Start date is required.');
+    expect(await formField.getTextErrors()).toEqual(['Start date is required.']);
   });
 
-  it('disables the Material input and datepicker toggle when the field is disabled', async () => {
+  it('disables the input and datepicker toggle when the field is disabled', async () => {
     host.disabled.set(true);
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(
-      (fixture.nativeElement.querySelector('input') as HTMLInputElement).disabled,
-    ).toBe(true);
-    expect(
-      (fixture.nativeElement.querySelector('mat-datepicker-toggle button') as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
+    const input = await loader.getHarness(MatDatepickerInputHarness);
+    const toggle = await loader.getHarness(MatDatepickerToggleHarness);
+    expect(await input.isDisabled()).toBe(true);
+    expect(await toggle.isDisabled()).toBe(true);
   });
 });

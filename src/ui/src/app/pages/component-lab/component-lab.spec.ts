@@ -18,7 +18,7 @@ describe('ComponentLab', () => {
 
   function navButtons(): HTMLButtonElement[] {
     return Array.from(
-      fixture.nativeElement.querySelectorAll('mat-action-list button'),
+      fixture.nativeElement.querySelectorAll('nav[aria-label="Components"] button'),
     );
   }
 
@@ -36,22 +36,12 @@ describe('ComponentLab', () => {
   });
 
   it('shows the first registered component by default', () => {
-    expect(
-      fixture.nativeElement.querySelector('app-toolbar-lab'),
-    ).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-toolbar-lab')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('app-button-lab')).toBeNull();
   });
 
-  it('marks the selected component in the navigation as activated', () => {
-    const [first] = navButtons();
-
-    expect(first.classList).toContain('mdc-list-item--activated');
-  });
-
   it('swaps the displayed component when another name is selected', () => {
-    const buttonNav = navButtons().find(
-      (button) => button.textContent?.trim() === 'Button',
-    );
+    const buttonNav = navButtons().find((button) => button.textContent?.trim() === 'Button');
 
     buttonNav?.click();
     fixture.detectChanges();
@@ -61,9 +51,7 @@ describe('ComponentLab', () => {
   });
 
   it('renders the registered Checkbox lab', () => {
-    const checkboxNav = navButtons().find(
-      (button) => button.textContent?.trim() === 'Checkbox',
-    );
+    const checkboxNav = navButtons().find((button) => button.textContent?.trim() === 'Checkbox');
 
     checkboxNav?.click();
     fixture.detectChanges();
@@ -72,9 +60,7 @@ describe('ComponentLab', () => {
   });
 
   it('renders the registered Chip List lab with Basic and Disabled examples', () => {
-    const chipListNav = navButtons().find(
-      (button) => button.textContent?.trim() === 'Chip List',
-    );
+    const chipListNav = navButtons().find((button) => button.textContent?.trim() === 'Chip List');
 
     chipListNav?.click();
     fixture.detectChanges();

@@ -70,7 +70,7 @@ describe('Checkbox (signal forms field)', () => {
   });
 
   it('renders the label', () => {
-    expect(fixture.nativeElement.querySelector('mat-checkbox')?.textContent?.trim()).toBe(
+    expect(fixture.nativeElement.querySelector('app-checkbox')?.textContent?.trim()).toBe(
       'Make sticky',
     );
   });

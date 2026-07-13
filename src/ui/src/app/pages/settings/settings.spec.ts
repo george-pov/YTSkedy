@@ -1,6 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { firstValueFrom, Observable, of, throwError } from 'rxjs';
+import { finalize, firstValueFrom, Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -115,6 +115,22 @@ describe('Settings', () => {
     expect(text()).toContain('text1');
     expect(text()).toContain('text2');
     expect(inputs().map((input) => input.value)).toEqual(['Title', '50', 'Description', '2500']);
+  });
+
+  it('unsubscribes from a pending load when destroyed', async () => {
+    const response = new Subject<EventTextFieldsResponse>();
+    const teardown = vi.fn();
+    service.get.mockReturnValue(response.pipe(finalize(teardown)));
+
+    await createComponent();
+
+    expect(teardown).not.toHaveBeenCalled();
+    fixture.destroy();
+    expect(teardown).toHaveBeenCalledTimes(1);
+
+    response.next(defaultFields());
+    response.error(new Error('late failure'));
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
   });
 
   it('uses the approved footer action copy', async () => {

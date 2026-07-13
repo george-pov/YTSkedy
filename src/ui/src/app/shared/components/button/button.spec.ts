@@ -14,6 +14,7 @@ import { Button } from './button';
       [iconButton]="iconButton()"
       [ariaLabel]="ariaLabel()"
       [disabled]="disabled()"
+      (click)="clickCount = clickCount + 1"
     >
       {{ label() }}
     </app-button>
@@ -25,6 +26,7 @@ class ButtonHost {
   readonly ariaLabel = signal<string | undefined>(undefined);
   readonly disabled = signal(false);
   readonly label = signal('Save');
+  clickCount = 0;
 }
 
 function buttonEl(fixture: ComponentFixture<ButtonHost>): HTMLButtonElement {
@@ -47,7 +49,6 @@ describe('Button', () => {
   it('renders a text button with no icon by default', () => {
     expect(buttonEl(fixture).textContent).toContain('Save');
     expect(fixture.nativeElement.querySelector('app-icon')).toBeNull();
-    expect(buttonEl(fixture).classList).not.toContain('mat-mdc-icon-button');
   });
 
   it('renders a leading icon alongside the label when icon is set', () => {
@@ -57,7 +58,6 @@ describe('Button', () => {
     const icon = fixture.nativeElement.querySelector('app-icon');
     expect(icon?.querySelector('svg')).not.toBeNull();
     expect(buttonEl(fixture).textContent).toContain('Save');
-    expect(buttonEl(fixture).classList).not.toContain('mat-mdc-icon-button');
   });
 
   it('renders a compact icon-only button named by the aria label', () => {
@@ -67,20 +67,21 @@ describe('Button', () => {
     fixture.detectChanges();
 
     const button = buttonEl(fixture);
-    expect(button.classList).toContain('mat-mdc-icon-button');
     expect(button.getAttribute('aria-label')).toBe('Edit');
+    expect(button.textContent?.trim()).toBe('');
     expect(fixture.nativeElement.querySelector('app-icon svg')).not.toBeNull();
+
+    button.click();
+    expect(host.clickCount).toBe(1);
   });
 
   it('hides the icon glyph from assistive technology', () => {
     host.icon.set('edit');
     fixture.detectChanges();
 
-    expect(
-      fixture.nativeElement
-        .querySelector('app-icon')
-        ?.getAttribute('aria-hidden'),
-    ).toBe('true');
+    expect(fixture.nativeElement.querySelector('app-icon')?.getAttribute('aria-hidden')).toBe(
+      'true',
+    );
   });
 
   it('reflects the disabled state on the native button', () => {

@@ -18,6 +18,32 @@ Run unit tests from `src/ui/`:
 npm test
 ```
 
+Generate the informational coverage report with:
+
+```powershell
+npm run test:coverage
+```
+
+The report is written under `src/ui/coverage/ytskedy-ui/`. Open `index.html`
+for the browsable report, use `lcov.info` with coverage tooling, or read
+`coverage-summary.json` for machine-readable totals. The UI deployment
+workflow uploads the directory as the `ytskedy-ui-coverage` artifact for 14
+days.
+
+The initial local baseline recorded on July 12, 2026 is:
+
+| Measure    | Coverage |
+| ---------- | -------: |
+| Statements |   87.75% |
+| Branches   |   85.46% |
+| Functions  |   87.65% |
+| Lines      |   87.51% |
+
+Coverage is informational. No percentage threshold blocks the build until the
+baseline and useful enforcement policy have been reviewed. Coverage should
+identify risky gaps, not encourage low-value tests written only to increase a
+number.
+
 Run the build before considering larger UI changes complete:
 
 ```powershell

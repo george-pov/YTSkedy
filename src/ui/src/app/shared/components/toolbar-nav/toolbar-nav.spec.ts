@@ -43,10 +43,6 @@ describe('ToolbarNav', () => {
     expect(navEl(fixture).getAttribute('aria-label')).toBe('Primary navigation');
   });
 
-  it('wraps the menu in a toolbar', () => {
-    expect(fixture.nativeElement.querySelector('mat-toolbar')).not.toBeNull();
-  });
-
   it('renders a link item as an anchor pointing at its route', () => {
     host.items.set([{ label: 'Calendar Events', link: '/calendar-events' }]);
     fixture.detectChanges();

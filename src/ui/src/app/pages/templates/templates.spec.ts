@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Observable, of, throwError } from 'rxjs';
+import { finalize, Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -141,6 +141,22 @@ describe('Templates', () => {
     );
     expect(headers).toEqual(['Type', 'Name']);
     expect(rows()).toHaveLength(2);
+  });
+
+  it('unsubscribes from a pending template load when destroyed', async () => {
+    const response = new Subject<TemplateListResponse>();
+    const teardown = vi.fn();
+    service.list.mockReturnValue(response.pipe(finalize(teardown)));
+
+    await createComponent();
+
+    expect(teardown).not.toHaveBeenCalled();
+    fixture.destroy();
+    expect(teardown).toHaveBeenCalledTimes(1);
+
+    response.next({ templates: [template()] });
+    response.error(new Error('late failure'));
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
   });
 
   it('preselects the first sorted template on init', async () => {

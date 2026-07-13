@@ -1,6 +1,7 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { form, maxLength, required } from '@angular/forms/signals';
+import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { Input } from './input';
@@ -54,18 +55,9 @@ describe('Input (signal forms field)', () => {
     fixture.detectChanges();
   });
 
-  function errorText(): string | null {
-    const error = fixture.nativeElement.querySelector('mat-error');
-    return error ? (error.textContent?.trim() ?? null) : null;
-  }
-
-  function counterText(): string | null {
-    const hint = fixture.nativeElement.querySelector('mat-hint');
-    return hint ? (hint.textContent?.trim() ?? null) : null;
-  }
-
   it('renders the label and a native input', () => {
-    expect(fixture.nativeElement.querySelector('mat-label')?.textContent?.trim()).toBe('Title');
+    const input = fixture.debugElement.query(By.directive(Input)).componentInstance as Input;
+    expect(input.label()).toBe('Title');
     expect(fixture.nativeElement.querySelector('input')).not.toBeNull();
   });
 
@@ -99,7 +91,7 @@ describe('Input (signal forms field)', () => {
   });
 
   it('hides the error until the field is touched', () => {
-    expect(errorText()).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Title is required.');
   });
 
   it('shows the first error message once the field is touched', async () => {
@@ -107,7 +99,7 @@ describe('Input (signal forms field)', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(errorText()).toBe('Title is required.');
+    expect(fixture.nativeElement.textContent).toContain('Title is required.');
   });
 
   it('propagates input changes back to the field value', async () => {
@@ -138,7 +130,7 @@ describe('Input (signal forms field)', () => {
   });
 
   it('hides the character counter by default even when the field has a max length', () => {
-    expect(counterText()).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('0 / 100');
   });
 
   it('shows a used/max counter from the schema max when the counter is enabled', async () => {
@@ -147,20 +139,20 @@ describe('Input (signal forms field)', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(counterText()).toBe('5 / 100');
+    expect(fixture.nativeElement.textContent).toContain('5 / 100');
   });
 
   it('recalculates the character counter as the user types', async () => {
     host.showCharacterCount.set(true);
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(counterText()).toBe('0 / 100');
+    expect(fixture.nativeElement.textContent).toContain('0 / 100');
 
     const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
     input.value = 'Hi there';
     input.dispatchEvent(new Event('input'));
     await fixture.whenStable();
 
-    expect(counterText()).toBe('8 / 100');
+    expect(fixture.nativeElement.textContent).toContain('8 / 100');
   });
 });
