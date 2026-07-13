@@ -219,30 +219,44 @@ public sealed class HttpDtoJsonTests
     }
 
     [Fact]
-    public void UpdateEventTextFieldsRequest_InternalDto_DeserializesWithWebDefaults()
+    public void UpdateCalendarEventDefaultsRequest_InternalDto_DeserializesWithWebDefaults()
     {
         const string json = """
             {
-              "fields": [
-                {
-                  "fieldKey": "text1",
-                  "label": "Episode title",
-                  "type": "ShortText",
-                  "maxLength": 80
-                }
-              ]
+              "eventTextFields": {
+                "fields": [
+                  {
+                    "fieldKey": "text1",
+                    "label": "Episode title",
+                    "type": "ShortText",
+                    "maxLength": 80
+                  }
+                ]
+              },
+              "startDefaults": {
+                "dayOfWeek": "Sunday",
+                "localTime": "10:00",
+                "timeZoneId": "America/Vancouver"
+              }
             }
             """;
 
-        var request = JsonSerializer.Deserialize<UpdateEventTextFieldsRequest>(json, JsonOptions);
+        var request = JsonSerializer.Deserialize<UpdateCalendarEventDefaultsRequest>(
+            json,
+            JsonOptions);
 
         Assert.NotNull(request);
-        Assert.NotNull(request.Fields);
-        var field = Assert.Single(request.Fields);
+        Assert.NotNull(request.EventTextFields);
+        Assert.NotNull(request.EventTextFields.Fields);
+        var field = Assert.Single(request.EventTextFields.Fields);
         Assert.Equal("text1", field.FieldKey);
         Assert.Equal("Episode title", field.Label);
         Assert.Equal("ShortText", field.Type);
         Assert.Equal(80, field.MaxLength);
+        Assert.NotNull(request.StartDefaults);
+        Assert.Equal("Sunday", request.StartDefaults.DayOfWeek);
+        Assert.Equal("10:00", request.StartDefaults.LocalTime);
+        Assert.Equal("America/Vancouver", request.StartDefaults.TimeZoneId);
     }
 
     [Fact]
@@ -360,25 +374,36 @@ public sealed class HttpDtoJsonTests
     }
 
     [Fact]
-    public void EventTextFieldsResponse_SerializesWithWebDefaults()
+    public void CalendarEventDefaultsResponse_SerializesWithWebDefaults()
     {
-        object response = new EventTextFieldsResponse(
-            [
-                new EventTextFieldResponse(
-                    "text1",
-                    "Episode title",
-                    "ShortText",
-                    80)
-            ]);
+        object response = new CalendarEventDefaultsResponse(
+            new EventTextFieldsResponse(
+                [
+                    new EventTextFieldResponse(
+                        "text1",
+                        "Episode title",
+                        "ShortText",
+                        80)
+                ]),
+            new StartDefaultsResponse(
+                "Sunday",
+                "10:00",
+                "America/Vancouver"));
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
 
         using var document = JsonDocument.Parse(json);
-        var field = document.RootElement.GetProperty("fields")[0];
+        var field = document.RootElement.GetProperty("eventTextFields").GetProperty("fields")[0];
         Assert.Equal("text1", field.GetProperty("fieldKey").GetString());
         Assert.Equal("Episode title", field.GetProperty("label").GetString());
         Assert.Equal("ShortText", field.GetProperty("type").GetString());
         Assert.Equal(80, field.GetProperty("maxLength").GetInt32());
+        var startDefaults = document.RootElement.GetProperty("startDefaults");
+        Assert.Equal("Sunday", startDefaults.GetProperty("dayOfWeek").GetString());
+        Assert.Equal("10:00", startDefaults.GetProperty("localTime").GetString());
+        Assert.Equal(
+            "America/Vancouver",
+            startDefaults.GetProperty("timeZoneId").GetString());
     }
 
     [Fact]

@@ -21,8 +21,8 @@
   }
 }
 
-.editor {
-  @include app.stack($app-space-4);
+.settings-form {
+  @include app.stack($app-space-6);
 }
 
 .settings-section {

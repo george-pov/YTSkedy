@@ -366,6 +366,38 @@ internal sealed class ApplicationSettingsTableClient
     {
     }
 
+    public bool SubmitTransactionCalled { get; private set; }
+
+    public override Task<Response<IReadOnlyList<Response>>> SubmitTransactionAsync(
+        IEnumerable<TableTransactionAction> transactionActions,
+        CancellationToken cancellationToken = default)
+    {
+        var actions = transactionActions.ToArray();
+        var entities = actions.Select(action =>
+        {
+            if (action.ActionType != TableTransactionActionType.UpsertReplace ||
+                action.Entity is not ApplicationSettingsEntity entity)
+            {
+                throw new NotSupportedException(
+                    $"Unsupported application settings transaction action '{action.ActionType}'.");
+            }
+
+            return entity;
+        }).ToArray();
+
+        SubmitTransactionCalled = true;
+        foreach (var entity in entities)
+        {
+            Entities[(entity.PartitionKey, entity.RowKey)] = Clone(entity);
+        }
+
+        IReadOnlyList<Response> responses = actions
+            .Select(_ => (Response)StubResponse.Instance)
+            .ToArray();
+
+        return Task.FromResult(Response.FromValue(responses, StubResponse.Instance));
+    }
+
     protected override ApplicationSettingsEntity Clone(ApplicationSettingsEntity entity) =>
         new()
         {

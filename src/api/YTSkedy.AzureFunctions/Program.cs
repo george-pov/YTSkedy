@@ -154,24 +154,23 @@ builder.Services.AddKeyedSingleton<TableClient>("applicationSettings", (_, _) =>
         "AzureStorage:ApplicationSettingsTableName",
         "ApplicationSettings"));
 
-builder.Services.AddScoped<GetEventTextFieldsHandler>();
-builder.Services.AddScoped<UpdateEventTextFieldsHandler>();
-builder.Services.AddScoped<GetStartDefaultsHandler>();
-builder.Services.AddScoped<UpdateStartDefaultsHandler>();
+builder.Services.AddScoped<GetCalendarEventDefaultsHandler>();
+builder.Services.AddScoped<UpdateCalendarEventDefaultsHandler>();
 builder.Services.AddScoped(serviceProvider =>
     new AzureEventTextFieldsRepository(
         serviceProvider.GetRequiredKeyedService<TableClient>("applicationSettings")));
 builder.Services.AddScoped<IEventTextFieldsReader>(
-    serviceProvider => serviceProvider.GetRequiredService<AzureEventTextFieldsRepository>());
-builder.Services.AddScoped<IEventTextFieldsModifier>(
     serviceProvider => serviceProvider.GetRequiredService<AzureEventTextFieldsRepository>());
 builder.Services.AddScoped(serviceProvider =>
     new AzureStartDefaultsRepository(
         serviceProvider.GetRequiredKeyedService<TableClient>("applicationSettings")));
 builder.Services.AddScoped<IStartDefaultsReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzureStartDefaultsRepository>());
-builder.Services.AddScoped<IStartDefaultsModifier>(
-    serviceProvider => serviceProvider.GetRequiredService<AzureStartDefaultsRepository>());
+builder.Services.AddScoped(serviceProvider =>
+    new AzureCalendarEventDefaultsRepository(
+        serviceProvider.GetRequiredKeyedService<TableClient>("applicationSettings")));
+builder.Services.AddScoped<ICalendarEventDefaultsModifier>(
+    serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventDefaultsRepository>());
 
 // Platforms persist in their own table bound through a keyed TableClient so the
 // calendar-event and templates TableClient registrations above are untouched.

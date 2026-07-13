@@ -17,23 +17,20 @@ public sealed class AzureStartDefaultsRepositoryTests
     }
 
     [Fact]
-    public async Task SaveAsync_ThenGetAsync_ReplacesAndClearsOneSettingsRow()
+    public async Task GetAsync_StoredDefaults_ReturnsValues()
     {
         var table = new ApplicationSettingsTableClient();
         var repository = new AzureStartDefaultsRepository(table);
-        await repository.SaveAsync(
-            new StartDefaults(DayOfWeek.Friday, new TimeOnly(14, 0), "UTC"),
-            CancellationToken.None);
-        await repository.SaveAsync(
-            new StartDefaults(null, new TimeOnly(9, 30), null),
-            CancellationToken.None);
+        var stored = new StartDefaults(null, new TimeOnly(9, 30), null);
+        table.Seed(new ApplicationSettingsEntity
+        {
+            PartitionKey = ApplicationSettingsKey.PartitionKey,
+            RowKey = ApplicationSettingsKey.StartDefaultsRowKey,
+            ValueJson = StartDefaultsSerializer.Serialize(stored)
+        });
 
         var result = await repository.GetAsync(CancellationToken.None);
-        var entity = Assert.Single(table.Entities.Values);
 
-        Assert.Equal(new StartDefaults(null, new TimeOnly(9, 30), null), result);
-        Assert.Equal(ApplicationSettingsKey.PartitionKey, entity.PartitionKey);
-        Assert.Equal(ApplicationSettingsKey.StartDefaultsRowKey, entity.RowKey);
-        Assert.True(table.CreateIfNotExistsCalled);
+        Assert.Equal(stored, result);
     }
 }

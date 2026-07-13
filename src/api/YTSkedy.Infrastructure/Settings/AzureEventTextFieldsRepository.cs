@@ -6,8 +6,7 @@ using YTSkedy.Scheduling.Domain.CalendarEvents;
 namespace YTSkedy.Infrastructure.Settings;
 
 public sealed class AzureEventTextFieldsRepository(TableClient tableClient) :
-    IEventTextFieldsReader,
-    IEventTextFieldsModifier
+    IEventTextFieldsReader
 {
     public async Task<EventTextFields> GetAsync(CancellationToken cancellationToken)
     {
@@ -27,26 +26,5 @@ public sealed class AzureEventTextFieldsRepository(TableClient tableClient) :
             // The generic settings table has not been created yet.
             return EventTextFields.Default;
         }
-    }
-
-    public async Task SaveAsync(
-        EventTextFields eventTextFields,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(eventTextFields);
-
-        await tableClient.CreateIfNotExistsAsync(cancellationToken);
-
-        var entity = new ApplicationSettingsEntity
-        {
-            PartitionKey = ApplicationSettingsKey.PartitionKey,
-            RowKey = ApplicationSettingsKey.EventTextFieldsRowKey,
-            ValueJson = EventTextFieldsSerializer.Serialize(eventTextFields)
-        };
-
-        await tableClient.UpsertEntityAsync(
-            entity,
-            TableUpdateMode.Replace,
-            cancellationToken);
     }
 }

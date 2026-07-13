@@ -35,10 +35,8 @@ public sealed class EndpointScopeTests
         new(typeof(TemplatesApi), nameof(TemplatesApi.UpdateTemplateAsync), "UpdateTemplate", "CalendarEvents.Write"),
         new(typeof(TemplatesApi), nameof(TemplatesApi.DeleteTemplateAsync), "DeleteTemplate", "CalendarEvents.Write"),
         new(typeof(TemplatesApi), nameof(TemplatesApi.ListTemplateTokensAsync), "ListTemplateTokens", "CalendarEvents.Read"),
-        new(typeof(EventTextFieldsApi), nameof(EventTextFieldsApi.Get), "GetEventTextFields", "CalendarEvents.Read"),
-        new(typeof(EventTextFieldsApi), nameof(EventTextFieldsApi.Update), "UpdateEventTextFields", "CalendarEvents.Write"),
-        new(typeof(StartDefaultsApi), nameof(StartDefaultsApi.GetAsync), "GetCalendarEventStartDefaults", "CalendarEvents.Read"),
-        new(typeof(StartDefaultsApi), nameof(StartDefaultsApi.UpdateAsync), "UpdateCalendarEventStartDefaults", "CalendarEvents.Write")
+        new(typeof(CalendarEventDefaultsApi), nameof(CalendarEventDefaultsApi.GetAsync), "GetCalendarEventDefaults", "CalendarEvents.Read"),
+        new(typeof(CalendarEventDefaultsApi), nameof(CalendarEventDefaultsApi.UpdateAsync), "UpdateCalendarEventDefaults", "CalendarEvents.Write")
     ];
 
     public static TheoryData<Type, string, string, string> FunctionScopes =>

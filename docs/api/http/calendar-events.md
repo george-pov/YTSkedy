@@ -463,9 +463,8 @@ Scope and proof-of-concept limitations:
 
 ## Related Contracts
 
-- Event text fields: [`event-text-fields.md`](event-text-fields.md)
-- Calendar event start defaults:
-  [`calendar-event-start-defaults.md`](calendar-event-start-defaults.md)
+- Calendar event defaults:
+  [`calendar-event-defaults.md`](calendar-event-defaults.md)
 - Calendar-event thumbnails:
   [`calendar-event-thumbnails.md`](calendar-event-thumbnails.md)
 - Platform publications:

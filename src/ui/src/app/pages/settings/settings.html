@@ -6,26 +6,22 @@
     </div>
   </header>
 
-  <section class="settings-section" aria-labelledby="event-text-heading">
-    <header class="section-header">
-      <h2 id="event-text-heading">Event text fields</h2>
-      <app-button
-        icon="add"
-        [disabled]="isLoadingFields() || isSavingFields()"
-        (click)="addField()"
-      >
-        Add field
-      </app-button>
-    </header>
+  @if (showSettingsLoading()) {
+    <app-progress-bar label="Loading settings" />
+  } @else if (settingsLoadFailed()) {
+    <app-alert variant="error">
+      Settings could not be loaded. Check your connection and try again.
+    </app-alert>
+  } @else {
+    <form class="settings-form" (submit)="onSubmit($event)">
+      <section class="settings-section" aria-labelledby="event-text-heading">
+        <header class="section-header">
+          <h2 id="event-text-heading">Event text fields</h2>
+          <app-button type="button" icon="add" [disabled]="isSavingSettings()" (click)="addField()">
+            Add field
+          </app-button>
+        </header>
 
-    @if (showFieldsLoading()) {
-      <app-progress-bar label="Loading event text fields" />
-    } @else if (fieldsLoadFailed()) {
-      <app-alert variant="error">
-        Event text fields could not be loaded. Check your connection and try again.
-      </app-alert>
-    } @else {
-      <form class="editor" (submit)="onEventTextSubmit($event)">
         @if (fieldsForm.fields().errors().length > 0 && fieldsForm.fields().touched()) {
           <app-alert variant="error">{{ fieldsForm.fields().errors()[0].message }}</app-alert>
         }
@@ -33,45 +29,33 @@
         <div class="field-list">
           @for (field of fieldsModel().fields; track field.fieldKey; let index = $index) {
             <section class="field-row" [attr.aria-labelledby]="'field-' + field.fieldKey">
-              <div class="field-key"><span [id]="'field-' + field.fieldKey">{{ field.fieldKey }}</span></div>
+              <div class="field-key">
+                <span [id]="'field-' + field.fieldKey">{{ field.fieldKey }}</span>
+              </div>
               <app-input [field]="fieldsForm.fields[index].label" label="Label" />
-              <app-select [field]="fieldsForm.fields[index].type" label="Type" [options]="typeOptions" />
+              <app-select
+                [field]="fieldsForm.fields[index].type"
+                label="Type"
+                [options]="typeOptions"
+              />
               <app-input [field]="fieldsForm.fields[index].maxLength" label="Max length" />
               <app-button
                 class="delete-field-button"
+                type="button"
                 iconButton
                 icon="delete"
                 [ariaLabel]="'Delete ' + field.fieldKey"
-                [disabled]="fieldsModel().fields.length <= 1 || isSavingFields()"
+                [disabled]="fieldsModel().fields.length <= 1 || isSavingSettings()"
                 (click)="deleteField(index)"
               />
             </section>
           }
         </div>
+      </section>
 
-        @if (fieldsSaveErrorMessage(); as message) {
-          <app-alert variant="error">{{ message }}</app-alert>
-        }
-        <div class="app-actions app-actions-end">
-          <app-button type="submit" [disabled]="eventTextSaveDisabled()">
-            {{ isSavingFields() ? 'Saving...' : 'Save changes' }}
-          </app-button>
-        </div>
-      </form>
-    }
-  </section>
+      <section class="settings-section" aria-labelledby="start-defaults-heading">
+        <h2 id="start-defaults-heading">New calendar event defaults</h2>
 
-  <section class="settings-section" aria-labelledby="start-defaults-heading">
-    <h2 id="start-defaults-heading">New calendar event defaults</h2>
-
-    @if (showStartDefaultsLoading()) {
-      <app-progress-bar label="Loading new calendar event defaults" />
-    } @else if (startDefaultsLoadFailed()) {
-      <app-alert variant="error">
-        New calendar event defaults could not be loaded. Check your connection and try again.
-      </app-alert>
-    } @else {
-      <form class="editor" (submit)="onStartDefaultsSubmit($event)">
         <div class="defaults-grid">
           <app-select
             [field]="startDefaultsForm.dayOfWeek"
@@ -85,32 +69,25 @@
             [options]="startDefaultsTimeZoneOptions"
           />
         </div>
+      </section>
 
-        @if (startDefaultsSaveErrorMessage(); as message) {
-          <app-alert variant="error">{{ message }}</app-alert>
-        }
-        <div class="app-actions app-actions-end">
-          <app-button type="submit" [disabled]="startDefaultsSaveDisabled()">
-            {{ isSavingStartDefaults() ? 'Saving...' : 'Save defaults' }}
-          </app-button>
-        </div>
-      </form>
-    }
-  </section>
+      @if (settingsSaveErrorMessage(); as message) {
+        <app-alert variant="error">{{ message }}</app-alert>
+      }
 
-  <div class="app-actions app-actions-end">
-    <app-button
-      type="button"
-      appearance="outlined"
-      [disabled]="
-        isLoadingFields() ||
-        isLoadingStartDefaults() ||
-        isSavingFields() ||
-        isSavingStartDefaults()
-      "
-      (click)="cancel()"
-    >
-      Cancel
-    </app-button>
-  </div>
+      <div class="app-actions app-actions-end">
+        <app-button
+          type="button"
+          appearance="outlined"
+          [disabled]="isSavingSettings()"
+          (click)="cancel()"
+        >
+          Cancel
+        </app-button>
+        <app-button type="submit" [disabled]="saveDisabled()">
+          {{ isSavingSettings() ? 'Saving...' : 'Save changes' }}
+        </app-button>
+      </div>
+    </form>
+  }
 </section>

@@ -4,7 +4,7 @@ import {
   CalendarEventStartDefaultsResponse,
   CalendarEventWeekday,
   UpdateCalendarEventStartDefaultsRequest,
-} from 'src/app/shared/api/settings/calendar-event-start-defaults-service';
+} from 'src/app/shared/api/settings/calendar-event-defaults-service';
 import { SelectOption } from 'src/app/shared/components/select/select';
 import { timeZoneOptions } from 'src/app/shared/date-time/time-zone-options';
 import { sameRequest } from 'src/app/shared/forms/request-comparison';

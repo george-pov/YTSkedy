@@ -25,7 +25,7 @@ try {
         'docs/api/README.md'
         'docs/api/http/README.md'
         'docs/api/http/calendar-events.md'
-        'docs/api/http/event-text-fields.md'
+        'docs/api/http/calendar-event-defaults.md'
         'docs/api/http/calendar-event-thumbnails.md'
         'docs/api/http/platforms.md'
         'docs/api/http/platform-publications.md'

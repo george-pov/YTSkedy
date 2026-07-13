@@ -240,9 +240,9 @@ bytes. It uses the same connection string lookup as the table clients:
 2. Default: `calendar-event-thumbnails`
 
 The `ApplicationSettings` table stores application-owned settings such as the
-current event text fields list. It is not an Azure Functions host settings
-table and must not contain OAuth secrets, access tokens, refresh tokens, API
-keys, or user-specific local configuration.
+current event text fields list and calendar event start defaults. It is not an
+Azure Functions host settings table and must not contain OAuth secrets, access
+tokens, refresh tokens, API keys, or user-specific local configuration.
 
 ## Function Authorization
 

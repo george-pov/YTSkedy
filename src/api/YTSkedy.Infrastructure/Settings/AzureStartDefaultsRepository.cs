@@ -6,8 +6,7 @@ using YTSkedy.Scheduling.Domain.CalendarEvents;
 namespace YTSkedy.Infrastructure.Settings;
 
 public sealed class AzureStartDefaultsRepository(TableClient tableClient) :
-    IStartDefaultsReader,
-    IStartDefaultsModifier
+    IStartDefaultsReader
 {
     public async Task<StartDefaults> GetAsync(CancellationToken cancellationToken)
     {
@@ -26,23 +25,5 @@ public sealed class AzureStartDefaultsRepository(TableClient tableClient) :
         {
             return StartDefaults.Empty;
         }
-    }
-
-    public async Task SaveAsync(
-        StartDefaults startDefaults,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(startDefaults);
-
-        await tableClient.CreateIfNotExistsAsync(cancellationToken);
-        await tableClient.UpsertEntityAsync(
-            new ApplicationSettingsEntity
-            {
-                PartitionKey = ApplicationSettingsKey.PartitionKey,
-                RowKey = ApplicationSettingsKey.StartDefaultsRowKey,
-                ValueJson = StartDefaultsSerializer.Serialize(startDefaults)
-            },
-            TableUpdateMode.Replace,
-            cancellationToken);
     }
 }

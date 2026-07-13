@@ -17,10 +17,8 @@ Durable documentation for the backend API under `src/api/`.
 - HTTP contracts: [`http/README.md`](http/README.md)
 - Calendar events HTTP contract:
   [`http/calendar-events.md`](http/calendar-events.md)
-- Event text fields HTTP contract:
-  [`http/event-text-fields.md`](http/event-text-fields.md)
-- Calendar event start defaults HTTP contract:
-  [`http/calendar-event-start-defaults.md`](http/calendar-event-start-defaults.md)
+- Calendar event defaults HTTP contract:
+  [`http/calendar-event-defaults.md`](http/calendar-event-defaults.md)
 - Calendar-event thumbnails HTTP contract:
   [`http/calendar-event-thumbnails.md`](http/calendar-event-thumbnails.md)
 - Configured platforms HTTP contract:

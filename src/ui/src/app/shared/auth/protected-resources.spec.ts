@@ -64,9 +64,9 @@ describe('resolveProtectedScopes', () => {
     expect(scopes).not.toBeNull();
   });
 
-  it('returns the scopes for event text fields settings API calls', () => {
+  it('returns the scopes for calendar event defaults settings API calls', () => {
     const scopes = getRequiredScopes(
-      'https://api.example.test/api/settings/event-text-fields',
+      'https://api.example.test/api/settings/calendar-event-defaults',
       api,
       auth,
     );
@@ -77,19 +77,9 @@ describe('resolveProtectedScopes', () => {
     ]);
   });
 
-  it('returns the scopes for calendar event start defaults settings calls', () => {
-    expect(
-      getRequiredScopes(
-        'https://api.example.test/api/settings/calendar-event-start-defaults',
-        api,
-        auth,
-      ),
-    ).toEqual([auth.calendarEventsReadScope, auth.calendarEventsWriteScope]);
-  });
-
-  it('does not match a path that merely starts with the event text fields prefix string', () => {
+  it('does not match a path that merely starts with the defaults prefix string', () => {
     const scopes = getRequiredScopes(
-      'https://api.example.test/api/settings/event-text-fields-other',
+      'https://api.example.test/api/settings/calendar-event-defaults-other',
       api,
       auth,
     );

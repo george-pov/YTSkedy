@@ -20,7 +20,8 @@ authoritative publication state.
 
 Application-owned settings persist in a generic `ApplicationSettings` table.
 The current event text fields setting and calendar event start defaults are
-separate rows in that table, read and written through their own settings ports.
+separate rows in that table. Focused reader ports serve runtime consumers, and
+one combined modifier writes both rows atomically.
 
 Calendar event thumbnail bytes persist in private Azure Blob Storage through
 the `IThumbnailStore` port, implemented by `AzureThumbnailStore`. Calendar
@@ -189,8 +190,8 @@ than duplicated in documentation.
 
 ## Application Settings Rows
 
-`AzureEventTextFieldsRepository` implements the current event text fields
-setting against the generic `ApplicationSettings` table.
+`AzureEventTextFieldsRepository` reads the current event text fields setting
+from the generic `ApplicationSettings` table.
 
 - The partition key is `application-settings`.
 - The row key for the current event text fields setting is
@@ -209,6 +210,8 @@ setting against the generic `ApplicationSettings` table.
 - A missing start-defaults row returns all-null defaults. Malformed stored JSON,
   unknown weekdays, malformed times, and invalid stored time-zone ids fail as
   invalid stored state instead of silently falling back.
+- `AzureCalendarEventDefaultsRepository` replaces both rows in one Azure Table
+  transaction when the combined calendar event defaults are saved.
 - This table stores application-owned settings only. It is separate from Azure
   Functions host settings and must not store provider secrets or local
   user-specific configuration.

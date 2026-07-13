@@ -21,7 +21,7 @@ pages render through `src/ui/src/app/layout/app-layout/`.
 | `/calendar-events/:calendarEventId/edit` | Protected | Calendar event details and publication actions |
 | `/templates` | Protected | Template list and editor |
 | `/platforms` | Protected | Platform list and editor |
-| `/settings` | Protected | Event text field settings editor |
+| `/settings` | Protected | Calendar event defaults editor |
 | `/signed-out` | Public | Post-logout confirmation |
 | `/component-lab` | Public | Shared component demonstrations |
 | `**` | Public | Redirect to `/` |
@@ -68,8 +68,9 @@ Clicking either a row or its title link opens the edit route.
 ## Calendar Event Create
 
 `/calendar-events/new` uses `CalendarEventDetails` in create mode. It loads the
-current [event text field setting](../api/http/event-text-fields.md), renders
-short and long text controls by field type, and creates through the
+current event text fields from the
+[calendar event defaults](../api/http/calendar-event-defaults.md), renders short
+and long text controls by field type, and creates through the
 [calendar events contract](../api/http/calendar-events.md).
 
 Create mode independently requests a start suggestion. It sends the curated,
@@ -189,28 +190,23 @@ errors remain inline.
 
 ## Settings
 
-`/settings` edits the
-[event text field setting](../api/http/event-text-fields.md) and the separate
-[calendar event start defaults](../api/http/calendar-event-start-defaults.md).
+`/settings` edits the combined
+[calendar event defaults](../api/http/calendar-event-defaults.md).
 The event text section displays the derived `fieldKey`, label, type, max length,
 and delete action. Add and delete renumber local `textN` keys immediately. The
 New calendar event defaults section independently manages optional weekday,
 local time, and time zone values, including a No default state for each.
 
-Save changes is disabled until the normalized settings request differs from the
-saved baseline. Label-only trimming does not count as a change; add, delete,
-renumber, type, and max-length edits do. A successful save replaces local state
-and the baseline with the backend-normalized response.
-
-The sections load, save, report errors, and update their saved baselines
-independently. `Save changes` writes only event text fields; `Save defaults`
-writes only start defaults. A failure in one section does not remove or disable
-a successfully loaded other section.
+Save changes is disabled until either section differs from the normalized saved
+baseline. Label-only trimming does not count as a change; add, delete, renumber,
+type, max-length, weekday, local-time, and time-zone edits do. One `Save changes`
+action writes both sections atomically and replaces local state and the baseline
+with the complete backend-normalized response.
 
 One page-level Cancel asks before discarding pending edits in either section,
-restores both last loaded or saved baselines after confirmation, and clears
-transient save errors. Route exit uses the combined page-owned dirty state
-through `pendingChangesGuard`.
+restores both last loaded or saved values after confirmation, and clears the
+save error. Route exit uses the combined page-owned dirty state through
+`pendingChangesGuard`.
 
 ## Component Lab
 
