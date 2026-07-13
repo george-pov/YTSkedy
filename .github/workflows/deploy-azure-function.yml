@@ -22,7 +22,8 @@ concurrency:
 env:
   DOTNET_VERSION: 10.0.x
   SOLUTION_PATH: src/api/YTSkedy.slnx
-  UNIT_TEST_PROJECT_PATH: src/api/Test/YTSkedy.Scheduling.Application.Test/YTSkedy.Scheduling.Application.Test.csproj
+  TEST_RESULTS_PATH: build/test-results/backend
+  COVERAGE_REPORT_PATH: build/coverage/backend
   FUNCTION_APP_PROJECT_PATH: src/api/YTSkedy.AzureFunctions/YTSkedy.AzureFunctions.csproj
   PUBLISH_OUTPUT_PATH: build/publish/YTSkedy.AzureFunctions
   DEPLOY_PACKAGE_PATH: build/deploy/YTSkedy.AzureFunctions
@@ -48,8 +49,44 @@ jobs:
       - name: Build solution
         run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
 
-      - name: Run unit tests
-        run: dotnet test ${{ env.UNIT_TEST_PROJECT_PATH }} --configuration Release --no-build
+      - name: Run backend tests
+        run: >
+          dotnet test ${{ env.SOLUTION_PATH }}
+          --configuration Release
+          --no-build
+          --collect:"XPlat Code Coverage"
+          --results-directory ${{ env.TEST_RESULTS_PATH }}
+
+      - name: Generate backend coverage report
+        uses: danielpalme/ReportGenerator-GitHub-Action@v5
+        with:
+          reports: ${{ env.TEST_RESULTS_PATH }}/**/coverage.cobertura.xml
+          targetdir: ${{ env.COVERAGE_REPORT_PATH }}
+          reporttypes: MarkdownSummaryGithub;Html
+          assemblyfilters: +YTSkedy.*;-*.Test;-*.TestSupport
+
+      - name: Publish backend coverage summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          summary="${COVERAGE_REPORT_PATH}/SummaryGithub.md"
+
+          if [ ! -f "$summary" ]; then
+            printf '## Backend code coverage\n\nCoverage report was not generated.\n' \
+              >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload backend coverage report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ytskedy-backend-coverage
+          path: ${{ env.COVERAGE_REPORT_PATH }}
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Publish Azure Functions project
         run: dotnet publish ${{ env.FUNCTION_APP_PROJECT_PATH }} --configuration Release --no-restore --output ${{ env.PUBLISH_OUTPUT_PATH }}
