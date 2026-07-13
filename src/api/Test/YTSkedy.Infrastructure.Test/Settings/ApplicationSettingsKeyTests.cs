@@ -9,5 +9,6 @@ public sealed class ApplicationSettingsKeyTests
     {
         Assert.Equal("application-settings", ApplicationSettingsKey.PartitionKey);
         Assert.Equal("event-text-fields", ApplicationSettingsKey.EventTextFieldsRowKey);
+        Assert.Equal("calendar-event-start-defaults", ApplicationSettingsKey.StartDefaultsRowKey);
     }
 }

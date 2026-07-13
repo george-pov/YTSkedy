@@ -1,6 +1,7 @@
 import { isCalendarEventsUrl } from 'src/app/shared/api/calendar-events/calendar-events-endpoint';
 import { isPlatformsUrl } from 'src/app/shared/api/platforms/platforms-endpoint';
 import { isEventTextFieldsUrl } from 'src/app/shared/api/settings/event-text-fields-endpoint';
+import { isCalendarEventStartDefaultsUrl } from 'src/app/shared/api/settings/calendar-event-start-defaults-endpoint';
 import {
   isTemplatesUrl,
   isTemplateTokensUrl,
@@ -28,6 +29,7 @@ export function getRequiredScopes(
     isCalendarEventsUrl(url, api) ||
     isPlatformsUrl(url, api) ||
     isEventTextFieldsUrl(url, api) ||
+    isCalendarEventStartDefaultsUrl(url, api) ||
     isTemplatesUrl(url, api) ||
     isTemplateTokensUrl(url, api)
   ) {

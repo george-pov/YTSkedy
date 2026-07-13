@@ -21,6 +21,9 @@
 
         <fieldset class="section">
           <legend>Scheduled start</legend>
+          @if (state.defaultStartErrorMessage(); as message) {
+            <app-alert variant="error">{{ message }}</app-alert>
+          }
           <div class="app-grid app-gap-4">
             <app-date
               class="app-col-md-4"

@@ -11,6 +11,7 @@ import {
 
 import {
   CalendarEventFields,
+  CalendarEventDefaultStart,
   CalendarEventText,
   CreateCalendarEventRequest,
   UpdateCalendarEventRequest,
@@ -19,8 +20,8 @@ import {
   EventTextField,
   EventTextType,
 } from 'src/app/shared/api/settings/event-text-fields-service';
-import { SelectOption } from 'src/app/shared/components/select/select';
 import { formatUtcDateTime } from 'src/app/shared/date-time/date-time-format';
+import { detectPreselectedTimeZone } from 'src/app/shared/date-time/time-zone-options';
 import { sameRequest } from 'src/app/shared/forms/request-comparison';
 
 export interface EventTextFieldModel {
@@ -31,34 +32,15 @@ export interface EventTextFieldModel {
   value: string;
 }
 
-export interface CalendarEventDetailsModel {
-  start: {
-    date: string;
-    time: string;
-    timeZoneId: string;
-  };
-  texts: EventTextFieldModel[];
+export interface CalendarEventStartModel {
+  date: string;
+  time: string;
+  timeZoneId: string;
 }
 
-// Curated short list of supported time zones. Not the full IANA set. The
-// select stores and sends the chosen IANA id verbatim.
-export const timeZoneOptions: readonly SelectOption[] = [
-  { value: 'America/Vancouver', label: 'America/Vancouver' },
-  { value: 'America/Los_Angeles', label: 'America/Los_Angeles' },
-  { value: 'America/New_York', label: 'America/New_York' },
-  { value: 'America/Chicago', label: 'America/Chicago' },
-  { value: 'Europe/London', label: 'Europe/London' },
-  { value: 'Europe/Moscow', label: 'Europe/Moscow' },
-  { value: 'UTC', label: 'UTC' },
-];
-
-// Prefills the browser's detected zone only when it is in the curated list.
-// Otherwise returns an empty value so the operator must choose.
-export function detectPreselectedTimeZone(
-  options: readonly SelectOption[] = timeZoneOptions,
-  detectedTimeZone: string = Intl.DateTimeFormat().resolvedOptions().timeZone,
-): string {
-  return options.some((option) => option.value === detectedTimeZone) ? detectedTimeZone : '';
+export interface CalendarEventDetailsModel {
+  start: CalendarEventStartModel;
+  texts: EventTextFieldModel[];
 }
 
 export function createCalendarEventDetailsModel(
@@ -69,6 +51,24 @@ export function createCalendarEventDetailsModel(
     start: { date: '', time: '', timeZoneId: preselectedTimeZone },
     texts: [...texts],
   };
+}
+
+export function applyCalendarEventDefaultStart(
+  start: CalendarEventStartModel,
+  defaultStart: CalendarEventDefaultStart,
+): CalendarEventStartModel {
+  return {
+    date: defaultStart.localDate ?? start.date,
+    time: defaultStart.localTime ?? start.time,
+    timeZoneId: defaultStart.timeZoneId ?? start.timeZoneId,
+  };
+}
+
+export function sameCalendarEventStartModel(
+  left: CalendarEventStartModel,
+  right: CalendarEventStartModel,
+): boolean {
+  return left.date === right.date && left.time === right.time && left.timeZoneId === right.timeZoneId;
 }
 
 // Signal Forms validation rules. Defined as a function so the page can close

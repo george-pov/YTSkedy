@@ -16,6 +16,7 @@ using YTSkedy.Infrastructure.Templates;
 using YTSkedy.Infrastructure.WordPress;
 using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.CalendarEvents.Starts;
 using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Content;
@@ -97,6 +98,7 @@ builder.Services.AddScoped<GetCalendarEventDetailsHandler>();
 builder.Services.AddScoped<CalendarEventPublicationLock>();
 builder.Services.AddScoped<UpdateCalendarEventHandler>();
 builder.Services.AddScoped<DeleteCalendarEventHandler>();
+builder.Services.AddScoped<GetDefaultStartHandler>();
 builder.Services.AddScoped<UploadThumbnailHandler>();
 builder.Services.AddScoped<GetThumbnailHandler>();
 builder.Services.AddScoped<DeleteThumbnailHandler>();
@@ -154,6 +156,8 @@ builder.Services.AddKeyedSingleton<TableClient>("applicationSettings", (_, _) =>
 
 builder.Services.AddScoped<GetEventTextFieldsHandler>();
 builder.Services.AddScoped<UpdateEventTextFieldsHandler>();
+builder.Services.AddScoped<GetStartDefaultsHandler>();
+builder.Services.AddScoped<UpdateStartDefaultsHandler>();
 builder.Services.AddScoped(serviceProvider =>
     new AzureEventTextFieldsRepository(
         serviceProvider.GetRequiredKeyedService<TableClient>("applicationSettings")));
@@ -161,6 +165,13 @@ builder.Services.AddScoped<IEventTextFieldsReader>(
     serviceProvider => serviceProvider.GetRequiredService<AzureEventTextFieldsRepository>());
 builder.Services.AddScoped<IEventTextFieldsModifier>(
     serviceProvider => serviceProvider.GetRequiredService<AzureEventTextFieldsRepository>());
+builder.Services.AddScoped(serviceProvider =>
+    new AzureStartDefaultsRepository(
+        serviceProvider.GetRequiredKeyedService<TableClient>("applicationSettings")));
+builder.Services.AddScoped<IStartDefaultsReader>(
+    serviceProvider => serviceProvider.GetRequiredService<AzureStartDefaultsRepository>());
+builder.Services.AddScoped<IStartDefaultsModifier>(
+    serviceProvider => serviceProvider.GetRequiredService<AzureStartDefaultsRepository>());
 
 // Platforms persist in their own table bound through a keyed TableClient so the
 // calendar-event and templates TableClient registrations above are untouched.

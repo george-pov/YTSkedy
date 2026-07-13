@@ -19,8 +19,8 @@ platform ids for the informational list aggregate. That set is not
 authoritative publication state.
 
 Application-owned settings persist in a generic `ApplicationSettings` table.
-The current event text fields setting is one row in that table, read and
-written through the event-text-fields settings ports.
+The current event text fields setting and calendar event start defaults are
+separate rows in that table, read and written through their own settings ports.
 
 Calendar event thumbnail bytes persist in private Azure Blob Storage through
 the `IThumbnailStore` port, implemented by `AzureThumbnailStore`. Calendar
@@ -201,6 +201,14 @@ setting against the generic `ApplicationSettings` table.
 - When the row is missing, the repository returns the domain default field
   list: `text1` `ShortText` max length 50 and `text2` `LongText` max length
   2500.
+- `AzureStartDefaultsRepository` uses the same partition and the row key
+  `calendar-event-start-defaults`.
+- Its `ValueJson` stores nullable canonical `dayOfWeek`, `HH:mm` `localTime`,
+  and IANA `timeZoneId` values. Saving replaces all three values, including
+  explicit nulls used to clear individual defaults.
+- A missing start-defaults row returns all-null defaults. Malformed stored JSON,
+  unknown weekdays, malformed times, and invalid stored time-zone ids fail as
+  invalid stored state instead of silently falling back.
 - This table stores application-owned settings only. It is separate from Azure
   Functions host settings and must not store provider secrets or local
   user-specific configuration.

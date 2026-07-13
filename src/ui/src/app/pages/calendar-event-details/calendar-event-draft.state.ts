@@ -3,17 +3,20 @@ import { form } from '@angular/forms/signals';
 
 import {
   type CalendarEventDetailsResponse,
+  type CalendarEventDefaultStart,
   type CreateCalendarEventRequest,
   type UpdateCalendarEventRequest,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { type EventTextField } from 'src/app/shared/api/settings/event-text-fields-service';
 import {
   applyCalendarEventDetailsRules,
+  applyCalendarEventDefaultStart,
   createCalendarEventDetailsModel,
   eventTextFieldsToModel,
   formatScheduledStartUtcIso,
   patchCalendarEventDetailsModel,
   sameUpdateCalendarEventRequest,
+  sameCalendarEventStartModel,
   scheduledStartUtcPreview,
   toCreateCalendarEventRequest,
   toUpdateCalendarEventRequest,
@@ -23,6 +26,7 @@ export class CalendarEventDraftState {
   private readonly _canUpdate = signal(true);
   private readonly savedRequest = signal<UpdateCalendarEventRequest | null>(null);
   private readonly loadedScheduledStartUtc = signal<string | null>(null);
+  private readonly initialCreateStart;
 
   readonly model = signal(createCalendarEventDetailsModel());
   readonly canUpdate = this._canUpdate.asReadonly();
@@ -58,15 +62,29 @@ export class CalendarEventDraftState {
 
   constructor(readonly isEditMode: boolean) {
     this._canUpdate.set(!isEditMode);
+    this.initialCreateStart = { ...this.model().start };
   }
 
   applyCurrentFields(fields: readonly EventTextField[]): void {
-    this.model.set(
-      createCalendarEventDetailsModel(
-        this.model().start.timeZoneId,
-        eventTextFieldsToModel(fields),
-      ),
-    );
+    this.model.update((model) => ({
+      ...model,
+      start: { ...model.start },
+      texts: eventTextFieldsToModel(fields),
+    }));
+  }
+
+  applyDefaultStart(defaultStart: CalendarEventDefaultStart): void {
+    if (
+      this.isEditMode ||
+      !sameCalendarEventStartModel(this.model().start, this.initialCreateStart)
+    ) {
+      return;
+    }
+
+    this.model.update((model) => ({
+      ...model,
+      start: applyCalendarEventDefaultStart(model.start, defaultStart),
+    }));
   }
 
   applyEventDetails(event: CalendarEventDetailsResponse): void {

@@ -1,5 +1,6 @@
 import {
   type CalendarEventDetailsResponse,
+  type CalendarEventDefaultStart,
   type CalendarEventPlatform,
   type CalendarEventThumbnail,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
@@ -20,6 +21,17 @@ export function testCalendarEventPlatform(
     canPublish: false,
     canDeletePublication: true,
     canPreviewPublishingContent: true,
+    ...overrides,
+  };
+}
+
+export function testCalendarEventDefaultStart(
+  overrides: Partial<CalendarEventDefaultStart> = {},
+): CalendarEventDefaultStart {
+  return {
+    localDate: null,
+    localTime: null,
+    timeZoneId: null,
     ...overrides,
   };
 }

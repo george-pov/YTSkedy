@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { calendarEventThumbnailUrl, publishingContentUrl } from './calendar-events-endpoint';
+import {
+  calendarEventDefaultStartUrl,
+  calendarEventThumbnailUrl,
+  publishingContentUrl,
+} from './calendar-events-endpoint';
 
 describe('calendar events endpoint helpers', () => {
+  it('builds the start suggestion URL', () => {
+    expect(calendarEventDefaultStartUrl({ baseUrl: 'https://api.example.test/' })).toBe(
+      'https://api.example.test/api/calendar-events/start-suggestion',
+    );
+  });
   it('builds the platform publishing-content URL with encoded ids', () => {
     const url = publishingContentUrl(
       { baseUrl: 'https://api.example.test/' },

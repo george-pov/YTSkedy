@@ -25,6 +25,25 @@
   @include app.stack($app-space-4);
 }
 
+.settings-section {
+  @include app.stack($app-space-4);
+  @include app.panel($app-space-4, $app-color-surface);
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.section-header {
+  @include app.split-header(center);
+}
+
+.defaults-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $app-space-3;
+}
+
 .field-list {
   @include app.stack($app-space-3);
 }
@@ -47,6 +66,10 @@
 
 @media (max-width: $app-breakpoint-md) {
   .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .defaults-grid {
     grid-template-columns: 1fr;
   }
 

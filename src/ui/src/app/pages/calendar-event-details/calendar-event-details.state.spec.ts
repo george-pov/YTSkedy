@@ -15,6 +15,7 @@ import { type NotificationService } from 'src/app/shared/notifications/notificat
 import { CalendarEventDetailsState } from './calendar-event-details.state';
 import {
   testCalendarEventDetails,
+  testCalendarEventDefaultStart,
   testEventTextFieldsResponse,
 } from './testing/calendar-event-details.fixture';
 import { thumbnailErrorNavigationStateKey } from './thumbnail-editor/thumbnail-editor.state';
@@ -30,6 +31,7 @@ describe('CalendarEventDetailsState', () => {
   beforeEach(() => {
     calendarEvents = {
       getById: vi.fn(),
+      getDefaultStart: vi.fn().mockReturnValue(of(testCalendarEventDefaultStart())),
       create: vi.fn().mockReturnValue(of({ calendarEventId: 'created-event' })),
       update: vi.fn().mockReturnValue(of({ calendarEventId: 'event-1' })),
       delete: vi.fn().mockReturnValue(of(undefined)),
@@ -62,10 +64,36 @@ describe('CalendarEventDetailsState', () => {
     state.initialize();
 
     expect(eventTextFields.get).toHaveBeenCalledTimes(1);
+    expect(calendarEvents['getDefaultStart']).toHaveBeenCalledTimes(1);
     expect(calendarEvents['getById']).not.toHaveBeenCalled();
     expect(state.isEditMode).toBe(false);
     expect(state.draft.model().texts).toHaveLength(2);
     expect(state.loadFailed()).toBe(false);
+  });
+
+  it('applies the create suggestion and keeps suggestion failure nonfatal', () => {
+    calendarEvents['getDefaultStart'].mockReturnValue(
+      of(
+        testCalendarEventDefaultStart({
+          localDate: '2030-07-07',
+          localTime: '10:30',
+          timeZoneId: 'UTC',
+        }),
+      ),
+    );
+    const successful = createState();
+    successful.initialize();
+    expect(successful.draft.model().start).toEqual({
+      date: '2030-07-07',
+      time: '10:30',
+      timeZoneId: 'UTC',
+    });
+
+    calendarEvents['getDefaultStart'].mockReturnValue(throwError(() => new Error('network')));
+    const failed = createState();
+    failed.initialize();
+    expect(failed.loadFailed()).toBe(false);
+    expect(failed.defaultStartErrorMessage()).toContain('Enter the start manually.');
   });
 
   it('loads edit details and applies root and child state', () => {
@@ -76,6 +104,7 @@ describe('CalendarEventDetailsState', () => {
 
     expect(calendarEvents['getById']).toHaveBeenCalledWith('event-1');
     expect(eventTextFields.get).not.toHaveBeenCalled();
+    expect(calendarEvents['getDefaultStart']).not.toHaveBeenCalled();
     expect(state.draft.model().texts[0].value).toBe('English title');
     expect(state.canDelete()).toBe(true);
     expect(state.platformsState.platforms()).toHaveLength(1);

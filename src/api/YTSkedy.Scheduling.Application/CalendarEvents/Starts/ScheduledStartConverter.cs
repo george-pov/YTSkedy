@@ -17,7 +17,11 @@ public static class ScheduledStartConverter
         var localDateTime = DateTime.SpecifyKind(
             start.LocalDateTime,
             DateTimeKind.Unspecified);
-        var timeZone = FindTimeZone(start.TimeZoneId);
+        if (!TimeZoneLookup.TryFind(start.TimeZoneId, out var timeZone))
+        {
+            throw new InvalidScheduledStartException(
+                "Time zone id is not recognized.");
+        }
 
         if (timeZone.IsInvalidTime(localDateTime))
         {
@@ -34,31 +38,5 @@ public static class ScheduledStartConverter
         var utcDateTime = TimeZoneInfo.ConvertTimeToUtc(localDateTime, timeZone);
 
         return new ScheduledStartConversion(new DateTimeOffset(utcDateTime, TimeSpan.Zero));
-    }
-
-    private static TimeZoneInfo FindTimeZone(string timeZoneId)
-    {
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        }
-        catch (Exception exception)
-            when (exception is TimeZoneNotFoundException or InvalidTimeZoneException)
-        {
-            if (TimeZoneInfo.TryConvertIanaIdToWindowsId(timeZoneId, out var windowsTimeZoneId))
-            {
-                try
-                {
-                    return TimeZoneInfo.FindSystemTimeZoneById(windowsTimeZoneId);
-                }
-                catch (Exception windowsException)
-                    when (windowsException is TimeZoneNotFoundException or InvalidTimeZoneException)
-                {
-                }
-            }
-
-            throw new InvalidScheduledStartException(
-                "Time zone id is not recognized.");
-        }
     }
 }

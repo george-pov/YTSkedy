@@ -7,16 +7,32 @@ import { CalendarEventFields } from 'src/app/shared/api/calendar-events/calendar
 import { EventTextField } from 'src/app/shared/api/settings/event-text-fields-service';
 import {
   applyCalendarEventDetailsRules,
+  applyCalendarEventDefaultStart,
   createCalendarEventDetailsModel,
   eventTextFieldsToModel,
   patchCalendarEventDetailsModel,
   sameUpdateCalendarEventRequest,
+  sameCalendarEventStartModel,
   toCreateCalendarEventRequest,
   toUpdateCalendarEventRequest,
   type CalendarEventDetailsModel,
 } from './calendar-event-details.form';
 
 describe('calendar event details form mapping', () => {
+  it('patches only non-null default start values', () => {
+    expect(
+      applyCalendarEventDefaultStart(
+        { date: '', time: '', timeZoneId: 'America/Vancouver' },
+        { localDate: '2030-07-07', localTime: null, timeZoneId: null },
+      ),
+    ).toEqual({ date: '2030-07-07', time: '', timeZoneId: 'America/Vancouver' });
+  });
+
+  it('compares all start controls', () => {
+    const start = { date: '2030-07-07', time: '10:00', timeZoneId: 'UTC' };
+    expect(sameCalendarEventStartModel(start, { ...start })).toBe(true);
+    expect(sameCalendarEventStartModel(start, { ...start, time: '11:00' })).toBe(false);
+  });
   it('maps current event text fields to blank editable text values', () => {
     expect(eventTextFieldsToModel(eventTextFields())).toEqual([
       {

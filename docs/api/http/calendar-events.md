@@ -198,6 +198,41 @@ Current invalid query behavior:
   `400 Bad Request`.
 - Error responses currently use specific plain string messages.
 
+## Get New Calendar Event Start Suggestion
+
+```text
+GET /api/calendar-events/start-suggestion?fallbackTimeZoneId={ianaId}
+```
+
+Requires `CalendarEvents.Read`. The optional `fallbackTimeZoneId` must occur
+once, be non-empty, and identify a recognized time zone. Invalid values return
+`400 Bad Request`.
+
+Success returns `200 OK` with independently nullable values:
+
+```json
+{
+  "localDate": "2026-07-12",
+  "localTime": "10:00",
+  "timeZoneId": "America/Vancouver"
+}
+```
+
+The saved time-zone default takes priority over the fallback. Without an
+effective time zone, a weekday cannot produce `localDate`. Independent time and
+time-zone defaults can still be returned.
+
+With complete defaults, the API returns the first matching weekly local start
+whose UTC instant is strictly later than backend time and is not used by any
+stored calendar event. Every stored event occupies its instant regardless of
+publication status. Past, equal-to-now, occupied, invalid, and ambiguous local
+candidates advance by seven local calendar days. Each candidate is converted
+independently, preserving the intended wall-clock time across offset changes.
+
+The response is advisory initial form state. It does not reserve the instant,
+and `POST /api/calendar-events` keeps the authoritative duplicate check. It
+does not modify existing events, create requests, or provider state.
+
 ## Get Calendar Event
 
 ```text
@@ -429,6 +464,8 @@ Scope and proof-of-concept limitations:
 ## Related Contracts
 
 - Event text fields: [`event-text-fields.md`](event-text-fields.md)
+- Calendar event start defaults:
+  [`calendar-event-start-defaults.md`](calendar-event-start-defaults.md)
 - Calendar-event thumbnails:
   [`calendar-event-thumbnails.md`](calendar-event-thumbnails.md)
 - Platform publications:

@@ -13,7 +13,7 @@ import { type ConfirmationDialogService } from 'src/app/shared/components/confir
 import { delayedLoading } from 'src/app/shared/components/progress-bar/delayed-loading';
 import { type NotificationService } from 'src/app/shared/notifications/notification-service';
 import { CalendarEventDraftState } from './calendar-event-draft.state';
-import { timeZoneOptions } from './calendar-event-details.form';
+import { timeZoneOptions } from 'src/app/shared/date-time/time-zone-options';
 import { CalendarEventPlatformsState } from './calendar-event-platforms/calendar-event-platforms.state';
 import {
   ThumbnailEditorState,
@@ -44,6 +44,7 @@ export class CalendarEventDetailsState {
   private readonly _loadFailed = signal(false);
   private readonly _isDeleting = signal(false);
   private readonly _deleteErrorMessage = signal<string | null>(null);
+  private readonly _defaultStartErrorMessage = signal<string | null>(null);
   private initialized = false;
   private readonly initialThumbnailErrorMessage: string | null;
 
@@ -62,6 +63,7 @@ export class CalendarEventDetailsState {
   readonly loadFailed = this._loadFailed.asReadonly();
   readonly isDeleting = this._isDeleting.asReadonly();
   readonly deleteErrorMessage = this._deleteErrorMessage.asReadonly();
+  readonly defaultStartErrorMessage = this._defaultStartErrorMessage.asReadonly();
   readonly showLockedEventAlert: Signal<boolean>;
   readonly hasActiveMutation: Signal<boolean>;
   readonly deleteDisabled: Signal<boolean>;
@@ -128,6 +130,7 @@ export class CalendarEventDetailsState {
     this.initialized = true;
     if (this.options.calendarEventId === null) {
       this.loadCurrentFields();
+      this.loadDefaultStart();
       return;
     }
 
@@ -219,6 +222,22 @@ export class CalendarEventDetailsState {
       .subscribe({
         next: (response) => this.draft.applyCurrentFields(response.fields),
         error: () => this._loadFailed.set(true),
+      });
+  }
+
+  private loadDefaultStart(): void {
+    this._defaultStartErrorMessage.set(null);
+    const fallbackTimeZoneId = this.draft.model().start.timeZoneId || undefined;
+
+    this.options.calendarEvents
+      .getDefaultStart(fallbackTimeZoneId)
+      .pipe(takeUntilDestroyed(this.options.destroyRef))
+      .subscribe({
+        next: (defaultStart) => this.draft.applyDefaultStart(defaultStart),
+        error: () =>
+          this._defaultStartErrorMessage.set(
+            'New calendar event defaults could not be loaded. Enter the start manually.',
+          ),
       });
   }
 

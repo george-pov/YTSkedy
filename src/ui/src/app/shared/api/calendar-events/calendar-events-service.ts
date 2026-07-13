@@ -6,6 +6,7 @@ import { APP_CONFIG } from 'src/app/shared/config/app-config';
 import { EventTextType } from 'src/app/shared/api/settings/event-text-fields-service';
 import {
   calendarEventByIdUrl,
+  calendarEventDefaultStartUrl,
   calendarEventsUrl,
   calendarEventThumbnailUrl,
   deletePlatformPublicationUrl,
@@ -74,6 +75,12 @@ export interface EventPlatformPublishingContent {
 export interface CalendarEventStart {
   localDateTime: string;
   timeZoneId: string;
+}
+
+export interface CalendarEventDefaultStart {
+  localDate: string | null;
+  localTime: string | null;
+  timeZoneId: string | null;
 }
 
 export interface CalendarEventText {
@@ -171,6 +178,17 @@ export class CalendarEventsService {
     return this.http.get<CalendarEventDetailsResponse>(
       calendarEventByIdUrl(this.appConfig.api, calendarEventId),
     );
+  }
+
+  getDefaultStart(fallbackTimeZoneId?: string): Observable<CalendarEventDefaultStart> {
+    let params = new HttpParams();
+    if (fallbackTimeZoneId) {
+      params = params.set('fallbackTimeZoneId', fallbackTimeZoneId);
+    }
+
+    return this.http.get<CalendarEventDefaultStart>(calendarEventDefaultStartUrl(this.appConfig.api), {
+      params,
+    });
   }
 
   update(

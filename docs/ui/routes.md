@@ -72,6 +72,13 @@ current [event text field setting](../api/http/event-text-fields.md), renders
 short and long text controls by field type, and creates through the
 [calendar events contract](../api/http/calendar-events.md).
 
+Create mode independently requests a start suggestion. It sends the curated,
+supported browser-detected time zone only as a fallback. Returned date, time,
+and zone values initialize untouched start controls; null properties preserve
+their existing values. A late response does not overwrite operator start input,
+and edit mode never requests or applies a suggestion. Suggestion failure shows
+nonfatal guidance near Scheduled start and leaves manual entry available.
+
 The page may select, preview, and clear one JPEG or PNG thumbnail before create.
 After the event is created, it uploads the selected file through the
 [thumbnail contract](../api/http/calendar-event-thumbnails.md). A failed upload
@@ -183,18 +190,27 @@ errors remain inline.
 ## Settings
 
 `/settings` edits the
-[event text field setting](../api/http/event-text-fields.md). It displays the
-derived `fieldKey`, label, type, max length, and delete action. Add and delete
-renumber local `textN` keys immediately.
+[event text field setting](../api/http/event-text-fields.md) and the separate
+[calendar event start defaults](../api/http/calendar-event-start-defaults.md).
+The event text section displays the derived `fieldKey`, label, type, max length,
+and delete action. Add and delete renumber local `textN` keys immediately. The
+New calendar event defaults section independently manages optional weekday,
+local time, and time zone values, including a No default state for each.
 
 Save changes is disabled until the normalized settings request differs from the
 saved baseline. Label-only trimming does not count as a change; add, delete,
 renumber, type, and max-length edits do. A successful save replaces local state
 and the baseline with the backend-normalized response.
 
-Cancel asks before discarding pending edits, restores the last loaded or saved
-baseline after confirmation, and clears transient save errors. Route exit uses
-the same page-owned dirty state through `pendingChangesGuard`.
+The sections load, save, report errors, and update their saved baselines
+independently. `Save changes` writes only event text fields; `Save defaults`
+writes only start defaults. A failure in one section does not remove or disable
+a successfully loaded other section.
+
+One page-level Cancel asks before discarding pending edits in either section,
+restores both last loaded or saved baselines after confirmation, and clears
+transient save errors. Route exit uses the combined page-owned dirty state
+through `pendingChangesGuard`.
 
 ## Component Lab
 

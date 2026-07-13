@@ -18,6 +18,12 @@ Canonical product concepts and public identifier vocabulary for YTSkedy.
 - `scheduled start`: Submitted local date-time plus explicit time-zone id.
 - `scheduled start UTC`: UTC instant derived from a scheduled start and used for
   ordering and active calendar-event duplicate detection.
+- `calendar event start defaults`: Independently optional application-wide
+  weekday, local time, and time-zone values used only to initialize a newly
+  opened calendar event create form.
+- `start suggestion`: Advisory initial local date, local time, and time-zone
+  values for a new calendar event. A complete suggestion is strictly future and
+  not occupied by a stored event at read time; it is not a reservation.
 - `event text fields`: The current application setting that defines the ordered
   text fields used by newly created calendar events.
 - `event text field`: A configured field definition with a derived `fieldKey`,

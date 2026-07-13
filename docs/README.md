@@ -54,6 +54,8 @@ architecture, API, UI, development, or operations guidance.
   [`api/http/calendar-events.md`](api/http/calendar-events.md)
 - Event text fields HTTP contract:
   [`api/http/event-text-fields.md`](api/http/event-text-fields.md)
+- Calendar event start defaults HTTP contract:
+  [`api/http/calendar-event-start-defaults.md`](api/http/calendar-event-start-defaults.md)
 - Calendar-event thumbnails HTTP contract:
   [`api/http/calendar-event-thumbnails.md`](api/http/calendar-event-thumbnails.md)
 - Configured platforms HTTP contract:

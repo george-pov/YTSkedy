@@ -17,6 +17,7 @@ public sealed class EndpointScopeTests
         new(typeof(CalendarEventsApi), nameof(CalendarEventsApi.GetCalendarEventAsync), "GetCalendarEvent", "CalendarEvents.Read"),
         new(typeof(CalendarEventsApi), nameof(CalendarEventsApi.UpdateCalendarEventAsync), "UpdateCalendarEvent", "CalendarEvents.Write"),
         new(typeof(CalendarEventsApi), nameof(CalendarEventsApi.DeleteCalendarEventAsync), "DeleteCalendarEvent", "CalendarEvents.Write"),
+        new(typeof(DefaultStartApi), nameof(DefaultStartApi.GetAsync), "GetCalendarEventDefaultStart", "CalendarEvents.Read"),
         new(typeof(CalendarEventThumbnailsApi), nameof(CalendarEventThumbnailsApi.UploadAsync), "UploadCalendarEventThumbnail", "CalendarEvents.Write"),
         new(typeof(CalendarEventThumbnailsApi), nameof(CalendarEventThumbnailsApi.GetAsync), "GetCalendarEventThumbnail", "CalendarEvents.Read"),
         new(typeof(CalendarEventThumbnailsApi), nameof(CalendarEventThumbnailsApi.DeleteAsync), "DeleteCalendarEventThumbnail", "CalendarEvents.Write"),
@@ -35,7 +36,9 @@ public sealed class EndpointScopeTests
         new(typeof(TemplatesApi), nameof(TemplatesApi.DeleteTemplateAsync), "DeleteTemplate", "CalendarEvents.Write"),
         new(typeof(TemplatesApi), nameof(TemplatesApi.ListTemplateTokensAsync), "ListTemplateTokens", "CalendarEvents.Read"),
         new(typeof(EventTextFieldsApi), nameof(EventTextFieldsApi.Get), "GetEventTextFields", "CalendarEvents.Read"),
-        new(typeof(EventTextFieldsApi), nameof(EventTextFieldsApi.Update), "UpdateEventTextFields", "CalendarEvents.Write")
+        new(typeof(EventTextFieldsApi), nameof(EventTextFieldsApi.Update), "UpdateEventTextFields", "CalendarEvents.Write"),
+        new(typeof(StartDefaultsApi), nameof(StartDefaultsApi.GetAsync), "GetCalendarEventStartDefaults", "CalendarEvents.Read"),
+        new(typeof(StartDefaultsApi), nameof(StartDefaultsApi.UpdateAsync), "UpdateCalendarEventStartDefaults", "CalendarEvents.Write")
     ];
 
     public static TheoryData<Type, string, string, string> FunctionScopes =>

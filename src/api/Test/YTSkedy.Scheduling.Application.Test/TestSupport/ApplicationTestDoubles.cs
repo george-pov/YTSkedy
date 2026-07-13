@@ -25,6 +25,31 @@ internal sealed class FakeEventTextFieldsReader(EventTextFields eventTextFields)
     }
 }
 
+internal sealed class FakeStartDefaultsStore(StartDefaults current) :
+    IStartDefaultsReader,
+    IStartDefaultsModifier
+{
+    public int GetCallCount { get; private set; }
+
+    public StartDefaults? Saved { get; private set; }
+
+    public CancellationToken CancellationToken { get; private set; }
+
+    public Task<StartDefaults> GetAsync(CancellationToken cancellationToken)
+    {
+        GetCallCount++;
+        CancellationToken = cancellationToken;
+        return Task.FromResult(Saved ?? current);
+    }
+
+    public Task SaveAsync(StartDefaults startDefaults, CancellationToken cancellationToken)
+    {
+        Saved = startDefaults;
+        CancellationToken = cancellationToken;
+        return Task.CompletedTask;
+    }
+}
+
 internal sealed class FakeCalendarEventReader : ICalendarEventReader
 {
     private readonly IReadOnlyList<CalendarEventListRecord> items;

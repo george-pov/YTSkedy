@@ -19,6 +19,8 @@ codes, authorization requirements, and manual API check notes.
 
 - Calendar events: [`calendar-events.md`](calendar-events.md)
 - Event text fields: [`event-text-fields.md`](event-text-fields.md)
+- Calendar event start defaults:
+  [`calendar-event-start-defaults.md`](calendar-event-start-defaults.md)
 - Calendar-event thumbnails:
   [`calendar-event-thumbnails.md`](calendar-event-thumbnails.md)
 - Configured platforms: [`platforms.md`](platforms.md)

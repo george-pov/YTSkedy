@@ -24,6 +24,7 @@ request, response, status code, and manual check details belong in
 | HTTP API routes, DTOs, status codes, and auth requirements | Azure Functions API | Angular UI typed services and manual API clients | [`../api/http/`](../api/http/) |
 | Calendar event list, details, create, update, and delete behavior | Azure Functions API | `CalendarEvents` and `CalendarEventDetails` pages | [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
 | Event text fields settings reads and writes | Azure Functions API | `Settings` and `CalendarEventDetails` pages | [`../api/http/event-text-fields.md`](../api/http/event-text-fields.md) |
+| Calendar event start defaults reads, writes, and suggestions | Azure Functions API | `Settings` and create-mode `CalendarEventDetails` pages | [`../api/http/calendar-event-start-defaults.md`](../api/http/calendar-event-start-defaults.md) and [`../api/http/calendar-events.md`](../api/http/calendar-events.md) |
 | Calendar-event thumbnail storage and retrieval | Azure Functions API | `CalendarEventDetails` page and provider publication flow | [`../api/http/calendar-event-thumbnails.md`](../api/http/calendar-event-thumbnails.md) |
 | Platform CRUD, `referenceKey`, and provider-specific settings | Azure Functions API | `Platforms` page | [`../api/http/platforms.md`](../api/http/platforms.md) |
 | Saved WordPress platform category lookup | Azure Functions API and WordPress REST API | `Platforms` page category selector | [`../api/http/platforms.md`](../api/http/platforms.md) |
@@ -75,6 +76,12 @@ Cross-boundary rules:
 - The Settings page consumes the event text fields contract through a typed
   settings service. The backend owns `fieldKey` derivation and normalizes keys
   from field order.
+- The Settings page manages calendar event start defaults through a separate
+  typed service, persistence row, and Save action. The create page may send its
+  supported browser time zone as a fallback, but the backend owns effective-zone
+  priority, current time, weekly local-date selection, DST validation, and UTC
+  collision checks. Suggestions are advisory and never replace create-time
+  duplicate validation.
 - Template-token reads expose current `textN` fields, fixed date tokens, and
   active platform `referenceKey` values for template authoring. Preview and
   publish render from the selected calendar event's stored text snapshot and

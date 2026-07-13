@@ -1,8 +1,14 @@
-import { provideZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection, type WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 import { finalize, firstValueFrom, Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
+import {
+  CalendarEventStartDefaultsResponse,
+  CalendarEventStartDefaultsService,
+  UpdateCalendarEventStartDefaultsRequest,
+} from 'src/app/shared/api/settings/calendar-event-start-defaults-service';
 import {
   EventTextFieldsResponse,
   EventTextFieldsService,
@@ -11,6 +17,7 @@ import {
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Settings } from './settings';
+import { type StartDefaultsModel } from './start-defaults.form';
 
 describe('Settings', () => {
   let fixture: ComponentFixture<Settings>;
@@ -20,6 +27,13 @@ describe('Settings', () => {
   };
   let confirmation: { confirm: Mock<(data: unknown) => Observable<string | undefined>> };
   let notifications: { showSuccess: Mock<(message: string) => void> };
+  let startDefaults: {
+    get: Mock<() => Observable<CalendarEventStartDefaultsResponse>>;
+    update: Mock<
+      (request: UpdateCalendarEventStartDefaultsRequest) =>
+        Observable<CalendarEventStartDefaultsResponse>
+    >;
+  };
 
   beforeEach(() => {
     service = {
@@ -28,6 +42,12 @@ describe('Settings', () => {
         vi.fn<(request: UpdateEventTextFieldsRequest) => Observable<EventTextFieldsResponse>>(),
     };
     service.get.mockReturnValue(of(defaultFields()));
+    startDefaults = {
+      get: vi.fn().mockReturnValue(
+        of({ dayOfWeek: null, localTime: null, timeZoneId: null }),
+      ),
+      update: vi.fn(),
+    };
     confirmation = {
       confirm: vi.fn<(data: unknown) => Observable<string | undefined>>(),
     };
@@ -40,7 +60,9 @@ describe('Settings', () => {
       imports: [Settings],
       providers: [
         provideZonelessChangeDetection(),
+        provideLuxonDateAdapter(),
         { provide: EventTextFieldsService, useValue: service },
+        { provide: CalendarEventStartDefaultsService, useValue: startDefaults },
         { provide: ConfirmationDialogService, useValue: confirmation },
         { provide: NotificationService, useValue: notifications },
       ],
@@ -112,9 +134,42 @@ describe('Settings', () => {
     await createComponent();
 
     expect(service.get).toHaveBeenCalledTimes(1);
+    expect(startDefaults.get).toHaveBeenCalledTimes(1);
     expect(text()).toContain('text1');
     expect(text()).toContain('text2');
     expect(inputs().map((input) => input.value)).toEqual(['Title', '50', 'Description', '2500']);
+  });
+
+  it('renders and saves the independent new calendar event defaults section', async () => {
+    startDefaults.get.mockReturnValue(
+      of({ dayOfWeek: 'Friday', localTime: '09:05', timeZoneId: 'UTC' }),
+    );
+    startDefaults.update.mockReturnValue(
+      of({ dayOfWeek: null, localTime: null, timeZoneId: null }),
+    );
+    await createComponent();
+
+    expect(text()).toContain('New calendar event defaults');
+    expect(text()).toContain('Default weekday');
+    const state = fixture.componentInstance as unknown as {
+      startDefaultsModel: WritableSignal<StartDefaultsModel>;
+    };
+    state.startDefaultsModel.set({ dayOfWeek: '', localTime: '', timeZoneId: '' });
+    fixture.detectChanges();
+    const forms = fixture.nativeElement.querySelectorAll('form');
+    forms[1].dispatchEvent(new Event('submit'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(startDefaults.update).toHaveBeenCalledWith({
+      dayOfWeek: null,
+      localTime: null,
+      timeZoneId: null,
+    });
+    expect(service.update).not.toHaveBeenCalled();
+    expect(notifications.showSuccess).toHaveBeenCalledWith(
+      'New calendar event defaults saved.',
+    );
   });
 
   it('unsubscribes from a pending load when destroyed', async () => {

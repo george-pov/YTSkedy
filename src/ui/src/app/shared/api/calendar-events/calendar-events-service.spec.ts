@@ -46,6 +46,34 @@ describe('CalendarEventsService', () => {
     http.verify();
   });
 
+  it('gets the default start with an optional encoded fallback time zone', () => {
+    const response = {
+      localDate: '2026-07-12',
+      localTime: '10:00',
+      timeZoneId: 'America/Vancouver',
+    };
+    let actual;
+
+    service.getDefaultStart('America/Vancouver').subscribe((value) => (actual = value));
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/start-suggestion?fallbackTimeZoneId=America/Vancouver',
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush(response);
+    expect(actual).toEqual(response);
+  });
+
+  it('omits the fallback query when no supported zone is available', () => {
+    service.getDefaultStart().subscribe();
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/start-suggestion',
+    );
+    expect(request.request.params.keys()).toEqual([]);
+    request.flush({ localDate: null, localTime: null, timeZoneId: null });
+  });
+
   it('requests a calendar events page with the paging and sorting query and returns the envelope', () => {
     const apiResponse: CalendarEventListPage = {
       items: [

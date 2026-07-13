@@ -77,6 +77,16 @@ describe('resolveProtectedScopes', () => {
     ]);
   });
 
+  it('returns the scopes for calendar event start defaults settings calls', () => {
+    expect(
+      getRequiredScopes(
+        'https://api.example.test/api/settings/calendar-event-start-defaults',
+        api,
+        auth,
+      ),
+    ).toEqual([auth.calendarEventsReadScope, auth.calendarEventsWriteScope]);
+  });
+
   it('does not match a path that merely starts with the event text fields prefix string', () => {
     const scopes = getRequiredScopes(
       'https://api.example.test/api/settings/event-text-fields-other',

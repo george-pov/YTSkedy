@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
   type CalendarEventDetailsResponse,
+  type CalendarEventDefaultStart,
   CalendarEventsService,
   type CreateCalendarEventRequest,
   type CreateCalendarEventResponse,
@@ -59,6 +60,7 @@ describe('CalendarEventDetails', () => {
   let service: {
     create: Mock<(request: CreateCalendarEventRequest) => Observable<CreateCalendarEventResponse>>;
     getById: Mock<(id: string) => Observable<CalendarEventDetailsResponse>>;
+    getDefaultStart: Mock<(fallbackTimeZoneId?: string) => Observable<CalendarEventDefaultStart>>;
     update: Mock<
       (id: string, request: UpdateCalendarEventRequest) => Observable<UpdateCalendarEventResponse>
     >;
@@ -79,6 +81,9 @@ describe('CalendarEventDetails', () => {
     service = {
       create: vi.fn(),
       getById: vi.fn(),
+      getDefaultStart: vi.fn().mockReturnValue(
+        of({ localDate: null, localTime: null, timeZoneId: null }),
+      ),
       update: vi.fn(),
       delete: vi.fn(),
       publishPlatform: vi.fn(),

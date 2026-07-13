@@ -7,6 +7,13 @@ export function calendarEventsUrl(api: ApiConfig): string {
   return new URL(calendarEventsPath, normalizeApiBaseUrl(api.baseUrl)).toString();
 }
 
+export function calendarEventDefaultStartUrl(api: ApiConfig): string {
+  return new URL(
+    `${calendarEventsPath}/start-suggestion`,
+    normalizeApiBaseUrl(api.baseUrl),
+  ).toString();
+}
+
 export function calendarEventByIdUrl(api: ApiConfig, calendarEventId: string): string {
   const path = `${calendarEventsPath}/${encodeURIComponent(calendarEventId)}`;
 

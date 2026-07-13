@@ -6,6 +6,54 @@ import { CalendarEventDraftState } from './calendar-event-draft.state';
 import { testCalendarEventDetails } from './testing/calendar-event-details.fixture';
 
 describe('CalendarEventDraftState', () => {
+  it('applies full and partial suggestions only to the untouched create start', () => {
+    const full = createState(false);
+    full.applyDefaultStart({
+      localDate: '2030-07-07',
+      localTime: '10:30',
+      timeZoneId: 'UTC',
+    });
+    expect(full.model().start).toEqual({ date: '2030-07-07', time: '10:30', timeZoneId: 'UTC' });
+
+    const partial = createState(false);
+    partial.applyDefaultStart({ localDate: null, localTime: '09:00', timeZoneId: null });
+    expect(partial.model().start.date).toBe('');
+    expect(partial.model().start.time).toBe('09:00');
+  });
+
+  it('rejects suggestions in edit mode or after operator start input', () => {
+    const edit = createState(true);
+    edit.applyDefaultStart({ localDate: '2030-07-07', localTime: '10:30', timeZoneId: 'UTC' });
+    expect(edit.model().start.date).toBe('');
+
+    const create = createState(false);
+    create.model.update((model) => ({
+      ...model,
+      start: { ...model.start, date: '2030-08-01' },
+    }));
+    create.applyDefaultStart({ localDate: '2030-07-07', localTime: '10:30', timeZoneId: 'UTC' });
+    expect(create.model().start).toEqual({
+      date: '2030-08-01',
+      time: '',
+      timeZoneId: create.model().start.timeZoneId,
+    });
+  });
+
+  it('preserves suggestion and fields regardless of response order', () => {
+    const suggestionFirst = createState(false);
+    suggestionFirst.applyDefaultStart({ localDate: '2030-07-07', localTime: '10:30', timeZoneId: 'UTC' });
+    suggestionFirst.applyCurrentFields([
+      { fieldKey: 'text1', label: 'Title', type: 'ShortText', maxLength: 50 },
+    ]);
+
+    const fieldsFirst = createState(false);
+    fieldsFirst.applyCurrentFields([
+      { fieldKey: 'text1', label: 'Title', type: 'ShortText', maxLength: 50 },
+    ]);
+    fieldsFirst.applyDefaultStart({ localDate: '2030-07-07', localTime: '10:30', timeZoneId: 'UTC' });
+
+    expect(suggestionFirst.model()).toEqual(fieldsFirst.model());
+  });
   it('applies current fields without replacing the selected create-mode time zone', () => {
     const state = createState(false);
     state.model.update((model) => ({

@@ -20,6 +20,19 @@ public sealed class ScheduledStartConverterTests
     }
 
     [Fact]
+    public void Convert_RecognizedIanaUtcZone_ReturnsSameUtcInstant()
+    {
+        var result = ScheduledStartConverter.Convert(
+            new ScheduledStart(
+                new DateTime(2026, 6, 15, 10, 0, 0),
+                "Etc/UTC"));
+
+        Assert.Equal(
+            new DateTimeOffset(2026, 6, 15, 10, 0, 0, TimeSpan.Zero),
+            result.ScheduledStartUtc);
+    }
+
+    [Fact]
     public void Convert_InvalidLocalTime_ThrowsInvalidScheduledStartException()
     {
         var exception = Assert.Throws<InvalidScheduledStartException>(() =>
