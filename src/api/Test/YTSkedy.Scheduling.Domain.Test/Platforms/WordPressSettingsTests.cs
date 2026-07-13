@@ -294,7 +294,7 @@ public class WordPressSettingsTests
         string username = "editor",
         string applicationPassword = "password",
         string postStatus = "draft",
-        IReadOnlyCollection<long>? categoryIds = null,
+        IReadOnlyList<long>? categoryIds = null,
         bool sticky = false,
         bool useDefaultCategoryIds = true,
         int? scheduleOffsetHours = null)
