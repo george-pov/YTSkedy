@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, signal, type DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize, Observable, switchMap, tap } from 'rxjs';
+import { catchError, finalize, Observable, switchMap, tap, throwError } from 'rxjs';
 
 import {
   CalendarEventsService,
@@ -15,6 +15,15 @@ import { NotificationService } from 'src/app/shared/notifications/notification-s
 export interface PublishingContentPreview extends EventPlatformPublishingContent {
   platformId: string;
   platformName: string;
+}
+
+type PlatformMutationAction = 'publish' | 'deletePublication';
+
+class CalendarEventDetailsRefreshError extends Error {
+  constructor(cause: unknown) {
+    super('Calendar event details refresh failed.', { cause });
+    this.name = 'CalendarEventDetailsRefreshError';
+  }
 }
 
 export class CalendarEventPlatformsState {
@@ -56,8 +65,7 @@ export class CalendarEventPlatformsState {
     private readonly destroyRef: DestroyRef,
     private readonly hasActivePageMutation: () => boolean,
     private readonly hasPendingEventChanges: () => boolean,
-    private readonly applyRefreshedEventDetails:
-      (event: CalendarEventDetailsResponse) => void,
+    private readonly applyRefreshedEventDetails: (event: CalendarEventDetailsResponse) => void,
   ) {}
 
   applyEventDetails(event: Pick<CalendarEventDetailsResponse, 'platforms'>): void {
@@ -86,7 +94,7 @@ export class CalendarEventPlatformsState {
       return;
     }
 
-    if (this.blockPlatformActionWhenEventChangesPending()) {
+    if (this.blockPlatformActionWhenEventChangesPending('publish')) {
       return;
     }
 
@@ -97,9 +105,10 @@ export class CalendarEventPlatformsState {
     this.calendarEventsService
       .publishPlatform(this.calendarEventId, platform.platformId)
       .pipe(
-        switchMap((response) =>
-          this.refreshEventDetailsAfterPlatformMutation(response.platformId),
-        ),
+        switchMap((response) => {
+          this.clearPreview(response.platformId);
+          return this.refreshEventDetailsAfterPlatformMutation();
+        }),
         finalize(() => this._publishingPlatformId.set(null)),
         takeUntilDestroyed(this.destroyRef),
       )
@@ -123,7 +132,7 @@ export class CalendarEventPlatformsState {
       return;
     }
 
-    if (this.blockPlatformActionWhenEventChangesPending()) {
+    if (this.blockPlatformActionWhenEventChangesPending('deletePublication')) {
       return;
     }
 
@@ -140,11 +149,7 @@ export class CalendarEventPlatformsState {
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((result) => {
-        if (
-          result !== 'delete' ||
-          this.hasActivePageMutation() ||
-          this.hasActiveMutation()
-        ) {
+        if (result !== 'delete' || this.hasActivePageMutation() || this.hasActiveMutation()) {
           return;
         }
 
@@ -155,9 +160,10 @@ export class CalendarEventPlatformsState {
         this.calendarEventsService
           .deletePlatformPublication(this.calendarEventId!, platform.platformId)
           .pipe(
-            switchMap((response) =>
-              this.refreshEventDetailsAfterPlatformMutation(response.platformId),
-            ),
+            switchMap((response) => {
+              this.clearPreview(response.platformId);
+              return this.refreshEventDetailsAfterPlatformMutation();
+            }),
             finalize(() => this._deletingPublicationPlatformId.set(null)),
             takeUntilDestroyed(this.destroyRef),
           )
@@ -166,9 +172,7 @@ export class CalendarEventPlatformsState {
               this.notifications.showSuccess('Platform publication deleted.');
             },
             error: (error: unknown) => {
-              this._deletePublicationErrorMessage.set(
-                describeDeletePublicationError(error),
-              );
+              this._deletePublicationErrorMessage.set(describeDeletePublicationError(error));
             },
           });
       });
@@ -215,30 +219,34 @@ export class CalendarEventPlatformsState {
     }
   }
 
-  private blockPlatformActionWhenEventChangesPending(): boolean {
+  private blockPlatformActionWhenEventChangesPending(action: PlatformMutationAction): boolean {
     if (!this.hasPendingEventChanges()) {
       return false;
     }
 
     this._platformActionBlockedMessage.set(
-      'Save or discard event changes before publishing.',
+      action === 'publish'
+        ? 'Save or discard event changes before publishing.'
+        : 'Save or discard event changes before deleting a publication.',
     );
     return true;
   }
 
-  private refreshEventDetailsAfterPlatformMutation(
-    platformId: string,
-  ): Observable<CalendarEventDetailsResponse> {
+  private refreshEventDetailsAfterPlatformMutation(): Observable<CalendarEventDetailsResponse> {
     return this.calendarEventsService.getById(this.calendarEventId!).pipe(
+      catchError((error: unknown) => throwError(() => new CalendarEventDetailsRefreshError(error))),
       tap((event) => {
         this.applyRefreshedEventDetails(event);
-        this.clearPreview(platformId);
       }),
     );
   }
 }
 
 export function describePublishError(error: unknown): string {
+  if (error instanceof CalendarEventDetailsRefreshError) {
+    return 'The event was published, but the latest calendar event details could not be loaded. Reload the page.';
+  }
+
   if (error instanceof HttpErrorResponse && error.status === 403) {
     return 'You do not have permission to publish calendar events.';
   }
@@ -255,6 +263,10 @@ export function describePublishError(error: unknown): string {
 }
 
 export function describeDeletePublicationError(error: unknown): string {
+  if (error instanceof CalendarEventDetailsRefreshError) {
+    return 'The publication was deleted, but the latest calendar event details could not be loaded. Reload the page.';
+  }
+
   if (error instanceof HttpErrorResponse && error.status === 409) {
     return 'The publication can no longer be deleted. Reload the page and try again.';
   }

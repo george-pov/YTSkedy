@@ -12,6 +12,10 @@ import {
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
+import {
+  testCalendarEventDetails,
+  testCalendarEventPlatform,
+} from '../testing/calendar-event-details.fixture';
 import { CalendarEventPlatformsState } from './calendar-event-platforms.state';
 import { CalendarEventPlatforms } from './calendar-event-platforms';
 
@@ -332,67 +336,31 @@ describe('CalendarEventPlatforms', () => {
     return platformDeletePublicationHosts()[0]?.querySelector('button') ?? null;
   }
 
-  function draftPlatform(
-    overrides: Partial<CalendarEventPlatform> = {},
-  ): CalendarEventPlatform {
-    return {
-      platformId: 'platform-1',
-      platformName: 'Main YouTube channel',
-      platformType: 'YouTube',
+  function draftPlatform(overrides: Partial<CalendarEventPlatform> = {}): CalendarEventPlatform {
+    return testCalendarEventPlatform({
       status: 'NotPublished',
       externalResourceId: null,
       thumbnailStatus: 'NotConfigured',
       publishedUtc: null,
-      platformDeletedUtc: null,
       canPublish: true,
       canDeletePublication: false,
-      canPreviewPublishingContent: true,
       ...overrides,
-    };
+    });
   }
 
   function publishedPlatform(
     overrides: Partial<CalendarEventPlatform> = {},
   ): CalendarEventPlatform {
-    return {
-      ...draftPlatform({
-        status: 'Published',
-        externalResourceId: 'broadcast-123',
-        thumbnailStatus: 'Applied',
-        publishedUtc: '2030-07-04T08:45:00+00:00',
-        canPublish: false,
-        canDeletePublication: true,
-      }),
-      ...overrides,
-    };
+    return testCalendarEventPlatform(overrides);
   }
 
   function sampleEvent(
     overrides: Partial<CalendarEventDetailsResponse> = {},
   ): CalendarEventDetailsResponse {
-    return {
+    return testCalendarEventDetails({
       calendarEventId,
-      start: {
-        localDateTime: '2030-07-04T09:30:00',
-        timeZoneId: 'Europe/London',
-      },
-      scheduledStartUtc: '2030-07-04T08:30:00+00:00',
-      displayTitle: 'English title',
-      canUpdate: true,
-      canDelete: true,
-      thumbnail: null,
-      canUpdateThumbnail: true,
-      texts: [
-        {
-          fieldKey: 'text1',
-          label: 'Title',
-          type: 'ShortText',
-          maxLength: 50,
-          value: 'English title',
-        },
-      ],
       platforms: [draftPlatform()],
       ...overrides,
-    };
+    });
   }
 });

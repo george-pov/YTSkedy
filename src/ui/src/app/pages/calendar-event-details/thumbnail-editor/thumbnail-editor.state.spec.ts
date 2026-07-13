@@ -8,6 +8,7 @@ import {
   CalendarEventThumbnail,
 } from 'src/app/shared/api/calendar-events/calendar-events-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
+import { testCalendarEventThumbnail } from '../testing/calendar-event-details.fixture';
 import {
   describeThumbnailError,
   isSupportedThumbnailFile,
@@ -67,26 +68,12 @@ describe('ThumbnailEditorState', () => {
     );
   }
 
-  function imageFile(
-    name = 'stream.png',
-    type = 'image/png',
-    sizeBytes = 11,
-  ): File {
+  function imageFile(name = 'stream.png', type = 'image/png', sizeBytes = 11): File {
     return new File([new Uint8Array(sizeBytes)], name, { type });
   }
 
-  function thumbnail(
-    overrides: Partial<CalendarEventThumbnail> = {},
-  ): CalendarEventThumbnail {
-    return {
-      fileName: 'stream.png',
-      contentType: 'image/png',
-      sizeBytes: 11,
-      width: 1280,
-      height: 720,
-      updatedUtc: '2030-07-04T08:20:00+00:00',
-      ...overrides,
-    };
+  function thumbnail(overrides: Partial<CalendarEventThumbnail> = {}): CalendarEventThumbnail {
+    return testCalendarEventThumbnail(overrides);
   }
 
   it('validates supported thumbnail files by browser type and file name', () => {

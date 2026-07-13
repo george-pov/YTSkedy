@@ -13,6 +13,10 @@ import {
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import {
+  testCalendarEventDetails,
+  testCalendarEventPlatform,
+} from '../testing/calendar-event-details.fixture';
+import {
   CalendarEventPlatformsState,
   describeDeletePublicationError,
   describePreviewError,
@@ -94,9 +98,7 @@ describe('CalendarEventPlatformsState', () => {
   }
 
   it('maps platform-specific API errors to user-facing messages', () => {
-    expect(describePublishError(new HttpErrorResponse({ status: 403 }))).toContain(
-      'permission',
-    );
+    expect(describePublishError(new HttpErrorResponse({ status: 403 }))).toContain('permission');
     expect(describePublishError(new HttpErrorResponse({ status: 409 }))).toContain(
       'can no longer publish',
     );
@@ -111,9 +113,7 @@ describe('CalendarEventPlatformsState', () => {
     expect(describeDeletePublicationError(new HttpErrorResponse({ status: 502 }))).toContain(
       'provider publication could not be deleted',
     );
-    expect(describeDeletePublicationError(new Error('network'))).toContain(
-      'Check your connection',
-    );
+    expect(describeDeletePublicationError(new Error('network'))).toContain('Check your connection');
 
     expect(describePreviewError(new HttpErrorResponse({ status: 404 }))).toContain(
       'no longer available',
@@ -253,6 +253,23 @@ describe('CalendarEventPlatformsState', () => {
     );
   });
 
+  it('reports successful publish when the follow-up details refresh fails', () => {
+    service.getPublishingContent.mockReturnValue(
+      of({ type: 'Preview', title: 'Rendered title', description: null }),
+    );
+    service.publishPlatform.mockReturnValue(of(publishedPlatform()));
+    service.getById.mockReturnValue(throwError(() => new Error('network')));
+    state.previewPublishingContent(draftPlatform());
+
+    state.publishPlatform(draftPlatform());
+
+    expect(state.publishErrorMessage()).toBe(
+      'The event was published, but the latest calendar event details could not be loaded. Reload the page.',
+    );
+    expect(state.previewedPublishingContent()).toBeNull();
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
+  });
+
   it('does not delete a platform publication when confirmation is cancelled', () => {
     confirmation.confirm.mockReturnValue(of('cancel'));
 
@@ -270,7 +287,7 @@ describe('CalendarEventPlatformsState', () => {
     expect(confirmation.confirm).not.toHaveBeenCalled();
     expect(service.deletePlatformPublication).not.toHaveBeenCalled();
     expect(state.platformActionBlockedMessage()).toBe(
-      'Save or discard event changes before publishing.',
+      'Save or discard event changes before deleting a publication.',
     );
   });
 
@@ -295,10 +312,7 @@ describe('CalendarEventPlatformsState', () => {
         title: 'Delete publication for Main YouTube channel?',
       }),
     );
-    expect(service.deletePlatformPublication).toHaveBeenCalledWith(
-      calendarEventId,
-      'platform-1',
-    );
+    expect(service.deletePlatformPublication).toHaveBeenCalledWith(calendarEventId, 'platform-1');
     expect(service.getById).toHaveBeenCalledWith(calendarEventId);
     expect(appliedEvents).toHaveLength(1);
     expect(state.platforms()).toEqual([unpublishedPlatform]);
@@ -315,6 +329,23 @@ describe('CalendarEventPlatformsState', () => {
     expect(state.deletePublicationErrorMessage()).toBe(
       'The provider publication could not be deleted. Try again later.',
     );
+  });
+
+  it('reports successful publication delete when the follow-up details refresh fails', () => {
+    service.getPublishingContent.mockReturnValue(
+      of({ type: 'Snapshot', title: 'Stored title', description: null }),
+    );
+    service.deletePlatformPublication.mockReturnValue(of(draftPlatform()));
+    service.getById.mockReturnValue(throwError(() => new Error('network')));
+    state.previewPublishingContent(publishedPlatform());
+
+    state.deletePlatformPublication(publishedPlatform());
+
+    expect(state.deletePublicationErrorMessage()).toBe(
+      'The publication was deleted, but the latest calendar event details could not be loaded. Reload the page.',
+    );
+    expect(state.previewedPublishingContent()).toBeNull();
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
   });
 
   it('ignores platform actions without an edit event id or while another page mutation is active', () => {
@@ -335,67 +366,31 @@ describe('CalendarEventPlatformsState', () => {
     expect(service.publishPlatform).not.toHaveBeenCalled();
   });
 
-  function draftPlatform(
-    overrides: Partial<CalendarEventPlatform> = {},
-  ): CalendarEventPlatform {
-    return {
-      platformId: 'platform-1',
-      platformName: 'Main YouTube channel',
-      platformType: 'YouTube',
+  function draftPlatform(overrides: Partial<CalendarEventPlatform> = {}): CalendarEventPlatform {
+    return testCalendarEventPlatform({
       status: 'NotPublished',
       externalResourceId: null,
       thumbnailStatus: 'NotConfigured',
       publishedUtc: null,
-      platformDeletedUtc: null,
       canPublish: true,
       canDeletePublication: false,
-      canPreviewPublishingContent: true,
       ...overrides,
-    };
+    });
   }
 
   function publishedPlatform(
     overrides: Partial<CalendarEventPlatform> = {},
   ): CalendarEventPlatform {
-    return {
-      ...draftPlatform({
-        status: 'Published',
-        externalResourceId: 'broadcast-123',
-        thumbnailStatus: 'Applied',
-        publishedUtc: '2030-07-04T08:45:00+00:00',
-        canPublish: false,
-        canDeletePublication: true,
-      }),
-      ...overrides,
-    };
+    return testCalendarEventPlatform(overrides);
   }
 
   function sampleEvent(
     overrides: Partial<CalendarEventDetailsResponse> = {},
   ): CalendarEventDetailsResponse {
-    return {
+    return testCalendarEventDetails({
       calendarEventId,
-      start: {
-        localDateTime: '2030-07-04T09:30:00',
-        timeZoneId: 'Europe/London',
-      },
-      scheduledStartUtc: '2030-07-04T08:30:00+00:00',
-      displayTitle: 'English title',
-      canUpdate: true,
-      canDelete: true,
-      thumbnail: null,
-      canUpdateThumbnail: true,
-      texts: [
-        {
-          fieldKey: 'text1',
-          label: 'Title',
-          type: 'ShortText',
-          maxLength: 50,
-          value: 'English title',
-        },
-      ],
       platforms: [draftPlatform()],
       ...overrides,
-    };
+    });
   }
 });

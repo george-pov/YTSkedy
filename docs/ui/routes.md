@@ -106,6 +106,9 @@ response. Actions use the backend row flags documented by the
   or discarded.
 - Successful publish or publication delete refreshes details before applying
   root event action flags and clears an open preview for that platform.
+- If the provider mutation succeeds but the details refresh fails, the page
+  reports the partial success and directs the operator to reload before taking
+  another action.
 - A failed provider thumbnail application remains a published row with a
   warning; the page does not add a retry action.
 

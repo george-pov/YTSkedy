@@ -1,19 +1,19 @@
 <section class="layout">
   <header class="header">
-    <h1>{{ pageTitle() }}</h1>
-    <p>{{ pageDescription() }}</p>
+    <h1>{{ state.pageTitle }}</h1>
+    <p>{{ state.pageDescription }}</p>
   </header>
 
-  @if (showLoading()) {
+  @if (state.showLoading()) {
     <app-progress-bar label="Loading calendar event" />
   } @else {
-    @if (loadFailed()) {
+    @if (state.loadFailed()) {
       <app-alert variant="error">
         The calendar event could not be loaded. Check your connection and try again.
       </app-alert>
     } @else {
       <form class="app-grid app-gap-6" (submit)="onSubmit($event)">
-        @if (showLockedEventAlert()) {
+        @if (state.showLockedEventAlert()) {
           <app-alert variant="info">
             Delete platform publications before changing this event or deleting it.
           </app-alert>
@@ -22,35 +22,43 @@
         <fieldset class="section">
           <legend>Scheduled start</legend>
           <div class="app-grid app-gap-4">
-            <app-date class="app-col-md-4" [field]="form.start.date" label="Start date" />
-            <app-time class="app-col-md-4" [field]="form.start.time" label="Start time" />
+            <app-date
+              class="app-col-md-4"
+              [field]="state.draft.form.start.date"
+              label="Start date"
+            />
+            <app-time
+              class="app-col-md-4"
+              [field]="state.draft.form.start.time"
+              label="Start time"
+            />
             <app-select
               class="app-col-md-4"
-              [field]="form.start.timeZoneId"
+              [field]="state.draft.form.start.timeZoneId"
               label="Time zone"
-              [options]="timeZoneOptions"
+              [options]="state.timeZoneOptions"
             />
           </div>
-          @if (startFutureError()) {
+          @if (state.draft.startFutureError()) {
             <p class="field-error">Start must be in the future.</p>
           }
           <p class="utc-preview">
             <span>Scheduled start (UTC)</span>
-            <strong>{{ scheduledStartUtcDisplay() || 'Not set' }}</strong>
+            <strong>{{ state.draft.scheduledStartUtcDisplay() || 'Not set' }}</strong>
           </p>
         </fieldset>
 
         <fieldset class="section">
           <legend>Event description</legend>
 
-          @if (form.texts().errors().length > 0 && form.texts().touched()) {
+          @if (state.draft.form.texts().errors().length > 0 && state.draft.form.texts().touched()) {
             <app-alert variant="error">
-              {{ form.texts().errors()[0].message }}
+              {{ state.draft.form.texts().errors()[0].message }}
             </app-alert>
           }
 
           <div class="app-grid app-gap-4">
-            @for (text of model().texts; track text.fieldKey; let index = $index) {
+            @for (text of state.draft.model().texts; track text.fieldKey; let index = $index) {
               <section
                 class="text-item app-col-md-6"
                 [attr.aria-labelledby]="'event-text-' + text.fieldKey"
@@ -60,7 +68,7 @@
                   <span>{{ text.fieldKey }} / {{ text.type }}</span>
                 </header>
                 <app-input
-                  [field]="form.texts[index].value"
+                  [field]="state.draft.form.texts[index].value"
                   [label]="text.label"
                   [multiline]="text.type === 'LongText'"
                   [rows]="6"
@@ -71,53 +79,50 @@
           </div>
         </fieldset>
 
-        <app-thumbnail-editor [state]="thumbnailEditor" [isEditMode]="isEditMode" />
+        <app-thumbnail-editor [state]="state.thumbnailEditor" [isEditMode]="state.isEditMode" />
 
-        @if (isEditMode) {
+        @if (state.isEditMode) {
           <section class="section" aria-labelledby="platforms-heading">
             <h2 id="platforms-heading" class="section-title">Platforms</h2>
-            <app-calendar-event-platforms [state]="platformsState" />
+            <app-calendar-event-platforms [state]="state.platformsState" />
           </section>
         }
 
-        @if (saveErrorMessage(); as message) {
-          <app-alert #errorRegion variant="error" tabindex="-1">
+        @if (state.saveErrorMessage(); as message) {
+          <app-alert #saveErrorRegion variant="error" tabindex="-1">
             {{ message }}
           </app-alert>
         }
 
-        @if (deleteErrorMessage(); as message) {
-          <app-alert variant="error">
+        @if (state.deleteErrorMessage(); as message) {
+          <app-alert #deleteErrorRegion variant="error" tabindex="-1">
             {{ message }}
           </app-alert>
         }
 
         <div class="app-grid">
           <div class="app-actions app-actions-end">
-            @if (isEditMode) {
+            @if (state.isEditMode) {
               <app-button
                 type="button"
                 appearance="outlined"
                 icon="delete"
-                [disabled]="deleteDisabled()"
-                (click)="deleteEvent()"
+                [disabled]="state.deleteDisabled()"
+                (click)="state.deleteEvent()"
               >
-                {{ isDeleting() ? 'Deleting...' : 'Delete' }}
+                {{ state.isDeleting() ? 'Deleting...' : 'Delete' }}
               </app-button>
             }
             <app-button
               type="button"
               appearance="outlined"
-              [disabled]="cancelDisabled()"
-              (click)="cancel()"
+              [disabled]="state.cancelDisabled()"
+              (click)="state.cancel()"
             >
               Cancel
             </app-button>
-            <app-button
-              type="submit"
-              [disabled]="saveDisabled()"
-            >
-              {{ isEditMode ? 'Save changes' : 'Save event' }}
+            <app-button type="submit" [disabled]="state.saveDisabled()">
+              {{ state.isEditMode ? 'Save changes' : 'Save event' }}
             </app-button>
           </div>
         </div>
