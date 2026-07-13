@@ -111,7 +111,6 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2024-04-01' = {
   parent: functionApp
   name: 'appsettings'
   properties: {
-    FUNCTIONS_WORKER_RUNTIME: 'dotnet-isolated'
     AzureWebJobsStorage: functionStorageConnectionString
     DEPLOYMENT_STORAGE_CONNECTION_STRING: functionStorageConnectionString
     AzureStorage__ConnectionString: applicationStorageConnectionString
