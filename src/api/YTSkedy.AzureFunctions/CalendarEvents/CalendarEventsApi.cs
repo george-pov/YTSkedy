@@ -83,7 +83,10 @@ public sealed class CalendarEventsApi(
     [Function("GetCalendarEvent")]
     [RequiredScope("CalendarEvents.Read")]
     public async Task<IActionResult> GetCalendarEventAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "calendar-events/{calendarEventId}")]
+        [HttpTrigger(
+            AuthorizationLevel.Anonymous,
+            "get",
+            Route = "calendar-events/{calendarEventId:regex(^[0-9a-f]{{32}}$)}")]
         HttpRequest request,
         string calendarEventId,
         CancellationToken cancellationToken)
