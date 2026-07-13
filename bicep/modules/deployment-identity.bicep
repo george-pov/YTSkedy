@@ -15,11 +15,15 @@ param federatedCredentialName string
 param functionAppName string
 param uiStorageAccountName string
 
-var websiteContributorRoleDefinitionId = subscriptionResourceId(
+// Microsoft built-in Website Contributor role. Its public GUID is stable across subscriptions.
+// subscriptionResourceId resolves the role in the deployment subscription at runtime.
+var websiteContributorRoleDefinitionResourceId = subscriptionResourceId(
   'Microsoft.Authorization/roleDefinitions',
   'de139f84-1756-47ae-9be6-808fbbe84772'
 )
-var storageBlobDataContributorRoleDefinitionId = subscriptionResourceId(
+// Microsoft built-in Storage Blob Data Contributor role. Its public GUID is stable across subscriptions.
+// subscriptionResourceId resolves the role in the deployment subscription at runtime.
+var storageBlobDataContributorRoleDefinitionResourceId = subscriptionResourceId(
   'Microsoft.Authorization/roleDefinitions',
   'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 )
@@ -54,20 +58,20 @@ resource githubEnvironmentCredential 'Microsoft.ManagedIdentity/userAssignedIden
 }
 
 resource functionDeploymentRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(functionApp.id, deploymentIdentity.id, websiteContributorRoleDefinitionId)
+  name: guid(functionApp.id, deploymentIdentity.id, websiteContributorRoleDefinitionResourceId)
   scope: functionApp
   properties: {
-    roleDefinitionId: websiteContributorRoleDefinitionId
+    roleDefinitionId: websiteContributorRoleDefinitionResourceId
     principalId: deploymentIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
 }
 
 resource uiDeploymentRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(uiStorageAccount.id, deploymentIdentity.id, storageBlobDataContributorRoleDefinitionId)
+  name: guid(uiStorageAccount.id, deploymentIdentity.id, storageBlobDataContributorRoleDefinitionResourceId)
   scope: uiStorageAccount
   properties: {
-    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionResourceId
     principalId: deploymentIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
