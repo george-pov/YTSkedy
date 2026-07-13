@@ -63,6 +63,36 @@ jobs:
         working-directory: ${{ env.UI_WORKSPACE_PATH }}
         run: npm run test:coverage
 
+      - name: Publish UI coverage summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          report="${UI_WORKSPACE_PATH}/coverage/ytskedy-ui/coverage-summary.json"
+
+          if [ ! -f "$report" ]; then
+            printf '## UI code coverage\n\nCoverage report was not generated.\n' \
+              >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          REPORT="$report" node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require('node:fs');
+          const { total } = JSON.parse(
+            fs.readFileSync(process.env.REPORT, 'utf8')
+          );
+
+          console.log('## UI code coverage\n');
+          console.log('| Metric | Covered | Total | Coverage |');
+          console.log('|---|---:|---:|---:|');
+
+          for (const name of ['lines', 'statements', 'functions', 'branches']) {
+            const result = total[name];
+            console.log(
+              `| ${name} | ${result.covered} | ${result.total} | ${result.pct}% |`
+            );
+          }
+          NODE
+
       - name: Upload UI coverage report
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
