@@ -29,6 +29,8 @@ architecture, API, UI, development, or operations guidance.
   [`development/naming-guidance.md`](development/naming-guidance.md)
 - API docs index: [`api/README.md`](api/README.md)
 - UI docs index: [`ui/README.md`](ui/README.md)
+- Azure environment operations:
+  [`operations/azure-environments.md`](operations/azure-environments.md)
 
 ## Shared Architecture
 
@@ -39,6 +41,11 @@ architecture, API, UI, development, or operations guidance.
   [`development/domain-vocabulary.md`](development/domain-vocabulary.md)
 - Naming guidance:
   [`development/naming-guidance.md`](development/naming-guidance.md)
+
+## Operations
+
+- Azure dev and prod environments:
+  [`operations/azure-environments.md`](operations/azure-environments.md)
 
 ## API
 

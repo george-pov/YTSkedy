@@ -36,11 +36,15 @@ documentation when introduced.
 deploys the UI. It runs for pushes to `main` and supports an explicit GitHub
 Environment through manual dispatch.
 
+Pushes and the manual default target `dev`. Prod requires manual selection of
+the protected `prod` GitHub Environment and its required approval. A push to
+`main` does not deploy to prod.
+
 The workflow:
 
 1. Checks out the repository.
 2. Installs the Node and npm versions declared by the workflow.
-3. Runs `npm ci`, `npm run build`, and `npm test` in `src/ui`.
+3. Runs `npm ci`, `npm run build`, and `npm run test:coverage` in `src/ui`.
 4. Uploads the browser build as an artifact.
 5. Downloads the artifact in the deployment job.
 6. Writes the environment-provided runtime configuration.
@@ -52,7 +56,8 @@ Those values must remain aligned with the Angular build configuration.
 
 ## GitHub Environment Contract
 
-The selected GitHub Environment supplies these variables:
+GitHub Environments `dev` and `prod` each supply these variables with values for
+only that environment:
 
 | Name | Classification | Purpose |
 | --- | --- | --- |
@@ -72,16 +77,26 @@ keys, storage credentials, SAS tokens, passwords, or private certificates.
 The runtime file shape is owned by
 [`../architecture/runtime-configuration.md`](../architecture/runtime-configuration.md).
 
+Concrete resource names, URLs, identity values, and runtime JSON belong in the
+selected GitHub Environment and local operations records. Do not copy dev
+values into prod.
+
 ## Azure Identity And RBAC
 
 Deployment uses GitHub OIDC with an Azure managed identity or service principal.
 Routine deployment must not use storage account keys, connection strings,
 publish profiles, or function keys.
 
-The deployment identity requires `Storage Blob Data Contributor` at the target
-storage account scope and a federated credential matching the repository,
-GitHub Environment, and branch policy used by the workflow. Concrete identity
-and federation values belong in local operational records, not durable docs.
+Each environment has a separate deployment identity. It requires Storage Blob
+Data Contributor only at the matching UI storage account scope and a federated
+credential with this subject shape:
+
+```text
+repo:OWNER/REPOSITORY:environment:<environment>
+```
+
+The dev and prod subjects, identities, and role scopes must not be shared.
+Concrete values belong in local operational records, not durable docs.
 
 ## Runtime Configuration
 
@@ -95,8 +110,9 @@ is not required when only public runtime configuration changes.
 
 ## Entra Redirects And API CORS
 
-The deployed UI origin and signed-out route must be registered on the SPA app
-registration. Runtime redirect values must match those registrations.
+Each deployed UI origin and signed-out route must be registered on its matching
+environment SPA app registration. Runtime redirect values must match those
+registrations.
 
 The API CORS allow-list must include the deployed origin without weakening API
 authentication or authorization. CORS ownership and verification are documented
@@ -113,6 +129,10 @@ static website and uploads in this order:
 
 Uploading the HTML shell last reduces the chance that it references assets that
 have not been uploaded yet.
+
+The clear-before-upload step is an accepted current risk. If upload fails after
+the clear, the site can be incomplete until a successful redeployment. Additive
+cutover and stale-asset cleanup remain separate deployment-hardening work.
 
 ## Validation
 
@@ -132,10 +152,15 @@ After deployment, verify:
 ## Rollback
 
 For a bad application deployment, rerun the workflow from the last known-good
-commit. For bad runtime configuration, correct the GitHub Environment value,
-replace only `config/app-config.json`, and repeat the smoke checks. For an origin
-mistake, correct both SPA redirect registration and the API CORS allow-list
-before redeploying.
+commit to the matching Environment. Prod rollback requires explicit `prod`
+selection and required-reviewer approval. For bad runtime configuration,
+correct the GitHub Environment value, replace only `config/app-config.json`,
+and repeat the smoke checks. For an origin mistake, correct both the matching
+SPA redirect registration and API CORS allow-list before redeploying.
+
+The current workflows intentionally retain broad push triggers and concurrency
+that includes the source ref. Component path filters and target-only
+concurrency remain separate deployment-hardening work.
 
 ## Security
 

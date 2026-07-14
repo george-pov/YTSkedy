@@ -23,6 +23,42 @@ every `<placeholder>` value with environment-specific values.
 Do not commit OAuth client secrets, refresh tokens, access tokens, API keys,
 storage connection strings for real accounts, or local credential stores.
 
+## Hosted Azure Functions Settings
+
+The Bicep deployment supplies exactly these hosted Function settings. .NET
+configuration maps double underscores to section separators, so hosted
+`Auth__ClientId` is read as `Auth:ClientId` and
+`AzureStorage__ConnectionString` is read as
+`AzureStorage:ConnectionString`.
+
+| Setting | Classification | Owner |
+| --- | --- | --- |
+| `AzureWebJobsStorage` | Secret connection string | Azure Functions host state and triggers. |
+| `DEPLOYMENT_STORAGE_CONNECTION_STRING` | Secret connection string | Flex Consumption deployment package storage. |
+| `AzureStorage__ConnectionString` | Secret connection string | Application tables and thumbnail blobs. |
+| `AzureStorage__CalendarEventsTableName` | Non-secret | Calendar event table name. |
+| `AzureStorage__TemplatesTableName` | Non-secret | Template table name. |
+| `AzureStorage__ApplicationSettingsTableName` | Non-secret | Application settings table name. |
+| `AzureStorage__PlatformsTableName` | Non-secret | Configured platform table name. |
+| `AzureStorage__PlatformPublicationsTableName` | Non-secret | Platform publication table name. |
+| `AzureStorage__ThumbnailsContainerName` | Non-secret | Calendar-event thumbnail container name. |
+| `Auth__Instance` | Non-secret | External ID authority instance. |
+| `Auth__TenantId` | Non-secret | External ID tenant. |
+| `Auth__ClientId` | Non-secret | Environment API client ID and expected audience. |
+| `Auth__Issuer` | Non-secret | Exact issuer from user-flow metadata. |
+| `Auth__RequiredAppRole` | Non-secret | Required API app role value. |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Operational value | Environment Application Insights resource. |
+
+Function host and deployment storage use one environment-specific storage
+account. Application tables and blobs use a different environment-specific
+storage account. Do not point `AzureStorage__ConnectionString` at Function host
+storage in a hosted environment, and do not share either account between dev
+and prod.
+
+Connection string values, monitoring connection values, and concrete
+environment identifiers belong in Azure configuration and local operations
+records, not tracked documentation or workflow variables.
+
 ## Entra External ID Settings
 
 The Entra External ID authentication configuration uses these local settings
@@ -36,9 +72,9 @@ keys:
 | `Auth:Issuer` | Non-secret | Expected issuer URL when issuer validation needs the exact metadata value. |
 | `Auth:RequiredAppRole` | Non-secret | Required app role value, currently `CalendarEvents.Operator`. |
 
-All `Auth:` keys are non-secret. The API does not require a client secret
-for Entra External ID bearer-token validation. Hosted environments should
-set the same keys through app settings.
+All `Auth:` keys are non-secret. The API does not require a client secret for
+Entra External ID bearer-token validation. Hosted environments set the same
+keys through their double-underscore app-setting forms listed above.
 
 Entra External ID quirk: the authority host uses the tenant short subdomain
 (`<tenant>.ciamlogin.com`) while the `iss` claim uses the tenant-GUID
@@ -208,6 +244,10 @@ Calendar event persistence reads the storage connection string in this order:
 
 1. `AzureStorage:ConnectionString`
 2. `AzureWebJobsStorage`
+
+The fallback supports local development and older hosts. Current hosted
+environments always set a separate `AzureStorage:ConnectionString`; they must
+not rely on `AzureWebJobsStorage` for application data.
 
 For local Azurite development, set:
 

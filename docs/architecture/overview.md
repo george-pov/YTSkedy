@@ -28,8 +28,13 @@ only. Boundary-specific implementation guidance lives in the API and UI docs.
   operations docs.
 - `docs/architecture/`: cross-boundary system architecture and integration
   contract docs.
+- `docs/operations/`: cross-boundary deployment and environment operations.
 - `docs/development/domain-vocabulary.md`: shared domain vocabulary.
 - `docs/development/naming-guidance.md`: shared identifier naming rules.
+- `bicep/`: one subscription-scope Azure entry point, dev and prod parameter
+  files, and shared resource-group modules.
+- `scripts/azure/`: guarded name, validation, what-if, and deployment commands
+  for the tracked Azure environments.
 
 ## System Responsibilities
 
@@ -86,6 +91,23 @@ YTSkedy.Infrastructure
 Domain and application code must not depend on Angular, Azure Functions, Azure
 Table Storage, YouTube, WordPress, authentication frameworks, or browser APIs.
 
+## Deployed Environment Shape
+
+The application has separate Azure `dev` and `prod` environments built from one
+shared Bicep shape. Each environment owns its resource group, Function host and
+deployment storage, application data storage, UI storage, monitoring,
+deployment identity, OIDC subject, role scopes, Entra registrations, runtime
+configuration, CORS, and data.
+
+Pushes to `main` deploy application code to dev. Prod promotion is manual,
+targets the protected `prod` GitHub Environment, and uses a commit already
+validated in dev. Deployment identities have only resource-scoped Function and
+UI permissions. Prod has a resource-group delete lock after validation.
+
+The reusable environment model, deployment inputs, manual Entra and CORS
+boundaries, validation, and recovery process are documented in
+[`../operations/azure-environments.md`](../operations/azure-environments.md).
+
 ## Documentation Ownership
 
 Use the boundary docs for implementation detail:
@@ -97,6 +119,8 @@ Use the boundary docs for implementation detail:
 - UI architecture: [`../ui/architecture.md`](../ui/architecture.md)
 - UI routes: [`../ui/routes.md`](../ui/routes.md)
 - UI deployment: [`../ui/operations/deployment.md`](../ui/operations/deployment.md)
+- Azure environments:
+  [`../operations/azure-environments.md`](../operations/azure-environments.md)
 - Cross-boundary contracts:
   [`integration-contracts.md`](integration-contracts.md)
 

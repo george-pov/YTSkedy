@@ -33,6 +33,7 @@ try {
         'docs/ui/README.md'
         'docs/ui/routes.md'
         'docs/ui/operations/deployment.md'
+        'docs/operations/azure-environments.md'
         'docs/development/domain-vocabulary.md'
         'docs/development/naming-guidance.md'
     )

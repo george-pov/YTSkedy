@@ -1,6 +1,6 @@
 # UI Runtime Configuration
 
-The YTSkedy UI production approach is build once, configure per deployment.
+The YTSkedy UI deployment approach is build once, configure per environment.
 The browser app consumes deployed backend APIs through runtime configuration.
 
 Use runtime config for deploy-specific public settings:
@@ -79,14 +79,15 @@ fail startup if the config file is missing or invalid.
 
 ## Deployment Source
 
-The current production deployment does not use multiple tracked environment
-templates. GitHub owns the complete deployed runtime config value:
+GitHub Environments `dev` and `prod` each own a complete, independent deployed
+runtime config value:
 
 ```text
 UI_APP_CONFIG_JSON
 ```
 
-The workflow writes that value as-is to the built asset location:
+The workflow writes the selected Environment value as-is to the built asset
+location:
 
 ```text
 src/ui/dist/ytskedy-ui/browser/config/app-config.json
@@ -95,6 +96,11 @@ src/ui/dist/ytskedy-ui/browser/config/app-config.json
 Only the active `app-config.json` under `public/config/` or the deployed
 `config/app-config.json` should be served by the running app. Do not ship
 `app-config.sample.json` in the deployed static website.
+
+Every URL, client ID, authority, redirect, and API scope in one Environment's
+JSON must point to that same environment. Do not copy dev runtime config to
+prod. Pushes to `main` select `dev`; prod config is used only by an explicit
+protected `prod` deployment.
 
 ## Angular Boundary
 
