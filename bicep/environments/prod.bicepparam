@@ -28,4 +28,4 @@ param alertReceiverEmailAddress = readEnvironmentVariable('YTSKEDY_PROD_ALERT_RE
 param logRetentionInDays = 90
 param maximumInstanceCount = 100
 param instanceMemoryMB = 2048
-param enableResourceGroupDeleteLock = false
+param enableResourceGroupDeleteLock = true
