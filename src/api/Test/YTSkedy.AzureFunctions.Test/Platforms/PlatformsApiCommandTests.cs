@@ -41,7 +41,7 @@ public sealed class PlatformsApiCommandTests
             "Main YouTube channel",
             "YouTube",
             null,
-            YouTubePayload(),
+            YouTubePayload(categoryId: "27", containsSyntheticMedia: true),
             PublishingPayload());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
@@ -55,10 +55,32 @@ public sealed class PlatformsApiCommandTests
         Assert.Equal(SchedulingSampleIds.YouTubeRefreshToken, settings.Credentials.RefreshToken);
         Assert.Equal("private", settings.PrivacyStatus);
         Assert.False(settings.SelfDeclaredMadeForKids);
+        Assert.Equal("27", settings.CategoryId);
+        Assert.True(settings.ContainsSyntheticMedia);
         Assert.Equal(SchedulingSampleIds.TitleTemplateId, command.PublishingContent.TitleTemplateId);
         Assert.Equal(
             SchedulingSampleIds.DescriptionTemplateId,
             command.PublishingContent.DescriptionTemplateId);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void TryBuildCreateCommand_YouTubeBlankCategoryId_ReturnsBadRequest(
+        string categoryId)
+    {
+        var request = new CreatePlatformRequest(
+            "Main YouTube channel",
+            "YouTube",
+            null,
+            YouTubePayload(categoryId: categoryId));
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
+
+        Assert.False(built);
+        Assert.Equal(
+            "Publish settings categoryId must be omitted, null, or a non-blank YouTube category ID.",
+            ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Fact]
@@ -561,7 +583,9 @@ public sealed class PlatformsApiCommandTests
                 clientId: "new-client-id",
                 clientSecret: "",
                 refreshToken: null,
-                privacyStatus: "unlisted"),
+                privacyStatus: "unlisted",
+                categoryId: " 27 ",
+                containsSyntheticMedia: true),
             PublishingPayload());
 
         var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
@@ -573,6 +597,8 @@ public sealed class PlatformsApiCommandTests
         Assert.Equal("stored-client-secret", settings.Credentials.ClientSecret);
         Assert.Equal("stored-refresh-token", settings.Credentials.RefreshToken);
         Assert.Equal("unlisted", settings.PrivacyStatus);
+        Assert.Equal("27", settings.CategoryId);
+        Assert.True(settings.ContainsSyntheticMedia);
     }
 
     [Fact]

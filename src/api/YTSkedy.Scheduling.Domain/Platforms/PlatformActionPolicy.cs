@@ -10,15 +10,17 @@ public static class PlatformActionPolicy
     /// <summary>
     /// True when a publish may be attempted. A publish is allowed only for a
     /// future event on an active platform whose publication is
-    /// <see cref="PublishStatus.NotPublished"/>. Orphaned history, in-flight
-    /// (<see cref="PublishStatus.Publishing"/>), and completed
-    /// (<see cref="PublishStatus.Published"/>) publications are not publishable.
+    /// <see cref="PublishStatus.NotPublished"/> or a retryable
+    /// <see cref="PublishStatus.Failed"/> state. Orphaned history, in-flight,
+    /// and completed publications are not publishable.
     /// </summary>
     public static bool CanPublish(
         PublishStatus status,
         bool isOrphaned,
         bool isFuture) =>
-        !isOrphaned && isFuture && status == PublishStatus.NotPublished;
+        !isOrphaned &&
+        isFuture &&
+        status is PublishStatus.NotPublished or PublishStatus.Failed;
 
     /// <summary>
     /// True when a completed platform publication may be deleted. Only a future,
@@ -37,9 +39,9 @@ public static class PlatformActionPolicy
     /// <summary>
     /// True when row-level publishing content can be read. Active
     /// <see cref="PublishStatus.NotPublished"/> rows can render a current
-    /// preview. In-progress and completed rows can read the stored content
-    /// snapshot. Orphaned history can read a completed snapshot but cannot
-    /// render a current preview.
+    /// preview. In-progress, failed, and completed rows can read the stored
+    /// content snapshot. Orphaned history can read a completed snapshot but
+    /// cannot render a current preview.
     /// </summary>
     public static bool CanPreviewPublishingContent(
         PublishStatus status,
@@ -50,6 +52,7 @@ public static class PlatformActionPolicy
             PublishStatus.NotPublished => !isOrphaned,
             PublishStatus.Publishing => !isOrphaned && hasContentSnapshot,
             PublishStatus.Published => hasContentSnapshot,
+            PublishStatus.Failed => !isOrphaned && hasContentSnapshot,
             _ => false
         };
 

@@ -9,7 +9,7 @@
 >
   <ng-template appDataTableCell="status" let-platform>
     <div class="platform-status">
-      <span>{{ platform.status }}</span>
+      <span>{{ platformStatusText(platform) }}</span>
       @if (thumbnailStatusText(platform); as thumbnailMessage) {
         <p>{{ thumbnailMessage }}</p>
       }

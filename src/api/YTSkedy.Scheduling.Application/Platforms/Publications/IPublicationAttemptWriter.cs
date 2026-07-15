@@ -6,11 +6,9 @@ public interface IPublicationAttemptWriter
     /// Starts a publication row by creating it directly as
     /// <see cref="Domain.Platforms.PublishStatus.Publishing"/> with the platform
     /// name, type, and publish settings copied from the attempt. The write is
-    /// conditional on the row not already existing, so a concurrent start for
-    /// the same event/platform pair yields
-    /// <see cref="StartPublicationResult.Conflict"/> and only one caller may
-    /// proceed to the provider. Any existing row (publishing, published, or
-    /// orphaned) is also a conflict.
+    /// conditional on the row not already existing or being a current active
+    /// <see cref="Domain.Platforms.PublishStatus.Failed"/> row. A failed row is
+    /// conditionally replaced for retry. Other existing rows are conflicts.
     /// </summary>
     Task<StartPublicationResult> StartPublishingAsync(
         PlatformPublicationAttempt attempt,
@@ -19,9 +17,10 @@ public interface IPublicationAttemptWriter
     /// <summary>
     /// Releases an in-progress attempt by removing the <c>Publishing</c> row,
     /// returning the event/platform pair to the computed
-    /// <see cref="Domain.Platforms.PublishStatus.NotPublished"/> state. Used to
-    /// roll back after a provider call fails before the row is marked published.
-    /// A missing row is treated as already released.
+    /// <see cref="Domain.Platforms.PublishStatus.NotPublished"/> state. Caught
+    /// publish failures use <see cref="MarkFailedAsync"/> instead. This lower-
+    /// level operation is reserved for explicit release workflows. A missing
+    /// row is treated as already released.
     /// </summary>
     Task ReleasePublishingAsync(
         string calendarEventId,
@@ -33,11 +32,23 @@ public interface IPublicationAttemptWriter
     /// <see cref="Domain.Platforms.PublishStatus.Published"/> after the provider
     /// call succeeds, recording the provider <paramref name="externalResourceId"/>
     /// and the publish instant. Returns the recorded publish instant, or null
-    /// when no row exists for the pair.
+    /// when the current row is missing, orphaned, or no longer publishing.
     /// </summary>
     Task<DateTimeOffset?> MarkPublishedAsync(
         string calendarEventId,
         string platformId,
         string externalResourceId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Conditionally marks only the current <c>Publishing</c> row as
+    /// <see cref="Domain.Platforms.PublishStatus.Failed"/> and retains the
+    /// provider id when one is known. Another writer's state is never
+    /// overwritten.
+    /// </summary>
+    Task<MarkFailedResult> MarkFailedAsync(
+        string calendarEventId,
+        string platformId,
+        string? externalResourceId,
         CancellationToken cancellationToken);
 }

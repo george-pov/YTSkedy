@@ -8,7 +8,7 @@ public interface IPublicationCleanupWriter
     /// <see cref="Domain.Platforms.PublishStatus.Published"/> with the same
     /// provider <paramref name="externalResourceId"/>. This is separate from
     /// <see cref="IPublicationAttemptWriter.ReleasePublishingAsync"/>, which
-    /// only releases failed in-progress attempts.
+    /// only removes a current transient publishing attempt.
     /// </summary>
     Task<DeletePublishedResult> DeletePublishedAsync(
         string calendarEventId,

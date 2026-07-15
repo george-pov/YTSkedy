@@ -108,6 +108,33 @@ caller:
 6. Wire dependencies in the host project.
 7. Validate at the smallest useful level.
 
+## Provider Publication Lifecycle
+
+Provider publication is coordinated by application handlers and implemented by
+infrastructure adapters. The authoritative row for one calendar event and one
+platform uses these states:
+
+- A missing row is projected as `NotPublished`.
+- `Publishing` is a transient conditional-write guard while one provider
+  request is active.
+- `Published` means the required provider operation and local finalization
+  succeeded.
+- `Failed` is an operator-visible caught failure. It can retain a provider
+  resource id and can be conditionally retried after the operator verifies the
+  provider.
+
+Provider adapters report a known external id when a later required step fails.
+The application records `Failed` and does not automatically delete provider
+resources. Cancellation propagates immediately and does not start detached
+cleanup. This means interrupted work can require manual reconciliation.
+
+For YouTube, the infrastructure adapter owns the multi-step contract. It
+creates the scheduled broadcast privately, performs a conditional
+preservation read only when a video update is required, copies mutable values
+for the included parts, applies category, altered or synthetic disclosure,
+made-for-kids, and final privacy, then reports success. Google SDK request and
+response types remain in `YTSkedy.Infrastructure`.
+
 ## Placement Checklist
 
 - Does it model scheduling language or enforce a rule independent of delivery

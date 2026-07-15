@@ -59,6 +59,8 @@ describe('platforms form request mapping', () => {
       },
       privacyStatus: 'private',
       selfDeclaredMadeForKids: false,
+      categoryId: null,
+      containsSyntheticMedia: false,
     });
   });
 
@@ -421,6 +423,8 @@ describe('platforms form request mapping', () => {
           },
           privacyStatus: 'unlisted',
           selfDeclaredMadeForKids: true,
+          categoryId: '27',
+          containsSyntheticMedia: true,
         },
       }),
     );
@@ -440,7 +444,32 @@ describe('platforms form request mapping', () => {
       youTubeRefreshTokenDisplayValue: '*********Z9Y',
       youTubePrivacyStatus: 'unlisted',
       youTubeMadeForKids: 'true',
+      youTubeCategoryId: '27',
+      youTubeContainsSyntheticMedia: 'true',
     });
+  });
+
+  it('maps legacy YouTube response settings to default category and disclosure', () => {
+    const model = toPlatformFormModel(platform());
+
+    expect(model.youTubeCategoryId).toBe('');
+    expect(model.youTubeContainsSyntheticMedia).toBe('false');
+  });
+
+  it('maps YouTube category and disclosure into requests and dirty comparison', () => {
+    const baseline = toUpdatePlatformRequest(validModel({}));
+    const changed = toUpdatePlatformRequest(
+      validModel({
+        youTubeCategoryId: ' 27 ',
+        youTubeContainsSyntheticMedia: 'true',
+      }),
+    );
+
+    expect(changed.publishSettings).toMatchObject({
+      categoryId: '27',
+      containsSyntheticMedia: true,
+    });
+    expect(sameUpdatePlatformRequest(baseline, changed)).toBe(false);
   });
 
   it('maps WordPress response settings to the form without copying replacement secrets', () => {

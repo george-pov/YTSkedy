@@ -1,0 +1,81 @@
+@apiBaseUrl = http://localhost:7071
+@bearerToken = replace-with-local-bearer-token
+@youTubePlatformId = replace-with-local-youtube-platform-id
+@calendarEventId = replace-with-local-future-calendar-event-id
+@categoryId = 27
+
+### Read the dedicated development YouTube platform
+# @name getYouTubePlatform
+GET {{apiBaseUrl}}/api/platforms/{{youTubePlatformId}}
+Authorization: Bearer {{bearerToken}}
+
+### Configure Education and altered or synthetic content disclosure
+# Blank secret values preserve the stored credentials.
+# @name updateYouTubeMetadata
+PUT {{apiBaseUrl}}/api/platforms/{{youTubePlatformId}}
+Authorization: Bearer {{bearerToken}}
+Content-Type: application/json
+
+{
+  "name": "{{getYouTubePlatform.response.body.$.name}}",
+  "referenceKey": {{getYouTubePlatform.response.body.$.referenceKey}},
+  "publishingContent": {
+    "titleTemplateId": "{{getYouTubePlatform.response.body.$.publishingContent.titleTemplateId}}",
+    "descriptionTemplateId": "{{getYouTubePlatform.response.body.$.publishingContent.descriptionTemplateId}}"
+  },
+  "publishSettings": {
+    "credentials": {
+      "clientId": "{{getYouTubePlatform.response.body.$.publishSettings.credentials.clientId}}",
+      "clientSecret": "",
+      "refreshToken": ""
+    },
+    "privacyStatus": "{{getYouTubePlatform.response.body.$.publishSettings.privacyStatus}}",
+    "selfDeclaredMadeForKids": {{getYouTubePlatform.response.body.$.publishSettings.selfDeclaredMadeForKids}},
+    "categoryId": "{{categoryId}}",
+    "containsSyntheticMedia": true
+  }
+}
+
+### Publish one future development event
+# @name publishYouTubeMetadata
+POST {{apiBaseUrl}}/api/calendar-events/{{calendarEventId}}/platforms/{{youTubePlatformId}}/publish
+Authorization: Bearer {{bearerToken}}
+
+### Read the authoritative row after publish
+# Verify status Published, then confirm category and disclosure in YouTube.
+# @name getPublishedEvent
+GET {{apiBaseUrl}}/api/calendar-events/{{calendarEventId}}
+Authorization: Bearer {{bearerToken}}
+
+### Delete the successful development publication
+# If publish returned Failed, verify and delete the provider resource directly,
+# then use the UI retry action instead of this Published-only cleanup route.
+# @name deleteYouTubePublication
+DELETE {{apiBaseUrl}}/api/calendar-events/{{calendarEventId}}/platforms/{{youTubePlatformId}}/publication
+Authorization: Bearer {{bearerToken}}
+
+### Reset the dedicated development platform to YouTube defaults
+# @name resetYouTubeMetadata
+PUT {{apiBaseUrl}}/api/platforms/{{youTubePlatformId}}
+Authorization: Bearer {{bearerToken}}
+Content-Type: application/json
+
+{
+  "name": "{{getYouTubePlatform.response.body.$.name}}",
+  "referenceKey": {{getYouTubePlatform.response.body.$.referenceKey}},
+  "publishingContent": {
+    "titleTemplateId": "{{getYouTubePlatform.response.body.$.publishingContent.titleTemplateId}}",
+    "descriptionTemplateId": "{{getYouTubePlatform.response.body.$.publishingContent.descriptionTemplateId}}"
+  },
+  "publishSettings": {
+    "credentials": {
+      "clientId": "{{getYouTubePlatform.response.body.$.publishSettings.credentials.clientId}}",
+      "clientSecret": "",
+      "refreshToken": ""
+    },
+    "privacyStatus": "{{getYouTubePlatform.response.body.$.publishSettings.privacyStatus}}",
+    "selfDeclaredMadeForKids": {{getYouTubePlatform.response.body.$.publishSettings.selfDeclaredMadeForKids}},
+    "categoryId": null,
+    "containsSyntheticMedia": false
+  }
+}

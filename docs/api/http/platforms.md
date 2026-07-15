@@ -55,7 +55,9 @@ A YouTube platform is returned as:
       "refreshTokenDisplayValue": "*********Z9Y"
     },
     "privacyStatus": "private",
-    "selfDeclaredMadeForKids": false
+    "selfDeclaredMadeForKids": false,
+    "categoryId": null,
+    "containsSyntheticMedia": false
   }
 }
 ```
@@ -117,6 +119,12 @@ A WordPress platform is returned as:
   original length and are not accepted in create or update request bodies.
   `privacyStatus` is `private`, `public`, or `unlisted`;
   `selfDeclaredMadeForKids` defaults to `false` on create when omitted.
+  `categoryId` is a nullable opaque YouTube string id. Missing and null values
+  mean provider default; a blank non-null string is invalid. Responses always
+  return the property as a string or null. `containsSyntheticMedia` is the
+  altered or synthetic content disclosure. Missing and null request values,
+  and legacy stored settings without the property, default to `false`.
+  Responses always return it as a boolean.
 - WordPress `publishSettings.siteUrl` is the WordPress site root used for REST
   API discovery. Non-local site URLs must use HTTPS. `http://localhost` and
   `http://127.0.0.1` are allowed for local development only.
@@ -143,6 +151,36 @@ A WordPress platform is returned as:
   instead. `passwordDisplayValue` is exactly seven `*` characters and reveals
   no stored characters. It confirms only that an Application Password is
   configured and is not accepted in create or update request bodies.
+
+### Static YouTube Category Catalog
+
+The browser category single-select uses this application-owned US catalog,
+reviewed from assignable `videoCategories.list` results on 2026-07-14. It is
+not returned by a YTSkedy route and is not refreshed at runtime.
+
+| UI label | Request value |
+| --- | --- |
+| YouTube Default | `null` |
+| Autos & Vehicles | `2` |
+| Comedy | `23` |
+| Education | `27` |
+| Entertainment | `24` |
+| Film & Animation | `1` |
+| Gaming | `20` |
+| Howto & Style | `26` |
+| Music | `10` |
+| News & Politics | `25` |
+| Nonprofits & Activism | `29` |
+| People & Blogs | `22` |
+| Pets & Animals | `15` |
+| Science & Technology | `28` |
+| Sports | `17` |
+| Travel & Events | `19` |
+
+The backend accepts any non-blank opaque category id so existing or newly
+assigned provider ids remain compatible. The browser keeps an unknown stored id
+visible as `Category #{id}`. YouTube validates the id during publication and a
+provider rejection follows the failed-publication recovery contract.
 
 ## List Platforms
 
@@ -178,7 +216,9 @@ Success response (`200 OK`):
           "refreshTokenDisplayValue": "*********Z9Y"
         },
         "privacyStatus": "private",
-        "selfDeclaredMadeForKids": false
+        "selfDeclaredMadeForKids": false,
+        "categoryId": null,
+        "containsSyntheticMedia": false
       }
     }
   ]
@@ -228,7 +268,9 @@ YouTube request body:
       "refreshToken": "<google-oauth-refresh-token>"
     },
     "privacyStatus": "private",
-    "selfDeclaredMadeForKids": false
+    "selfDeclaredMadeForKids": false,
+    "categoryId": null,
+    "containsSyntheticMedia": false
   }
 }
 ```
@@ -282,7 +324,8 @@ Status codes:
 - `400 Bad Request` for invalid YouTube settings: missing `credentials`,
   missing `credentials.clientId`, missing `credentials.clientSecret` on create,
   missing `credentials.refreshToken` on create, or `privacyStatus` not
-  `private`, `public`, or `unlisted`.
+  `private`, `public`, or `unlisted`. A non-null blank `categoryId` is also
+  invalid.
 - `400 Bad Request` for invalid WordPress settings: missing `siteUrl`, invalid
   or insecure `siteUrl`, missing `username`, missing `applicationPassword`, or
   `postStatus` not `draft`, `pending`, `private`, `future`, or `publish`.
@@ -321,7 +364,9 @@ YouTube request body:
       "clientId": "<google-oauth-client-id>"
     },
     "privacyStatus": "unlisted",
-    "selfDeclaredMadeForKids": false
+    "selfDeclaredMadeForKids": false,
+    "categoryId": "27",
+    "containsSyntheticMedia": true
   }
 }
 ```

@@ -11,13 +11,11 @@
   [displayValue]="refreshTokenDisplayValue()"
   maskMode="secret"
 />
+<app-select [field]="privacyStatus()" label="Privacy status" [options]="privacyOptions" />
+<app-select [field]="madeForKids()" label="Made for kids" [options]="madeForKidsOptions" />
+<app-select [field]="categoryId()" label="Category" [options]="categoryOptions()" />
 <app-select
-  [field]="privacyStatus()"
-  label="Privacy status"
-  [options]="privacyOptions"
-/>
-<app-select
-  [field]="madeForKids()"
-  label="Made for kids"
-  [options]="madeForKidsOptions"
+  [field]="containsSyntheticMedia()"
+  label="Altered or synthetic content"
+  [options]="syntheticMediaOptions"
 />

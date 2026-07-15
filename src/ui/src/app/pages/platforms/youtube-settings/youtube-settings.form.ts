@@ -23,6 +23,8 @@ export const youtubeSettingsFormDefaults: Pick<
   | 'youTubeRefreshTokenDisplayValue'
   | 'youTubePrivacyStatus'
   | 'youTubeMadeForKids'
+  | 'youTubeCategoryId'
+  | 'youTubeContainsSyntheticMedia'
 > = {
   youTubeClientId: '',
   youTubeClientSecret: '',
@@ -33,6 +35,8 @@ export const youtubeSettingsFormDefaults: Pick<
   youTubeRefreshTokenDisplayValue: '',
   youTubePrivacyStatus: 'private',
   youTubeMadeForKids: 'false',
+  youTubeCategoryId: '',
+  youTubeContainsSyntheticMedia: 'false',
 };
 
 export function applyYouTubeSettingsRules(path: SchemaPathTree<PlatformFormModel>): void {
@@ -84,10 +88,14 @@ export function toYouTubePublishSettings(model: PlatformFormModel): YouTubePubli
     credentials.refreshToken = refreshToken;
   }
 
+  const categoryId = model.youTubeCategoryId.trim();
+
   return {
     credentials,
     privacyStatus: model.youTubePrivacyStatus as YouTubePrivacyStatus,
     selfDeclaredMadeForKids: model.youTubeMadeForKids === 'true',
+    categoryId: categoryId.length === 0 ? null : categoryId,
+    containsSyntheticMedia: model.youTubeContainsSyntheticMedia === 'true',
   };
 }
 
@@ -119,6 +127,11 @@ export function withYouTubeSettingsFormModel(
       youTubeSettings?.privacyStatus ?? youtubeSettingsFormDefaults.youTubePrivacyStatus,
     youTubeMadeForKids: String(
       youTubeSettings?.selfDeclaredMadeForKids ?? youtubeSettingsFormDefaults.youTubeMadeForKids,
+    ),
+    youTubeCategoryId: youTubeSettings?.categoryId ?? youtubeSettingsFormDefaults.youTubeCategoryId,
+    youTubeContainsSyntheticMedia: String(
+      youTubeSettings?.containsSyntheticMedia ??
+        youtubeSettingsFormDefaults.youTubeContainsSyntheticMedia,
     ),
   };
 }

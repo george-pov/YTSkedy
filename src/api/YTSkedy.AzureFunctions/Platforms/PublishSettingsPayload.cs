@@ -16,7 +16,9 @@ internal sealed record PublishSettingsPayload(
     string? PostStatus,
     bool? Sticky = null,
     int? ScheduleOffsetHours = null,
-    IReadOnlyList<long>? CategoryIds = null);
+    IReadOnlyList<long>? CategoryIds = null,
+    string? CategoryId = null,
+    bool? ContainsSyntheticMedia = null);
 
 internal sealed record YouTubeCredentialsPayload(
     string? ClientId,

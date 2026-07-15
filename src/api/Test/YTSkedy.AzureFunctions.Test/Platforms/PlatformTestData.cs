@@ -15,7 +15,9 @@ internal static class PlatformTestData
         string? clientSecret = SchedulingSampleIds.YouTubeClientSecret,
         string? refreshToken = SchedulingSampleIds.YouTubeRefreshToken,
         string? privacyStatus = "private",
-        bool? selfDeclaredMadeForKids = false) =>
+        bool? selfDeclaredMadeForKids = false,
+        string? categoryId = null,
+        bool? containsSyntheticMedia = null) =>
         new(
             new YouTubeCredentialsPayload(clientId, clientSecret, refreshToken),
             privacyStatus,
@@ -23,7 +25,9 @@ internal static class PlatformTestData
             null,
             null,
             null,
-            null);
+            null,
+            CategoryId: categoryId,
+            ContainsSyntheticMedia: containsSyntheticMedia);
 
     public static PublishSettingsPayload WordPressPayload(
         string? siteUrl = "https://example.com",
@@ -69,8 +73,15 @@ internal static class PlatformTestData
         string clientId = SchedulingSampleIds.YouTubeClientId,
         string clientSecret = SchedulingSampleIds.YouTubeClientSecret,
         string refreshToken = SchedulingSampleIds.YouTubeRefreshToken,
-        string privacyStatus = "private") =>
-        new(new YouTubeCredentials(clientId, clientSecret, refreshToken), privacyStatus, false);
+        string privacyStatus = "private",
+        string? categoryId = null,
+        bool containsSyntheticMedia = false) =>
+        new(
+            new YouTubeCredentials(clientId, clientSecret, refreshToken),
+            privacyStatus,
+            false,
+            categoryId,
+            containsSyntheticMedia);
 
     public static WordPressSettings WordPressSettings(
         string applicationPassword = "application-password",

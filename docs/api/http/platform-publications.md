@@ -34,6 +34,14 @@ flag that tells clients whether the platform publication can be deleted, and
 whether row-level publishing content can be read. There is no separate
 event-platform listing endpoint.
 
+Publication status values are:
+
+- `NotPublished`: no publication row exists for the pair.
+- `Publishing`: one request owns the transient conditional-write guard.
+- `Published`: required provider work and local finalization succeeded.
+- `Failed`: a caught started non-cancellation failure was recorded for operator
+  verification and explicit retry. A known provider id may be present.
+
 ## Get Platform Publishing Content
 
 ```text
@@ -51,8 +59,8 @@ platform reference-key tokens. A placeholder whose name exactly matches an
 active platform's `referenceKey` is replaced with that platform publication's
 `externalResourceId` when the same calendar event already has a `Published`
 row for that platform. Preview content is not persisted. For `Publishing`,
-`Published`, and orphan `Published` rows with a content snapshot, the endpoint
-returns the stored snapshot.
+`Failed`, `Published`, and orphan `Published` rows with a content snapshot, the
+endpoint returns the stored snapshot.
 
 Success response for a recalculated preview (`200 OK`):
 
@@ -78,8 +86,8 @@ Status codes:
 
 - `200 OK` with `kind: "Preview"` for active unpublished rows that can render
   current content.
-- `200 OK` with `kind: "Snapshot"` for publishing, published, or orphan
-  published rows with stored content snapshots.
+- `200 OK` with `kind: "Snapshot"` for publishing, failed, published, or
+  orphan published rows with stored content snapshots.
 - `404 Not Found` when the calendar event id does not exist.
 - `404 Not Found` when an active platform is required and the platform id does
   not exist.
@@ -116,14 +124,27 @@ exists, the placeholder remains unchanged. The rendered title and description
 are stored as a content snapshot when the publication row enters `Publishing`.
 There is no fallback that renders directly from event text fields.
 
-For a YouTube platform this creates a scheduled YouTube `liveBroadcast` using
-the rendered title and optional rendered description, the stored UTC scheduled
-start, and the platform's `privacyStatus` and `selfDeclaredMadeForKids`. The
-created broadcast id is returned as the provider-neutral `externalResourceId`.
-When the calendar event has a stored thumbnail, the backend records the created
-broadcast id on the local publication row first, then applies the thumbnail to
-that YouTube broadcast. Thumbnail application is a separate YouTube API call
-from broadcast creation.
+For a YouTube platform, the backend creates a scheduled YouTube
+`liveBroadcast` as private using the rendered title, optional rendered
+description, stored UTC scheduled start, and
+`selfDeclaredMadeForKids`. The broadcast id also identifies its matching video
+resource.
+
+The backend then determines whether the configured `categoryId`,
+`containsSyntheticMedia`, or final `privacyStatus` requires `videos.update`.
+Null category, false disclosure, and private final privacy require no video
+read or update. Otherwise it calls `videos.list` once for only the mutable parts
+that will be updated: `snippet` for category, `status` for disclosure or a
+privacy transition, or both. It copies the current mutable values into a new
+update body, overrides the YTSkedy-owned values, and sends
+`containsSyntheticMedia` explicitly whenever `status` is included. Public and
+unlisted broadcasts remain private until this required update succeeds.
+
+Only then does YTSkedy mark the local row `Published` and return the broadcast
+id as the provider-neutral `externalResourceId`. When the calendar event has a
+stored thumbnail, the backend applies it after the row is published. Thumbnail
+application is a separate best-effort YouTube API call and does not change the
+publication status.
 
 For a WordPress platform this discovers the WordPress REST API root from the
 configured site URL, then creates a post through logical route
@@ -180,6 +201,28 @@ WordPress success response (`200 OK`):
 }
 ```
 
+A failed attempt appears on the next calendar event details read as a row such
+as:
+
+```json
+{
+  "platformId": "4fb4a32f3f344de1a7c3a9f4a2f94918",
+  "platformName": "Main YouTube channel",
+  "platformType": "YouTube",
+  "status": "Failed",
+  "externalResourceId": "abc123youtubeid",
+  "thumbnailStatus": "NotConfigured",
+  "publishedUtc": null,
+  "platformDeletedUtc": null,
+  "canPublish": true,
+  "canDeletePublication": false,
+  "canPreviewPublishingContent": true
+}
+```
+
+`externalResourceId` is null when the provider failed before returning an id.
+It is retained when a later required step failed after resource creation.
+
 Status codes:
 
 - `200 OK` when the publish succeeds and the publication row is marked
@@ -202,15 +245,28 @@ Status codes:
 - `409 Conflict` when a scheduled WordPress post's computed `date_gmt` is not
   still in the future at publish time.
 - `501 Not Implemented` when no provider adapter serves the platform type.
-- `502 Bad Gateway` when the provider call fails.
-- `500 Internal Server Error` when the external resource was created but the
-  publication row could not be finalized. The publish finalization path does
-  not delete provider resources, so the external resource id may require
-  operator follow-up.
+- `502 Bad Gateway` when a caught started non-cancellation failure is recorded
+  as `Failed`. The response body is the fixed secret-safe message `Publishing
+  failed. Verify the event on the publishing platform and delete it if
+  necessary before retrying.`
+- `500 Internal Server Error` when neither `Published` nor fallback `Failed`
+  can be recorded. High-severity telemetry includes the known external id when
+  available. The finalization path does not delete provider resources, so the
+  operator must reconcile the provider directly.
 
 State conflicts are evaluated before content validation, so an
 already-published or in-progress publication returns `409` even when the start
-is in the past.
+is in the past. An active future `Failed` row is eligible for retry. Starting
+the retry conditionally replaces that row with `Publishing`; only one
+concurrent retry can reach the provider. Before retrying, the operator must
+verify the event on the publishing platform and delete any uncertain provider
+resource when necessary. YTSkedy does not automatically delete provider
+resources after publish failure.
+
+Request cancellation propagates immediately without a detached cleanup or
+fallback state write. Cancellation after a provider write can therefore leave
+a stale `Publishing` row or an unrecorded provider resource that requires
+manual reconciliation.
 
 For YouTube rows, `thumbnailStatus` is:
 
@@ -220,9 +276,9 @@ For YouTube rows, `thumbnailStatus` is:
   broadcast.
 - `Failed` when the broadcast was created but thumbnail application failed.
 
-`Failed` does not make the publish eligible for a normal retry because the
-external broadcast already exists. This feature does not include a retry route
-or retry button. Operators recover by updating the thumbnail in YouTube Studio.
+`thumbnailStatus: "Failed"` is different from publication `status: "Failed"`.
+A thumbnail failure leaves publication status `Published` and does not add a
+publish retry. Operators recover by updating the thumbnail in YouTube Studio.
 WordPress rows return `thumbnailStatus: null`.
 
 ## Delete Platform Publication
@@ -239,9 +295,12 @@ row only when it is still a non-orphan `Published` row with the same
 
 The route is allowed only for a future calendar event by backend UTC time, an
 active platform, a `Published` publication with an `externalResourceId`, and a
-secret-free target snapshot that still matches the active platform. The browser
-must use the `canDeletePublication` flag from the calendar event details row
-and must not re-derive eligibility from local time, status, or provider ids.
+secret-free target snapshot that still matches the active platform. A `Failed`
+row cannot use this route; the operator handles an uncertain provider resource
+directly before retrying. The browser must use the `canDeletePublication` flag
+from the calendar event details row and must not re-derive eligibility from
+local time, status, or provider ids. The flag does not pre-evaluate target
+snapshot mismatch; the backend always performs that final guard.
 
 For a YouTube platform, the provider cleanup deletes the stored
 `externalResourceId` as a YouTube `liveBroadcast` id. A YouTube not-found
@@ -291,6 +350,17 @@ Status codes:
   type.
 - `502 Bad Gateway` when provider cleanup fails. The local publication row is
   kept so the operator can recover and retry.
+
+Target mismatch uses this structured `409 Conflict` response:
+
+```json
+{
+  "code": "publication_target_mismatch",
+  "message": "YTSkedy cannot delete this publication because the platform settings no longer match the target used to create it. Restore the original platform target and try again."
+}
+```
+
+Other publication-delete conflicts retain their existing response shapes.
 
 See [`../operations/platform-publication-cleanup.md`](../operations/platform-publication-cleanup.md)
 for provider-specific cleanup behavior and recovery notes.

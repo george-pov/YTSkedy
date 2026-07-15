@@ -28,12 +28,21 @@ internal sealed record PublishSettingsResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     bool? ApplicationPasswordConfigured,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    string? PasswordDisplayValue)
+    string? PasswordDisplayValue,
+    [property: JsonIgnore]
+    string? CategoryId,
+    [property: JsonIgnore]
+    bool? ContainsSyntheticMedia)
 {
+    [JsonExtensionData]
+    public Dictionary<string, object?>? ProviderFields { get; init; }
+
     internal static PublishSettingsResponse ForYouTube(
         YouTubeCredentialsResponse credentials,
         string privacyStatus,
-        bool selfDeclaredMadeForKids) =>
+        bool selfDeclaredMadeForKids,
+        string? categoryId,
+        bool containsSyntheticMedia) =>
         new(
             credentials,
             privacyStatus,
@@ -45,7 +54,16 @@ internal sealed record PublishSettingsResponse(
             ScheduleOffsetHours: null,
             CategoryIds: null,
             ApplicationPasswordConfigured: null,
-            PasswordDisplayValue: null);
+            PasswordDisplayValue: null,
+            CategoryId: categoryId,
+            ContainsSyntheticMedia: containsSyntheticMedia)
+        {
+            ProviderFields = new Dictionary<string, object?>
+            {
+                ["categoryId"] = categoryId,
+                ["containsSyntheticMedia"] = containsSyntheticMedia
+            }
+        };
 
     internal static PublishSettingsResponse ForWordPress(
         string siteUrl,
@@ -67,7 +85,9 @@ internal sealed record PublishSettingsResponse(
             ScheduleOffsetHours: scheduleOffsetHours,
             CategoryIds: categoryIds,
             ApplicationPasswordConfigured: applicationPasswordConfigured,
-            PasswordDisplayValue: passwordDisplayValue);
+            PasswordDisplayValue: passwordDisplayValue,
+            CategoryId: null,
+            ContainsSyntheticMedia: null);
 }
 
 internal sealed record YouTubeCredentialsResponse(

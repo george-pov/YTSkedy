@@ -47,6 +47,24 @@ public class PlatformActionPolicyTests
             PublishStatus.Published,
             IsOrphaned: true,
             IsFuture: true,
+            Expected: false),
+        new(
+            "FutureActiveFailed",
+            PublishStatus.Failed,
+            IsOrphaned: false,
+            IsFuture: true,
+            Expected: true),
+        new(
+            "PastActiveFailed",
+            PublishStatus.Failed,
+            IsOrphaned: false,
+            IsFuture: false,
+            Expected: false),
+        new(
+            "FutureOrphanFailed",
+            PublishStatus.Failed,
+            IsOrphaned: true,
+            IsFuture: true,
             Expected: false)
     };
 
@@ -93,6 +111,13 @@ public class PlatformActionPolicyTests
             IsOrphaned: false,
             HasExternalResourceId: true,
             IsFuture: true,
+            Expected: false),
+        new(
+            "FailedActiveFutureWithResource",
+            PublishStatus.Failed,
+            IsOrphaned: false,
+            HasExternalResourceId: true,
+            IsFuture: true,
             Expected: false)
     };
 
@@ -122,6 +147,18 @@ public class PlatformActionPolicyTests
                 PublishStatus.Published,
                 IsOrphaned: false,
                 HasContentSnapshot: false,
+                Expected: false),
+            new(
+                "ActiveFailedWithSnapshot",
+                PublishStatus.Failed,
+                IsOrphaned: false,
+                HasContentSnapshot: true,
+                Expected: true),
+            new(
+                "OrphanFailedWithSnapshot",
+                PublishStatus.Failed,
+                IsOrphaned: true,
+                HasContentSnapshot: true,
                 Expected: false)
         };
 
@@ -155,6 +192,7 @@ public class PlatformActionPolicyTests
     [InlineData(PublishStatus.Publishing, true)]
     [InlineData(PublishStatus.NotPublished, false)]
     [InlineData(PublishStatus.Published, false)]
+    [InlineData(PublishStatus.Failed, false)]
     public void BlocksPlatformDelete_Status_ReturnsExpected(
         PublishStatus status,
         bool expected)

@@ -171,17 +171,27 @@ internal sealed class PublishFakePublicationRepository :
     public DateTimeOffset? MarkPublishedResult { get; init; } =
         new DateTimeOffset(2026, 6, 22, 12, 0, 5, TimeSpan.Zero);
 
+    public Exception? MarkPublishedThrows { get; init; }
+
     public bool Started { get; private set; }
 
     public bool ReleaseCalled { get; private set; }
 
     public bool MarkPublishedCalled { get; private set; }
 
+    public MarkFailedResult MarkFailedOutcome { get; init; } = MarkFailedResult.Marked;
+
+    public Exception? MarkFailedThrows { get; init; }
+
+    public bool MarkFailedCalled { get; private set; }
+
     public bool MarkThumbnailAppliedCalled { get; private set; }
 
     public bool MarkThumbnailFailedCalled { get; private set; }
 
     public string? MarkedExternalResourceId { get; private set; }
+
+    public string? FailedExternalResourceId { get; private set; }
 
     public PlatformPublicationAttempt? StartedAttempt { get; private set; }
 
@@ -214,7 +224,29 @@ internal sealed class PublishFakePublicationRepository :
         MarkPublishedCalled = true;
         MarkedExternalResourceId = externalResourceId;
 
+        if (MarkPublishedThrows is not null)
+        {
+            throw MarkPublishedThrows;
+        }
+
         return Task.FromResult(MarkPublishedResult);
+    }
+
+    public Task<MarkFailedResult> MarkFailedAsync(
+        string calendarEventId,
+        string platformId,
+        string? externalResourceId,
+        CancellationToken cancellationToken)
+    {
+        MarkFailedCalled = true;
+        FailedExternalResourceId = externalResourceId;
+
+        if (MarkFailedThrows is not null)
+        {
+            throw MarkFailedThrows;
+        }
+
+        return Task.FromResult(MarkFailedOutcome);
     }
 
     public Task<bool> MarkThumbnailAppliedAsync(
@@ -241,15 +273,15 @@ internal sealed class PublishFakePublicationRepository :
 
 internal sealed class PublishFakePublisher : IPlatformPublisher
 {
-    private readonly PlatformType type;
-    private readonly PlatformPublishResult? result;
+    private readonly PlatformType _type;
+    private readonly PlatformPublishResult? _result;
 
     public PublishFakePublisher(
         PlatformType type = PlatformType.YouTube,
         PlatformPublishResult? result = null)
     {
-        this.type = type;
-        this.result = result;
+        _type = type;
+        _result = result;
     }
 
     public PlatformPublishResult? Result { get; init; }
@@ -258,7 +290,7 @@ internal sealed class PublishFakePublisher : IPlatformPublisher
 
     public PlatformPublishRequest? Request { get; private set; }
 
-    public PlatformType Type => type;
+    public PlatformType Type => _type;
 
     public Task<PlatformPublishResult> PublishAsync(
         PlatformPublishRequest request,
@@ -271,24 +303,24 @@ internal sealed class PublishFakePublisher : IPlatformPublisher
             throw Throws;
         }
 
-        return Task.FromResult(Result ?? result ?? new PlatformPublishResult("yt-broadcast-id"));
+        return Task.FromResult(Result ?? _result ?? new PlatformPublishResult("yt-broadcast-id"));
     }
 }
 
 internal sealed class PublishFakeThumbnailPublisher : IThumbnailPublisher
 {
-    private readonly PlatformType type;
+    private readonly PlatformType _type;
 
     public PublishFakeThumbnailPublisher(PlatformType type = PlatformType.YouTube)
     {
-        this.type = type;
+        _type = type;
     }
 
     public Exception? Throws { get; init; }
 
     public ThumbnailPublishRequest? Request { get; private set; }
 
-    public PlatformType Type => type;
+    public PlatformType Type => _type;
 
     public Task PublishAsync(
         ThumbnailPublishRequest request,

@@ -86,6 +86,23 @@ public class PublishHandlerGuardTests
     }
 
     [Fact]
+    public async Task HandleAsync_FailedRow_RetriesPublish()
+    {
+        var repository = new PublishFakePublicationRepository();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            new PublishFakePublisher(),
+            existing: Publication(PublishStatus.Failed),
+            repository: repository);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.True(repository.Started);
+    }
+
+    [Fact]
     public async Task HandleAsync_PastStart_ReturnsPastStart()
     {
         var handler = CreateHandler(Event(PastStart), Platform(), new PublishFakePublisher());

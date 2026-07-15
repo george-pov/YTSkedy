@@ -54,6 +54,8 @@ export interface PlatformFormModel {
   youTubeRefreshTokenDisplayValue: string;
   youTubePrivacyStatus: string;
   youTubeMadeForKids: string;
+  youTubeCategoryId: string;
+  youTubeContainsSyntheticMedia: string;
   wordPressSiteUrl: string;
   wordPressUsername: string;
   wordPressApplicationPassword: string;

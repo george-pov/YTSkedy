@@ -99,11 +99,35 @@ export class CalendarEventPlatformsState {
     }
 
     this._platformActionBlockedMessage.set(null);
+    if (platform.status === 'Failed') {
+      this.confirmation
+        .confirm<'cancel' | 'publish'>({
+          kind: 'warning',
+          title: `Retry publication for ${platform.platformName}?`,
+          body: 'Verify the event on the publishing platform and delete it if necessary before retrying.',
+          actions: [
+            { id: 'cancel', label: 'Cancel' },
+            { id: 'publish', label: 'Retry publication', primary: true },
+          ],
+        })
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((result) => {
+          if (result === 'publish' && !this.hasActivePageMutation() && !this.hasActiveMutation()) {
+            this.startPublish(platform);
+          }
+        });
+      return;
+    }
+
+    this.startPublish(platform);
+  }
+
+  private startPublish(platform: CalendarEventPlatform): void {
     this._publishErrorMessage.set(null);
     this._publishingPlatformId.set(platform.platformId);
 
     this.calendarEventsService
-      .publishPlatform(this.calendarEventId, platform.platformId)
+      .publishPlatform(this.calendarEventId!, platform.platformId)
       .pipe(
         switchMap((response) => {
           this.clearPreview(response.platformId);
@@ -256,7 +280,7 @@ export function describePublishError(error: unknown): string {
   }
 
   if (error instanceof HttpErrorResponse && error.status === 502) {
-    return 'The platform could not publish this event. Try again later.';
+    return 'The platform could not publish this event. Verify the event on the publishing platform and delete it if necessary before retrying.';
   }
 
   return 'The platform could not publish this event. Check your connection and try again.';
@@ -265,6 +289,10 @@ export function describePublishError(error: unknown): string {
 export function describeDeletePublicationError(error: unknown): string {
   if (error instanceof CalendarEventDetailsRefreshError) {
     return 'The publication was deleted, but the latest calendar event details could not be loaded. Reload the page.';
+  }
+
+  if (hasPublicationActionError(error, 'publication_target_mismatch')) {
+    return 'YTSkedy cannot delete this publication because the platform settings no longer match the target used to create it. Restore the original platform target and try again.';
   }
 
   if (error instanceof HttpErrorResponse && error.status === 409) {
@@ -276,6 +304,18 @@ export function describeDeletePublicationError(error: unknown): string {
   }
 
   return 'The publication could not be deleted. Check your connection and try again.';
+}
+
+function hasPublicationActionError(error: unknown, code: string): boolean {
+  if (
+    !(error instanceof HttpErrorResponse) ||
+    typeof error.error !== 'object' ||
+    error.error === null
+  ) {
+    return false;
+  }
+
+  return 'code' in error.error && error.error.code === code;
 }
 
 export function describePreviewError(error: unknown): string {
@@ -294,4 +334,8 @@ export function thumbnailStatusText(platform: CalendarEventPlatform): string | n
   return platform.thumbnailStatus === 'Failed'
     ? 'YouTube broadcast was created, but the thumbnail was not applied. Update it in YouTube Studio.'
     : null;
+}
+
+export function platformStatusText(platform: CalendarEventPlatform): string {
+  return platform.status === 'NotPublished' ? 'Not published' : platform.status;
 }

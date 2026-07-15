@@ -37,8 +37,14 @@ suitable for external contributors and real deployments.
   settings separate from calendar events.
 - YouTube and WordPress are supported publishing providers behind the platform
   abstraction.
+- YouTube platforms may define a video category and altered or synthetic
+  content disclosure as defaults for future publications. The browser uses a
+  reviewed static US category catalog; the backend does not provide runtime
+  YouTube category discovery.
 - Per-platform publication records track provider work and external resource
-  identifiers independently from the calendar event.
+  identifiers independently from the calendar event. Caught publish failures
+  are operator-visible, retryable records that may retain an external resource
+  id for provider verification.
 - Calendar-event thumbnails are application-owned artifacts and may be applied
   to supported provider resources during publication.
 
@@ -74,6 +80,9 @@ ownership rules live in
   complete.
 - Provider cleanup and application persistence must preserve enough state to
   diagnose and recover from partial failures.
+- Retrying a failed publication is an explicit operator action after checking
+  the publishing platform and removing any uncertain provider resource when
+  necessary.
 - Public HTTP contracts must remain stable enough for independent UI and API
   work.
 - Deployment-specific values belong in environment configuration rather than

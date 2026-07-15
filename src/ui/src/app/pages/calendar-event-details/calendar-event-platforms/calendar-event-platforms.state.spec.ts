@@ -21,6 +21,7 @@ import {
   describeDeletePublicationError,
   describePreviewError,
   describePublishError,
+  platformStatusText,
   thumbnailStatusText,
 } from './calendar-event-platforms.state';
 
@@ -103,7 +104,7 @@ describe('CalendarEventPlatformsState', () => {
       'can no longer publish',
     );
     expect(describePublishError(new HttpErrorResponse({ status: 502 }))).toContain(
-      'Try again later',
+      'Verify the event on the publishing platform',
     );
     expect(describePublishError(new Error('network'))).toContain('Check your connection');
 
@@ -115,6 +116,17 @@ describe('CalendarEventPlatformsState', () => {
     );
     expect(describeDeletePublicationError(new Error('network'))).toContain('Check your connection');
 
+    expect(
+      describeDeletePublicationError(
+        new HttpErrorResponse({
+          status: 409,
+          error: { code: 'publication_target_mismatch', message: 'server copy' },
+        }),
+      ),
+    ).toBe(
+      'YTSkedy cannot delete this publication because the platform settings no longer match the target used to create it. Restore the original platform target and try again.',
+    );
+
     expect(describePreviewError(new HttpErrorResponse({ status: 404 }))).toContain(
       'no longer available',
     );
@@ -122,6 +134,12 @@ describe('CalendarEventPlatformsState', () => {
       'cannot be previewed',
     );
     expect(describePreviewError(new Error('network'))).toContain('Check your connection');
+  });
+
+  it('maps all platform statuses to display text', () => {
+    expect(platformStatusText(draftPlatform())).toBe('Not published');
+    expect(platformStatusText(failedPlatform())).toBe('Failed');
+    expect(platformStatusText(publishedPlatform())).toBe('Published');
   });
 
   it('maps failed thumbnail publish status to a non-actionable warning', () => {
@@ -241,6 +259,33 @@ describe('CalendarEventPlatformsState', () => {
     expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event published.');
   });
 
+  it('requires operator verification before retrying a failed publication', () => {
+    confirmation.confirm.mockReturnValue(of('publish'));
+    service.publishPlatform.mockReturnValue(of(publishedPlatform()));
+    service.getById.mockReturnValue(of(sampleEvent({ platforms: [publishedPlatform()] })));
+
+    state.publishPlatform(failedPlatform());
+
+    expect(confirmation.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'warning',
+        title: 'Retry publication for Main YouTube channel?',
+        body: 'Verify the event on the publishing platform and delete it if necessary before retrying.',
+      }),
+    );
+    expect(service.publishPlatform).toHaveBeenCalledWith(calendarEventId, 'platform-1');
+    expect(service.getById).toHaveBeenCalledWith(calendarEventId);
+  });
+
+  it('does not retry a failed publication when operator confirmation is cancelled', () => {
+    confirmation.confirm.mockReturnValue(of('cancel'));
+
+    state.publishPlatform(failedPlatform());
+
+    expect(confirmation.confirm).toHaveBeenCalledTimes(1);
+    expect(service.publishPlatform).not.toHaveBeenCalled();
+  });
+
   it('maps publish errors onto state', () => {
     service.publishPlatform.mockReturnValue(
       throwError(() => new HttpErrorResponse({ status: 502 })),
@@ -249,7 +294,7 @@ describe('CalendarEventPlatformsState', () => {
     state.publishPlatform(draftPlatform());
 
     expect(state.publishErrorMessage()).toBe(
-      'The platform could not publish this event. Try again later.',
+      'The platform could not publish this event. Verify the event on the publishing platform and delete it if necessary before retrying.',
     );
   });
 
@@ -382,6 +427,16 @@ describe('CalendarEventPlatformsState', () => {
     overrides: Partial<CalendarEventPlatform> = {},
   ): CalendarEventPlatform {
     return testCalendarEventPlatform(overrides);
+  }
+
+  function failedPlatform(overrides: Partial<CalendarEventPlatform> = {}): CalendarEventPlatform {
+    return testCalendarEventPlatform({
+      status: 'Failed',
+      publishedUtc: null,
+      canPublish: true,
+      canDeletePublication: false,
+      ...overrides,
+    });
   }
 
   function sampleEvent(

@@ -65,6 +65,8 @@ describe('PlatformsService', () => {
             },
             privacyStatus: 'private',
             selfDeclaredMadeForKids: false,
+            categoryId: null,
+            containsSyntheticMedia: false,
           },
           publishingContent: {
             titleTemplateId: 'youtube-title-template',
@@ -112,6 +114,8 @@ describe('PlatformsService', () => {
             },
             privacyStatus: 'private',
             selfDeclaredMadeForKids: false,
+            categoryId: null,
+            containsSyntheticMedia: false,
           },
           publishingContent: {
             titleTemplateId: 'youtube-title-template',
@@ -262,6 +266,8 @@ describe('PlatformsService', () => {
         },
         privacyStatus: 'public',
         selfDeclaredMadeForKids: true,
+        categoryId: '27',
+        containsSyntheticMedia: true,
       },
       publishingContent: {
         titleTemplateId: 'youtube-title-template',
@@ -291,6 +297,8 @@ describe('PlatformsService', () => {
         },
         privacyStatus: 'public',
         selfDeclaredMadeForKids: true,
+        categoryId: '27',
+        containsSyntheticMedia: true,
       },
       publishingContent: {
         titleTemplateId: 'youtube-title-template',
@@ -313,6 +321,8 @@ describe('PlatformsService', () => {
         },
         privacyStatus: 'public',
         selfDeclaredMadeForKids: true,
+        categoryId: '27',
+        containsSyntheticMedia: true,
       },
       publishingContent: {
         titleTemplateId: 'youtube-title-template',
@@ -458,6 +468,8 @@ describe('PlatformsService', () => {
         },
         privacyStatus: 'unlisted',
         selfDeclaredMadeForKids: false,
+        categoryId: null,
+        containsSyntheticMedia: false,
       },
       publishingContent: {
         titleTemplateId: 'updated-title-template',
@@ -491,6 +503,8 @@ describe('PlatformsService', () => {
         },
         privacyStatus: 'unlisted',
         selfDeclaredMadeForKids: false,
+        categoryId: null,
+        containsSyntheticMedia: false,
       },
       publishingContent: {
         titleTemplateId: 'updated-title-template',
@@ -513,6 +527,8 @@ describe('PlatformsService', () => {
         },
         privacyStatus: 'unlisted',
         selfDeclaredMadeForKids: false,
+        categoryId: null,
+        containsSyntheticMedia: false,
       },
       publishingContent: {
         titleTemplateId: 'updated-title-template',

@@ -119,6 +119,17 @@ response. Actions use the backend row flags documented by the
   another action.
 - A failed provider thumbnail application remains a published row with a
   warning; the page does not add a retry action.
+- A publication row with status `Failed` shows Failed and keeps Publish enabled
+  only when the backend returns `canPublish: true`. Publish first opens a
+  warning that tells the operator to verify the event on the publishing
+  platform and delete it there if necessary before retrying. A successful retry
+  refreshes the full event details.
+- Publish `502` errors show the same operator verification guidance. A
+  publication-delete response with code `publication_target_mismatch` shows
+  `YTSkedy cannot delete this publication because the platform settings no
+  longer match the target used to create it. Restore the original platform
+  target and try again.` Other delete conflicts keep the generic reload
+  guidance.
 
 Delete is available only in edit mode and follows backend `canDelete`. Pending
 form changes are resolved before the delete confirmation opens. Successful
@@ -166,6 +177,20 @@ secret fields preserve stored values and do not count as changes. Backend
 redacted display strings may appear in blank replacement inputs but are never
 copied into save requests. A typed replacement is visible while focused and
 masked again on blur.
+
+YouTube settings include two page-owned single-select controls:
+
+- Category begins with `YouTube Default`, which sends `categoryId: null`, then
+  lists the application-owned US categories reviewed as assignable on
+  2026-07-14. The list is static source data and never performs runtime YouTube
+  or backend category lookup. An unknown stored id remains visible as
+  `Category #{id}` until the operator changes it.
+- Altered or synthetic content uses No and Yes and sends
+  `containsSyntheticMedia: false` or `true`. Existing settings without the
+  property and new forms default to No.
+
+Both controls use the existing `app-select` single-value interaction. YouTube
+does not use the WordPress category chip selector.
 
 WordPress settings include an ordered category selection. New WordPress
 platforms send `categoryIds: []` and show save-first guidance because lookup

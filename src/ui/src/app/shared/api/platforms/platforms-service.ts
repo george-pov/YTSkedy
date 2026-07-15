@@ -27,6 +27,8 @@ export interface YouTubePublishSettings {
   credentials: YouTubeCredentials;
   privacyStatus: YouTubePrivacyStatus;
   selfDeclaredMadeForKids: boolean;
+  categoryId?: string | null;
+  containsSyntheticMedia?: boolean;
 }
 
 export type WordPressPostStatus = 'draft' | 'pending' | 'private' | 'future' | 'publish';
@@ -223,7 +225,12 @@ function copyPublishSettings(
     return { ...settings, categoryIds: [...settings.categoryIds] };
   }
 
-  return { ...settings, credentials: { ...settings.credentials } };
+  return {
+    ...settings,
+    credentials: { ...settings.credentials },
+    categoryId: settings.categoryId ?? null,
+    containsSyntheticMedia: settings.containsSyntheticMedia ?? false,
+  };
 }
 
 function mapCreateError(error: unknown): Observable<never> {

@@ -84,7 +84,7 @@ public sealed class DeletePublicationHandler(
                     command.CalendarEventId,
                     command.PlatformId,
                     platform.PublishSettings,
-                    publication.ExternalResourceId),
+                    publication.ExternalResourceId!),
                 cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -118,7 +118,7 @@ public sealed class DeletePublicationHandler(
         var deleteResult = await publicationCleanup.DeletePublishedAsync(
             command.CalendarEventId,
             command.PlatformId,
-            publication.ExternalResourceId,
+            publication.ExternalResourceId!,
             cancellationToken);
 
         if (deleteResult is not (

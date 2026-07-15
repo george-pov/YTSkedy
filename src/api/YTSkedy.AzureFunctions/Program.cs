@@ -229,6 +229,7 @@ builder.Services.AddSingleton(serviceProvider =>
     new WordPressEndpointResolver(
         serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(wordPressHttpClientName),
         serviceProvider.GetRequiredService<ILogger<WordPressEndpointResolver>>()));
+builder.Services.AddSingleton<IYouTubePublishClientFactory, YouTubePublishClientFactory>();
 builder.Services.AddSingleton<IPlatformPublisher, YouTubePublisher>();
 builder.Services.AddSingleton<IPlatformPublicationDeleter, YouTubePublicationDeleter>();
 builder.Services.AddSingleton(serviceProvider =>

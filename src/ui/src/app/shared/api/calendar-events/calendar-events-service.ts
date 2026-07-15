@@ -14,7 +14,7 @@ import {
   publishPlatformUrl,
 } from './calendar-events-endpoint';
 
-export type CalendarEventPlatformStatus = 'NotPublished' | 'Publishing' | 'Published';
+export type CalendarEventPlatformStatus = 'NotPublished' | 'Publishing' | 'Published' | 'Failed';
 export type CalendarEventPublishingStatus =
   | 'NotPublished'
   | 'PartiallyPublished'
@@ -91,11 +91,7 @@ export interface CalendarEventText {
   value: string;
 }
 
-export type CalendarEventSortField =
-  | 'scheduledStart'
-  | 'timeZone'
-  | 'title'
-  | 'publicationStatus';
+export type CalendarEventSortField = 'scheduledStart' | 'timeZone' | 'title' | 'publicationStatus';
 
 export type CalendarEventSortDirection = 'asc' | 'desc';
 
@@ -186,9 +182,12 @@ export class CalendarEventsService {
       params = params.set('fallbackTimeZoneId', fallbackTimeZoneId);
     }
 
-    return this.http.get<CalendarEventDefaultStart>(calendarEventDefaultStartUrl(this.appConfig.api), {
-      params,
-    });
+    return this.http.get<CalendarEventDefaultStart>(
+      calendarEventDefaultStartUrl(this.appConfig.api),
+      {
+        params,
+      },
+    );
   }
 
   update(
@@ -240,10 +239,7 @@ export class CalendarEventsService {
     return this.http.delete<void>(calendarEventByIdUrl(this.appConfig.api, calendarEventId));
   }
 
-  uploadThumbnail(
-    calendarEventId: string,
-    thumbnail: File,
-  ): Observable<CalendarEventThumbnail> {
+  uploadThumbnail(calendarEventId: string, thumbnail: File): Observable<CalendarEventThumbnail> {
     const formData = new FormData();
     formData.append('thumbnail', thumbnail);
 
@@ -254,15 +250,12 @@ export class CalendarEventsService {
   }
 
   getThumbnail(calendarEventId: string): Observable<Blob> {
-    return this.http.get(
-      calendarEventThumbnailUrl(this.appConfig.api, calendarEventId),
-      { responseType: 'blob' },
-    );
+    return this.http.get(calendarEventThumbnailUrl(this.appConfig.api, calendarEventId), {
+      responseType: 'blob',
+    });
   }
 
   deleteThumbnail(calendarEventId: string): Observable<void> {
-    return this.http.delete<void>(
-      calendarEventThumbnailUrl(this.appConfig.api, calendarEventId),
-    );
+    return this.http.delete<void>(calendarEventThumbnailUrl(this.appConfig.api, calendarEventId));
   }
 }

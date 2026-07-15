@@ -12,6 +12,24 @@ public sealed class HttpDtoJsonTests
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [Fact]
+    public void PublicationActionErrorResponse_SerializesStableCodeAndMessage()
+    {
+        var response = new PublicationActionErrorResponse(
+            "publication_target_mismatch",
+            "Restore the original target.");
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+        using var document = JsonDocument.Parse(json);
+
+        Assert.Equal(
+            "publication_target_mismatch",
+            document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(
+            "Restore the original target.",
+            document.RootElement.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public void CreateCalendarEventRequest_InternalDto_DeserializesWithWebDefaults()
     {
         const string json = """
@@ -114,7 +132,9 @@ public sealed class HttpDtoJsonTests
                   "refreshToken": "refresh-token"
                 },
                 "privacyStatus": "private",
-                "selfDeclaredMadeForKids": false
+                "selfDeclaredMadeForKids": false,
+                "categoryId": "27",
+                "containsSyntheticMedia": true
               }
             }
             """;
@@ -135,6 +155,8 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("refresh-token", request.PublishSettings.Credentials.RefreshToken);
         Assert.Equal("private", request.PublishSettings.PrivacyStatus);
         Assert.False(request.PublishSettings.SelfDeclaredMadeForKids.GetValueOrDefault());
+        Assert.Equal("27", request.PublishSettings.CategoryId);
+        Assert.True(request.PublishSettings.ContainsSyntheticMedia);
     }
 
     [Fact]
@@ -216,6 +238,8 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("refresh-token", request.PublishSettings.Credentials.RefreshToken);
         Assert.Equal("private", request.PublishSettings.PrivacyStatus);
         Assert.False(request.PublishSettings.SelfDeclaredMadeForKids.GetValueOrDefault());
+        Assert.Null(request.PublishSettings.CategoryId);
+        Assert.False(request.PublishSettings.ContainsSyntheticMedia.GetValueOrDefault());
     }
 
     [Fact]
@@ -273,7 +297,9 @@ public sealed class HttpDtoJsonTests
                     "stored-client-secret-A3B",
                     "stored-refresh-token-Z9Y"),
                 "private",
-                false),
+                false,
+                categoryId: null,
+                containsSyntheticMedia: false),
             new PublishingContent(
                 "title-template",
                 "description-template"));
@@ -297,6 +323,8 @@ public sealed class HttpDtoJsonTests
         Assert.DoesNotContain("\"refreshToken\":\"", json);
         Assert.DoesNotContain("stored-client-secret-A3B", json);
         Assert.DoesNotContain("stored-refresh-token-Z9Y", json);
+        Assert.Equal(JsonValueKind.Null, settings.GetProperty("categoryId").ValueKind);
+        Assert.False(settings.GetProperty("containsSyntheticMedia").GetBoolean());
     }
 
     [Fact]
@@ -342,6 +370,8 @@ public sealed class HttpDtoJsonTests
         Assert.Equal("*******", settings.GetProperty("passwordDisplayValue").GetString());
         Assert.DoesNotContain("applicationPassword\":\"", json);
         Assert.DoesNotContain("local-test-password", json);
+        Assert.False(settings.TryGetProperty("categoryId", out _));
+        Assert.False(settings.TryGetProperty("containsSyntheticMedia", out _));
     }
 
     [Fact]

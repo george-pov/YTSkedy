@@ -11,7 +11,12 @@ public class PublishSettingsSerializerTests
     {
         var json = PublishSettingsSerializer.Serialize(
             PlatformType.YouTube,
-            new YouTubeSettings(Credentials(), "unlisted", true));
+            new YouTubeSettings(
+                Credentials(),
+                "unlisted",
+                true,
+                "27",
+                containsSyntheticMedia: true));
 
         var settings = Assert.IsType<YouTubeSettings>(
             PublishSettingsSerializer.Deserialize(PlatformType.YouTube, json));
@@ -20,6 +25,30 @@ public class PublishSettingsSerializerTests
         Assert.Equal("refresh-token", settings.Credentials.RefreshToken);
         Assert.Equal("unlisted", settings.PrivacyStatus);
         Assert.True(settings.SelfDeclaredMadeForKids);
+        Assert.Equal("27", settings.CategoryId);
+        Assert.True(settings.ContainsSyntheticMedia);
+    }
+
+    [Fact]
+    public void Deserialize_YouTubeLegacySettingsJson_DefaultsNewSettings()
+    {
+        const string json = """
+            {
+              "credentials": {
+                "clientId": "client-id",
+                "clientSecret": "client-secret",
+                "refreshToken": "refresh-token"
+              },
+              "privacyStatus": "private",
+              "selfDeclaredMadeForKids": false
+            }
+            """;
+
+        var settings = Assert.IsType<YouTubeSettings>(
+            PublishSettingsSerializer.Deserialize(PlatformType.YouTube, json));
+
+        Assert.Null(settings.CategoryId);
+        Assert.False(settings.ContainsSyntheticMedia);
     }
 
     [Fact]
@@ -119,7 +148,12 @@ public class PublishSettingsSerializerTests
     {
         var json = PublishSettingsSerializer.SerializeSnapshot(
             PlatformType.YouTube,
-            new YouTubeSettings(Credentials(), "private", false));
+            new YouTubeSettings(
+                Credentials(),
+                "private",
+                false,
+                "27",
+                containsSyntheticMedia: true));
 
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
@@ -129,6 +163,8 @@ public class PublishSettingsSerializerTests
         Assert.True(credentials.GetProperty("refreshTokenConfigured").GetBoolean());
         Assert.Equal("private", root.GetProperty("privacyStatus").GetString());
         Assert.False(root.GetProperty("selfDeclaredMadeForKids").GetBoolean());
+        Assert.Equal("27", root.GetProperty("categoryId").GetString());
+        Assert.True(root.GetProperty("containsSyntheticMedia").GetBoolean());
         Assert.False(credentials.TryGetProperty("clientSecret", out _));
         Assert.False(credentials.TryGetProperty("refreshToken", out _));
         Assert.DoesNotContain("client-secret", json);

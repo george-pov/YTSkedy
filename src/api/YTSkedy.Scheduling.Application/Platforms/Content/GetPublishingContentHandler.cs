@@ -8,9 +8,9 @@ namespace YTSkedy.Scheduling.Application.Platforms.Content;
 /// <summary>
 /// Reads row-level publishing content for one calendar event and platform. A
 /// not-published active row renders a current preview, while in-progress,
-/// published, and orphaned published rows return the stored content snapshot.
-/// Full event details do not call this handler, so a bad template affects only
-/// this on-demand read.
+/// failed, published, and orphaned published rows return the stored content
+/// snapshot. Full event details do not call this handler, so a bad template
+/// affects only this on-demand read.
 /// </summary>
 public sealed class GetPublishingContentHandler(
     ICalendarEventReader calendarEvents,

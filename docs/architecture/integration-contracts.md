@@ -63,11 +63,14 @@ Cross-boundary rules:
   aggregate from the event's derived published-platform-id index and the
   platforms active at list-read time. The UI maps the tokens to page-owned
   labels and may request server-side sorting by the aggregate, but must not use
-  it for action eligibility. `Failed` is a reserved contract value; failure
-  capture and stale-`Publishing` recovery are not part of the current lifecycle.
+  it for action eligibility. The list-level `Failed` value remains reserved and
+  is not derived from per-platform failed-attempt rows.
 - Per-platform publication state and root event mutation flags are exposed
-  through the calendar event details read model. Details do not include the
-  list aggregate and continue to use authoritative publication rows.
+  through the calendar event details read model. An active future `Failed` row
+  is retryable after operator verification, may retain an external resource id,
+  exposes its stored content snapshot, and cannot use normal publication
+  delete. Details do not include the list aggregate and continue to use
+  authoritative publication rows.
 - Calendar event update requests include both `start` and `texts`. The backend
   owns scheduled-start conversion, invalid/repeated local-time validation,
   publication-lock enforcement, and best-effort duplicate scheduled-start
@@ -104,6 +107,11 @@ Cross-boundary rules:
   names and slugs are provider lookup data only. The `Platforms` page searches
   them through the protected backend route after the platform is saved; browser
   code never receives WordPress credentials or calls WordPress directly.
+- YouTube platform CRUD carries nullable opaque `categoryId` and boolean
+  `containsSyntheticMedia` defaults. Null category means provider default and
+  missing legacy values read as null and false. The `Platforms` page owns a
+  static reviewed US category list and does not call YouTube or the backend for
+  runtime category discovery.
 - Secret-bearing settings may be accepted by write routes, but read models must
   return redacted configuration flags instead of secrets.
 - Function keys are not part of the frontend-backend contract.
@@ -196,6 +204,14 @@ HTTP routes.
 - YouTube SDK types, WordPress REST DTOs, and provider credential handling stay
   inside `YTSkedy.Infrastructure`.
 - Publishing uses `IPlatformPublisher` selected by platform type.
+- YouTube publication creates a private scheduled broadcast first. When
+  category, disclosure, or final visibility requires a video update, the
+  adapter reads only the included mutable parts, preserves their values, and
+  applies YTSkedy-owned values before the local row becomes `Published`.
+- Caught started non-cancellation failures are recorded as `Failed` without
+  automatic provider deletion. A known external id is retained for operator
+  verification, and retry conditionally replaces only that failed row with the
+  transient `Publishing` concurrency guard.
 - Thumbnail application uses `IThumbnailPublisher` selected by platform type.
 - Publication cleanup uses `IPlatformPublicationDeleter` selected by platform
   type.

@@ -15,7 +15,9 @@ public sealed record YouTubeSettings : PublishSettings
     public YouTubeSettings(
         YouTubeCredentials credentials,
         string privacyStatus,
-        bool selfDeclaredMadeForKids)
+        bool selfDeclaredMadeForKids,
+        string? categoryId = null,
+        bool containsSyntheticMedia = false)
     {
         ArgumentNullException.ThrowIfNull(credentials);
 
@@ -26,9 +28,18 @@ public sealed record YouTubeSettings : PublishSettings
                 nameof(privacyStatus));
         }
 
+        if (!IsValidCategoryId(categoryId))
+        {
+            throw new ArgumentException(
+                "Category id must be null or contain a non-blank YouTube category id.",
+                nameof(categoryId));
+        }
+
         Credentials = credentials;
         PrivacyStatus = privacyStatus;
         SelfDeclaredMadeForKids = selfDeclaredMadeForKids;
+        CategoryId = categoryId?.Trim();
+        ContainsSyntheticMedia = containsSyntheticMedia;
     }
 
     public YouTubeCredentials Credentials { get; }
@@ -37,6 +48,10 @@ public sealed record YouTubeSettings : PublishSettings
 
     public bool SelfDeclaredMadeForKids { get; }
 
+    public string? CategoryId { get; }
+
+    public bool ContainsSyntheticMedia { get; }
+
     /// <summary>
     /// True when <paramref name="privacyStatus"/> is one of the lowercase
     /// YouTube privacy values (<c>private</c>, <c>public</c>, <c>unlisted</c>).
@@ -44,4 +59,7 @@ public sealed record YouTubeSettings : PublishSettings
     public static bool IsValidPrivacyStatus(string? privacyStatus) =>
         privacyStatus is not null &&
         AllowedPrivacyStatuses.Contains(privacyStatus, StringComparer.Ordinal);
+
+    public static bool IsValidCategoryId(string? categoryId) =>
+        categoryId is null || !string.IsNullOrWhiteSpace(categoryId);
 }

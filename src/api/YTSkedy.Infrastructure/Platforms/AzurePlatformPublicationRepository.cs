@@ -39,13 +39,47 @@ public sealed class AzurePlatformPublicationRepository(
         try
         {
             // Conditional insert: AddEntity fails with 409 when a row already
-            // exists for the pair, which is the concurrency guard. Any existing
-            // row (publishing, published, or orphaned) is a conflict here.
+            // exists for the pair. An active Failed row may then be replaced
+            // conditionally; every other state remains a conflict.
             await tableClient.AddEntityAsync(entity, cancellationToken);
 
             return StartPublicationResult.Started;
         }
         catch (RequestFailedException exception) when (exception.Status == 409)
+        {
+            return await TryRestartFailedAsync(entity, cancellationToken);
+        }
+    }
+
+    private async Task<StartPublicationResult> TryRestartFailedAsync(
+        PlatformPublicationEntity retryEntity,
+        CancellationToken cancellationToken)
+    {
+        var existing = await TryGetEntityAsync(
+            retryEntity.CalendarEventId,
+            retryEntity.PlatformId,
+            cancellationToken);
+        if (existing is null ||
+            existing.PlatformDeletedUtc is not null ||
+            PlatformPublicationMapper.ParseStatus(existing.Status) != PublishStatus.Failed)
+        {
+            return StartPublicationResult.Conflict;
+        }
+
+        retryEntity.ETag = existing.ETag;
+        retryEntity.CreatedUtc = existing.CreatedUtc;
+
+        try
+        {
+            await tableClient.UpdateEntityAsync(
+                retryEntity,
+                existing.ETag,
+                TableUpdateMode.Replace,
+                cancellationToken);
+
+            return StartPublicationResult.Started;
+        }
+        catch (RequestFailedException exception) when (exception.Status is 404 or 412)
         {
             return StartPublicationResult.Conflict;
         }
@@ -61,15 +95,23 @@ public sealed class AzurePlatformPublicationRepository(
 
         try
         {
-            // Removing the row returns the pair to the computed NotPublished
-            // state. A wildcard ETag makes the release unconditional.
+            var entity = await TryGetEntityAsync(
+                calendarEventId,
+                platformId,
+                cancellationToken);
+            if (entity is null ||
+                PlatformPublicationMapper.ParseStatus(entity.Status) != PublishStatus.Publishing)
+            {
+                return;
+            }
+
             await tableClient.DeleteEntityAsync(
-                PlatformPublicationKey.PartitionKeyFor(calendarEventId),
-                PlatformPublicationKey.RowKeyFor(platformId),
-                ETag.All,
+                entity.PartitionKey,
+                entity.RowKey,
+                entity.ETag,
                 cancellationToken);
         }
-        catch (RequestFailedException exception) when (exception.Status == 404)
+        catch (RequestFailedException exception) when (exception.Status is 404 or 412)
         {
             // The row is already gone, which is the intended end state.
         }
@@ -87,7 +129,9 @@ public sealed class AzurePlatformPublicationRepository(
 
         var entity = await TryGetEntityAsync(calendarEventId, platformId, cancellationToken);
 
-        if (entity is null)
+        if (entity is null ||
+            entity.PlatformDeletedUtc is not null ||
+            PlatformPublicationMapper.ParseStatus(entity.Status) != PublishStatus.Publishing)
         {
             return null;
         }
@@ -110,10 +154,59 @@ public sealed class AzurePlatformPublicationRepository(
 
             return now;
         }
-        catch (RequestFailedException exception) when (exception.Status == 404)
+        catch (RequestFailedException exception) when (exception.Status is 404 or 412)
         {
             // The row was removed between the read and this write.
             return null;
+        }
+    }
+
+    public async Task<MarkFailedResult> MarkFailedAsync(
+        string calendarEventId,
+        string platformId,
+        string? externalResourceId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
+
+        var entity = await TryGetEntityAsync(calendarEventId, platformId, cancellationToken);
+        if (entity is null)
+        {
+            return MarkFailedResult.NotFound;
+        }
+
+        if (entity.PlatformDeletedUtc is not null ||
+            PlatformPublicationMapper.ParseStatus(entity.Status) != PublishStatus.Publishing)
+        {
+            return MarkFailedResult.Changed;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        entity.Status = PublishStatus.Failed.ToString();
+        entity.ExternalResourceId = string.IsNullOrWhiteSpace(externalResourceId)
+            ? null
+            : externalResourceId.Trim();
+        entity.PublishedUtc = null;
+        entity.UpdatedUtc = now;
+
+        try
+        {
+            await tableClient.UpdateEntityAsync(
+                entity,
+                entity.ETag,
+                TableUpdateMode.Replace,
+                cancellationToken);
+
+            return MarkFailedResult.Marked;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            return MarkFailedResult.NotFound;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 412)
+        {
+            return MarkFailedResult.Changed;
         }
     }
 

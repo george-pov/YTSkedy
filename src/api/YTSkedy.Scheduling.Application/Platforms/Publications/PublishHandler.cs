@@ -17,9 +17,8 @@ namespace YTSkedy.Scheduling.Application.Platforms.Publications;
 /// title without unresolved placeholders. It then starts the publication row
 /// with a content snapshot (a conditional write, so a concurrent
 /// publish yields a conflict), calls the provider, and finalizes the row with the
-/// external resource id. Provider validation and provider failures release the
-/// attempt; a finalize failure after the external resource was created is
-/// recorded for follow-up.
+/// external resource id. Caught non-cancellation failures after the attempt
+/// starts become retryable failed rows, retaining the provider id when known.
 /// </summary>
 public sealed class PublishHandler(
     ICalendarEventReader calendarEvents,
@@ -131,12 +130,10 @@ public sealed class PublishHandler(
                 command.CalendarEventId,
                 command.PlatformId);
 
-            await publicationAttempts.ReleasePublishingAsync(
-                command.CalendarEventId,
-                command.PlatformId,
+            return await RecordFailedAsync(
+                command,
+                externalResourceId: null,
                 cancellationToken);
-
-            return PublishResult.ForStatus(PublishResultStatus.ProviderFailed);
         }
 
         PlatformPublishResult publishResult;
@@ -161,42 +158,65 @@ public sealed class PublishHandler(
                 command.CalendarEventId,
                 command.PlatformId);
 
-            await publicationAttempts.ReleasePublishingAsync(
-                command.CalendarEventId,
-                command.PlatformId,
+            return await RecordFailedAsync(
+                command,
+                externalResourceId: null,
                 cancellationToken);
-
-            return PublishResult.ForStatus(
-                PublishResultStatus.InvalidProviderPublishSettings);
         }
         catch (PlatformPublishException exception)
         {
-            // Release the attempt so the pair returns to NotPublished and can
-            // be retried. The provider already logged secret-safe details.
             logger.LogError(
                 exception,
                 "Publishing calendar event {CalendarEventId} to platform {PlatformId} failed.",
                 command.CalendarEventId,
                 command.PlatformId);
 
-            await publicationAttempts.ReleasePublishingAsync(
+            return await RecordFailedAsync(
+                command,
+                exception.ExternalResourceId,
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(
+                "Publishing calendar event {CalendarEventId} to platform {PlatformId} failed " +
+                "with unexpected provider exception type {ExceptionType}.",
                 command.CalendarEventId,
                 command.PlatformId,
-                cancellationToken);
+                exception.GetType().FullName);
 
-            return PublishResult.ForStatus(PublishResultStatus.ProviderFailed);
+            return await RecordFailedAsync(
+                command,
+                externalResourceId: null,
+                cancellationToken);
         }
 
-        var publishedUtc = await publicationAttempts.MarkPublishedAsync(
-            command.CalendarEventId,
-            command.PlatformId,
-            publishResult.ExternalResourceId,
-            cancellationToken);
+        DateTimeOffset? publishedUtc;
+        try
+        {
+            publishedUtc = await publicationAttempts.MarkPublishedAsync(
+                command.CalendarEventId,
+                command.PlatformId,
+                publishResult.ExternalResourceId,
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(
+                exception,
+                "Published calendar event {CalendarEventId} to platform {PlatformId} as " +
+                "external resource {ExternalResourceId}, but finalizing publication state failed.",
+                command.CalendarEventId,
+                command.PlatformId,
+                publishResult.ExternalResourceId);
+
+            return await RecordFailedAsync(
+                command,
+                publishResult.ExternalResourceId,
+                cancellationToken);
+        }
         if (publishedUtc is null)
         {
-            // The external resource exists but the started row vanished before it
-            // could be finalized. The publish finalization path does not delete
-            // provider resources, so record the external resource for follow-up.
             logger.LogError(
                 "Published calendar event {CalendarEventId} to platform {PlatformId} as external " +
                 "resource {ExternalResourceId}, but the publication row could not be finalized.",
@@ -204,7 +224,10 @@ public sealed class PublishHandler(
                 command.PlatformId,
                 publishResult.ExternalResourceId);
 
-            return PublishResult.ForStatus(PublishResultStatus.FinalizeFailed);
+            return await RecordFailedAsync(
+                command,
+                publishResult.ExternalResourceId,
+                cancellationToken);
         }
 
         await publicationIndexUpdater.AddPublishedPlatformAsync(
@@ -251,5 +274,48 @@ public sealed class PublishHandler(
             PublishStatus.Publishing => PublishResultStatus.PublishInProgress,
             _ => null
         };
+    }
+
+    private async Task<PublishResult> RecordFailedAsync(
+        PublishCommand command,
+        string? externalResourceId,
+        CancellationToken cancellationToken)
+    {
+        MarkFailedResult result;
+        try
+        {
+            result = await publicationAttempts.MarkFailedAsync(
+                command.CalendarEventId,
+                command.PlatformId,
+                externalResourceId,
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogCritical(
+                exception,
+                "Publishing calendar event {CalendarEventId} to platform {PlatformId} could not " +
+                "record Failed. External resource id: {ExternalResourceId}.",
+                command.CalendarEventId,
+                command.PlatformId,
+                externalResourceId);
+
+            return PublishResult.ForStatus(PublishResultStatus.FinalizeFailed);
+        }
+        if (result == MarkFailedResult.Marked)
+        {
+            return PublishResult.ForStatus(PublishResultStatus.Failed);
+        }
+
+        logger.LogCritical(
+            "Publishing calendar event {CalendarEventId} to platform {PlatformId} could not " +
+            "record a final publication state. Failed-state result: {MarkFailedResult}. " +
+            "External resource id: {ExternalResourceId}.",
+            command.CalendarEventId,
+            command.PlatformId,
+            result,
+            externalResourceId);
+
+        return PublishResult.ForStatus(PublishResultStatus.FinalizeFailed);
     }
 }

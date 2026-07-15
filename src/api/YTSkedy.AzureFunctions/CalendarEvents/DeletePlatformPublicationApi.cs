@@ -60,7 +60,11 @@ public sealed class DeletePlatformPublicationApi(DeletePublicationHandler delete
                     $"'{platformId}' has no external resource id."),
             DeletePublicationStatus.TargetMismatch =>
                 new ConflictObjectResult(
-                    $"Platform '{platformId}' no longer matches the publication target."),
+                    new PublicationActionErrorResponse(
+                        "publication_target_mismatch",
+                        "YTSkedy cannot delete this publication because the platform settings " +
+                        "no longer match the target used to create it. Restore the original " +
+                        "platform target and try again.")),
             DeletePublicationStatus.PublishInProgress =>
                 new ConflictObjectResult(
                     $"A publish of calendar event '{calendarEventId}' to platform '{platformId}' " +

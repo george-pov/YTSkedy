@@ -6,17 +6,24 @@ using YTSkedy.Scheduling.Domain.Platforms;
 namespace YTSkedy.Infrastructure.YouTube;
 
 /// <summary>
-/// YouTube implementation of <see cref="IPlatformPublisher"/>. It builds a
-/// <see cref="YouTubeService"/> from the selected platform's stored credential
-/// values and creates a scheduled live broadcast with the privacy and
-/// made-for-kids settings from the platform's <see cref="YouTubeSettings"/>.
-/// The created broadcast id is returned as the provider-neutral external
-/// resource id. Google SDK types never cross this boundary, and secrets and
-/// tokens are never logged.
+/// Creates a private scheduled YouTube broadcast, then conditionally updates
+/// its video resource when category, disclosure, or final visibility settings
+/// require <c>videos.update</c>. Existing mutable values in every included part
+/// are copied before YTSkedy-owned values are applied.
 /// </summary>
-public sealed class YouTubePublisher(
-    ILogger<YouTubePublisher> logger) : IPlatformPublisher
+public sealed class YouTubePublisher : IPlatformPublisher
 {
+    private readonly IYouTubePublishClientFactory _clientFactory;
+    private readonly ILogger<YouTubePublisher> _logger;
+
+    public YouTubePublisher(
+        IYouTubePublishClientFactory clientFactory,
+        ILogger<YouTubePublisher> logger)
+    {
+        _clientFactory = clientFactory;
+        _logger = logger;
+    }
+
     public PlatformType Type => PlatformType.YouTube;
 
     public async Task<PlatformPublishResult> PublishAsync(
@@ -25,56 +32,74 @@ public sealed class YouTubePublisher(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        // Selection is by platform type, so the settings are YouTube settings;
-        // guard defensively rather than trusting the cast.
         if (request.PublishSettings is not YouTubeSettings settings)
         {
             throw new PlatformPublishException(
                 "A YouTube publish requires YouTube publish settings.");
         }
 
-        var broadcast = YouTubeBroadcastFactory.Create(
-            request.Title,
-            request.Description,
-            request.ScheduledStartUtc,
-            settings.PrivacyStatus,
-            settings.SelfDeclaredMadeForKids);
+        string? broadcastId = null;
 
         try
         {
-            var service = YouTubeServiceFactory.Create(settings.Credentials);
+            var client = _clientFactory.Create(settings.Credentials);
+            var broadcast = YouTubeBroadcastFactory.Create(
+                request.Title,
+                request.Description,
+                request.ScheduledStartUtc,
+                privacyStatus: "private",
+                settings.SelfDeclaredMadeForKids);
 
-            var created = await service.LiveBroadcasts
-                .Insert(broadcast, "snippet,status")
-                .ExecuteAsync(cancellationToken);
+            var created = await client.InsertBroadcastAsync(broadcast, cancellationToken);
+            broadcastId = created.Id;
+            ArgumentException.ThrowIfNullOrWhiteSpace(broadcastId);
 
-            logger.LogInformation(
+            var parts = YouTubeVideoUpdateFactory.RequiredParts(settings);
+            if (parts.ApiValue is not null)
+            {
+                var current = await client.GetVideoAsync(
+                    broadcastId,
+                    parts.ApiValue,
+                    cancellationToken);
+                if (current is null)
+                {
+                    throw new InvalidOperationException(
+                        "YouTube did not return the video for the created broadcast.");
+                }
+
+                var update = YouTubeVideoUpdateFactory.Create(current, settings, parts);
+                await client.UpdateVideoAsync(
+                    update.Video,
+                    update.Parts,
+                    cancellationToken);
+            }
+
+            _logger.LogInformation(
                 "Created YouTube broadcast {BroadcastId} for calendar event {CalendarEventId} " +
                 "scheduled for {ScheduledStartUtc:o}.",
-                created.Id,
+                broadcastId,
                 request.CalendarEventId,
                 request.ScheduledStartUtc);
 
-            return new PlatformPublishResult(created.Id);
+            return new PlatformPublishResult(broadcastId);
         }
         catch (OperationCanceledException)
         {
-            // Respect cancellation: it is not a publish failure.
             throw;
         }
         catch (Exception exception)
         {
-            // Provider error details (quota, validation, auth rejection) are safe
-            // to log; the client secret and tokens are not part of the exception.
-            logger.LogError(
+            _logger.LogError(
                 exception,
-                "Failed to create YouTube broadcast for calendar event {CalendarEventId} " +
-                "scheduled for {ScheduledStartUtc:o}.",
+                "Failed to publish YouTube broadcast {BroadcastId} for calendar event " +
+                "{CalendarEventId} scheduled for {ScheduledStartUtc:o}.",
+                broadcastId,
                 request.CalendarEventId,
                 request.ScheduledStartUtc);
 
             throw new PlatformPublishException(
                 $"Failed to publish calendar event '{request.CalendarEventId}' to YouTube.",
+                broadcastId,
                 exception);
         }
     }

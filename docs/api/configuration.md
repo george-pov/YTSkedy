@@ -101,6 +101,8 @@ YouTube OAuth values through platform create or update requests:
 | `publishSettings.credentials.refreshToken` | Secret | Long-lived refresh token minted once during setup with the YouTube scope. |
 | `publishSettings.privacyStatus` | Non-secret | YouTube broadcast privacy, currently `private`, `public`, or `unlisted`. |
 | `publishSettings.selfDeclaredMadeForKids` | Non-secret | YouTube made-for-kids flag sent to the broadcast status. |
+| `publishSettings.categoryId` | Non-secret | Optional opaque YouTube video category id. Null delegates category behavior to YouTube. |
+| `publishSettings.containsSyntheticMedia` | Non-secret | Altered or synthetic content disclosure. Missing legacy values default to `false`. |
 
 `clientSecret` and `refreshToken` are accepted on platform create and update but
 are never returned by platform reads. Responses return
@@ -113,6 +115,20 @@ On update, omitting either secret or sending it blank preserves the stored
 value; sending a non-blank value replaces it. Redacted display values are not
 accepted in create or update request bodies. `clientId` is returned because it
 is not secret and is required on create and update.
+
+The browser labels null `categoryId` as `YouTube Default`. Its single-select
+catalog is a static application-owned list of categories reviewed as assignable
+for the US region. There is no runtime YouTube category route or provider read.
+YouTube remains authoritative at publish time and may reject an id that is no
+longer valid for the authenticated channel.
+
+YouTube publication stages every scheduled broadcast as private. If category,
+disclosure, or final visibility requires a video update, the backend reads only
+the matching mutable video parts, copies those values into a safe update body,
+and applies the configured fields before recording `Published`. A status update
+always sends `containsSyntheticMedia` explicitly because later YouTube list
+responses do not reliably return that field. The private, null-category, false-
+disclosure case needs no video read or update.
 
 Keep YouTube client secrets and refresh tokens out of tracked files, docs
 samples, logs, and `local.settings.json`. See
@@ -131,9 +147,13 @@ This is a proof-of-concept integration with deliberate limitations:
 - The YouTube client secret and refresh token are stored in the platform row's
   `PublishSettingsJson` so the provider can publish at request time. An app-managed
   secret store is not part of the current implementation.
-- Only the rendered title, optional rendered description, scheduled start,
-  privacy, made-for-kids state, and optional event thumbnail are sent.
-  Categories and stream binding are not part of the current publish surface.
+- The rendered title, optional rendered description, scheduled start, privacy,
+  made-for-kids state, optional category, altered or synthetic disclosure, and
+  optional event thumbnail are sent. Stream binding is not part of the current
+  publish surface.
+- Caught started failures are stored as retryable `Failed` without automatic
+  provider deletion. Before retrying, the operator checks YouTube and deletes
+  any uncertain broadcast directly when necessary.
 - There is no thumbnail retry route or UI action. If broadcast creation
   succeeds but thumbnail application fails, the operator recovery path is to
   update the thumbnail in YouTube Studio.

@@ -9,11 +9,68 @@ public class YouTubeSettingsTests
     {
         var credentials = PlatformSamples.YouTubeCredentials();
 
-        var settings = new YouTubeSettings(credentials, "unlisted", true);
+        var settings = new YouTubeSettings(
+            credentials,
+            "unlisted",
+            true,
+            " 27 ",
+            containsSyntheticMedia: true);
 
         Assert.Same(credentials, settings.Credentials);
         Assert.Equal("unlisted", settings.PrivacyStatus);
         Assert.True(settings.SelfDeclaredMadeForKids);
+        Assert.Equal("27", settings.CategoryId);
+        Assert.True(settings.ContainsSyntheticMedia);
+    }
+
+    [Fact]
+    public void Constructor_ExistingCallShape_DefaultsNewSettings()
+    {
+        var settings = new YouTubeSettings(
+            PlatformSamples.YouTubeCredentials(),
+            "private",
+            false);
+
+        Assert.Null(settings.CategoryId);
+        Assert.False(settings.ContainsSyntheticMedia);
+    }
+
+    [Fact]
+    public void Constructor_NullCategoryAndFalseDisclosure_SetsDefaults()
+    {
+        var settings = new YouTubeSettings(
+            PlatformSamples.YouTubeCredentials(),
+            "private",
+            false,
+            categoryId: null,
+            containsSyntheticMedia: false);
+
+        Assert.Null(settings.CategoryId);
+        Assert.False(settings.ContainsSyntheticMedia);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Constructor_BlankCategory_Throws(string categoryId)
+    {
+        Assert.Throws<ArgumentException>(
+            () => new YouTubeSettings(
+                PlatformSamples.YouTubeCredentials(),
+                "private",
+                false,
+                categoryId));
+    }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("27", true)]
+    [InlineData(" 27 ", true)]
+    [InlineData("", false)]
+    [InlineData("   ", false)]
+    public void IsValidCategoryId_Value_ReturnsExpected(string? categoryId, bool expected)
+    {
+        Assert.Equal(expected, YouTubeSettings.IsValidCategoryId(categoryId));
     }
 
     [Fact]

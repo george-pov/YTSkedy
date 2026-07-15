@@ -31,7 +31,7 @@ public class PublishHandlerLifecycleTests
     }
 
     [Fact]
-    public async Task HandleAsync_ProviderFailure_ReleasesAttemptAndReturnsProviderFailed()
+    public async Task HandleAsync_ProviderFailure_MarksFailedWithoutExternalId()
     {
         var repository = new PublishFakePublicationRepository();
         var publisher = new PublishFakePublisher
@@ -48,14 +48,39 @@ public class PublishHandlerLifecycleTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishResultStatus.ProviderFailed, result.Status);
-        Assert.True(repository.ReleaseCalled);
+        Assert.Equal(PublishResultStatus.Failed, result.Status);
+        Assert.True(repository.MarkFailedCalled);
+        Assert.Null(repository.FailedExternalResourceId);
+        Assert.False(repository.ReleaseCalled);
         Assert.False(repository.MarkPublishedCalled);
         Assert.Empty(publicationIndex.AddCalls);
     }
 
     [Fact]
-    public async Task HandleAsync_ProviderValidationFailure_ReleasesAttemptAndReturnsInvalidProviderPublishSettings()
+    public async Task HandleAsync_ProviderFailureWithExternalId_MarksFailedWithExternalId()
+    {
+        var repository = new PublishFakePublicationRepository();
+        var publisher = new PublishFakePublisher
+        {
+            Throws = new PlatformPublishException(
+                "metadata update failed",
+                "yt-created-broadcast-id")
+        };
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Failed, result.Status);
+        Assert.Equal("yt-created-broadcast-id", repository.FailedExternalResourceId);
+        Assert.False(repository.ReleaseCalled);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ProviderValidationFailure_MarksFailed()
     {
         var repository = new PublishFakePublicationRepository();
         var publisher = new PublishFakePublisher
@@ -72,14 +97,15 @@ public class PublishHandlerLifecycleTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishResultStatus.InvalidProviderPublishSettings, result.Status);
-        Assert.True(repository.ReleaseCalled);
+        Assert.Equal(PublishResultStatus.Failed, result.Status);
+        Assert.True(repository.MarkFailedCalled);
+        Assert.False(repository.ReleaseCalled);
         Assert.False(repository.MarkPublishedCalled);
         Assert.Empty(publicationIndex.AddCalls);
     }
 
     [Fact]
-    public async Task HandleAsync_FinalizeReturnsNull_ReturnsFinalizeFailed()
+    public async Task HandleAsync_FinalizeReturnsNull_MarksFailedWithProviderId()
     {
         var repository = new PublishFakePublicationRepository { MarkPublishedResult = null };
         var publisher = new PublishFakePublisher
@@ -96,9 +122,93 @@ public class PublishHandlerLifecycleTests
 
         var result = await Handle(handler);
 
-        Assert.Equal(PublishResultStatus.FinalizeFailed, result.Status);
+        Assert.Equal(PublishResultStatus.Failed, result.Status);
+        Assert.True(repository.MarkFailedCalled);
+        Assert.Equal("yt-broadcast-id", repository.FailedExternalResourceId);
         Assert.False(repository.ReleaseCalled);
         Assert.Empty(publicationIndex.AddCalls);
+    }
+
+    [Fact]
+    public async Task HandleAsync_FinalizeAndMarkFailedCannotWrite_ReturnsFinalizeFailed()
+    {
+        var repository = new PublishFakePublicationRepository
+        {
+            MarkPublishedResult = null,
+            MarkFailedOutcome = MarkFailedResult.Changed
+        };
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            new PublishFakePublisher(),
+            repository: repository);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.FinalizeFailed, result.Status);
+        Assert.True(repository.MarkFailedCalled);
+    }
+
+    [Fact]
+    public async Task HandleAsync_FinalizeThrows_MarksFailedWithProviderId()
+    {
+        var repository = new PublishFakePublicationRepository
+        {
+            MarkPublishedThrows = new InvalidOperationException("storage unavailable")
+        };
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            new PublishFakePublisher(),
+            repository: repository);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Failed, result.Status);
+        Assert.Equal("yt-broadcast-id", repository.FailedExternalResourceId);
+    }
+
+    [Fact]
+    public async Task HandleAsync_MarkFailedThrows_ReturnsFinalizeFailed()
+    {
+        var repository = new PublishFakePublicationRepository
+        {
+            MarkFailedThrows = new InvalidOperationException("storage unavailable")
+        };
+        var publisher = new PublishFakePublisher
+        {
+            Throws = new PlatformPublishException("provider down")
+        };
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.FinalizeFailed, result.Status);
+    }
+
+    [Fact]
+    public async Task HandleAsync_OperationCanceled_PropagatesWithoutFailureWrite()
+    {
+        var repository = new PublishFakePublicationRepository();
+        var publisher = new PublishFakePublisher
+        {
+            Throws = new OperationCanceledException()
+        };
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => Handle(handler));
+
+        Assert.True(repository.Started);
+        Assert.False(repository.MarkFailedCalled);
+        Assert.False(repository.ReleaseCalled);
     }
 
     [Fact]

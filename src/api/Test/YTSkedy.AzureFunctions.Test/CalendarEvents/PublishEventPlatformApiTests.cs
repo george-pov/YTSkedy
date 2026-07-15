@@ -79,7 +79,7 @@ public sealed class PublishEventPlatformApiTests
     [InlineData(PublishResultStatus.PublishInProgress, StatusCodes.Status409Conflict)]
     [InlineData(PublishResultStatus.PlatformDeleted, StatusCodes.Status409Conflict)]
     [InlineData(PublishResultStatus.ProviderNotSupported, StatusCodes.Status501NotImplemented)]
-    [InlineData(PublishResultStatus.ProviderFailed, StatusCodes.Status502BadGateway)]
+    [InlineData(PublishResultStatus.Failed, StatusCodes.Status502BadGateway)]
     public void ToResult_FailureStatus_MapsToStatusCode(
         PublishResultStatus status,
         int expectedStatusCode)
@@ -90,6 +90,22 @@ public sealed class PublishEventPlatformApiTests
             PlatformId);
 
         Assert.Equal(expectedStatusCode, ActionResultAssertions.StatusCode(actionResult));
+    }
+
+    [Fact]
+    public void ToResult_Failed_ReturnsOperatorVerificationGuidance()
+    {
+        var actionResult = PublishEventPlatformApi.ToResult(
+            PublishResult.ForStatus(PublishResultStatus.Failed),
+            CalendarEventId,
+            PlatformId);
+
+        var body = Assert.IsType<ObjectResult>(actionResult);
+        Assert.Equal(StatusCodes.Status502BadGateway, body.StatusCode);
+        Assert.Equal(
+            "Publishing failed. Verify the event on the publishing platform and delete it if " +
+            "necessary before retrying.",
+            body.Value);
     }
 
     [Fact]

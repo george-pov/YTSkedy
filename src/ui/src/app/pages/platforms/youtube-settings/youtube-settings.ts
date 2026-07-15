@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { type Field } from '@angular/forms/signals';
 
 import { Input } from 'src/app/shared/components/input/input';
 import { MaskedInput } from 'src/app/shared/components/masked-input/masked-input';
 import { Select, SelectOption } from 'src/app/shared/components/select/select';
+import { youtubeCategoryOptionsFor } from './youtube-categories';
 
 /**
  * Editor settings specific to a YouTube platform. Presentational only: the
@@ -26,6 +27,12 @@ export class YouTubeSettings {
   readonly privacyStatus = input.required<Field<string>>();
   /** Self-declared "made for kids" flag, carried as `'true'`/`'false'`. */
   readonly madeForKids = input.required<Field<string>>();
+  readonly categoryId = input.required<Field<string>>();
+  readonly containsSyntheticMedia = input.required<Field<string>>();
+
+  protected readonly categoryOptions = computed(() =>
+    youtubeCategoryOptionsFor(this.categoryId()().value()),
+  );
 
   protected readonly privacyOptions: readonly SelectOption[] = [
     { value: 'private', label: 'Private' },
@@ -34,6 +41,11 @@ export class YouTubeSettings {
   ];
 
   protected readonly madeForKidsOptions: readonly SelectOption[] = [
+    { value: 'false', label: 'No' },
+    { value: 'true', label: 'Yes' },
+  ];
+
+  protected readonly syntheticMediaOptions: readonly SelectOption[] = [
     { value: 'false', label: 'No' },
     { value: 'true', label: 'Yes' },
   ];

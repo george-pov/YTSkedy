@@ -179,6 +179,7 @@ public class PlatformPublicationMapperTests
     [InlineData("NotPublished", PublishStatus.NotPublished)]
     [InlineData("Publishing", PublishStatus.Publishing)]
     [InlineData("Published", PublishStatus.Published)]
+    [InlineData("Failed", PublishStatus.Failed)]
     [InlineData("published", PublishStatus.Published)]
     public void ParseStatus_KnownValue_ParsesCaseInsensitively(string stored, PublishStatus expected)
     {

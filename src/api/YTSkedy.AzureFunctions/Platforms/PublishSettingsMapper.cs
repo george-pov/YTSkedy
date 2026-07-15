@@ -28,7 +28,9 @@ internal static class PublishSettingsMapper
             YouTubeSettings youTube => PublishSettingsResponse.ForYouTube(
                 ToYouTubeCredentialsResponse(youTube.Credentials),
                 youTube.PrivacyStatus,
-                youTube.SelfDeclaredMadeForKids),
+                youTube.SelfDeclaredMadeForKids,
+                youTube.CategoryId,
+                youTube.ContainsSyntheticMedia),
             WordPressSettings wordPress => ToWordPressResponse(wordPress),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(publishSettings),
@@ -228,10 +230,18 @@ internal static class PublishSettingsMapper
             return false;
         }
 
+        if (!YouTubeSettings.IsValidCategoryId(payload.CategoryId))
+        {
+            error = InvalidYouTubeCategoryIdResult();
+            return false;
+        }
+
         publishSettings = new YouTubeSettings(
             credentials,
             payload.PrivacyStatus!,
-            payload.SelfDeclaredMadeForKids ?? false);
+            payload.SelfDeclaredMadeForKids ?? false,
+            payload.CategoryId,
+            payload.ContainsSyntheticMedia ?? false);
         return true;
     }
 
@@ -349,6 +359,10 @@ internal static class PublishSettingsMapper
     private static IActionResult InvalidPrivacyStatusResult() =>
         new BadRequestObjectResult(
             "Publish settings privacy status must be 'private', 'public', or 'unlisted'.");
+
+    private static IActionResult InvalidYouTubeCategoryIdResult() =>
+        new BadRequestObjectResult(
+            "Publish settings categoryId must be omitted, null, or a non-blank YouTube category ID.");
 
     private static IActionResult MissingWordPressSiteUrlResult() =>
         new BadRequestObjectResult("Publish settings site URL is required.");

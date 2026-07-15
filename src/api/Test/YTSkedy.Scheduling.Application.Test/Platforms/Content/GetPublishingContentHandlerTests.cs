@@ -115,6 +115,21 @@ public class GetPublishingContentHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_FailedRowWithSnapshot_ReturnsSnapshot()
+    {
+        var handler = CreateHandler(
+            Event(),
+            Platform(),
+            Publication(PublishStatus.Failed, new ContentSnapshot("Stored title", null)));
+
+        var result = await Handle(handler);
+
+        Assert.Equal(GetPublishingContentStatus.Found, result.Status);
+        Assert.Equal(PublishingContentType.Snapshot, result.Type);
+        Assert.Equal("Stored title", result.Content!.Title);
+    }
+
+    [Fact]
     public async Task HandleAsync_OrphanPublishedRowWithSnapshot_ReturnsSnapshot()
     {
         var handler = CreateHandler(

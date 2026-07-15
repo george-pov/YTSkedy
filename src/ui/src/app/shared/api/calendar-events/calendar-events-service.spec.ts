@@ -67,9 +67,7 @@ describe('CalendarEventsService', () => {
   it('omits the fallback query when no supported zone is available', () => {
     service.getDefaultStart().subscribe();
 
-    const request = http.expectOne(
-      'https://api.example.test/api/calendar-events/start-suggestion',
-    );
+    const request = http.expectOne('https://api.example.test/api/calendar-events/start-suggestion');
     expect(request.request.params.keys()).toEqual([]);
     request.flush({ localDate: null, localTime: null, timeZoneId: null });
   });
@@ -228,8 +226,8 @@ describe('CalendarEventsService', () => {
           platformId: 'platform-1',
           platformName: 'Main YouTube channel',
           platformType: 'YouTube',
-          status: 'NotPublished',
-          externalResourceId: null,
+          status: 'Failed',
+          externalResourceId: 'uncertain-broadcast-id',
           thumbnailStatus: 'NotConfigured',
           publishedUtc: null,
           platformDeletedUtc: null,
@@ -346,11 +344,9 @@ describe('CalendarEventsService', () => {
     };
 
     let actual: UpdateCalendarEventResponse | undefined;
-    service
-      .update('6f9619ff8b864fb5bdfd4f5c2f2f16a1', updateRequest)
-      .subscribe((response) => {
-        actual = response;
-      });
+    service.update('6f9619ff8b864fb5bdfd4f5c2f2f16a1', updateRequest).subscribe((response) => {
+      actual = response;
+    });
 
     const request = http.expectOne(
       'https://api.example.test/api/calendar-events/6f9619ff8b864fb5bdfd4f5c2f2f16a1',

@@ -78,7 +78,9 @@ public sealed class PublishSettingsMapperTests
         var response = PublishSettingsMapper.ToResponse(
             YouTubeSettings(
                 clientSecret: "stored-client-secret-A3B",
-                refreshToken: "stored-refresh-token-Z9Y"));
+                refreshToken: "stored-refresh-token-Z9Y",
+                categoryId: "27",
+                containsSyntheticMedia: true));
 
         Assert.NotNull(response.Credentials);
         Assert.Equal(SchedulingSampleIds.YouTubeClientId, response.Credentials.ClientId);
@@ -88,15 +90,33 @@ public sealed class PublishSettingsMapperTests
         Assert.Equal("*********Z9Y", response.Credentials.RefreshTokenDisplayValue);
         Assert.Equal("private", response.PrivacyStatus);
         Assert.False(response.SelfDeclaredMadeForKids);
+        Assert.Equal("27", response.CategoryId);
+        Assert.True(response.ContainsSyntheticMedia);
         Assert.Null(response.SiteUrl);
         Assert.Null(response.CategoryIds);
         Assert.Null(response.ApplicationPasswordConfigured);
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
+        using var document = JsonDocument.Parse(json);
+        Assert.Equal("27", document.RootElement.GetProperty("categoryId").GetString());
+        Assert.True(document.RootElement.GetProperty("containsSyntheticMedia").GetBoolean());
         Assert.Contains("*********A3B", json);
         Assert.Contains("*********Z9Y", json);
         Assert.DoesNotContain("stored-client-secret-A3B", json);
         Assert.DoesNotContain("stored-refresh-token-Z9Y", json);
+    }
+
+    [Fact]
+    public void ToPublishSettingsResponse_YouTubeDefaults_IncludesExplicitDefaults()
+    {
+        var response = PublishSettingsMapper.ToResponse(YouTubeSettings());
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("categoryId").ValueKind);
+        Assert.False(root.GetProperty("containsSyntheticMedia").GetBoolean());
     }
 
     [Fact]
@@ -141,6 +161,8 @@ public sealed class PublishSettingsMapperTests
         Assert.True(root.GetProperty("sticky").GetBoolean());
         Assert.Equal(25, root.GetProperty("scheduleOffsetHours").GetInt32());
         Assert.False(root.TryGetProperty("applicationPassword", out _));
+        Assert.False(root.TryGetProperty("containsSyntheticMedia", out _));
+        Assert.False(root.TryGetProperty("categoryId", out _));
         Assert.DoesNotContain("local-test-password", json);
     }
 

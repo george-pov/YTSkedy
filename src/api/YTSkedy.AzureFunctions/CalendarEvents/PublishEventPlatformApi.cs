@@ -82,10 +82,10 @@ public sealed class PublishEventPlatformApi(PublishHandler publishHandler)
                 {
                     StatusCode = StatusCodes.Status501NotImplemented
                 },
-            PublishResultStatus.ProviderFailed =>
+            PublishResultStatus.Failed =>
                 new ObjectResult(
-                    $"Publishing calendar event '{calendarEventId}' to platform '{platformId}' " +
-                    "failed at the provider.")
+                    "Publishing failed. Verify the event on the publishing platform and delete " +
+                    "it if necessary before retrying.")
                 {
                     StatusCode = StatusCodes.Status502BadGateway
                 },

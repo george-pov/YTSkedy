@@ -67,6 +67,8 @@
                 [refreshTokenDisplayValue]="model().youTubeRefreshTokenDisplayValue"
                 [privacyStatus]="form.youTubePrivacyStatus"
                 [madeForKids]="form.youTubeMadeForKids"
+                [categoryId]="form.youTubeCategoryId"
+                [containsSyntheticMedia]="form.youTubeContainsSyntheticMedia"
               />
             } @else if (selectedType() === 'WordPress') {
               <app-wordpress-settings

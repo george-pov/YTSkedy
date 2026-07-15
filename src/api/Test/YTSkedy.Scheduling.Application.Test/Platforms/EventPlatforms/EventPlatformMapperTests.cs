@@ -87,6 +87,31 @@ public sealed class EventPlatformMapperTests
     }
 
     [Fact]
+    public void Project_ActiveFutureFailedRow_IsRetryableButNotDeletable()
+    {
+        var calendarEvent = CreateEvent();
+        var platform = CreatePlatform(PlatformId, "Main channel");
+        var publication = CreatePublication(
+            PlatformId,
+            "Main channel",
+            PublishStatus.Failed,
+            externalResourceId: "uncertain-provider-id",
+            contentSnapshot: new ContentSnapshot("Stored title", "Stored description"));
+
+        var item = Assert.Single(EventPlatformMapper.Map(
+            calendarEvent,
+            [platform],
+            [publication],
+            Now));
+
+        Assert.Equal(PublishStatus.Failed, item.Status);
+        Assert.Equal("uncertain-provider-id", item.ExternalResourceId);
+        Assert.True(item.CanPublish);
+        Assert.False(item.CanDeletePublication);
+        Assert.True(item.CanPreviewPublishingContent);
+    }
+
+    [Fact]
     public void Project_OrphanRowForDeletedPlatform_AppendsReadOnlyHistory()
     {
         var calendarEvent = CreateEvent();

@@ -101,13 +101,34 @@ describe('CalendarEventPlatforms', () => {
     expect(text).toContain('Status');
     expect(text).toContain('YouTube');
     expect(text).toContain('Main YouTube channel');
-    expect(text).toContain('NotPublished');
+    expect(text).toContain('Not published');
     expect(text).toContain('WordPress');
     expect(text).toContain('Archive site');
     expect(text).toContain('Published');
     expect(platformPublishHosts()).toHaveLength(1);
     expect(platformPreviewHosts()).toHaveLength(2);
     expect(platformDeletePublicationHosts()).toHaveLength(1);
+  });
+
+  it('renders Failed with the backend-enabled publish retry action', async () => {
+    state.applyEventDetails(
+      sampleEvent({
+        platforms: [
+          draftPlatform({
+            status: 'Failed',
+            externalResourceId: 'uncertain-provider-id',
+          }),
+        ],
+      }),
+    );
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Failed');
+    expect(platformPublishHosts()).toHaveLength(1);
+    expect(platformDeletePublicationHosts()).toHaveLength(0);
   });
 
   it('shows an empty platform state when no platforms are returned', async () => {

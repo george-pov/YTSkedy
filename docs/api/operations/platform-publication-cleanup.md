@@ -39,6 +39,27 @@ The backend allows cleanup only when all of these are true:
 The browser must use `canDeletePublication` from the event-platform row. It
 must not compute delete eligibility from browser time, status, or provider ids.
 
+## Failed Publication Recovery
+
+A publication row with `status: Failed` represents an uncertain or rejected
+started attempt. It may retain an `externalResourceId`, but it is not eligible
+for the normal publication-delete route because required provider work did not
+reach the `Published` outcome.
+
+Before retrying a failed row:
+
+1. Open the configured publishing platform using operator or administrator
+   access.
+2. Determine whether the provider resource was created or partially updated.
+3. Delete the provider resource directly when it should not be kept.
+4. Fix credentials, provider availability, or invalid settings as needed.
+5. Use the YTSkedy retry action while the event is still future.
+
+Retry conditionally changes the same row from `Failed` to transient
+`Publishing`. It does not re-check or delete the previous provider resource.
+Skipping operator verification can therefore create a duplicate provider
+resource.
+
 ## YouTube Cleanup
 
 For YouTube, `externalResourceId` is the YouTube live broadcast id created
@@ -111,7 +132,10 @@ contacts the provider:
 - YouTube compares the stored Google OAuth client id.
 - WordPress compares the normalized site URL.
 
-A mismatch returns `409 Conflict` and no provider call is made. This prevents a
+A mismatch returns `409 Conflict` and no provider call is made. The response
+uses code `publication_target_mismatch` and message `YTSkedy cannot delete this
+publication because the platform settings no longer match the target used to
+create it. Restore the original platform target and try again.` This prevents a
 rotated or repointed platform from deleting a resource in the wrong provider
 target.
 

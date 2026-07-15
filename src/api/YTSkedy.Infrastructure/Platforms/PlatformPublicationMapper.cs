@@ -91,6 +91,7 @@ internal static class PlatformPublicationMapper
             "notpublished" => PublishStatus.NotPublished,
             "publishing" => PublishStatus.Publishing,
             "published" => PublishStatus.Published,
+            "failed" => PublishStatus.Failed,
             _ => throw InvalidStoredValue(nameof(PublishStatus), status)
         };
 

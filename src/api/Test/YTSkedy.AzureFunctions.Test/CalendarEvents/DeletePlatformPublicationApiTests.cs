@@ -58,6 +58,24 @@ public sealed class DeletePlatformPublicationApiTests
         Assert.Equal(expectedStatusCode, ActionResultAssertions.StatusCode(actionResult));
     }
 
+    [Fact]
+    public void ToResult_TargetMismatch_ReturnsStructuredRecoveryError()
+    {
+        var actionResult = DeletePlatformPublicationApi.ToResult(
+            DeletePublicationResult.ForStatus(DeletePublicationStatus.TargetMismatch),
+            CalendarEventId,
+            PlatformId);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(actionResult);
+        var body = Assert.IsType<PublicationActionErrorResponse>(conflict.Value);
+        Assert.Equal("publication_target_mismatch", body.Code);
+        Assert.Equal(
+            "YTSkedy cannot delete this publication because the platform settings no longer " +
+            "match the target used to create it. Restore the original platform target and try " +
+            "again.",
+            body.Message);
+    }
+
     private static EventPlatformView NotPublishedRow() =>
         new(
             PlatformId,

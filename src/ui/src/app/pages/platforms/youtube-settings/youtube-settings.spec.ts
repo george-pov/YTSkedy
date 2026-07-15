@@ -1,5 +1,6 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { form } from '@angular/forms/signals';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -11,6 +12,8 @@ interface YouTubeSettingsModel {
   refreshToken: string;
   privacyStatus: string;
   madeForKids: string;
+  categoryId: string;
+  containsSyntheticMedia: string;
 }
 
 @Component({
@@ -24,6 +27,8 @@ interface YouTubeSettingsModel {
     refreshTokenDisplayValue="*********Z9Y"
     [privacyStatus]="form.privacyStatus"
     [madeForKids]="form.madeForKids"
+    [categoryId]="form.categoryId"
+    [containsSyntheticMedia]="form.containsSyntheticMedia"
   />`,
 })
 class YouTubeSettingsHost {
@@ -33,6 +38,8 @@ class YouTubeSettingsHost {
     refreshToken: '',
     privacyStatus: 'private',
     madeForKids: 'false',
+    categoryId: '',
+    containsSyntheticMedia: 'false',
   });
   readonly form = form(this.model, () => {});
 }
@@ -50,10 +57,31 @@ describe('YouTubeSettings', () => {
     fixture.detectChanges();
   });
 
-  it('renders the credential inputs and the two settings selects', () => {
+  it('renders the credential inputs and four settings selects', () => {
     expect(fixture.nativeElement.querySelectorAll('app-input input')).toHaveLength(1);
     expect(fixture.nativeElement.querySelectorAll('app-masked-input input')).toHaveLength(2);
-    expect(fixture.nativeElement.querySelectorAll('app-select')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('app-select')).toHaveLength(4);
+    expect(fixture.nativeElement.textContent).toContain('Category');
+    expect(fixture.nativeElement.textContent).toContain('Altered or synthetic content');
+  });
+
+  it('keeps an unknown stored category selectable and No before Yes', async () => {
+    host.model.update((model) => ({ ...model, categoryId: '999' }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const selects = fixture.debugElement
+      .queryAll(By.css('app-select'))
+      .map((element) => element.componentInstance);
+    const categoryOptions = selects[2].options();
+    const syntheticMediaOptions = selects[3].options();
+
+    expect(categoryOptions[0]).toEqual({ value: '', label: 'YouTube Default' });
+    expect(categoryOptions.at(-1)).toEqual({ value: '999', label: 'Category #999' });
+    expect(syntheticMediaOptions).toEqual([
+      { value: 'false', label: 'No' },
+      { value: 'true', label: 'Yes' },
+    ]);
   });
 
   it('shows display values inside replacement inputs while values stay empty', () => {
@@ -117,9 +145,7 @@ describe('YouTubeSettings', () => {
   });
 
   it('binds the supplied client ID field to its model value', async () => {
-    const input = fixture.nativeElement.querySelector(
-      'app-input input',
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector('app-input input') as HTMLInputElement;
     expect(input.value).toBe('client-id');
 
     input.value = 'second-client-id';

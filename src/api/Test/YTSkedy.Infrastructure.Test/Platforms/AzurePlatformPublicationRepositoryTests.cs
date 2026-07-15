@@ -157,6 +157,116 @@ public class AzurePlatformPublicationRepositoryTests
     }
 
     [Fact]
+    public async Task MarkFailedAsync_PublishingRow_StoresFailedAndExternalId()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var repository = CreateRepository(tableClient);
+        await repository.StartPublishingAsync(Attempt(), CancellationToken.None);
+
+        var result = await repository.MarkFailedAsync(
+            CalendarEventId,
+            PlatformId,
+            " created-broadcast-id ",
+            CancellationToken.None);
+        var publication = await repository.GetAsync(
+            CalendarEventId,
+            PlatformId,
+            CancellationToken.None);
+
+        Assert.Equal(MarkFailedResult.Marked, result);
+        Assert.Equal(PublishStatus.Failed, publication!.Status);
+        Assert.Equal("created-broadcast-id", publication.ExternalResourceId);
+        Assert.Null(publication.PublishedUtc);
+        Assert.Equal("Rendered title", publication.ContentSnapshot!.Title);
+    }
+
+    [Fact]
+    public async Task MarkFailedAsync_MissingRow_ReturnsNotFound()
+    {
+        var repository = CreateRepository(new PlatformPublicationTableClient());
+
+        var result = await repository.MarkFailedAsync(
+            CalendarEventId,
+            PlatformId,
+            externalResourceId: null,
+            CancellationToken.None);
+
+        Assert.Equal(MarkFailedResult.NotFound, result);
+    }
+
+    [Fact]
+    public async Task MarkFailedAsync_PublishedRow_ReturnsChanged()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        tableClient.Seed(PublishedEntity(SchedulingSampleIds.YouTubeBroadcastId));
+        var repository = CreateRepository(tableClient);
+
+        var result = await repository.MarkFailedAsync(
+            CalendarEventId,
+            PlatformId,
+            "other-id",
+            CancellationToken.None);
+
+        Assert.Equal(MarkFailedResult.Changed, result);
+        Assert.Equal(
+            PublishStatus.Published.ToString(),
+            Assert.Single(tableClient.Entities).Value.Status);
+    }
+
+    [Fact]
+    public async Task MarkFailedAsync_ConcurrentChange_ReturnsChanged()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        await CreateRepository(tableClient).StartPublishingAsync(Attempt(), CancellationToken.None);
+        var stored = Assert.Single(tableClient.Entities).Value;
+        tableClient.FailNextUpdateWithPreconditionFailed(stored);
+        var repository = CreateRepository(tableClient);
+
+        var result = await repository.MarkFailedAsync(
+            CalendarEventId,
+            PlatformId,
+            externalResourceId: null,
+            CancellationToken.None);
+
+        Assert.Equal(MarkFailedResult.Changed, result);
+    }
+
+    [Fact]
+    public async Task StartPublishingAsync_FailedRow_ConditionallyStartsRetry()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        tableClient.Seed(PublicationEntity(PublishStatus.Failed, externalResourceId: "old-id"));
+        var repository = CreateRepository(tableClient);
+
+        var first = await repository.StartPublishingAsync(Attempt(), CancellationToken.None);
+        var second = await repository.StartPublishingAsync(Attempt(), CancellationToken.None);
+        var publication = await repository.GetAsync(
+            CalendarEventId,
+            PlatformId,
+            CancellationToken.None);
+
+        Assert.Equal(StartPublicationResult.Started, first);
+        Assert.Equal(StartPublicationResult.Conflict, second);
+        Assert.Equal(PublishStatus.Publishing, publication!.Status);
+        Assert.Null(publication.ExternalResourceId);
+    }
+
+    [Fact]
+    public async Task StartPublishingAsync_FailedRetryPreconditionChanged_ReturnsConflict()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var failed = PublicationEntity(PublishStatus.Failed, externalResourceId: "old-id");
+        tableClient.Seed(failed);
+        tableClient.FailNextUpdateWithPreconditionFailed(failed);
+        var repository = CreateRepository(tableClient);
+
+        var result = await repository.StartPublishingAsync(Attempt(), CancellationToken.None);
+
+        Assert.Equal(StartPublicationResult.Conflict, result);
+        Assert.Equal(PublishStatus.Failed.ToString(), Assert.Single(tableClient.Entities).Value.Status);
+    }
+
+    [Fact]
     public async Task DeletePublishedAsync_MatchingPublishedRow_DeletesAndReturnsDeleted()
     {
         var tableClient = new PlatformPublicationTableClient();
@@ -412,7 +522,9 @@ public class AzurePlatformPublicationRepositoryTests
             PlatformName = "Main YouTube channel",
             PlatformType = PlatformType.YouTube.ToString(),
             Status = status.ToString(),
-            ExternalResourceId = status == PublishStatus.Published ? externalResourceId : null,
+            ExternalResourceId = status is PublishStatus.Published or PublishStatus.Failed
+                ? externalResourceId
+                : null,
             ThumbnailStatus = ThumbnailPublishStatus.NotConfigured.ToString(),
             ContentSnapshotTitle = "Rendered title",
             ContentSnapshotDescription = "Rendered description",

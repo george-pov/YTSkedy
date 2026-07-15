@@ -177,13 +177,17 @@ internal static class PublishSettingsSerializer
     private sealed record YouTubeSnapshot(
         YouTubeCredentialsSnapshot Credentials,
         string PrivacyStatus,
-        bool SelfDeclaredMadeForKids)
+        bool SelfDeclaredMadeForKids,
+        string? CategoryId = null,
+        bool ContainsSyntheticMedia = false)
     {
         internal static YouTubeSnapshot From(YouTubeSettings settings) =>
             new(
                 YouTubeCredentialsSnapshot.From(settings.Credentials),
                 settings.PrivacyStatus,
-                settings.SelfDeclaredMadeForKids);
+                settings.SelfDeclaredMadeForKids,
+                settings.CategoryId,
+                settings.ContainsSyntheticMedia);
     }
 
     private sealed record YouTubeCredentialsSnapshot(
