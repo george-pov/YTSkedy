@@ -28,9 +28,11 @@ public sealed class YouTubePublisher : IPlatformPublisher
 
     public async Task<PlatformPublishResult> PublishAsync(
         PlatformPublishRequest request,
+        IPlatformPublishCheckpoint checkpoint,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(checkpoint);
 
         if (request.PublishSettings is not YouTubeSettings settings)
         {
@@ -53,6 +55,23 @@ public sealed class YouTubePublisher : IPlatformPublisher
             var created = await client.InsertBroadcastAsync(broadcast, cancellationToken);
             broadcastId = created.Id;
             ArgumentException.ThrowIfNullOrWhiteSpace(broadcastId);
+
+            try
+            {
+                await checkpoint.SaveExternalResourceIdAsync(broadcastId, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new PlatformPublishException(
+                    $"YouTube broadcast creation succeeded for calendar event " +
+                    $"'{request.CalendarEventId}', but its id could not be checkpointed.",
+                    broadcastId,
+                    exception);
+            }
 
             var parts = YouTubeVideoUpdateFactory.RequiredParts(settings);
             if (parts.ApiValue is not null)
@@ -83,7 +102,20 @@ public sealed class YouTubePublisher : IPlatformPublisher
 
             return new PlatformPublishResult(broadcastId);
         }
+        catch (OperationCanceledException exception) when (
+            !PublishCancellationClassifier.IsCallerCancellation(exception, cancellationToken))
+        {
+            throw PublishCancellationClassifier.ToPublishException(
+                exception,
+                "YouTube",
+                request.CalendarEventId,
+                broadcastId);
+        }
         catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (PlatformPublishException)
         {
             throw;
         }

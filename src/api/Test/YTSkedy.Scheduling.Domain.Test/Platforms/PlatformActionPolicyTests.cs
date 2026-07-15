@@ -213,6 +213,46 @@ public class PlatformActionPolicyTests
         Assert.Equal(scenario.Expected, actual);
     }
 
+    [Fact]
+    public void CanRecoverPublication_ExactlyStalePublishingRow_ReturnsTrue()
+    {
+        var now = new DateTimeOffset(2026, 7, 15, 12, 0, 0, TimeSpan.Zero);
+
+        var result = PlatformActionPolicy.CanRecoverPublication(
+            PublishStatus.Publishing,
+            isOrphaned: false,
+            isFuture: true,
+            now - TimeSpan.FromMinutes(5),
+            now,
+            TimeSpan.FromMinutes(5));
+
+        Assert.True(result);
+    }
+
+    [Theory]
+    [InlineData(PublishStatus.NotPublished, false, true, -301)]
+    [InlineData(PublishStatus.Published, false, true, -301)]
+    [InlineData(PublishStatus.Failed, false, true, -301)]
+    [InlineData(PublishStatus.Publishing, true, true, -301)]
+    [InlineData(PublishStatus.Publishing, false, false, -301)]
+    [InlineData(PublishStatus.Publishing, false, true, -299)]
+    public void CanRecoverPublication_IneligibleState_ReturnsFalse(
+        PublishStatus status,
+        bool isOrphaned,
+        bool isFuture,
+        int updatedSecondsFromNow)
+    {
+        var now = new DateTimeOffset(2026, 7, 15, 12, 0, 0, TimeSpan.Zero);
+
+        Assert.False(PlatformActionPolicy.CanRecoverPublication(
+            status,
+            isOrphaned,
+            isFuture,
+            now.AddSeconds(updatedSecondsFromNow),
+            now,
+            TimeSpan.FromMinutes(5)));
+    }
+
     public sealed record CanPublishCase(
         string Name,
         PublishStatus Status,

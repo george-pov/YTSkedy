@@ -21,6 +21,7 @@ import {
   describeDeletePublicationError,
   describePreviewError,
   describePublishError,
+  describeRecoverPublicationError,
   platformStatusText,
   thumbnailStatusText,
 } from './calendar-event-platforms.state';
@@ -35,6 +36,9 @@ describe('CalendarEventPlatformsState', () => {
     >;
     deletePlatformPublication: Mock<
       (calendarEventId: string, platformId: string) => Observable<CalendarEventPlatform>
+    >;
+    recoverPlatformPublication: Mock<
+      (calendarEventId: string, platformId: string) => Observable<void>
     >;
     getPublishingContent: Mock<
       (calendarEventId: string, platformId: string) => Observable<EventPlatformPublishingContent>
@@ -57,6 +61,8 @@ describe('CalendarEventPlatformsState', () => {
         >(),
       deletePlatformPublication:
         vi.fn<(calendarEventId: string, platformId: string) => Observable<CalendarEventPlatform>>(),
+      recoverPlatformPublication:
+        vi.fn<(calendarEventId: string, platformId: string) => Observable<void>>(),
       getPublishingContent:
         vi.fn<
           (
@@ -134,6 +140,19 @@ describe('CalendarEventPlatformsState', () => {
       'cannot be previewed',
     );
     expect(describePreviewError(new Error('network'))).toContain('Check your connection');
+
+    expect(describeRecoverPublicationError(new HttpErrorResponse({ status: 403 }))).toContain(
+      'permission',
+    );
+    expect(describeRecoverPublicationError(new HttpErrorResponse({ status: 404 }))).toContain(
+      'Reload',
+    );
+    expect(describeRecoverPublicationError(new HttpErrorResponse({ status: 409 }))).toContain(
+      'Reload',
+    );
+    expect(describeRecoverPublicationError(new Error('network'))).toContain(
+      'Check your connection',
+    );
   });
 
   it('maps all platform statuses to display text', () => {
@@ -201,13 +220,14 @@ describe('CalendarEventPlatformsState', () => {
     state.previewPublishingContent(draftPlatform());
 
     expect(state.previewingPlatformId()).toBe('platform-1');
-    expect(state.hasActiveMutation()).toBe(true);
+    expect(state.hasActiveMutation()).toBe(false);
+    expect(state.hasActiveRequest()).toBe(true);
 
     preview.next({ type: 'Preview', title: 'Rendered title', description: null });
     preview.complete();
 
     expect(state.previewingPlatformId()).toBeNull();
-    expect(state.hasActiveMutation()).toBe(false);
+    expect(state.hasActiveRequest()).toBe(false);
   });
 
   it('maps preview errors onto state', () => {
@@ -393,15 +413,111 @@ describe('CalendarEventPlatformsState', () => {
     expect(notifications.showSuccess).not.toHaveBeenCalled();
   });
 
+  it('does not recover an ineligible publication', () => {
+    state.recoverPlatformPublication(failedPlatform({ canRecoverPublication: false }));
+
+    expect(confirmation.confirm).not.toHaveBeenCalled();
+    expect(service.recoverPlatformPublication).not.toHaveBeenCalled();
+  });
+
+  it('does not recover a publication when confirmation is cancelled', () => {
+    confirmation.confirm.mockReturnValue(of('cancel'));
+
+    state.recoverPlatformPublication(recoverablePlatform());
+
+    expect(confirmation.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'warning',
+        title: 'Mark publication attempt for Main YouTube channel as failed?',
+        body: expect.stringContaining('Verify the event on the publishing platform first.'),
+      }),
+    );
+    expect(service.recoverPlatformPublication).not.toHaveBeenCalled();
+  });
+
+  it('recovers a stale publication and refreshes full event details', () => {
+    confirmation.confirm.mockReturnValue(of('recover'));
+    service.recoverPlatformPublication.mockReturnValue(of(void 0));
+    service.getById.mockReturnValue(of(sampleEvent({ platforms: [failedPlatform()] })));
+
+    state.recoverPlatformPublication(recoverablePlatform());
+
+    expect(service.recoverPlatformPublication).toHaveBeenCalledWith(calendarEventId, 'platform-1');
+    expect(service.getById).toHaveBeenCalledWith(calendarEventId);
+    expect(appliedEvents).toHaveLength(1);
+    expect(state.platforms()).toEqual([failedPlatform()]);
+    expect(notifications.showSuccess).toHaveBeenCalledWith(
+      'Publication attempt marked as failed.',
+    );
+    expect(state.hasActiveMutation()).toBe(false);
+  });
+
+  it.each([404, 409])('maps recovery HTTP %s to reload guidance', (status) => {
+    confirmation.confirm.mockReturnValue(of('recover'));
+    service.recoverPlatformPublication.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status })),
+    );
+
+    state.recoverPlatformPublication(recoverablePlatform());
+
+    expect(state.recoverPublicationErrorMessage()).toBe(
+      'The publication attempt can no longer be recovered. Reload the page and try again.',
+    );
+    expect(state.hasActiveMutation()).toBe(false);
+  });
+
+  it('reports successful recovery when the follow-up details refresh fails', () => {
+    confirmation.confirm.mockReturnValue(of('recover'));
+    service.recoverPlatformPublication.mockReturnValue(of(void 0));
+    service.getById.mockReturnValue(throwError(() => new Error('network')));
+
+    state.recoverPlatformPublication(recoverablePlatform());
+
+    expect(state.recoverPublicationErrorMessage()).toBe(
+      'The publication attempt was marked as failed, but the latest calendar event details could not be loaded. Reload the page.',
+    );
+    expect(notifications.showSuccess).not.toHaveBeenCalled();
+  });
+
+  it('blocks recovery when event changes are pending', () => {
+    pendingEventChanges.set(true);
+
+    state.recoverPlatformPublication(recoverablePlatform());
+
+    expect(confirmation.confirm).not.toHaveBeenCalled();
+    expect(service.recoverPlatformPublication).not.toHaveBeenCalled();
+    expect(state.platformActionBlockedMessage()).toBe(
+      'Save or discard event changes before recovering a publication.',
+    );
+  });
+
+  it('keeps recovery mutually exclusive with another platform request', () => {
+    const recovery = new Subject<void>();
+    confirmation.confirm.mockReturnValue(of('recover'));
+    service.recoverPlatformPublication.mockReturnValue(recovery.asObservable());
+
+    state.recoverPlatformPublication(recoverablePlatform());
+    state.previewPublishingContent(draftPlatform());
+    state.publishPlatform(draftPlatform());
+
+    expect(state.hasActiveMutation()).toBe(true);
+    expect(service.getPublishingContent).not.toHaveBeenCalled();
+    expect(service.publishPlatform).not.toHaveBeenCalled();
+    recovery.error(new Error('network'));
+    expect(state.hasActiveMutation()).toBe(false);
+  });
+
   it('ignores platform actions without an edit event id or while another page mutation is active', () => {
     activePageMutation.set(true);
 
     state.publishPlatform(draftPlatform());
     state.previewPublishingContent(draftPlatform());
     state.deletePlatformPublication(publishedPlatform());
+    state.recoverPlatformPublication(recoverablePlatform());
 
     expect(service.publishPlatform).not.toHaveBeenCalled();
     expect(service.getPublishingContent).not.toHaveBeenCalled();
+    expect(service.recoverPlatformPublication).not.toHaveBeenCalled();
     expect(confirmation.confirm).not.toHaveBeenCalled();
 
     activePageMutation.set(false);
@@ -435,6 +551,21 @@ describe('CalendarEventPlatformsState', () => {
       publishedUtc: null,
       canPublish: true,
       canDeletePublication: false,
+      ...overrides,
+    });
+  }
+
+  function recoverablePlatform(
+    overrides: Partial<CalendarEventPlatform> = {},
+  ): CalendarEventPlatform {
+    return testCalendarEventPlatform({
+      status: 'Publishing',
+      externalResourceId: null,
+      thumbnailStatus: 'NotConfigured',
+      publishedUtc: null,
+      canPublish: false,
+      canDeletePublication: false,
+      canRecoverPublication: true,
       ...overrides,
     });
   }

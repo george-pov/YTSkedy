@@ -14,7 +14,9 @@ internal sealed record EventPlatformResponse(
     string? ExternalResourceId,
     string? ThumbnailStatus,
     DateTimeOffset? PublishedUtc,
+    DateTimeOffset? PublicationUpdatedUtc,
     DateTimeOffset? PlatformDeletedUtc,
     bool CanPublish,
     bool CanDeletePublication,
-    bool CanPreviewPublishingContent);
+    bool CanPreviewPublishingContent,
+    bool CanRecoverPublication);

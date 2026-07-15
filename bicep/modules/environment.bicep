@@ -40,6 +40,15 @@ param authIssuer string
 
 param authRequiredAppRole string
 
+@minValue(1)
+param publicationOperationTimeoutSeconds int
+
+@minValue(1)
+param publicationFinalizationTimeoutSeconds int
+
+@minValue(1)
+param publicationStaleAfterSeconds int
+
 @secure()
 param alertReceiverName string
 
@@ -108,6 +117,9 @@ module functionApp './function-app.bicep' = {
     authClientId: authClientId
     authIssuer: authIssuer
     authRequiredAppRole: authRequiredAppRole
+    publicationOperationTimeoutSeconds: publicationOperationTimeoutSeconds
+    publicationFinalizationTimeoutSeconds: publicationFinalizationTimeoutSeconds
+    publicationStaleAfterSeconds: publicationStaleAfterSeconds
     maximumInstanceCount: maximumInstanceCount
     instanceMemoryMB: instanceMemoryMB
   }

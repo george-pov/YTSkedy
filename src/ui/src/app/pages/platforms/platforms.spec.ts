@@ -1257,6 +1257,43 @@ describe('Platforms', () => {
     expect(await canDeactivate()).toBe(true);
   });
 
+  it('blocks route exit while platform save and delete mutations are active', async () => {
+    const update = new Subject<UpdatePlatformResponse>();
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+    service.update.mockReturnValue(update.asObservable());
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(inputByLabel('Client secret'), 'replacement-client-secret');
+    await submitEditor();
+
+    expect(await canDeactivate()).toBe(false);
+    update.error(new Error('save failed'));
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    const deletion = new Subject<void>();
+    service.delete.mockReturnValue(deletion.asObservable());
+    (
+      fixture.componentInstance as unknown as {
+        deleteSelected(): void;
+      }
+    ).deleteSelected();
+
+    expect(await canDeactivate()).toBe(false);
+    deletion.error(new Error('delete failed'));
+    expect((fixture.componentInstance as unknown as { isDeleting: () => boolean }).isDeleting()).toBe(
+      false,
+    );
+  });
+
+  it('allows route exit while initial platform reads are active', async () => {
+    service.list.mockReturnValue(new Subject<PlatformListResponse>());
+
+    await createComponent();
+
+    expect(await canDeactivate()).toBe(true);
+  });
+
   it('guards row switching until dirty changes are discarded', async () => {
     service.list.mockReturnValue(
       of({
@@ -1347,7 +1384,6 @@ describe('Platforms', () => {
     buttonByText('Delete').click();
     fixture.detectChanges();
     await fixture.whenStable();
-    fixture.detectChanges();
 
     expect(service.delete).not.toHaveBeenCalled();
     expect(editor()).not.toBeNull();

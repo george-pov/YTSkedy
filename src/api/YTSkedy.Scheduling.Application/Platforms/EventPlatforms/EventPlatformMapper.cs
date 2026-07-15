@@ -21,7 +21,8 @@ public static class EventPlatformMapper
         Domain.CalendarEvents.CalendarEventView calendarEvent,
         IReadOnlyList<PlatformView> activePlatforms,
         IReadOnlyList<PlatformPublication> publicationRows,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        TimeSpan staleAfter)
     {
         ArgumentNullException.ThrowIfNull(calendarEvent);
         ArgumentNullException.ThrowIfNull(activePlatforms);
@@ -39,7 +40,7 @@ public static class EventPlatformMapper
 
             items.Add(publication is null
                 ? MapNotPublished(calendarEvent, platform, now)
-                : MapActive(calendarEvent, platform, publication, now));
+                : MapActive(calendarEvent, platform, publication, now, staleAfter));
         }
 
         var activePlatformIds = activePlatforms
@@ -56,7 +57,7 @@ public static class EventPlatformMapper
                 continue;
             }
 
-            items.Add(MapOrphan(calendarEvent, publication, now));
+            items.Add(MapOrphan(calendarEvent, publication, now, staleAfter));
         }
 
         return items;
@@ -95,7 +96,9 @@ public static class EventPlatformMapper
                 status,
                 isOrphaned: false,
                 hasContentSnapshot: true),
-            thumbnailStatus);
+            thumbnailStatus,
+            publishedUtc,
+            CanRecoverPublication: false);
     }
 
     public static EventPlatformView MapNotPublished(
@@ -127,14 +130,17 @@ public static class EventPlatformMapper
                 status,
                 isOrphaned: false,
                 hasContentSnapshot: false),
-            ThumbnailPublicationPolicy.InitialStatusFor(platform.Type));
+            ThumbnailPublicationPolicy.InitialStatusFor(platform.Type),
+            PublicationUpdatedUtc: null,
+            CanRecoverPublication: false);
     }
 
     private static EventPlatformView MapActive(
         Domain.CalendarEvents.CalendarEventView calendarEvent,
         PlatformView platform,
         PlatformPublication publication,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        TimeSpan staleAfter)
     {
         var isFuture = calendarEvent.ScheduledStartUtc > now;
         var hasExternalResourceId = !string.IsNullOrWhiteSpace(publication.ExternalResourceId);
@@ -162,13 +168,22 @@ public static class EventPlatformMapper
                 publication.IsOrphaned,
                 hasContentSnapshot),
             publication.ThumbnailStatus ??
-            ThumbnailPublicationPolicy.InitialStatusFor(platform.Type));
+            ThumbnailPublicationPolicy.InitialStatusFor(platform.Type),
+            publication.UpdatedUtc,
+            PlatformActionPolicy.CanRecoverPublication(
+                publication.Status,
+                publication.IsOrphaned,
+                isFuture,
+                publication.UpdatedUtc,
+                now,
+                staleAfter));
     }
 
     private static EventPlatformView MapOrphan(
         Domain.CalendarEvents.CalendarEventView calendarEvent,
         PlatformPublication publication,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        TimeSpan staleAfter)
     {
         var isFuture = calendarEvent.ScheduledStartUtc > now;
 
@@ -194,6 +209,14 @@ public static class EventPlatformMapper
                 publication.IsOrphaned,
                 publication.ContentSnapshot is not null),
             publication.ThumbnailStatus ??
-            ThumbnailPublicationPolicy.InitialStatusFor(publication.PlatformType));
+            ThumbnailPublicationPolicy.InitialStatusFor(publication.PlatformType),
+            publication.UpdatedUtc,
+            PlatformActionPolicy.CanRecoverPublication(
+                publication.Status,
+                publication.IsOrphaned,
+                isFuture,
+                publication.UpdatedUtc,
+                now,
+                staleAfter));
     }
 }

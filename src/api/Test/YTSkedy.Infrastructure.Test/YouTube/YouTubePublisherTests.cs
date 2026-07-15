@@ -29,8 +29,12 @@ public class YouTubePublisherTests
         var client = new FakePublishClient();
         var factory = new FakePublishClientFactory(client);
         var publisher = CreatePublisher(factory);
+        var checkpoint = new RecordingPublishCheckpoint();
 
-        var result = await publisher.PublishAsync(Request(Settings()), CancellationToken.None);
+        var result = await publisher.PublishAsync(
+            Request(Settings()),
+            checkpoint,
+            CancellationToken.None);
 
         Assert.Equal(BroadcastId, result.ExternalResourceId);
         Assert.Equal("client-id", factory.Credentials!.ClientId);
@@ -40,6 +44,7 @@ public class YouTubePublisherTests
         Assert.Equal("English description", client.InsertedBroadcast.Snippet.Description);
         Assert.Equal(0, client.GetVideoCalls);
         Assert.Equal(0, client.UpdateVideoCalls);
+        Assert.Equal([BroadcastId], checkpoint.ExternalResourceIds);
     }
 
     [Fact]
@@ -53,6 +58,7 @@ public class YouTubePublisherTests
 
         await publisher.PublishAsync(
             Request(Settings("public", "27", containsSyntheticMedia: true)),
+            new RecordingPublishCheckpoint(),
             CancellationToken.None);
 
         Assert.Equal("snippet,status", client.RequestedParts);
@@ -84,10 +90,69 @@ public class YouTubePublisherTests
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
             () => publisher.PublishAsync(
                 Request(Settings(categoryId: "999999")),
+                new RecordingPublishCheckpoint(),
                 CancellationToken.None));
 
         Assert.Equal(BroadcastId, exception.ExternalResourceId);
         Assert.Equal(1, client.UpdateVideoCalls);
+    }
+
+    [Fact]
+    public async Task PublishAsync_CheckpointFailure_StopsLaterMetadataAndCarriesCreatedId()
+    {
+        var client = new FakePublishClient { CurrentVideo = Video() };
+        var publisher = CreatePublisher(client);
+        var checkpoint = new RecordingPublishCheckpoint
+        {
+            Throws = new InvalidOperationException("storage unavailable")
+        };
+
+        var exception = await Assert.ThrowsAsync<PlatformPublishException>(() =>
+            publisher.PublishAsync(
+                Request(Settings(categoryId: "27")),
+                checkpoint,
+                CancellationToken.None));
+
+        Assert.Equal(BroadcastId, exception.ExternalResourceId);
+        Assert.Equal([BroadcastId], checkpoint.ExternalResourceIds);
+        Assert.Equal(0, client.GetVideoCalls);
+        Assert.Equal(0, client.UpdateVideoCalls);
+    }
+
+    [Fact]
+    public async Task PublishAsync_CallerCancellation_PropagatesOriginalCancellation()
+    {
+        using var caller = new CancellationTokenSource();
+        caller.Cancel();
+        var client = new FakePublishClient
+        {
+            InsertThrows = new OperationCanceledException(caller.Token)
+        };
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            CreatePublisher(client).PublishAsync(
+                Request(Settings()),
+                new RecordingPublishCheckpoint(),
+                caller.Token));
+    }
+
+    [Fact]
+    public async Task PublishAsync_DependencyTimeout_IsClassified()
+    {
+        var client = new FakePublishClient
+        {
+            InsertThrows = new TaskCanceledException(
+                "provider timeout",
+                new TimeoutException("deadline"))
+        };
+
+        var exception = await Assert.ThrowsAsync<PlatformPublishException>(() =>
+            CreatePublisher(client).PublishAsync(
+                Request(Settings()),
+                new RecordingPublishCheckpoint(),
+                CancellationToken.None));
+
+        Assert.Equal(PlatformPublishFailureKind.Timeout, exception.FailureKind);
     }
 
     [Fact]
@@ -101,7 +166,10 @@ public class YouTubePublisherTests
         var publisher = CreatePublisher(client, logger);
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
-            () => publisher.PublishAsync(Request(Settings()), CancellationToken.None));
+            () => publisher.PublishAsync(
+                Request(Settings()),
+                new RecordingPublishCheckpoint(),
+                CancellationToken.None));
 
         Assert.Null(exception.ExternalResourceId);
         Assert.DoesNotContain(ClientSecret, logger.Text);
@@ -109,7 +177,7 @@ public class YouTubePublisherTests
     }
 
     [Fact]
-    public async Task PublishAsync_OperationCanceledException_Propagates()
+    public async Task PublishAsync_UnexpectedOperationCanceledException_IsClassified()
     {
         var client = new FakePublishClient
         {
@@ -117,8 +185,13 @@ public class YouTubePublisherTests
         };
         var publisher = CreatePublisher(client);
 
-        await Assert.ThrowsAsync<OperationCanceledException>(
-            () => publisher.PublishAsync(Request(Settings()), CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<PlatformPublishException>(
+            () => publisher.PublishAsync(
+                Request(Settings()),
+                new RecordingPublishCheckpoint(),
+                CancellationToken.None));
+
+        Assert.Equal(PlatformPublishFailureKind.UnexpectedCancellation, exception.FailureKind);
     }
 
     [Fact]
@@ -127,7 +200,10 @@ public class YouTubePublisherTests
         var publisher = CreatePublisher(new FakePublishClient());
 
         await Assert.ThrowsAsync<PlatformPublishException>(
-            () => publisher.PublishAsync(Request(new OtherSettings()), CancellationToken.None));
+            () => publisher.PublishAsync(
+                Request(new OtherSettings()),
+                new RecordingPublishCheckpoint(),
+                CancellationToken.None));
     }
 
     private static YouTubePublisher CreatePublisher(

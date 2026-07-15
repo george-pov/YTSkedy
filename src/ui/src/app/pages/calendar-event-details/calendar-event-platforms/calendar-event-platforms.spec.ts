@@ -31,6 +31,9 @@ describe('CalendarEventPlatforms', () => {
     deletePlatformPublication: Mock<
       (calendarEventId: string, platformId: string) => Observable<CalendarEventPlatform>
     >;
+    recoverPlatformPublication: Mock<
+      (calendarEventId: string, platformId: string) => Observable<void>
+    >;
     getPublishingContent: Mock<
       (calendarEventId: string, platformId: string) => Observable<EventPlatformPublishingContent>
     >;
@@ -51,6 +54,8 @@ describe('CalendarEventPlatforms', () => {
         >(),
       deletePlatformPublication:
         vi.fn<(calendarEventId: string, platformId: string) => Observable<CalendarEventPlatform>>(),
+      recoverPlatformPublication:
+        vi.fn<(calendarEventId: string, platformId: string) => Observable<void>>(),
       getPublishingContent:
         vi.fn<
           (
@@ -314,6 +319,30 @@ describe('CalendarEventPlatforms', () => {
     );
   });
 
+  it('shows recovery only for a backend-eligible publication', async () => {
+    state.applyEventDetails(
+      sampleEvent({
+        platforms: [
+          recoverablePlatform(),
+          recoverablePlatform({
+            platformId: 'platform-2',
+            platformName: 'Recent attempt',
+            canRecoverPublication: false,
+          }),
+        ],
+      }),
+    );
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(platformRecoverPublicationHosts()).toHaveLength(1);
+    expect(platformRecoverPublicationButton()?.getAttribute('aria-label')).toBe(
+      'Mark publication attempt as failed for Main YouTube channel',
+    );
+  });
+
   function createState(): CalendarEventPlatformsState {
     return new CalendarEventPlatformsState(
       service as unknown as CalendarEventsService,
@@ -357,6 +386,16 @@ describe('CalendarEventPlatforms', () => {
     return platformDeletePublicationHosts()[0]?.querySelector('button') ?? null;
   }
 
+  function platformRecoverPublicationHosts(): HTMLElement[] {
+    return Array.from(
+      fixture.nativeElement.querySelectorAll('.platform-recover-publication-button'),
+    ) as HTMLElement[];
+  }
+
+  function platformRecoverPublicationButton(): HTMLButtonElement | null {
+    return platformRecoverPublicationHosts()[0]?.querySelector('button') ?? null;
+  }
+
   function draftPlatform(overrides: Partial<CalendarEventPlatform> = {}): CalendarEventPlatform {
     return testCalendarEventPlatform({
       status: 'NotPublished',
@@ -373,6 +412,21 @@ describe('CalendarEventPlatforms', () => {
     overrides: Partial<CalendarEventPlatform> = {},
   ): CalendarEventPlatform {
     return testCalendarEventPlatform(overrides);
+  }
+
+  function recoverablePlatform(
+    overrides: Partial<CalendarEventPlatform> = {},
+  ): CalendarEventPlatform {
+    return testCalendarEventPlatform({
+      status: 'Publishing',
+      externalResourceId: null,
+      thumbnailStatus: 'NotConfigured',
+      publishedUtc: null,
+      canPublish: false,
+      canDeletePublication: false,
+      canRecoverPublication: true,
+      ...overrides,
+    });
   }
 
   function sampleEvent(

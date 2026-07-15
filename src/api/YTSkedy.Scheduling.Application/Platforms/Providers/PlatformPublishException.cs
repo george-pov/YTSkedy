@@ -12,12 +12,20 @@ namespace YTSkedy.Scheduling.Application.Platforms.Providers;
 public sealed class PlatformPublishException : Exception
 {
     public PlatformPublishException(string message)
-        : this(message, externalResourceId: null, innerException: null)
+        : this(
+            message,
+            externalResourceId: null,
+            PlatformPublishFailureKind.ProviderFailure,
+            innerException: null)
     {
     }
 
     public PlatformPublishException(string message, Exception innerException)
-        : this(message, externalResourceId: null, innerException)
+        : this(
+            message,
+            externalResourceId: null,
+            PlatformPublishFailureKind.ProviderFailure,
+            innerException)
     {
     }
 
@@ -25,12 +33,28 @@ public sealed class PlatformPublishException : Exception
         string message,
         string? externalResourceId,
         Exception? innerException = null)
+        : this(
+            message,
+            externalResourceId,
+            PlatformPublishFailureKind.ProviderFailure,
+            innerException)
+    {
+    }
+
+    public PlatformPublishException(
+        string message,
+        string? externalResourceId,
+        PlatformPublishFailureKind failureKind,
+        Exception? innerException = null)
         : base(message, innerException)
     {
         ExternalResourceId = string.IsNullOrWhiteSpace(externalResourceId)
             ? null
             : externalResourceId.Trim();
+        FailureKind = failureKind;
     }
 
     public string? ExternalResourceId { get; }
+
+    public PlatformPublishFailureKind FailureKind { get; }
 }

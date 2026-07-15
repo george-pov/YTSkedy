@@ -30,6 +30,35 @@ public sealed class HttpDtoJsonTests
     }
 
     [Fact]
+    public void EventPlatformResponse_SerializesRecoveryFieldsAdditively()
+    {
+        var updatedUtc = new DateTimeOffset(2026, 7, 15, 20, 0, 0, TimeSpan.Zero);
+        var response = new EventPlatformResponse(
+            "platform-id",
+            "Main channel",
+            "YouTube",
+            "Publishing",
+            null,
+            "NotConfigured",
+            null,
+            updatedUtc,
+            null,
+            CanPublish: false,
+            CanDeletePublication: false,
+            CanPreviewPublishingContent: true,
+            CanRecoverPublication: true);
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+        using var document = JsonDocument.Parse(json);
+
+        Assert.Equal(
+            updatedUtc,
+            document.RootElement.GetProperty("publicationUpdatedUtc").GetDateTimeOffset());
+        Assert.True(document.RootElement.GetProperty("canRecoverPublication").GetBoolean());
+        Assert.Equal("Publishing", document.RootElement.GetProperty("status").GetString());
+    }
+
+    [Fact]
     public void CreateCalendarEventRequest_InternalDto_DeserializesWithWebDefaults()
     {
         const string json = """

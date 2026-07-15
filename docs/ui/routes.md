@@ -124,12 +124,24 @@ response. Actions use the backend row flags documented by the
   warning that tells the operator to verify the event on the publishing
   platform and delete it there if necessary before retrying. A successful retry
   refreshes the full event details.
+- An eligible stale `Publishing` row shows `Mark as failed` only when the
+  backend returns `canRecoverPublication: true`. The warning requires provider
+  verification and states that only the local attempt becomes `Failed`; it does
+  not claim the provider resource is absent or delete it. Success refreshes the
+  details. `404` and `409` responses direct the operator to reload.
 - Publish `502` errors show the same operator verification guidance. A
   publication-delete response with code `publication_target_mismatch` shows
   `YTSkedy cannot delete this publication because the platform settings no
   longer match the target used to create it. Restore the original platform
   target and try again.` Other delete conflicts keep the generic reload
   guidance.
+
+Normal route deactivation is denied while create, update, delete, thumbnail,
+publish, publication-delete, or stale-recovery mutations are active. Preview,
+initial load, and other reads do not block navigation and retain
+destroyed-component cancellation. Successful create, delete, and
+upload-after-create flows clear their mutation state before application-driven
+navigation.
 
 Delete is available only in edit mode and follows backend `canDelete`. Pending
 form changes are resolved before the delete confirmation opens. Successful

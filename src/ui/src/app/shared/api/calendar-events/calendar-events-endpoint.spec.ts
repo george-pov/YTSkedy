@@ -4,6 +4,7 @@ import {
   calendarEventDefaultStartUrl,
   calendarEventThumbnailUrl,
   publishingContentUrl,
+  recoverPlatformPublicationUrl,
 } from './calendar-events-endpoint';
 
 describe('calendar events endpoint helpers', () => {
@@ -31,5 +32,17 @@ describe('calendar events endpoint helpers', () => {
     );
 
     expect(url).toBe('https://api.example.test/api/calendar-events/event%2Fid/thumbnail');
+  });
+
+  it('builds the recovery URL with encoded event and platform ids', () => {
+    const url = recoverPlatformPublicationUrl(
+      { baseUrl: 'https://api.example.test/' },
+      'event/id',
+      'platform id',
+    );
+
+    expect(url).toBe(
+      'https://api.example.test/api/calendar-events/event%2Fid/platforms/platform%20id/publication/recover',
+    );
   });
 });

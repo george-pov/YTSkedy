@@ -12,6 +12,7 @@ import {
   deletePlatformPublicationUrl,
   publishingContentUrl,
   publishPlatformUrl,
+  recoverPlatformPublicationUrl,
 } from './calendar-events-endpoint';
 
 export type CalendarEventPlatformStatus = 'NotPublished' | 'Publishing' | 'Published' | 'Failed';
@@ -60,10 +61,12 @@ export interface CalendarEventPlatform {
   externalResourceId: string | null;
   thumbnailStatus: ThumbnailPublishStatus | null;
   publishedUtc: string | null;
+  publicationUpdatedUtc: string | null;
   platformDeletedUtc: string | null;
   canPublish: boolean;
   canDeletePublication: boolean;
   canPreviewPublishingContent: boolean;
+  canRecoverPublication: boolean;
 }
 
 export interface EventPlatformPublishingContent {
@@ -223,6 +226,16 @@ export class CalendarEventsService {
   ): Observable<CalendarEventPlatform> {
     return this.http.delete<CalendarEventPlatform>(
       deletePlatformPublicationUrl(this.appConfig.api, calendarEventId, platformId),
+    );
+  }
+
+  recoverPlatformPublication(
+    calendarEventId: string,
+    platformId: string,
+  ): Observable<void> {
+    return this.http.post<void>(
+      recoverPlatformPublicationUrl(this.appConfig.api, calendarEventId, platformId),
+      {},
     );
   }
 

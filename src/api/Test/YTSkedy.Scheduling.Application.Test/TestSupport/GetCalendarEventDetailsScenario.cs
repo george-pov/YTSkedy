@@ -1,5 +1,6 @@
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.TestSupport;
@@ -49,6 +50,10 @@ internal sealed class GetCalendarEventDetailsScenario
             new FakePlatformReader(Platforms),
             new FakePlatformPublicationReader(Publications),
             new FixedTimeProvider(Now),
-            new FakeThumbnailReader(Thumbnail));
+            new FakeThumbnailReader(Thumbnail),
+            new PublicationExecutionSettings(
+                TimeSpan.FromMinutes(2),
+                TimeSpan.FromSeconds(15),
+                TimeSpan.FromMinutes(5)));
     }
 }

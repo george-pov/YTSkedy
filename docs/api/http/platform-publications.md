@@ -1,7 +1,7 @@
 # Platform Publications HTTP Contract
 
 Canonical HTTP contract for platform publication state, publishing-content
-preview, publish, and publication deletion.
+preview, publish, stale-attempt recovery, and publication deletion.
 
 ## Authorization
 
@@ -31,16 +31,19 @@ documents the item fields and the `status` / `canPublish` / orphan-history
 semantics). Each row also carries `canDeletePublication`, the backend-computed
 flag that tells clients whether the platform publication can be deleted, and
 `canPreviewPublishingContent`, the backend-computed flag that tells clients
-whether row-level publishing content can be read. There is no separate
-event-platform listing endpoint.
+whether row-level publishing content can be read. `publicationUpdatedUtc` is the
+last authoritative row update time, and `canRecoverPublication` is the only
+client authority for showing stale-attempt recovery. Clients must not calculate
+staleness from browser time. There is no separate event-platform listing
+endpoint.
 
 Publication status values are:
 
 - `NotPublished`: no publication row exists for the pair.
 - `Publishing`: one request owns the transient conditional-write guard.
 - `Published`: required provider work and local finalization succeeded.
-- `Failed`: a caught started non-cancellation failure was recorded for operator
-  verification and explicit retry. A known provider id may be present.
+- `Failed`: a handled started failure was recorded for operator verification
+  and explicit retry. A known provider id may be present.
 
 ## Get Platform Publishing Content
 
@@ -130,6 +133,11 @@ description, stored UTC scheduled start, and
 `selfDeclaredMadeForKids`. The broadcast id also identifies its matching video
 resource.
 
+Immediately after insert returns an id, YTSkedy conditionally checkpoints that
+id on the `Publishing` row. The checkpoint occurs before any `videos.list` or
+`videos.update` call. A checkpoint failure stops later provider work and the
+bounded failure finalizer receives the known id.
+
 The backend then determines whether the configured `categoryId`,
 `containsSyntheticMedia`, or final `privacyStatus` requires `videos.update`.
 Null category, false disclosure, and private final privacy require no video
@@ -161,9 +169,10 @@ property in submitted order. When the array is empty, the backend omits
 WordPress can accept a stale positive ID while silently dropping that category,
 so a successful create status alone does not prove category assignment. The
 numeric WordPress post id is returned as the provider-neutral
-`externalResourceId`. A local `Published` row means the provider resource was
-created; YTSkedy does not track the later WordPress transition from `future` to
-`publish`.
+`externalResourceId`. YTSkedy checkpoints the id after parsing a valid create
+response and before returning provider success. A local `Published` row means
+the provider resource was created; YTSkedy does not track the later WordPress
+transition from `future` to `publish`.
 
 YouTube success response (`200 OK`):
 
@@ -176,10 +185,12 @@ YouTube success response (`200 OK`):
   "externalResourceId": "abc123youtubeid",
   "thumbnailStatus": "Applied",
   "publishedUtc": "2026-06-22T12:00:00+00:00",
+  "publicationUpdatedUtc": "2026-06-22T12:00:00+00:00",
   "platformDeletedUtc": null,
   "canPublish": false,
   "canDeletePublication": true,
-  "canPreviewPublishingContent": true
+  "canPreviewPublishingContent": true,
+  "canRecoverPublication": false
 }
 ```
 
@@ -194,10 +205,12 @@ WordPress success response (`200 OK`):
   "externalResourceId": "123",
   "thumbnailStatus": null,
   "publishedUtc": "2026-06-22T12:00:00+00:00",
+  "publicationUpdatedUtc": "2026-06-22T12:00:00+00:00",
   "platformDeletedUtc": null,
   "canPublish": false,
   "canDeletePublication": true,
-  "canPreviewPublishingContent": true
+  "canPreviewPublishingContent": true,
+  "canRecoverPublication": false
 }
 ```
 
@@ -213,10 +226,12 @@ as:
   "externalResourceId": "abc123youtubeid",
   "thumbnailStatus": "NotConfigured",
   "publishedUtc": null,
+  "publicationUpdatedUtc": "2026-06-22T12:00:05+00:00",
   "platformDeletedUtc": null,
   "canPublish": true,
   "canDeletePublication": false,
-  "canPreviewPublishingContent": true
+  "canPreviewPublishingContent": true,
+  "canRecoverPublication": false
 }
 ```
 
@@ -245,7 +260,7 @@ Status codes:
 - `409 Conflict` when a scheduled WordPress post's computed `date_gmt` is not
   still in the future at publish time.
 - `501 Not Implemented` when no provider adapter serves the platform type.
-- `502 Bad Gateway` when a caught started non-cancellation failure is recorded
+- `502 Bad Gateway` when a handled started failure is recorded
   as `Failed`. The response body is the fixed secret-safe message `Publishing
   failed. Verify the event on the publishing platform and delete it if
   necessary before retrying.`
@@ -263,10 +278,19 @@ verify the event on the publishing platform and delete any uncertain provider
 resource when necessary. YTSkedy does not automatically delete provider
 resources after publish failure.
 
-Request cancellation propagates immediately without a detached cleanup or
-fallback state write. Cancellation after a provider write can therefore leave
-a stale `Publishing` row or an unrecorded provider resource that requires
-manual reconciliation.
+Reads and publish preflight honor request cancellation. Immediately before the
+conditional start write, the handler checks the request token and switches to a
+server-owned operation token bounded by the configured deadline and Functions
+host shutdown. Client disconnect after that boundary does not cancel provider
+work. Every final-state write gets a fresh short deadline. Handled started
+attempts therefore reach `Published` or `Failed`; failure to record either emits
+Critical telemetry and returns `500`.
+
+Hard process termination can still interrupt before finalization and leave
+`Publishing`. Provider operation timeout, host shutdown, and unexpected
+provider cancellation are recorded as distinct cancellation sources. No
+provider write is automatically retried and no uncertain provider resource is
+automatically deleted.
 
 For YouTube rows, `thumbnailStatus` is:
 
@@ -280,6 +304,40 @@ For YouTube rows, `thumbnailStatus` is:
 A thumbnail failure leaves publication status `Published` and does not add a
 publish retry. Operators recover by updating the thumbnail in YouTube Studio.
 WordPress rows return `thumbnailStatus: null`.
+
+## Recover Stale Publishing Attempt
+
+```text
+POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication/recover
+```
+
+Requires `CalendarEvents.Write` and the operator role. The request body is
+empty. Use this route only when the calendar event details row returns
+`canRecoverPublication: true`.
+
+The backend computes eligibility from authoritative UTC time. The row must be
+an active, non-orphan `Publishing` attempt for a future event, and its
+`publicationUpdatedUtc` must be at least the configured stale interval old. The
+handler passes the exact observed update time to an ETag-conditional writer.
+Recovery changes only local `Status` to `Failed` and `UpdatedUtc`; it preserves
+the provider id, target snapshot, content snapshot, thumbnail state, created
+time, and published time.
+
+Before recovery, the operator must verify the provider for a resource or
+partial write. Recovery never checks, deletes, or promises the absence of a
+provider resource.
+
+Status codes:
+
+- `204 No Content` when the exact stale row becomes `Failed`.
+- `404 Not Found` when the calendar event, active platform, or publication row
+  is missing.
+- `409 Conflict` when the platform was deleted, the event is no longer future,
+  the row is not `Publishing`, the attempt is not stale, or the row changed
+  before the conditional write.
+
+A repeated request after success returns `409 Conflict` and performs no second
+mutation. Reload calendar event details after any `404` or `409`.
 
 ## Delete Platform Publication
 
@@ -327,10 +385,12 @@ same shape as `GET /api/calendar-events/{calendarEventId}`:
   "externalResourceId": null,
   "thumbnailStatus": "NotConfigured",
   "publishedUtc": null,
+  "publicationUpdatedUtc": null,
   "platformDeletedUtc": null,
   "canPublish": true,
   "canDeletePublication": false,
-  "canPreviewPublishingContent": true
+  "canPreviewPublishingContent": true,
+  "canRecoverPublication": false
 }
 ```
 

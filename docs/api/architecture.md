@@ -124,9 +124,19 @@ platform uses these states:
   provider.
 
 Provider adapters report a known external id when a later required step fails.
-The application records `Failed` and does not automatically delete provider
-resources. Cancellation propagates immediately and does not start detached
-cleanup. This means interrupted work can require manual reconciliation.
+YouTube checkpoints the broadcast id immediately after insert, before optional
+video metadata work. WordPress checkpoints its validated post id before
+returning success. The application records handled started failures as `Failed`
+and does not automatically retry or delete provider resources.
+
+Reads and publish preflight honor the HTTP request token. Immediately before
+`StartPublishingAsync`, the handler checks that token once and switches to a
+server-owned operation token bounded by the publication deadline and host
+shutdown. Every final-state write receives a fresh short deadline. A client
+disconnect after start therefore does not own the provider attempt. Hard
+process termination can still interrupt finalization and leave `Publishing`.
+An authenticated operator can recover an eligible stale row to `Failed` through
+an exact timestamp and ETag conditional write after verifying the provider.
 
 For YouTube, the infrastructure adapter owns the multi-step contract. It
 creates the scheduled broadcast privately, performs a conditional

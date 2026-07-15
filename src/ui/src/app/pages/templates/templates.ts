@@ -100,7 +100,11 @@ export class Templates implements OnInit, PendingChangesAware {
   }
 
   canDeactivateWithPendingChanges(): boolean | Observable<boolean> {
-    if (!this.hasPendingTemplateChanges() || this.isSaving() || this.isDeleting()) {
+    if (this.isSaving() || this.isDeleting()) {
+      return false;
+    }
+
+    if (!this.hasPendingTemplateChanges()) {
       return true;
     }
 

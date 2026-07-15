@@ -15,5 +15,6 @@ public interface IPlatformPublisher : IPlatformTypeAdapter
 {
     Task<PlatformPublishResult> PublishAsync(
         PlatformPublishRequest request,
+        IPlatformPublishCheckpoint checkpoint,
         CancellationToken cancellationToken);
 }

@@ -198,7 +198,11 @@ export class CalendarEventDetailsState {
   }
 
   canDeactivateWithPendingChanges(): boolean | Observable<boolean> {
-    if (!this.draft.hasPendingChanges() || this.hasActiveMutation()) {
+    if (this.hasActiveMutation()) {
+      return false;
+    }
+
+    if (!this.draft.hasPendingChanges()) {
       return true;
     }
 
@@ -287,6 +291,8 @@ export class CalendarEventDetailsState {
       )
       .subscribe({
         next: (result) => {
+          this._isSubmitting.set(false);
+          this.draft.markSaved(this.draft.updateRequest());
           this.options.notifications.showSuccess('Calendar event created.');
           if (result.thumbnailErrorMessage !== null) {
             this.options.router.navigateByUrl(calendarEventEditPath(result.calendarEventId), {
@@ -338,6 +344,8 @@ export class CalendarEventDetailsState {
       )
       .subscribe({
         next: () => {
+          this._isDeleting.set(false);
+          this.draft.markSaved(this.draft.updateRequest());
           this.options.notifications.showSuccess('Calendar event deleted.');
           this.options.router.navigateByUrl('/calendar-events');
         },
@@ -347,6 +355,8 @@ export class CalendarEventDetailsState {
 
   private applyDeleteError(error: unknown): void {
     if (error instanceof HttpErrorResponse && error.status === 404) {
+      this._isDeleting.set(false);
+      this.draft.markSaved(this.draft.updateRequest());
       this._deleteErrorMessage.set(null);
       this.options.notifications.showSuccess('Calendar event no longer exists.');
       this.options.router.navigateByUrl('/calendar-events');

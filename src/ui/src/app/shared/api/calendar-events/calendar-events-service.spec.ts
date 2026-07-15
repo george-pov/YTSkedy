@@ -230,10 +230,12 @@ describe('CalendarEventsService', () => {
           externalResourceId: 'uncertain-broadcast-id',
           thumbnailStatus: 'NotConfigured',
           publishedUtc: null,
+          publicationUpdatedUtc: '2026-07-06T11:55:00+00:00',
           platformDeletedUtc: null,
           canPublish: true,
           canDeletePublication: false,
           canPreviewPublishingContent: true,
+          canRecoverPublication: false,
         },
       ],
     };
@@ -369,10 +371,12 @@ describe('CalendarEventsService', () => {
       externalResourceId: 'broadcast-123',
       thumbnailStatus: 'Applied',
       publishedUtc: '2026-06-15T17:30:00+00:00',
+      publicationUpdatedUtc: '2026-06-15T17:30:00+00:00',
       platformDeletedUtc: null,
       canPublish: false,
       canDeletePublication: true,
       canPreviewPublishingContent: true,
+      canRecoverPublication: false,
     };
 
     let actualResponse: PublishPlatformResponse | undefined;
@@ -403,10 +407,12 @@ describe('CalendarEventsService', () => {
       externalResourceId: null,
       thumbnailStatus: 'NotConfigured',
       publishedUtc: null,
+      publicationUpdatedUtc: null,
       platformDeletedUtc: null,
       canPublish: true,
       canDeletePublication: false,
       canPreviewPublishingContent: true,
+      canRecoverPublication: false,
     };
 
     let actualResponse: CalendarEventPlatform | undefined;
@@ -425,6 +431,22 @@ describe('CalendarEventsService', () => {
     request.flush(apiResponse);
 
     expect(actualResponse).toEqual(apiResponse);
+  });
+
+  it('posts an empty body to recover a stale platform publication', () => {
+    let completed = false;
+    service
+      .recoverPlatformPublication('event/id', 'platform id')
+      .subscribe({ complete: () => (completed = true) });
+
+    const request = http.expectOne(
+      'https://api.example.test/api/calendar-events/event%2Fid/platforms/platform%20id/publication/recover',
+    );
+
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
+    request.flush(null);
+    expect(completed).toBe(true);
   });
 
   it('gets row-level publishing content for an event platform', () => {

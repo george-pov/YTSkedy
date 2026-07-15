@@ -24,6 +24,7 @@ public sealed class EndpointScopeTests
         new(typeof(DeletePlatformPublicationApi), nameof(DeletePlatformPublicationApi.DeleteAsync), "DeletePlatformPublication", "CalendarEvents.Write"),
         new(typeof(GetPublishingContentApi), nameof(GetPublishingContentApi.GetAsync), "GetPublishingContent", "CalendarEvents.Read"),
         new(typeof(PublishEventPlatformApi), nameof(PublishEventPlatformApi.PublishAsync), "PublishEventPlatform", "CalendarEvents.Write"),
+        new(typeof(RecoverPlatformPublicationApi), nameof(RecoverPlatformPublicationApi.RecoverAsync), "RecoverPlatformPublication", "CalendarEvents.Write"),
         new(typeof(PlatformsApi), nameof(PlatformsApi.ListPlatformsAsync), "ListPlatforms", "CalendarEvents.Read"),
         new(typeof(PlatformsApi), nameof(PlatformsApi.GetPlatformAsync), "GetPlatform", "CalendarEvents.Read"),
         new(typeof(PlatformsApi), nameof(PlatformsApi.CreatePlatformAsync), "CreatePlatform", "CalendarEvents.Write"),

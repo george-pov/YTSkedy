@@ -65,6 +65,7 @@ public sealed class GetCalendarEventDetailsResponseTests
     {
         var publishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
         var deletedUtc = new DateTimeOffset(2026, 6, 23, 9, 0, 0, TimeSpan.Zero);
+        var publicationUpdatedUtc = new DateTimeOffset(2026, 6, 22, 11, 55, 0, TimeSpan.Zero);
         var views = new[]
         {
             new EventPlatformView(
@@ -78,7 +79,9 @@ public sealed class GetCalendarEventDetailsResponseTests
                 CanPublish: true,
                 CanDeletePublication: false,
                 CanPreviewPublishingContent: true,
-                ThumbnailStatus: ThumbnailPublishStatus.NotConfigured),
+                ThumbnailStatus: ThumbnailPublishStatus.NotConfigured,
+                PublicationUpdatedUtc: publicationUpdatedUtc,
+                CanRecoverPublication: true),
             new EventPlatformView(
                 OrphanPlatformId,
                 "Old channel",
@@ -114,10 +117,12 @@ public sealed class GetCalendarEventDetailsResponseTests
         Assert.Null(active.ExternalResourceId);
         Assert.Equal("NotConfigured", active.ThumbnailStatus);
         Assert.Null(active.PublishedUtc);
+        Assert.Equal(publicationUpdatedUtc, active.PublicationUpdatedUtc);
         Assert.Null(active.PlatformDeletedUtc);
         Assert.True(active.CanPublish);
         Assert.False(active.CanDeletePublication);
         Assert.True(active.CanPreviewPublishingContent);
+        Assert.True(active.CanRecoverPublication);
 
         var orphan = response.Platforms[1];
         Assert.Equal(OrphanPlatformId, orphan.PlatformId);
@@ -129,6 +134,7 @@ public sealed class GetCalendarEventDetailsResponseTests
         Assert.False(orphan.CanPublish);
         Assert.False(orphan.CanDeletePublication);
         Assert.True(orphan.CanPreviewPublishingContent);
+        Assert.False(orphan.CanRecoverPublication);
     }
 
     [Fact]
@@ -166,6 +172,7 @@ public sealed class GetCalendarEventDetailsResponseTests
     public void ToEventPlatformResponse_PublishedView_MapsResourceAndTimestamps()
     {
         var publishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
+        var publicationUpdatedUtc = new DateTimeOffset(2026, 6, 22, 12, 1, 0, TimeSpan.Zero);
         var view = new EventPlatformView(
             PlatformId,
             "Main YouTube channel",
@@ -177,7 +184,9 @@ public sealed class GetCalendarEventDetailsResponseTests
             CanPublish: false,
             CanDeletePublication: true,
             CanPreviewPublishingContent: true,
-            ThumbnailStatus: ThumbnailPublishStatus.Applied);
+            ThumbnailStatus: ThumbnailPublishStatus.Applied,
+            PublicationUpdatedUtc: publicationUpdatedUtc,
+            CanRecoverPublication: false);
 
         var response = CalendarEventsApi.ToEventPlatformResponse(view);
 
@@ -185,10 +194,12 @@ public sealed class GetCalendarEventDetailsResponseTests
         Assert.Equal("abc123youtubeid", response.ExternalResourceId);
         Assert.Equal("Applied", response.ThumbnailStatus);
         Assert.Equal(publishedUtc, response.PublishedUtc);
+        Assert.Equal(publicationUpdatedUtc, response.PublicationUpdatedUtc);
         Assert.Null(response.PlatformDeletedUtc);
         Assert.False(response.CanPublish);
         Assert.True(response.CanDeletePublication);
         Assert.True(response.CanPreviewPublishingContent);
+        Assert.False(response.CanRecoverPublication);
     }
 
     [Fact]

@@ -481,6 +481,242 @@ public class AzurePlatformPublicationRepositoryTests
         Assert.Equal(DeletePublishedResult.Changed, result);
     }
 
+    [Fact]
+    public async Task SaveExternalResourceIdAsync_PublishingRow_ConditionallyStoresId()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var entity = PublicationEntity(PublishStatus.Publishing);
+        entity.UpdatedUtc = entity.UpdatedUtc.AddMinutes(-1);
+        tableClient.Seed(entity);
+        var repository = CreateRepository(tableClient);
+
+        var result = await repository.SaveExternalResourceIdAsync(
+            CalendarEventId,
+            PlatformId,
+            " checkpoint-id ",
+            CancellationToken.None);
+
+        Assert.Equal(SaveExternalResourceIdResult.Saved, result);
+        var stored = Assert.Single(tableClient.Entities).Value;
+        Assert.Equal("checkpoint-id", stored.ExternalResourceId);
+        Assert.Equal(new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero), stored.UpdatedUtc);
+        Assert.Equal("Rendered title", stored.ContentSnapshotTitle);
+        Assert.Equal(entity.PublishSettingsJson, stored.PublishSettingsJson);
+    }
+
+    [Fact]
+    public async Task SaveExternalResourceIdAsync_MissingRow_ReturnsNotFound()
+    {
+        var repository = CreateRepository(new PlatformPublicationTableClient());
+
+        var result = await repository.SaveExternalResourceIdAsync(
+            CalendarEventId,
+            PlatformId,
+            "checkpoint-id",
+            CancellationToken.None);
+
+        Assert.Equal(SaveExternalResourceIdResult.NotFound, result);
+    }
+
+    [Theory]
+    [InlineData(PublishStatus.Published)]
+    [InlineData(PublishStatus.Failed)]
+    public async Task SaveExternalResourceIdAsync_NonPublishingRow_ReturnsChanged(
+        PublishStatus status)
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        tableClient.Seed(PublicationEntity(status));
+        var repository = CreateRepository(tableClient);
+
+        var result = await repository.SaveExternalResourceIdAsync(
+            CalendarEventId,
+            PlatformId,
+            "checkpoint-id",
+            CancellationToken.None);
+
+        Assert.Equal(SaveExternalResourceIdResult.Changed, result);
+    }
+
+    [Fact]
+    public async Task SaveExternalResourceIdAsync_OrphanPublishingRow_ReturnsChanged()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var entity = PublicationEntity(PublishStatus.Publishing);
+        entity.PlatformDeletedUtc = entity.UpdatedUtc;
+        tableClient.Seed(entity);
+
+        var result = await CreateRepository(tableClient).SaveExternalResourceIdAsync(
+            CalendarEventId,
+            PlatformId,
+            "checkpoint-id",
+            CancellationToken.None);
+
+        Assert.Equal(SaveExternalResourceIdResult.Changed, result);
+    }
+
+    [Fact]
+    public async Task SaveExternalResourceIdAsync_EtagRace_ReturnsChanged()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var entity = PublicationEntity(PublishStatus.Publishing);
+        tableClient.Seed(entity);
+        tableClient.FailNextUpdateWithPreconditionFailed(entity);
+
+        var result = await CreateRepository(tableClient).SaveExternalResourceIdAsync(
+            CalendarEventId,
+            PlatformId,
+            "checkpoint-id",
+            CancellationToken.None);
+
+        Assert.Equal(SaveExternalResourceIdResult.Changed, result);
+    }
+
+    [Fact]
+    public async Task SaveExternalResourceIdAsync_RepeatedSameId_RemainsSaved()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var entity = PublicationEntity(PublishStatus.Publishing);
+        entity.ExternalResourceId = "checkpoint-id";
+        tableClient.Seed(entity);
+
+        var result = await CreateRepository(tableClient).SaveExternalResourceIdAsync(
+            CalendarEventId,
+            PlatformId,
+            "checkpoint-id",
+            CancellationToken.None);
+
+        Assert.Equal(SaveExternalResourceIdResult.Saved, result);
+        Assert.Equal("checkpoint-id", Assert.Single(tableClient.Entities).Value.ExternalResourceId);
+    }
+
+    [Fact]
+    public async Task SaveExternalResourceIdAsync_ConflictingId_ReturnsChangedAndPreservesCheckpoint()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var entity = PublicationEntity(PublishStatus.Publishing);
+        entity.ExternalResourceId = "first-id";
+        tableClient.Seed(entity);
+
+        var result = await CreateRepository(tableClient).SaveExternalResourceIdAsync(
+            CalendarEventId,
+            PlatformId,
+            "different-id",
+            CancellationToken.None);
+
+        Assert.Equal(SaveExternalResourceIdResult.Changed, result);
+        Assert.Equal("first-id", Assert.Single(tableClient.Entities).Value.ExternalResourceId);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("different-id")]
+    public async Task MarkFailedAsync_CheckpointExists_PreservesCheckpointAndSnapshots(
+        string? failureId)
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var entity = PublicationEntity(PublishStatus.Publishing);
+        entity.ExternalResourceId = "checkpoint-id";
+        entity.ThumbnailStatus = ThumbnailPublishStatus.Failed.ToString();
+        tableClient.Seed(entity);
+
+        var result = await CreateRepository(tableClient).MarkFailedAsync(
+            CalendarEventId,
+            PlatformId,
+            failureId,
+            CancellationToken.None);
+
+        Assert.Equal(MarkFailedResult.Marked, result);
+        var stored = Assert.Single(tableClient.Entities).Value;
+        Assert.Equal("checkpoint-id", stored.ExternalResourceId);
+        Assert.Equal(PublishStatus.Failed.ToString(), stored.Status);
+        Assert.Equal(entity.PublishSettingsJson, stored.PublishSettingsJson);
+        Assert.Equal(entity.ContentSnapshotTitle, stored.ContentSnapshotTitle);
+        Assert.Equal(entity.ContentSnapshotDescription, stored.ContentSnapshotDescription);
+        Assert.Equal(ThumbnailPublishStatus.Failed.ToString(), stored.ThumbnailStatus);
+    }
+
+    [Fact]
+    public async Task RecoverStalePublishingAsync_ObservedRow_ChangesOnlyStatusAndUpdatedUtc()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var entity = PublicationEntity(PublishStatus.Publishing);
+        entity.ExternalResourceId = "checkpoint-id";
+        entity.UpdatedUtc = entity.UpdatedUtc.AddMinutes(-10);
+        var observedUpdatedUtc = entity.UpdatedUtc;
+        tableClient.Seed(entity);
+
+        var result = await CreateRepository(tableClient).RecoverStalePublishingAsync(
+            CalendarEventId,
+            PlatformId,
+            observedUpdatedUtc,
+            CancellationToken.None);
+
+        Assert.Equal(RecoverStalePublishingResult.Recovered, result);
+        var stored = Assert.Single(tableClient.Entities).Value;
+        Assert.Equal(PublishStatus.Failed.ToString(), stored.Status);
+        Assert.Equal("checkpoint-id", stored.ExternalResourceId);
+        Assert.Equal(entity.CreatedUtc, stored.CreatedUtc);
+        Assert.Equal(entity.PublishedUtc, stored.PublishedUtc);
+        Assert.Equal(entity.PublishSettingsJson, stored.PublishSettingsJson);
+        Assert.Equal(entity.ContentSnapshotTitle, stored.ContentSnapshotTitle);
+    }
+
+    [Fact]
+    public async Task RecoverStalePublishingAsync_UpdatedUtcChanged_ReturnsChanged()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var entity = PublicationEntity(PublishStatus.Publishing);
+        tableClient.Seed(entity);
+
+        var result = await CreateRepository(tableClient).RecoverStalePublishingAsync(
+            CalendarEventId,
+            PlatformId,
+            entity.UpdatedUtc.AddSeconds(-1),
+            CancellationToken.None);
+
+        Assert.Equal(RecoverStalePublishingResult.Changed, result);
+    }
+
+    [Fact]
+    public async Task RecoverStalePublishingAsync_EtagRace_ReturnsChanged()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var entity = PublicationEntity(PublishStatus.Publishing);
+        tableClient.Seed(entity);
+        tableClient.FailNextUpdateWithPreconditionFailed(entity);
+
+        var result = await CreateRepository(tableClient).RecoverStalePublishingAsync(
+            CalendarEventId,
+            PlatformId,
+            entity.UpdatedUtc,
+            CancellationToken.None);
+
+        Assert.Equal(RecoverStalePublishingResult.Changed, result);
+    }
+
+    [Fact]
+    public async Task RecoverStalePublishingAsync_RepeatedRecovery_ReturnsChanged()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var entity = PublicationEntity(PublishStatus.Publishing);
+        tableClient.Seed(entity);
+        var repository = CreateRepository(tableClient);
+
+        var first = await repository.RecoverStalePublishingAsync(
+            CalendarEventId,
+            PlatformId,
+            entity.UpdatedUtc,
+            CancellationToken.None);
+        var second = await repository.RecoverStalePublishingAsync(
+            CalendarEventId,
+            PlatformId,
+            entity.UpdatedUtc,
+            CancellationToken.None);
+
+        Assert.Equal(RecoverStalePublishingResult.Recovered, first);
+        Assert.Equal(RecoverStalePublishingResult.Changed, second);
+    }
+
     private static AzurePlatformPublicationRepository CreateRepository(
         PlatformPublicationTableClient tableClient) =>
         new(tableClient, new FixedTimeProvider(

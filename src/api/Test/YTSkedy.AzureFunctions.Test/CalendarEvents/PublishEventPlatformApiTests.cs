@@ -37,10 +37,12 @@ public sealed class PublishEventPlatformApiTests
         Assert.Equal("yt-broadcast-id", body.ExternalResourceId);
         Assert.Equal("Applied", body.ThumbnailStatus);
         Assert.Equal(publishedUtc, body.PublishedUtc);
+        Assert.Equal(publishedUtc, body.PublicationUpdatedUtc);
         Assert.Null(body.PlatformDeletedUtc);
         Assert.False(body.CanPublish);
         Assert.True(body.CanDeletePublication);
         Assert.True(body.CanPreviewPublishingContent);
+        Assert.False(body.CanRecoverPublication);
     }
 
     [Fact]
@@ -63,10 +65,12 @@ public sealed class PublishEventPlatformApiTests
         Assert.Equal("123", body.ExternalResourceId);
         Assert.Null(body.ThumbnailStatus);
         Assert.Equal(publishedUtc, body.PublishedUtc);
+        Assert.Equal(publishedUtc, body.PublicationUpdatedUtc);
         Assert.Null(body.PlatformDeletedUtc);
         Assert.False(body.CanPublish);
         Assert.True(body.CanDeletePublication);
         Assert.True(body.CanPreviewPublishingContent);
+        Assert.False(body.CanRecoverPublication);
     }
 
     [Theory]
@@ -157,5 +161,7 @@ public sealed class PublishEventPlatformApiTests
             CanPreviewPublishingContent: true,
             ThumbnailStatus: platformType == PlatformType.YouTube
                 ? ThumbnailPublishStatus.Applied
-                : null));
+                : null,
+            PublicationUpdatedUtc: publishedUtc,
+            CanRecoverPublication: false));
 }

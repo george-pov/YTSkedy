@@ -418,6 +418,43 @@ describe('Templates', () => {
     expect(await canDeactivate()).toBe(true);
   });
 
+  it('blocks route exit while template save and delete mutations are active', async () => {
+    const update = new Subject<UpdateTemplateResponse>();
+    service.list.mockReturnValue(of({ templates: [template()] }));
+    service.update.mockReturnValue(update.asObservable());
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(contentTextarea(), 'Changed content');
+    await submitEditor();
+
+    expect(await canDeactivate()).toBe(false);
+    update.error(new Error('save failed'));
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    const deletion = new Subject<void>();
+    service.delete.mockReturnValue(deletion.asObservable());
+    (
+      fixture.componentInstance as unknown as {
+        deleteSelected(): void;
+      }
+    ).deleteSelected();
+
+    expect(await canDeactivate()).toBe(false);
+    deletion.error(new Error('delete failed'));
+    expect((fixture.componentInstance as unknown as { isDeleting: () => boolean }).isDeleting()).toBe(
+      false,
+    );
+  });
+
+  it('allows route exit while the initial template read is active', async () => {
+    service.list.mockReturnValue(new Subject<TemplateListResponse>());
+
+    await createComponent();
+
+    expect(await canDeactivate()).toBe(true);
+  });
+
   it('guards row switching until dirty changes are discarded', async () => {
     service.list.mockReturnValue(
       of({

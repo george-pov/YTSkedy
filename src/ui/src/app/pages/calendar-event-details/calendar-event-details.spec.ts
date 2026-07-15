@@ -67,6 +67,7 @@ describe('CalendarEventDetails', () => {
     delete: Mock<(id: string) => Observable<void>>;
     publishPlatform: Mock;
     deletePlatformPublication: Mock;
+    recoverPlatformPublication: Mock;
     getPublishingContent: Mock;
     uploadThumbnail: Mock;
     getThumbnail: Mock;
@@ -88,6 +89,7 @@ describe('CalendarEventDetails', () => {
       delete: vi.fn(),
       publishPlatform: vi.fn(),
       deletePlatformPublication: vi.fn(),
+      recoverPlatformPublication: vi.fn(),
       getPublishingContent: vi.fn(),
       uploadThumbnail: vi.fn(),
       getThumbnail: vi.fn(),
@@ -244,6 +246,40 @@ describe('CalendarEventDetails', () => {
     expect(service.getById).toHaveBeenCalledTimes(2);
     expect(startDateInput().disabled).toBe(true);
     expect(deleteButton().disabled).toBe(true);
+  });
+
+  it('recovers an eligible publication through the child state and refreshes details', () => {
+    const recovering = testCalendarEventPlatform({
+      status: 'Publishing',
+      externalResourceId: null,
+      publishedUtc: null,
+      canPublish: false,
+      canDeletePublication: false,
+      canRecoverPublication: true,
+    });
+    const failed = testCalendarEventPlatform({
+      status: 'Failed',
+      externalResourceId: null,
+      publishedUtc: null,
+      canPublish: true,
+      canDeletePublication: false,
+      canRecoverPublication: false,
+    });
+    service.getById
+      .mockReturnValueOnce(of(testCalendarEventDetails({ platforms: [recovering] })))
+      .mockReturnValueOnce(of(testCalendarEventDetails({ platforms: [failed] })));
+    service.recoverPlatformPublication.mockReturnValue(of(void 0));
+    confirmation.confirm.mockReturnValue(of('recover'));
+    createComponent(calendarEventId);
+
+    fixture.nativeElement.querySelector('.platform-recover-publication-button button').click();
+    fixture.detectChanges();
+
+    expect(service.recoverPlatformPublication).toHaveBeenCalledWith(calendarEventId, 'platform-1');
+    expect(service.getById).toHaveBeenCalledTimes(2);
+    expect(notifications.showSuccess).toHaveBeenCalledWith(
+      'Publication attempt marked as failed.',
+    );
   });
 
   it('renders load failures without the form', () => {

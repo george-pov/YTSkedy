@@ -428,10 +428,12 @@ public sealed class CalendarEventsApi(
             view.ExternalResourceId,
             view.ThumbnailStatus?.ToString(),
             view.PublishedUtc,
+            view.PublicationUpdatedUtc,
             view.PlatformDeletedUtc,
             view.CanPublish,
             view.CanDeletePublication,
-            view.CanPreviewPublishingContent);
+            view.CanPreviewPublishingContent,
+            view.CanRecoverPublication);
     }
 
     private static string ToSortString(CalendarEventSortField sort) =>

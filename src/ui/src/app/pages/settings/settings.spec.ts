@@ -347,6 +347,30 @@ describe('Settings', () => {
     );
   });
 
+  it('blocks route exit while settings save is active and clears the flag on error', async () => {
+    const update = new Subject<CalendarEventDefaultsResponse>();
+    service.update.mockReturnValue(update.asObservable());
+    await createComponent();
+    await setValue(inputAt(0), 'Changed title');
+
+    await submit();
+
+    expect(await canDeactivate()).toBe(false);
+    update.error(new Error('save failed'));
+    expect(
+      (fixture.componentInstance as unknown as { isSavingSettings: () => boolean })
+        .isSavingSettings(),
+    ).toBe(false);
+  });
+
+  it('allows route exit while the initial settings read is active', async () => {
+    service.get.mockReturnValue(new Subject<CalendarEventDefaultsResponse>());
+
+    await createComponent();
+
+    expect(await canDeactivate()).toBe(true);
+  });
+
   it('Cancel restores both settings sections after confirmation', async () => {
     confirmation.confirm.mockReturnValue(of('discard'));
     await createComponent();

@@ -12,6 +12,7 @@ public sealed class EventPlatformMapperTests
 
     private static readonly DateTimeOffset Now =
         new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(5);
 
     [Fact]
     public void Project_ActivePlatformWithoutRow_ComputesNotPublished()
@@ -19,7 +20,7 @@ public sealed class EventPlatformMapperTests
         var calendarEvent = CreateEvent();
         var platform = CreatePlatform(PlatformId, "Main channel");
 
-        var result = EventPlatformMapper.Map(calendarEvent, [platform], [], Now);
+        var result = EventPlatformMapper.Map(calendarEvent, [platform], [], Now, StaleAfter);
 
         var item = Assert.Single(result);
         Assert.Equal(PlatformId, item.PlatformId);
@@ -50,7 +51,8 @@ public sealed class EventPlatformMapperTests
             calendarEvent,
             [platform],
             [publication],
-            Now);
+            Now,
+            StaleAfter);
 
         var item = Assert.Single(result);
         Assert.Equal(PublishStatus.Published, item.Status);
@@ -78,7 +80,8 @@ public sealed class EventPlatformMapperTests
             calendarEvent,
             [platform],
             [publication],
-            Now);
+            Now,
+            StaleAfter);
 
         var item = Assert.Single(result);
         Assert.False(item.CanPublish);
@@ -102,7 +105,8 @@ public sealed class EventPlatformMapperTests
             calendarEvent,
             [platform],
             [publication],
-            Now));
+            Now,
+            StaleAfter));
 
         Assert.Equal(PublishStatus.Failed, item.Status);
         Assert.Equal("uncertain-provider-id", item.ExternalResourceId);
@@ -130,7 +134,8 @@ public sealed class EventPlatformMapperTests
             calendarEvent,
             [activePlatform],
             [orphan],
-            Now);
+            Now,
+            StaleAfter);
 
         Assert.Equal(2, result.Count);
 
@@ -187,6 +192,30 @@ public sealed class EventPlatformMapperTests
         Assert.Equal(ThumbnailPublishStatus.Applied, result.ThumbnailStatus);
     }
 
+    [Fact]
+    public void Project_StalePublishingRow_ExposesBackendRecoveryFields()
+    {
+        var updatedUtc = Now - StaleAfter;
+        var publication = CreatePublication(
+            PlatformId,
+            "Main channel",
+            PublishStatus.Publishing,
+            contentSnapshot: new ContentSnapshot("Stored title", null),
+            updatedUtc: updatedUtc);
+
+        var item = Assert.Single(EventPlatformMapper.Map(
+            CreateEvent(),
+            [CreatePlatform(PlatformId, "Main channel")],
+            [publication],
+            Now,
+            StaleAfter));
+
+        Assert.Equal(updatedUtc, item.PublicationUpdatedUtc);
+        Assert.True(item.CanRecoverPublication);
+        Assert.False(item.CanPublish);
+        Assert.True(item.CanPreviewPublishingContent);
+    }
+
     private static CalendarEventView CreateEvent(DateTimeOffset? scheduledStartUtc = null) =>
         ApplicationTestData.CalendarEvent(
             calendarEventId: CalendarEventId,
@@ -213,7 +242,8 @@ public sealed class EventPlatformMapperTests
         string? externalResourceId = null,
         DateTimeOffset? publishedUtc = null,
         DateTimeOffset? platformDeletedUtc = null,
-        ContentSnapshot? contentSnapshot = null) =>
+        ContentSnapshot? contentSnapshot = null,
+        DateTimeOffset? updatedUtc = null) =>
         ApplicationTestData.Publication(
             status,
             calendarEventId: CalendarEventId,
@@ -222,5 +252,6 @@ public sealed class EventPlatformMapperTests
             externalResourceId: externalResourceId,
             publishedUtc: publishedUtc,
             platformDeletedUtc: platformDeletedUtc,
-            contentSnapshot: contentSnapshot);
+            contentSnapshot: contentSnapshot,
+            updatedUtc: updatedUtc ?? Now);
 }

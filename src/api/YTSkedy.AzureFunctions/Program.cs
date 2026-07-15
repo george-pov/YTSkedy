@@ -5,10 +5,13 @@ using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Logging;
 using YTSkedy.AzureFunctions.Auth;
 using YTSkedy.AzureFunctions.Configuration;
+using YTSkedy.AzureFunctions.Http;
+using YTSkedy.AzureFunctions.Platforms.Publications;
 using YTSkedy.Infrastructure.CalendarEvents;
 using YTSkedy.Infrastructure.Platforms;
 using YTSkedy.Infrastructure.Settings;
@@ -38,6 +41,7 @@ IdentityModelEventSource.LogCompleteSecurityArtifact = false;
 
 builder.ConfigureFunctionsWebApplication();
 
+builder.UseMiddleware<RequestCancellationMiddleware>();
 builder.UseMiddleware<BearerTokenMiddleware>();
 builder.UseMiddleware<AuthorizationMiddleware>();
 
@@ -50,6 +54,18 @@ builder.Services
     .Bind(builder.Configuration.GetSection(AuthOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+
+builder.Services
+    .AddOptions<PublicationExecutionOptions>()
+    .Bind(builder.Configuration.GetSection(PublicationExecutionOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddSingleton(serviceProvider =>
+    serviceProvider
+        .GetRequiredService<IOptions<PublicationExecutionOptions>>()
+        .Value
+        .ToSettings());
+builder.Services.AddSingleton<IPublishExecutionScopeFactory, PublishExecutionScopeFactory>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -224,7 +240,14 @@ builder.Services.AddScoped<IPlatformPublicationReader>(
 // Platform provider adapters are selected by platform type and use settings
 // stored on the platform row.
 const string wordPressHttpClientName = "YTSkedy.WordPress";
-builder.Services.AddHttpClient(wordPressHttpClientName);
+builder.Services.AddHttpClient(
+    wordPressHttpClientName,
+    (serviceProvider, client) =>
+    {
+        client.Timeout = serviceProvider
+            .GetRequiredService<PublicationExecutionSettings>()
+            .OperationTimeout;
+    });
 builder.Services.AddSingleton(serviceProvider =>
     new WordPressEndpointResolver(
         serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(wordPressHttpClientName),
@@ -262,6 +285,7 @@ builder.Services.AddSingleton<IPlatformTypeAdapterSelector<IThumbnailPublisher>,
 builder.Services.AddScoped<PublicationThumbnailApplier>();
 builder.Services.AddScoped<PublicationIndexUpdater>();
 builder.Services.AddScoped<PublishHandler>();
+builder.Services.AddScoped<RecoverPublicationHandler>();
 
 // Platform publication cleanup: providers are selected by platform type and use
 // current settings stored on the platform row.

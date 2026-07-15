@@ -69,8 +69,10 @@ Cross-boundary rules:
   through the calendar event details read model. An active future `Failed` row
   is retryable after operator verification, may retain an external resource id,
   exposes its stored content snapshot, and cannot use normal publication
-  delete. Details do not include the list aggregate and continue to use
-  authoritative publication rows.
+  delete. A row also exposes `publicationUpdatedUtc` and the backend-computed
+  `canRecoverPublication` flag. Clients must not calculate staleness. Details do
+  not include the list aggregate and continue to use authoritative publication
+  rows.
 - Calendar event update requests include both `start` and `texts`. The backend
   owns scheduled-start conversion, invalid/repeated local-time validation,
   publication-lock enforcement, and best-effort duplicate scheduled-start
@@ -204,14 +206,25 @@ HTTP routes.
 - YouTube SDK types, WordPress REST DTOs, and provider credential handling stay
   inside `YTSkedy.Infrastructure`.
 - Publishing uses `IPlatformPublisher` selected by platform type.
+- Reads and publish preflight use the HTTP request token. Immediately before the
+  conditional `Publishing` write, the handler switches to a server-owned
+  operation token bounded by configuration and host shutdown. Final-state
+  writes use fresh, independently bounded tokens.
 - YouTube publication creates a private scheduled broadcast first. When
   category, disclosure, or final visibility requires a video update, the
   adapter reads only the included mutable parts, preserves their values, and
   applies YTSkedy-owned values before the local row becomes `Published`.
-- Caught started non-cancellation failures are recorded as `Failed` without
-  automatic provider deletion. A known external id is retained for operator
-  verification, and retry conditionally replaces only that failed row with the
-  transient `Publishing` concurrency guard.
+- YouTube checkpoints the broadcast id immediately after insert and before
+  later video metadata work. WordPress checkpoints the post id after validating
+  the create response. Checkpoint and final-state writes are conditional.
+- Handled started failures, including bounded cancellation, are recorded as
+  `Failed` without automatic provider deletion. A known external id is retained
+  for operator verification, and retry conditionally replaces only that failed
+  row with the transient `Publishing` concurrency guard.
+- Hard termination may still leave `Publishing`. Recovery is an explicit
+  authenticated write based on backend-computed age and an exact
+  timestamp-plus-ETag conditional transition. It never deletes a provider
+  resource.
 - Thumbnail application uses `IThumbnailPublisher` selected by platform type.
 - Publication cleanup uses `IPlatformPublicationDeleter` selected by platform
   type.

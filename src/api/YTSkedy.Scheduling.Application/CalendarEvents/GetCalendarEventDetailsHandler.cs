@@ -18,7 +18,8 @@ public sealed class GetCalendarEventDetailsHandler(
     IPlatformReader platforms,
     IPlatformPublicationReader publications,
     TimeProvider timeProvider,
-    ICalendarEventThumbnailReader thumbnails)
+    ICalendarEventThumbnailReader thumbnails,
+    PublicationExecutionSettings publicationExecutionSettings)
 {
     public async Task<CalendarEventDetailsView?> HandleAsync(
         string calendarEventId,
@@ -48,6 +49,7 @@ public sealed class GetCalendarEventDetailsHandler(
                 calendarEvent,
                 activePlatforms,
                 publicationRows,
-                timeProvider.GetUtcNow()));
+                timeProvider.GetUtcNow(),
+                publicationExecutionSettings.StaleAfter));
     }
 }

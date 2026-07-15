@@ -49,7 +49,8 @@ internal static class PublishHandlerScenario
         IThumbnailPublisher? thumbnailPublisher = null,
         FakeCalendarEventPublicationIndexWriter? publicationIndex = null,
         ILogger<PublishHandler>? logger = null,
-        ILogger<PublicationIndexUpdater>? publicationIndexLogger = null)
+        ILogger<PublicationIndexUpdater>? publicationIndexLogger = null,
+        IPublishExecutionScopeFactory? executionScopes = null)
     {
         var publicationRepository = repository ?? new PublishFakePublicationRepository();
         var publicationIndexWriter = publicationIndex ?? new FakeCalendarEventPublicationIndexWriter();
@@ -75,6 +76,7 @@ internal static class PublishHandlerScenario
                     thumbnailPublisher is null ? [] : [thumbnailPublisher]),
                 NullLogger<PublicationThumbnailApplier>.Instance),
             new PublishingContentRenderer(templates ?? DefaultTemplateReader()),
+            executionScopes ?? new PublishFakeExecutionScopeFactory(),
             new FixedTimeProvider(Now),
             logger ?? NullLogger<PublishHandler>.Instance);
     }
@@ -185,6 +187,20 @@ internal sealed class PublishFakePublicationRepository :
 
     public bool MarkFailedCalled { get; private set; }
 
+    public SaveExternalResourceIdResult SaveExternalResourceIdOutcome { get; init; } =
+        SaveExternalResourceIdResult.Saved;
+
+    public Exception? CheckpointThrows { get; init; }
+
+    public RecoverStalePublishingResult RecoverStalePublishingOutcome { get; init; } =
+        RecoverStalePublishingResult.Recovered;
+
+    public bool SaveExternalResourceIdCalled { get; private set; }
+
+    public bool RecoverStalePublishingCalled { get; private set; }
+
+    public DateTimeOffset? RecoveredExpectedUpdatedUtc { get; private set; }
+
     public bool MarkThumbnailAppliedCalled { get; private set; }
 
     public bool MarkThumbnailFailedCalled { get; private set; }
@@ -195,12 +211,21 @@ internal sealed class PublishFakePublicationRepository :
 
     public PlatformPublicationAttempt? StartedAttempt { get; private set; }
 
+    public CancellationToken StartToken { get; private set; }
+
+    public CancellationToken CheckpointToken { get; private set; }
+
+    public CancellationToken MarkPublishedToken { get; private set; }
+
+    public CancellationToken MarkFailedToken { get; private set; }
+
     public Task<StartPublicationResult> StartPublishingAsync(
         PlatformPublicationAttempt attempt,
         CancellationToken cancellationToken)
     {
         Started = StartResult == StartPublicationResult.Started;
         StartedAttempt = attempt;
+        StartToken = cancellationToken;
 
         return Task.FromResult(StartResult);
     }
@@ -215,6 +240,33 @@ internal sealed class PublishFakePublicationRepository :
         return Task.CompletedTask;
     }
 
+    public Task<SaveExternalResourceIdResult> SaveExternalResourceIdAsync(
+        string calendarEventId,
+        string platformId,
+        string externalResourceId,
+        CancellationToken cancellationToken)
+    {
+        SaveExternalResourceIdCalled = true;
+        CheckpointToken = cancellationToken;
+        if (CheckpointThrows is not null)
+        {
+            throw CheckpointThrows;
+        }
+
+        return Task.FromResult(SaveExternalResourceIdOutcome);
+    }
+
+    public Task<RecoverStalePublishingResult> RecoverStalePublishingAsync(
+        string calendarEventId,
+        string platformId,
+        DateTimeOffset expectedUpdatedUtc,
+        CancellationToken cancellationToken)
+    {
+        RecoverStalePublishingCalled = true;
+        RecoveredExpectedUpdatedUtc = expectedUpdatedUtc;
+        return Task.FromResult(RecoverStalePublishingOutcome);
+    }
+
     public Task<DateTimeOffset?> MarkPublishedAsync(
         string calendarEventId,
         string platformId,
@@ -222,6 +274,7 @@ internal sealed class PublishFakePublicationRepository :
         CancellationToken cancellationToken)
     {
         MarkPublishedCalled = true;
+        MarkPublishedToken = cancellationToken;
         MarkedExternalResourceId = externalResourceId;
 
         if (MarkPublishedThrows is not null)
@@ -239,6 +292,7 @@ internal sealed class PublishFakePublicationRepository :
         CancellationToken cancellationToken)
     {
         MarkFailedCalled = true;
+        MarkFailedToken = cancellationToken;
         FailedExternalResourceId = externalResourceId;
 
         if (MarkFailedThrows is not null)
@@ -290,20 +344,84 @@ internal sealed class PublishFakePublisher : IPlatformPublisher
 
     public PlatformPublishRequest? Request { get; private set; }
 
+    public Action? OnPublish { get; init; }
+
+    public CancellationToken CancellationToken { get; private set; }
+
     public PlatformType Type => _type;
 
     public Task<PlatformPublishResult> PublishAsync(
         PlatformPublishRequest request,
+        IPlatformPublishCheckpoint checkpoint,
         CancellationToken cancellationToken)
     {
         Request = request;
+        CancellationToken = cancellationToken;
+        OnPublish?.Invoke();
 
         if (Throws is not null)
         {
             throw Throws;
         }
 
-        return Task.FromResult(Result ?? _result ?? new PlatformPublishResult("yt-broadcast-id"));
+        var result = Result ?? _result ?? new PlatformPublishResult("yt-broadcast-id");
+        return PublishAndCheckpointAsync(result, checkpoint, cancellationToken);
+    }
+
+    private static async Task<PlatformPublishResult> PublishAndCheckpointAsync(
+        PlatformPublishResult result,
+        IPlatformPublishCheckpoint checkpoint,
+        CancellationToken cancellationToken)
+    {
+        await checkpoint.SaveExternalResourceIdAsync(
+            result.ExternalResourceId,
+            cancellationToken);
+        return result;
+    }
+}
+
+internal sealed class PublishFakeExecutionScopeFactory : IPublishExecutionScopeFactory
+{
+    public PublishFakeExecutionScope Scope { get; } = new();
+
+    public bool CreateCalled { get; private set; }
+
+    public IPublishExecutionScope Create()
+    {
+        CreateCalled = true;
+        return Scope;
+    }
+}
+
+internal sealed class PublishFakeExecutionScope : IPublishExecutionScope
+{
+    public CancellationToken OperationToken { get; set; }
+
+    public PublishCancellationSource CancellationSource { get; set; } =
+        PublishCancellationSource.Unexpected;
+
+    public Exception? FinalizationThrows { get; set; }
+
+    public CancellationToken FinalizationToken { get; set; }
+
+    public int FinalizationCalls { get; private set; }
+
+    public PublishCancellationSource ClassifyCancellation() => CancellationSource;
+
+    public async Task<TResult> RunFinalizationAsync<TResult>(
+        Func<CancellationToken, Task<TResult>> action)
+    {
+        FinalizationCalls++;
+        if (FinalizationThrows is not null)
+        {
+            throw FinalizationThrows;
+        }
+
+        return await action(FinalizationToken);
+    }
+
+    public void Dispose()
+    {
     }
 }
 

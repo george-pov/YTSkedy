@@ -37,6 +37,7 @@ describe('CalendarEventDetailsState', () => {
       delete: vi.fn().mockReturnValue(of(undefined)),
       publishPlatform: vi.fn(),
       deletePlatformPublication: vi.fn(),
+      recoverPlatformPublication: vi.fn(),
       getPublishingContent: vi.fn(),
       uploadThumbnail: vi.fn(),
       getThumbnail: vi.fn(),
@@ -124,6 +125,10 @@ describe('CalendarEventDetailsState', () => {
 
   it('validates and creates an event before navigating to the list', () => {
     const state = createState();
+    router.navigateByUrl.mockImplementation(() => {
+      expect(state.canDeactivateWithPendingChanges()).toBe(true);
+      return Promise.resolve(true);
+    });
     state.initialize();
     fillValidDraft(state);
 
@@ -252,12 +257,51 @@ describe('CalendarEventDetailsState', () => {
     expect(await firstValueFrom(decision as Observable<boolean>)).toBe(false);
   });
 
+  it('denies route deactivation while create and update mutations are active', () => {
+    const create = new Subject<{ calendarEventId: string }>();
+    calendarEvents['create'].mockReturnValue(create.asObservable());
+    const creating = createState();
+    creating.initialize();
+    fillValidDraft(creating);
+    creating.submit();
+
+    expect(creating.canDeactivateWithPendingChanges()).toBe(false);
+
+    calendarEvents['getById'].mockReturnValue(of(testEvent()));
+    const update = new Subject<{ calendarEventId: string }>();
+    calendarEvents['update'].mockReturnValue(update.asObservable());
+    const updating = createState('event-1');
+    updating.initialize();
+    updating.draft.form.texts[0].value().value.set('Changed');
+    updating.submit();
+
+    expect(updating.canDeactivateWithPendingChanges()).toBe(false);
+
+    create.error(new Error('create failed'));
+    update.error(new Error('update failed'));
+    expect(creating.hasActiveMutation()).toBe(false);
+    expect(updating.hasActiveMutation()).toBe(false);
+  });
+
+  it('allows route deactivation while an initial details read is active', () => {
+    calendarEvents['getById'].mockReturnValue(new Subject<CalendarEventDetailsResponse>());
+    const state = createState('event-1');
+
+    state.initialize();
+
+    expect(state.canDeactivateWithPendingChanges()).toBe(true);
+  });
+
   it('deletes after confirmation and treats a missing event as success', () => {
     calendarEvents['getById'].mockReturnValue(of(testEvent()));
     calendarEvents['delete'].mockReturnValue(
       throwError(() => new HttpErrorResponse({ status: 404 })),
     );
     const state = createState('event-1');
+    router.navigateByUrl.mockImplementation(() => {
+      expect(state.canDeactivateWithPendingChanges()).toBe(true);
+      return Promise.resolve(true);
+    });
     state.initialize();
 
     state.deleteEvent();

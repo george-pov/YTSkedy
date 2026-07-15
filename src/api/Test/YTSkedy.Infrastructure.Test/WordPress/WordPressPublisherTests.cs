@@ -208,8 +208,12 @@ public class WordPressPublisherTests
             return JsonResponse("""{"id":74}""");
         });
         var publisher = CreatePublisher(handler);
+        var checkpoint = new RecordingPublishCheckpoint();
 
-        var result = await publisher.PublishAsync(Request(), CancellationToken.None);
+        var result = await publisher.PublishAsync(
+            Request(),
+            checkpoint,
+            CancellationToken.None);
 
         Assert.Equal("74", result.ExternalResourceId);
         Assert.NotNull(capturedRequest);
@@ -219,6 +223,7 @@ public class WordPressPublisherTests
             capturedRequest.RequestUri!.ToString());
         Assert.Equal("Basic", capturedRequest.Headers.Authorization!.Scheme);
         AssertDiscoveryRequestsAreAnonymous(handler);
+        Assert.Equal(["74"], checkpoint.ExternalResourceIds);
     }
 
     [Fact]
@@ -332,13 +337,67 @@ public class WordPressPublisherTests
     }
 
     [Fact]
-    public async Task PublishAsync_OperationCanceledException_Propagates()
+    public async Task PublishAsync_UnexpectedOperationCanceledException_IsClassified()
     {
         var handler = new FakeHttpMessageHandler(_ => throw new OperationCanceledException());
         var publisher = CreatePublisher(handler);
 
-        await Assert.ThrowsAsync<OperationCanceledException>(
+        var exception = await Assert.ThrowsAsync<PlatformPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
+
+        Assert.Equal(PlatformPublishFailureKind.UnexpectedCancellation, exception.FailureKind);
+    }
+
+    [Fact]
+    public async Task PublishAsync_CheckpointFailure_CarriesParsedPostId()
+    {
+        var handler = PrettyRoot(_ => JsonResponse("""{"id":74}"""));
+        var checkpoint = new RecordingPublishCheckpoint
+        {
+            Throws = new InvalidOperationException("storage unavailable")
+        };
+
+        var exception = await Assert.ThrowsAsync<PlatformPublishException>(() =>
+            CreatePublisher(handler).PublishAsync(
+                Request(),
+                checkpoint,
+                CancellationToken.None));
+
+        Assert.Equal("74", exception.ExternalResourceId);
+        Assert.Equal(["74"], checkpoint.ExternalResourceIds);
+    }
+
+    [Fact]
+    public async Task PublishAsync_CallerCancellation_PropagatesOriginalCancellation()
+    {
+        using var caller = new CancellationTokenSource();
+        caller.Cancel();
+        var handler = new FakeHttpMessageHandler(
+            _ => throw new OperationCanceledException(caller.Token));
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            CreatePublisher(handler).PublishAsync(
+                Request(),
+                new RecordingPublishCheckpoint(),
+                caller.Token));
+    }
+
+    [Fact]
+    public async Task PublishAsync_DependencyTimeout_IsClassifiedWithoutRetry()
+    {
+        var handler = new FakeHttpMessageHandler(_ =>
+            throw new TaskCanceledException(
+                "provider timeout",
+                new TimeoutException("deadline")));
+
+        var exception = await Assert.ThrowsAsync<PlatformPublishException>(() =>
+            CreatePublisher(handler).PublishAsync(
+                Request(),
+                new RecordingPublishCheckpoint(),
+                CancellationToken.None));
+
+        Assert.Equal(PlatformPublishFailureKind.Timeout, exception.FailureKind);
+        Assert.Equal(1, handler.CallCount);
     }
 
     [Fact]

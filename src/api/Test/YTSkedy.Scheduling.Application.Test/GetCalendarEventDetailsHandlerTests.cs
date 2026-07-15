@@ -187,6 +187,33 @@ public class GetCalendarEventDetailsHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_StalePublishingRow_ExposesBackendRecoveryFields()
+    {
+        var updatedUtc = GetCalendarEventDetailsScenario.DefaultNow - TimeSpan.FromMinutes(5);
+        var scenario = new GetCalendarEventDetailsScenario
+        {
+            CalendarEvent = CreateEvent(),
+            Platforms = [CreatePlatform(PlatformId, "Main channel")],
+            Publications =
+            [
+                CreatePublication(
+                    PlatformId,
+                    "Main channel",
+                    PublishStatus.Publishing,
+                    updatedUtc: updatedUtc)
+            ]
+        };
+
+        var result = await scenario.HandleAsync();
+
+        var item = Assert.Single(result!.Platforms);
+        Assert.Equal(updatedUtc, item.PublicationUpdatedUtc);
+        Assert.True(item.CanRecoverPublication);
+        Assert.False(item.CanPublish);
+        Assert.False(item.CanDeletePublication);
+    }
+
+    [Fact]
     public async Task HandleAsync_OrphanRowForDeletedPlatform_IncludedAsReadOnlyHistory()
     {
         var deletedUtc = new DateTimeOffset(2026, 6, 23, 9, 0, 0, TimeSpan.Zero);
@@ -278,6 +305,7 @@ public class GetCalendarEventDetailsHandlerTests
         string? externalResourceId = null,
         DateTimeOffset? publishedUtc = null,
         DateTimeOffset? platformDeletedUtc = null,
+        DateTimeOffset? updatedUtc = null,
         ContentSnapshot? contentSnapshot = null) =>
         ApplicationTestData.Publication(
             status,
@@ -287,6 +315,7 @@ public class GetCalendarEventDetailsHandlerTests
             externalResourceId: externalResourceId,
             publishedUtc: publishedUtc,
             platformDeletedUtc: platformDeletedUtc,
+            updatedUtc: updatedUtc,
             contentSnapshot: contentSnapshot);
 
     private static Thumbnail CreateThumbnail() =>

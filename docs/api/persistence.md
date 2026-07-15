@@ -292,10 +292,20 @@ one platform.
   secret-free target snapshot are copied onto the row when publishing starts so
   cleanup can prove the active platform still points at the provider target
   that created the external resource.
-- `ReleasePublishingAsync` removes a `Publishing` row to return the pair to
-  computed `NotPublished` after a failed provider call. `MarkPublishedAsync`
-  records the `Published` status, the provider `ExternalResourceId`, and the
-  publish instant.
+- Provider adapters call `SaveExternalResourceIdAsync` as soon as a provider id
+  is known. The method requires the row to remain non-orphan `Publishing`, sets
+  only `ExternalResourceId` and `UpdatedUtc`, and replaces with the observed
+  ETag. YouTube checkpoints after broadcast insert and WordPress checkpoints
+  after parsing a valid post id.
+- `MarkPublishedAsync` conditionally records `Published`, the provider
+  `ExternalResourceId`, and the publish instant. `MarkFailedAsync` conditionally
+  records `Failed` and preserves an existing checkpointed id, target snapshot,
+  content snapshot, and thumbnail evidence. Handled started attempts do not use
+  `ReleasePublishingAsync` as failure cleanup.
+- `RecoverStalePublishingAsync` re-reads the exact row observed by the handler,
+  requires non-orphan `Publishing` and the same `UpdatedUtc`, then changes only
+  `Status` to `Failed` and `UpdatedUtc` through the observed ETag. A missing,
+  newer, completed, orphaned, or concurrently changed row is not overwritten.
 - After `MarkPublishedAsync` succeeds, the publish handler adds the platform id
   to the calendar-event derived index before thumbnail follow-up. A false index
   result or storage exception is logged with the calendar-event id, platform
@@ -381,7 +391,9 @@ secondary index, or strict uniqueness mechanism.
 - Table read and write retry policy is limited to the Azure SDK behavior, the
   explicit HTTP conflict handling, and the three-attempt ETag retry for
   calendar-event publication-index updates.
-- Backup and recovery processes are not documented.
+- General backup and restore processes are not documented. Stale publication
+  attempts have the explicit conditional operator recovery described in the
+  platform-publication contract.
 - Calendar events link to created provider resources through platform
   publication rows, which store the provider `ExternalResourceId`. Reconciliation
   between stored publications and live provider state is not implemented.

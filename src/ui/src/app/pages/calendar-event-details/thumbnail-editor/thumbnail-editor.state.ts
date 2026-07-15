@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, signal, type DestroyRef, type Signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, finalize, map, Observable, of } from 'rxjs';
+import { catchError, finalize, map, Observable, of, tap } from 'rxjs';
 
 import {
   CalendarEventsService,
@@ -104,6 +104,7 @@ export class ThumbnailEditorState {
     return this.calendarEventsService.uploadThumbnail(calendarEventId, file).pipe(
       map(() => null),
       catchError((error: unknown) => of(describeThumbnailError(error))),
+      tap(() => this._isUploading.set(false)),
       finalize(() => this._isUploading.set(false)),
       takeUntilDestroyed(this.destroyRef),
     );

@@ -17,7 +17,7 @@ export interface PublishingContentPreview extends EventPlatformPublishingContent
   platformName: string;
 }
 
-type PlatformMutationAction = 'publish' | 'deletePublication';
+type PlatformMutationAction = 'publish' | 'deletePublication' | 'recoverPublication';
 
 class CalendarEventDetailsRefreshError extends Error {
   constructor(cause: unknown) {
@@ -32,6 +32,8 @@ export class CalendarEventPlatformsState {
   private readonly _publishErrorMessage = signal<string | null>(null);
   private readonly _deletingPublicationPlatformId = signal<string | null>(null);
   private readonly _deletePublicationErrorMessage = signal<string | null>(null);
+  private readonly _recoveringPublicationPlatformId = signal<string | null>(null);
+  private readonly _recoverPublicationErrorMessage = signal<string | null>(null);
   private readonly _platformActionBlockedMessage = signal<string | null>(null);
   private readonly _previewingPlatformId = signal<string | null>(null);
   private readonly _previewErrorMessage = signal<string | null>(null);
@@ -42,6 +44,8 @@ export class CalendarEventPlatformsState {
   readonly publishErrorMessage = this._publishErrorMessage.asReadonly();
   readonly deletingPublicationPlatformId = this._deletingPublicationPlatformId.asReadonly();
   readonly deletePublicationErrorMessage = this._deletePublicationErrorMessage.asReadonly();
+  readonly recoveringPublicationPlatformId = this._recoveringPublicationPlatformId.asReadonly();
+  readonly recoverPublicationErrorMessage = this._recoverPublicationErrorMessage.asReadonly();
   readonly platformActionBlockedMessage = this._platformActionBlockedMessage.asReadonly();
   readonly previewingPlatformId = this._previewingPlatformId.asReadonly();
   readonly previewErrorMessage = this._previewErrorMessage.asReadonly();
@@ -50,10 +54,13 @@ export class CalendarEventPlatformsState {
     () =>
       this._publishingPlatformId() !== null ||
       this._deletingPublicationPlatformId() !== null ||
-      this._previewingPlatformId() !== null,
+      this._recoveringPublicationPlatformId() !== null,
+  );
+  readonly hasActiveRequest = computed(
+    () => this.hasActiveMutation() || this._previewingPlatformId() !== null,
   );
   readonly actionsDisabled = computed(
-    () => this.hasActivePageMutation() || this.hasActiveMutation(),
+    () => this.hasActivePageMutation() || this.hasActiveRequest(),
   );
   readonly showStoredValuesPreviewNote = computed(() => this.hasPendingEventChanges());
 
@@ -78,6 +85,8 @@ export class CalendarEventPlatformsState {
     this._publishErrorMessage.set(null);
     this._deletingPublicationPlatformId.set(null);
     this._deletePublicationErrorMessage.set(null);
+    this._recoveringPublicationPlatformId.set(null);
+    this._recoverPublicationErrorMessage.set(null);
     this._platformActionBlockedMessage.set(null);
     this._previewingPlatformId.set(null);
     this._previewErrorMessage.set(null);
@@ -89,7 +98,7 @@ export class CalendarEventPlatformsState {
       this.calendarEventId === null ||
       !platform.canPublish ||
       this.hasActivePageMutation() ||
-      this.hasActiveMutation()
+      this.hasActiveRequest()
     ) {
       return;
     }
@@ -112,7 +121,7 @@ export class CalendarEventPlatformsState {
         })
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe((result) => {
-          if (result === 'publish' && !this.hasActivePageMutation() && !this.hasActiveMutation()) {
+          if (result === 'publish' && !this.hasActivePageMutation() && !this.hasActiveRequest()) {
             this.startPublish(platform);
           }
         });
@@ -151,7 +160,7 @@ export class CalendarEventPlatformsState {
       this.calendarEventId === null ||
       !platform.canDeletePublication ||
       this.hasActivePageMutation() ||
-      this.hasActiveMutation()
+      this.hasActiveRequest()
     ) {
       return;
     }
@@ -173,7 +182,7 @@ export class CalendarEventPlatformsState {
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((result) => {
-        if (result !== 'delete' || this.hasActivePageMutation() || this.hasActiveMutation()) {
+        if (result !== 'delete' || this.hasActivePageMutation() || this.hasActiveRequest()) {
           return;
         }
 
@@ -202,12 +211,66 @@ export class CalendarEventPlatformsState {
       });
   }
 
+  recoverPlatformPublication(platform: CalendarEventPlatform): void {
+    if (
+      this.calendarEventId === null ||
+      !platform.canRecoverPublication ||
+      this.hasActivePageMutation() ||
+      this.hasActiveRequest()
+    ) {
+      return;
+    }
+
+    if (this.blockPlatformActionWhenEventChangesPending('recoverPublication')) {
+      return;
+    }
+
+    this._platformActionBlockedMessage.set(null);
+    this.confirmation
+      .confirm<'cancel' | 'recover'>({
+        kind: 'warning',
+        title: `Mark publication attempt for ${platform.platformName} as failed?`,
+        body: 'This attempt stopped before YTSkedy recorded a final state. Verify the event on the publishing platform first. This marks only the local attempt as Failed and does not delete any provider resource.',
+        actions: [
+          { id: 'cancel', label: 'Cancel' },
+          { id: 'recover', label: 'Mark as failed', primary: true },
+        ],
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((result) => {
+        if (result !== 'recover' || this.hasActivePageMutation() || this.hasActiveRequest()) {
+          return;
+        }
+
+        this._recoverPublicationErrorMessage.set(null);
+        this._recoveringPublicationPlatformId.set(platform.platformId);
+        this.calendarEventsService
+          .recoverPlatformPublication(this.calendarEventId!, platform.platformId)
+          .pipe(
+            switchMap(() => {
+              this.clearPreview(platform.platformId);
+              return this.refreshEventDetailsAfterPlatformMutation();
+            }),
+            finalize(() => this._recoveringPublicationPlatformId.set(null)),
+            takeUntilDestroyed(this.destroyRef),
+          )
+          .subscribe({
+            next: () => {
+              this.notifications.showSuccess('Publication attempt marked as failed.');
+            },
+            error: (error: unknown) => {
+              this._recoverPublicationErrorMessage.set(describeRecoverPublicationError(error));
+            },
+          });
+      });
+  }
+
   previewPublishingContent(platform: CalendarEventPlatform): void {
     if (
       this.calendarEventId === null ||
       !platform.canPreviewPublishingContent ||
       this.hasActivePageMutation() ||
-      this.hasActiveMutation()
+      this.hasActiveRequest()
     ) {
       return;
     }
@@ -248,11 +311,13 @@ export class CalendarEventPlatformsState {
       return false;
     }
 
-    this._platformActionBlockedMessage.set(
+    const message =
       action === 'publish'
         ? 'Save or discard event changes before publishing.'
-        : 'Save or discard event changes before deleting a publication.',
-    );
+        : action === 'recoverPublication'
+          ? 'Save or discard event changes before recovering a publication.'
+          : 'Save or discard event changes before deleting a publication.';
+    this._platformActionBlockedMessage.set(message);
     return true;
   }
 
@@ -304,6 +369,22 @@ export function describeDeletePublicationError(error: unknown): string {
   }
 
   return 'The publication could not be deleted. Check your connection and try again.';
+}
+
+export function describeRecoverPublicationError(error: unknown): string {
+  if (error instanceof CalendarEventDetailsRefreshError) {
+    return 'The publication attempt was marked as failed, but the latest calendar event details could not be loaded. Reload the page.';
+  }
+
+  if (error instanceof HttpErrorResponse && error.status === 403) {
+    return 'You do not have permission to recover publication attempts.';
+  }
+
+  if (error instanceof HttpErrorResponse && (error.status === 404 || error.status === 409)) {
+    return 'The publication attempt can no longer be recovered. Reload the page and try again.';
+  }
+
+  return 'The publication attempt could not be recovered. Check your connection and try again.';
 }
 
 function hasPublicationActionError(error: unknown, code: string): boolean {

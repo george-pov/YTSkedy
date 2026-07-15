@@ -23,6 +23,15 @@ param authIssuer string
 
 param authRequiredAppRole string
 
+@minValue(1)
+param publicationOperationTimeoutSeconds int
+
+@minValue(1)
+param publicationFinalizationTimeoutSeconds int
+
+@minValue(1)
+param publicationStaleAfterSeconds int
+
 @minValue(40)
 @maxValue(1000)
 param maximumInstanceCount int
@@ -125,6 +134,9 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2024-04-01' = {
     Auth__ClientId: authClientId
     Auth__Issuer: authIssuer
     Auth__RequiredAppRole: authRequiredAppRole
+    PublicationExecution__OperationTimeoutSeconds: '${publicationOperationTimeoutSeconds}'
+    PublicationExecution__FinalizationTimeoutSeconds: '${publicationFinalizationTimeoutSeconds}'
+    PublicationExecution__StaleAfterSeconds: '${publicationStaleAfterSeconds}'
     APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.properties.ConnectionString
   }
 }

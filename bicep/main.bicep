@@ -92,6 +92,15 @@ param authIssuer string
 @maxLength(256)
 param authRequiredAppRole string
 
+@minValue(1)
+param publicationOperationTimeoutSeconds int
+
+@minValue(1)
+param publicationFinalizationTimeoutSeconds int
+
+@minValue(1)
+param publicationStaleAfterSeconds int
+
 @secure()
 @minLength(1)
 @maxLength(256)
@@ -163,6 +172,9 @@ module environmentDeployment './modules/environment.bicep' = {
     authClientId: authClientId
     authIssuer: authIssuer
     authRequiredAppRole: authRequiredAppRole
+    publicationOperationTimeoutSeconds: publicationOperationTimeoutSeconds
+    publicationFinalizationTimeoutSeconds: publicationFinalizationTimeoutSeconds
+    publicationStaleAfterSeconds: publicationStaleAfterSeconds
     alertReceiverName: alertReceiverName
     alertReceiverEmailAddress: alertReceiverEmailAddress
     logRetentionInDays: logRetentionInDays

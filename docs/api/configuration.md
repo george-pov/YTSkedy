@@ -47,6 +47,9 @@ configuration maps double underscores to section separators, so hosted
 | `Auth__ClientId` | Non-secret | Environment API client ID and expected audience. |
 | `Auth__Issuer` | Non-secret | Exact issuer from user-flow metadata. |
 | `Auth__RequiredAppRole` | Non-secret | Required API app role value. |
+| `PublicationExecution__OperationTimeoutSeconds` | Non-secret | Started provider-attempt deadline. |
+| `PublicationExecution__FinalizationTimeoutSeconds` | Non-secret | Per-write finalization deadline. |
+| `PublicationExecution__StaleAfterSeconds` | Non-secret | Minimum stale-attempt recovery age. |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Operational value | Environment Application Insights resource. |
 
 Function host and deployment storage use one environment-specific storage
@@ -208,6 +211,36 @@ This is a first-slice integration with deliberate limitations:
   browser runtime configuration.
 - Category creation, tags, custom taxonomies, excerpts, slugs, and featured
   media are not part of the current integration.
+
+## Publication Execution
+
+Publication attempts use three validated settings:
+
+| Setting | Default | Purpose |
+| --- | ---: | --- |
+| `PublicationExecution:OperationTimeoutSeconds` | `120` | Maximum duration for a started provider attempt. The operation token also observes Functions host shutdown. |
+| `PublicationExecution:FinalizationTimeoutSeconds` | `15` | Maximum duration of each independent final-state write. |
+| `PublicationExecution:StaleAfterSeconds` | `300` | Minimum age before an active future `Publishing` row can be recovered by an operator. |
+
+All values must be positive. `StaleAfterSeconds` must be strictly greater than
+the operation timeout plus the finalization timeout. Invalid values fail host
+startup validation. Azure Function App settings use double underscores, for
+example `PublicationExecution__OperationTimeoutSeconds`.
+
+Reads and publish preflight remain bound to request cancellation. The handler
+switches to the server-owned operation scope immediately before it starts the
+publication row. The named `YTSkedy.WordPress` HTTP client uses the same
+operation timeout and has no automatic retry handler.
+
+Cancellation telemetry distinguishes:
+
+- a confirmed HTTP client disconnect, logged as Information by worker middleware
+- provider operation timeout, logged with the operation-timeout source
+- Functions host shutdown, logged with the host-shutdown source
+- an unexpected provider cancellation with an uncanceled supplied token
+
+No cancellation path logs authorization data, provider credentials, request
+bodies, or raw platform settings.
 
 ## CORS
 

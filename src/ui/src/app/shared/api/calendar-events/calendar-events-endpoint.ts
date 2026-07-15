@@ -50,6 +50,18 @@ export function deletePlatformPublicationUrl(
   return new URL(path, normalizeApiBaseUrl(api.baseUrl)).toString();
 }
 
+export function recoverPlatformPublicationUrl(
+  api: ApiConfig,
+  calendarEventId: string,
+  platformId: string,
+): string {
+  const path =
+    `${calendarEventsPath}/${encodeURIComponent(calendarEventId)}` +
+    `/platforms/${encodeURIComponent(platformId)}/publication/recover`;
+
+  return new URL(path, normalizeApiBaseUrl(api.baseUrl)).toString();
+}
+
 export function publishingContentUrl(
   api: ApiConfig,
   calendarEventId: string,

@@ -14,6 +14,18 @@ public interface IPublicationAttemptWriter
         PlatformPublicationAttempt attempt,
         CancellationToken cancellationToken);
 
+    Task<SaveExternalResourceIdResult> SaveExternalResourceIdAsync(
+        string calendarEventId,
+        string platformId,
+        string externalResourceId,
+        CancellationToken cancellationToken);
+
+    Task<RecoverStalePublishingResult> RecoverStalePublishingAsync(
+        string calendarEventId,
+        string platformId,
+        DateTimeOffset expectedUpdatedUtc,
+        CancellationToken cancellationToken);
+
     /// <summary>
     /// Releases an in-progress attempt by removing the <c>Publishing</c> row,
     /// returning the event/platform pair to the computed

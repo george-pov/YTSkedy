@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using YTSkedy.Scheduling.Application.CalendarEvents;
-using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Content;
 using YTSkedy.Scheduling.Application.Platforms.EventPlatforms;
 using YTSkedy.Scheduling.Application.Platforms.PublicationThumbnails;
@@ -10,15 +9,10 @@ using YTSkedy.Scheduling.Domain.Platforms;
 namespace YTSkedy.Scheduling.Application.Platforms.Publications;
 
 /// <summary>
-/// Publishes one calendar event to one selected platform. The flow loads the
-/// event, the platform, and the selected provider, then guards state and content:
-/// an existing row that is orphaned, published, or publishing is a conflict; the
-/// start must be in the future; and publishing content must render to a valid
-/// title without unresolved placeholders. It then starts the publication row
-/// with a content snapshot (a conditional write, so a concurrent
-/// publish yields a conflict), calls the provider, and finalizes the row with the
-/// external resource id. Caught non-cancellation failures after the attempt
-/// starts become retryable failed rows, retaining the provider id when known.
+/// Publishes one calendar event to one platform. Reads and preflight work honor
+/// request cancellation. Immediately before reserving a publication row, the
+/// handler switches to a bounded server-owned execution scope so a client
+/// disconnect cannot strand an attempt that this process can still finalize.
 /// </summary>
 public sealed class PublishHandler(
     ICalendarEventReader calendarEvents,
@@ -29,31 +23,30 @@ public sealed class PublishHandler(
     IPlatformTypeAdapterSelector<IPlatformPublisher> publishers,
     PublicationThumbnailApplier thumbnailApplier,
     PublishingContentRenderer contentRenderer,
+    IPublishExecutionScopeFactory publicationExecutionScopes,
     TimeProvider timeProvider,
     ILogger<PublishHandler> logger)
 {
     public async Task<PublishResult> HandleAsync(
         PublishCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken requestToken)
     {
         ArgumentNullException.ThrowIfNull(command);
 
         var calendarEvent = await calendarEvents.GetByIdAsync(
             command.CalendarEventId,
-            cancellationToken);
+            requestToken);
         if (calendarEvent is null)
         {
             return PublishResult.ForStatus(PublishResultStatus.EventNotFound);
         }
 
-        var platform = await platforms.GetAsync(command.PlatformId, cancellationToken);
+        var platform = await platforms.GetAsync(command.PlatformId, requestToken);
         if (platform is null)
         {
             return PublishResult.ForStatus(PublishResultStatus.PlatformNotFound);
         }
 
-        // Selecting the provider before starting avoids leaving a Publishing row
-        // stranded when no adapter serves the platform type.
         var publisher = publishers.Find(platform.Type);
         if (publisher is null)
         {
@@ -63,7 +56,7 @@ public sealed class PublishHandler(
         var existing = await publications.GetAsync(
             command.CalendarEventId,
             command.PlatformId,
-            cancellationToken);
+            requestToken);
         var existingPublicationStatus = ValidateExistingPublication(existing);
         if (existingPublicationStatus is not null)
         {
@@ -79,13 +72,12 @@ public sealed class PublishHandler(
             platforms,
             publications,
             command.CalendarEventId,
-            cancellationToken);
-
+            requestToken);
         var renderResult = await contentRenderer.RenderAsync(
             platform,
             calendarEvent,
             runtimeTokenValues,
-            cancellationToken);
+            requestToken);
         if (renderResult.Status != RenderContentStatus.Rendered ||
             renderResult.HasUnresolvedPlaceholders)
         {
@@ -93,24 +85,23 @@ public sealed class PublishHandler(
         }
 
         var renderedContent = renderResult.Content!;
-        var contentSnapshot = new ContentSnapshot(
-            renderedContent.Title,
-            renderedContent.Description);
-
         var attempt = new PlatformPublicationAttempt(
             command.CalendarEventId,
             command.PlatformId,
             platform.Name,
             platform.Type,
             platform.PublishSettings,
-            contentSnapshot);
+            new ContentSnapshot(renderedContent.Title, renderedContent.Description));
 
+        // Point of no request cancellation. All started-attempt work below is
+        // owned by the bounded execution scope, never by the HTTP request.
+        requestToken.ThrowIfCancellationRequested();
+        using var execution = publicationExecutionScopes.Create();
         var startResult = await publicationAttempts.StartPublishingAsync(
             attempt,
-            cancellationToken);
+            execution.OperationToken);
         if (startResult == StartPublicationResult.Conflict)
         {
-            // A concurrent publish won the conditional start write.
             return PublishResult.ForStatus(PublishResultStatus.PublishInProgress);
         }
 
@@ -119,9 +110,14 @@ public sealed class PublishHandler(
         {
             thumbnail = await thumbnailApplier.LoadAsync(
                 command.CalendarEventId,
-                cancellationToken);
+                execution.OperationToken);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (OperationCanceledException exception)
+        {
+            LogExecutionCancellation(exception, execution, command, "loading thumbnail content");
+            return await RecordFailedAsync(execution, command, externalResourceId: null);
+        }
+        catch (Exception exception)
         {
             logger.LogError(
                 exception,
@@ -129,14 +125,14 @@ public sealed class PublishHandler(
                 "publishing platform {PlatformId}.",
                 command.CalendarEventId,
                 command.PlatformId);
-
-            return await RecordFailedAsync(
-                command,
-                externalResourceId: null,
-                cancellationToken);
+            return await RecordFailedAsync(execution, command, externalResourceId: null);
         }
 
         PlatformPublishResult publishResult;
+        var checkpoint = new PublishCheckpoint(
+            publicationAttempts,
+            command.CalendarEventId,
+            command.PlatformId);
         try
         {
             publishResult = await publisher.PublishAsync(
@@ -147,7 +143,8 @@ public sealed class PublishHandler(
                     renderedContent.Title,
                     renderedContent.Description,
                     calendarEvent.ScheduledStartUtc),
-                cancellationToken);
+                checkpoint,
+                execution.OperationToken);
         }
         catch (PlatformPublishValidationException exception)
         {
@@ -157,92 +154,101 @@ public sealed class PublishHandler(
                 "failed provider-specific validation.",
                 command.CalendarEventId,
                 command.PlatformId);
-
-            return await RecordFailedAsync(
-                command,
-                externalResourceId: null,
-                cancellationToken);
+            return await RecordFailedAsync(execution, command, externalResourceId: null);
         }
         catch (PlatformPublishException exception)
         {
-            logger.LogError(
-                exception,
-                "Publishing calendar event {CalendarEventId} to platform {PlatformId} failed.",
-                command.CalendarEventId,
-                command.PlatformId);
-
+            LogProviderFailure(exception, command);
             return await RecordFailedAsync(
+                execution,
                 command,
-                exception.ExternalResourceId,
-                cancellationToken);
+                exception.ExternalResourceId ?? checkpoint.ExternalResourceId);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (OperationCanceledException exception)
+        {
+            LogExecutionCancellation(exception, execution, command, "calling the provider");
+            return await RecordFailedAsync(execution, command, checkpoint.ExternalResourceId);
+        }
+        catch (Exception exception)
         {
             logger.LogError(
+                exception,
                 "Publishing calendar event {CalendarEventId} to platform {PlatformId} failed " +
                 "with unexpected provider exception type {ExceptionType}.",
                 command.CalendarEventId,
                 command.PlatformId,
                 exception.GetType().FullName);
-
-            return await RecordFailedAsync(
-                command,
-                externalResourceId: null,
-                cancellationToken);
+            return await RecordFailedAsync(execution, command, checkpoint.ExternalResourceId);
         }
 
         DateTimeOffset? publishedUtc;
         try
         {
-            publishedUtc = await publicationAttempts.MarkPublishedAsync(
-                command.CalendarEventId,
-                command.PlatformId,
-                publishResult.ExternalResourceId,
-                cancellationToken);
+            publishedUtc = await execution.RunFinalizationAsync(
+                token => publicationAttempts.MarkPublishedAsync(
+                    command.CalendarEventId,
+                    command.PlatformId,
+                    publishResult.ExternalResourceId,
+                    token));
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception)
         {
             logger.LogError(
                 exception,
                 "Published calendar event {CalendarEventId} to platform {PlatformId} as " +
-                "external resource {ExternalResourceId}, but finalizing publication state failed.",
+                "external resource {ExternalResourceId}, but finalizing Published failed.",
                 command.CalendarEventId,
                 command.PlatformId,
                 publishResult.ExternalResourceId);
-
             return await RecordFailedAsync(
+                execution,
                 command,
-                publishResult.ExternalResourceId,
-                cancellationToken);
+                publishResult.ExternalResourceId);
         }
+
         if (publishedUtc is null)
         {
             logger.LogError(
                 "Published calendar event {CalendarEventId} to platform {PlatformId} as external " +
-                "resource {ExternalResourceId}, but the publication row could not be finalized.",
+                "resource {ExternalResourceId}, but the publication row rejected finalization.",
                 command.CalendarEventId,
                 command.PlatformId,
                 publishResult.ExternalResourceId);
-
             return await RecordFailedAsync(
+                execution,
                 command,
-                publishResult.ExternalResourceId,
-                cancellationToken);
+                publishResult.ExternalResourceId);
         }
 
-        await publicationIndexUpdater.AddPublishedPlatformAsync(
-            command.CalendarEventId,
-            command.PlatformId,
-            cancellationToken);
-
-        var thumbnailStatus = await thumbnailApplier.ApplyAsync(
-            new PublicationThumbnailCommand(
+        await RunPublishedFollowUpAsync(
+            () => publicationIndexUpdater.AddPublishedPlatformAsync(
                 command.CalendarEventId,
                 command.PlatformId,
-                platform,
-                publishResult.ExternalResourceId,
-                thumbnail),
-            cancellationToken);
+                execution.OperationToken),
+            execution,
+            command,
+            "updating the publication index");
+
+        var thumbnailStatus = ThumbnailPublicationPolicy.InitialStatusFor(platform.Type);
+        try
+        {
+            thumbnailStatus = await thumbnailApplier.ApplyAsync(
+                new PublicationThumbnailCommand(
+                    command.CalendarEventId,
+                    command.PlatformId,
+                    platform,
+                    publishResult.ExternalResourceId,
+                    thumbnail),
+                execution.OperationToken);
+        }
+        catch (Exception exception)
+        {
+            LogPublishedFollowUpFailure(
+                exception,
+                execution,
+                command,
+                "applying the publication thumbnail");
+        }
 
         return PublishResult.Published(
             EventPlatformMapper.MapPublished(
@@ -254,6 +260,105 @@ public sealed class PublishHandler(
                 thumbnailStatus));
     }
 
+    private async Task RunPublishedFollowUpAsync(
+        Func<Task> action,
+        IPublishExecutionScope execution,
+        PublishCommand command,
+        string operation)
+    {
+        try
+        {
+            await action();
+        }
+        catch (Exception exception)
+        {
+            LogPublishedFollowUpFailure(exception, execution, command, operation);
+        }
+    }
+
+    private void LogPublishedFollowUpFailure(
+        Exception exception,
+        IPublishExecutionScope execution,
+        PublishCommand command,
+        string operation)
+    {
+        if (exception is OperationCanceledException)
+        {
+            logger.LogWarning(
+                exception,
+                "Publication follow-up was canceled while {Operation} for calendar event " +
+                "{CalendarEventId} and platform {PlatformId}. Cancellation source: " +
+                "{CancellationSource}. The publication remains Published.",
+                operation,
+                command.CalendarEventId,
+                command.PlatformId,
+                execution.ClassifyCancellation());
+            return;
+        }
+
+        logger.LogError(
+            exception,
+            "Publication follow-up failed while {Operation} for calendar event " +
+            "{CalendarEventId} and platform {PlatformId}. The publication remains Published.",
+            operation,
+            command.CalendarEventId,
+            command.PlatformId);
+    }
+
+    private void LogProviderFailure(
+        PlatformPublishException exception,
+        PublishCommand command)
+    {
+        if (exception.FailureKind == PlatformPublishFailureKind.Timeout)
+        {
+            logger.LogWarning(
+                exception,
+                "Publishing calendar event {CalendarEventId} to platform {PlatformId} failed. " +
+                "Provider failure kind: {FailureKind}.",
+                command.CalendarEventId,
+                command.PlatformId,
+                exception.FailureKind);
+            return;
+        }
+
+        logger.LogError(
+            exception,
+            "Publishing calendar event {CalendarEventId} to platform {PlatformId} failed. " +
+            "Provider failure kind: {FailureKind}.",
+            command.CalendarEventId,
+            command.PlatformId,
+            exception.FailureKind);
+    }
+
+    private void LogExecutionCancellation(
+        OperationCanceledException exception,
+        IPublishExecutionScope execution,
+        PublishCommand command,
+        string operation)
+    {
+        var source = execution.ClassifyCancellation();
+        if (source == PublishCancellationSource.HostShutdown)
+        {
+            logger.LogWarning(
+                exception,
+                "Host shutdown canceled publication while {Operation} for calendar event " +
+                "{CalendarEventId} and platform {PlatformId}.",
+                operation,
+                command.CalendarEventId,
+                command.PlatformId);
+            return;
+        }
+
+        logger.LogError(
+            exception,
+            "Publication was canceled while {Operation} for calendar event {CalendarEventId} " +
+            "and platform {PlatformId}. Cancellation source: {CancellationSource}.",
+            operation,
+            command.CalendarEventId,
+            command.PlatformId,
+            source);
+    }
+
     private static PublishResultStatus? ValidateExistingPublication(
         PlatformPublication? existing)
     {
@@ -262,7 +367,6 @@ public sealed class PublishHandler(
             return null;
         }
 
-        // A NotPublished pair has no row. Orphaned history cannot be republished.
         if (existing.IsOrphaned)
         {
             return PublishResultStatus.PlatformDeleted;
@@ -277,20 +381,21 @@ public sealed class PublishHandler(
     }
 
     private async Task<PublishResult> RecordFailedAsync(
+        IPublishExecutionScope execution,
         PublishCommand command,
-        string? externalResourceId,
-        CancellationToken cancellationToken)
+        string? externalResourceId)
     {
         MarkFailedResult result;
         try
         {
-            result = await publicationAttempts.MarkFailedAsync(
-                command.CalendarEventId,
-                command.PlatformId,
-                externalResourceId,
-                cancellationToken);
+            result = await execution.RunFinalizationAsync(
+                token => publicationAttempts.MarkFailedAsync(
+                    command.CalendarEventId,
+                    command.PlatformId,
+                    externalResourceId,
+                    token));
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception)
         {
             logger.LogCritical(
                 exception,
@@ -299,9 +404,9 @@ public sealed class PublishHandler(
                 command.CalendarEventId,
                 command.PlatformId,
                 externalResourceId);
-
             return PublishResult.ForStatus(PublishResultStatus.FinalizeFailed);
         }
+
         if (result == MarkFailedResult.Marked)
         {
             return PublishResult.ForStatus(PublishResultStatus.Failed);
@@ -315,7 +420,6 @@ public sealed class PublishHandler(
             command.PlatformId,
             result,
             externalResourceId);
-
         return PublishResult.ForStatus(PublishResultStatus.FinalizeFailed);
     }
 }

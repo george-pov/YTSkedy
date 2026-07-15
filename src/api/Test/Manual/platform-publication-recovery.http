@@ -1,0 +1,26 @@
+@apiBaseUrl = http://localhost:7071
+@calendarEventId = replace-with-local-future-calendar-event-id
+@platformId = replace-with-local-platform-id
+
+# Configure the required bearer authorization outside this tracked file.
+# Use only an isolated local row or separately approved non-production data.
+
+### Read backend-computed recovery eligibility
+# Verify status Publishing and canRecoverPublication true before continuing.
+# @name getRecoverablePublication
+GET {{apiBaseUrl}}/api/calendar-events/{{calendarEventId}}
+
+### Mark the exact stale local attempt as failed
+# Verify the provider first. This does not delete a provider resource.
+# @name recoverPublication
+POST {{apiBaseUrl}}/api/calendar-events/{{calendarEventId}}/platforms/{{platformId}}/publication/recover
+
+### Confirm local evidence was preserved
+# Verify status Failed, canRecoverPublication false, and the expected external id.
+# @name getRecoveredPublication
+GET {{apiBaseUrl}}/api/calendar-events/{{calendarEventId}}
+
+### Confirm repeat recovery is a conflict
+# Expected: 409 Conflict with no additional mutation.
+# @name repeatRecovery
+POST {{apiBaseUrl}}/api/calendar-events/{{calendarEventId}}/platforms/{{platformId}}/publication/recover

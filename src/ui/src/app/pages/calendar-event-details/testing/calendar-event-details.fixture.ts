@@ -17,10 +17,12 @@ export function testCalendarEventPlatform(
     externalResourceId: 'broadcast-123',
     thumbnailStatus: 'Applied',
     publishedUtc: '2030-07-04T08:45:00+00:00',
+    publicationUpdatedUtc: '2030-07-04T08:45:00+00:00',
     platformDeletedUtc: null,
     canPublish: false,
     canDeletePublication: true,
     canPreviewPublishingContent: true,
+    canRecoverPublication: false,
     ...overrides,
   };
 }

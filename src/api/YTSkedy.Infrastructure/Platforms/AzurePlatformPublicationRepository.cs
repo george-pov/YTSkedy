@@ -85,6 +85,101 @@ public sealed class AzurePlatformPublicationRepository(
         }
     }
 
+    public async Task<SaveExternalResourceIdResult> SaveExternalResourceIdAsync(
+        string calendarEventId,
+        string platformId,
+        string externalResourceId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(externalResourceId);
+
+        var entity = await TryGetEntityAsync(calendarEventId, platformId, cancellationToken);
+        if (entity is null)
+        {
+            return SaveExternalResourceIdResult.NotFound;
+        }
+
+        var normalizedExternalResourceId = externalResourceId.Trim();
+        if (entity.PlatformDeletedUtc is not null ||
+            PlatformPublicationMapper.ParseStatus(entity.Status) != PublishStatus.Publishing ||
+            (!string.IsNullOrWhiteSpace(entity.ExternalResourceId) &&
+             !string.Equals(
+                 entity.ExternalResourceId,
+                 normalizedExternalResourceId,
+                 StringComparison.Ordinal)))
+        {
+            return SaveExternalResourceIdResult.Changed;
+        }
+
+        entity.ExternalResourceId = normalizedExternalResourceId;
+        entity.UpdatedUtc = timeProvider.GetUtcNow();
+
+        try
+        {
+            await tableClient.UpdateEntityAsync(
+                entity,
+                entity.ETag,
+                TableUpdateMode.Replace,
+                cancellationToken);
+
+            return SaveExternalResourceIdResult.Saved;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            return SaveExternalResourceIdResult.NotFound;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 412)
+        {
+            return SaveExternalResourceIdResult.Changed;
+        }
+    }
+
+    public async Task<RecoverStalePublishingResult> RecoverStalePublishingAsync(
+        string calendarEventId,
+        string platformId,
+        DateTimeOffset expectedUpdatedUtc,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
+
+        var entity = await TryGetEntityAsync(calendarEventId, platformId, cancellationToken);
+        if (entity is null)
+        {
+            return RecoverStalePublishingResult.NotFound;
+        }
+
+        if (entity.PlatformDeletedUtc is not null ||
+            PlatformPublicationMapper.ParseStatus(entity.Status) != PublishStatus.Publishing ||
+            entity.UpdatedUtc != expectedUpdatedUtc)
+        {
+            return RecoverStalePublishingResult.Changed;
+        }
+
+        entity.Status = PublishStatus.Failed.ToString();
+        entity.UpdatedUtc = timeProvider.GetUtcNow();
+
+        try
+        {
+            await tableClient.UpdateEntityAsync(
+                entity,
+                entity.ETag,
+                TableUpdateMode.Replace,
+                cancellationToken);
+            return RecoverStalePublishingResult.Recovered;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 404)
+        {
+            return RecoverStalePublishingResult.NotFound;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 412)
+        {
+            return RecoverStalePublishingResult.Changed;
+        }
+    }
+
     public async Task ReleasePublishingAsync(
         string calendarEventId,
         string platformId,
@@ -184,9 +279,13 @@ public sealed class AzurePlatformPublicationRepository(
 
         var now = timeProvider.GetUtcNow();
         entity.Status = PublishStatus.Failed.ToString();
-        entity.ExternalResourceId = string.IsNullOrWhiteSpace(externalResourceId)
+        var checkpointedExternalResourceId = string.IsNullOrWhiteSpace(entity.ExternalResourceId)
+            ? null
+            : entity.ExternalResourceId.Trim();
+        var failureExternalResourceId = string.IsNullOrWhiteSpace(externalResourceId)
             ? null
             : externalResourceId.Trim();
+        entity.ExternalResourceId = checkpointedExternalResourceId ?? failureExternalResourceId;
         entity.PublishedUtc = null;
         entity.UpdatedUtc = now;
 

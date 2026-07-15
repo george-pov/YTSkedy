@@ -39,6 +39,34 @@ The backend allows cleanup only when all of these are true:
 The browser must use `canDeletePublication` from the event-platform row. It
 must not compute delete eligibility from browser time, status, or provider ids.
 
+## Stale Publishing Recovery
+
+A hard process stop can leave a publication row in `Publishing` even though the
+bounded operation is no longer running. Calendar event details expose
+`publicationUpdatedUtc` for diagnosis and backend-computed
+`canRecoverPublication` for action eligibility. Do not calculate attempt age in
+the browser or edit the storage row manually.
+
+When `canRecoverPublication` is true:
+
+1. Inspect the configured provider for a created or partially updated resource.
+2. Decide whether that provider resource must be kept or removed, and perform
+   provider cleanup directly when needed.
+3. Use `Mark as failed` in calendar event details, or call:
+
+   ```text
+   POST /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication/recover
+   ```
+
+4. Reload details. The exact stale attempt becomes `Failed` and retains any
+   checkpointed external id and other reconciliation evidence.
+5. Verify the provider again before using the existing publish retry action.
+
+Recovery changes local state only. It does not call YouTube or WordPress and it
+does not prove that no provider resource exists. If the route returns `404` or
+`409`, reload before making another decision. A repeat after success returns
+`409` because the row is no longer `Publishing`.
+
 ## Failed Publication Recovery
 
 A publication row with `status: Failed` represents an uncertain or rejected

@@ -97,7 +97,11 @@ export class Settings implements OnInit, PendingChangesAware {
   }
 
   canDeactivateWithPendingChanges(): boolean | Observable<boolean> {
-    if (!this.hasPendingSettingsChanges() || this.hasActiveRequest()) {
+    if (this.hasActiveMutation()) {
+      return false;
+    }
+
+    if (!this.hasPendingSettingsChanges()) {
       return true;
     }
 
@@ -118,7 +122,7 @@ export class Settings implements OnInit, PendingChangesAware {
   }
 
   protected cancel(): void {
-    if (this.hasActiveRequest()) {
+    if (this.hasActiveMutation()) {
       return;
     }
 
@@ -222,7 +226,7 @@ export class Settings implements OnInit, PendingChangesAware {
       );
   }
 
-  private hasActiveRequest(): boolean {
-    return this.isLoadingSettings() || this.isSavingSettings();
+  private hasActiveMutation(): boolean {
+    return this.isSavingSettings();
   }
 }

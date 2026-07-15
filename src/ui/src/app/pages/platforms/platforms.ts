@@ -119,7 +119,11 @@ export class Platforms implements OnInit, PendingChangesAware {
   }
 
   canDeactivateWithPendingChanges(): boolean | Observable<boolean> {
-    if (!this.hasPendingPlatformChanges() || this.editor.hasActiveMutation()) {
+    if (this.editor.hasActiveMutation()) {
+      return false;
+    }
+
+    if (!this.hasPendingPlatformChanges()) {
       return true;
     }
 

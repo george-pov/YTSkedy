@@ -191,7 +191,7 @@ public class PublishHandlerLifecycleTests
     }
 
     [Fact]
-    public async Task HandleAsync_OperationCanceled_PropagatesWithoutFailureWrite()
+    public async Task HandleAsync_PostStartOperationCanceled_AttemptsFailedFinalization()
     {
         var repository = new PublishFakePublicationRepository();
         var publisher = new PublishFakePublisher
@@ -204,11 +204,179 @@ public class PublishHandlerLifecycleTests
             publisher,
             repository: repository);
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => Handle(handler));
+        var result = await Handle(handler);
 
+        Assert.Equal(PublishResultStatus.Failed, result.Status);
         Assert.True(repository.Started);
-        Assert.False(repository.MarkFailedCalled);
+        Assert.True(repository.MarkFailedCalled);
         Assert.False(repository.ReleaseCalled);
+    }
+
+    [Fact]
+    public async Task HandleAsync_RequestCanceledBeforeStart_DoesNotCreateAttempt()
+    {
+        using var request = new CancellationTokenSource();
+        request.Cancel();
+        var repository = new PublishFakePublicationRepository();
+        var executionScopes = new PublishFakeExecutionScopeFactory();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            new PublishFakePublisher(),
+            repository: repository,
+            executionScopes: executionScopes);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            handler.HandleAsync(
+                new PublishCommand(CalendarEventId, PlatformId),
+                request.Token));
+
+        Assert.False(repository.Started);
+        Assert.False(executionScopes.CreateCalled);
+    }
+
+    [Fact]
+    public async Task HandleAsync_RequestCanceledAfterStart_UsesServerOwnedTokensAndPublishes()
+    {
+        using var request = new CancellationTokenSource();
+        using var operation = new CancellationTokenSource();
+        using var finalization = new CancellationTokenSource();
+        var repository = new PublishFakePublicationRepository();
+        var publisher = new PublishFakePublisher { OnPublish = request.Cancel };
+        var executionScopes = new PublishFakeExecutionScopeFactory();
+        executionScopes.Scope.OperationToken = operation.Token;
+        executionScopes.Scope.FinalizationToken = finalization.Token;
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository,
+            executionScopes: executionScopes);
+
+        var result = await handler.HandleAsync(
+            new PublishCommand(CalendarEventId, PlatformId),
+            request.Token);
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.True(request.IsCancellationRequested);
+        Assert.Equal(operation.Token, repository.StartToken);
+        Assert.Equal(operation.Token, publisher.CancellationToken);
+        Assert.Equal(operation.Token, repository.CheckpointToken);
+        Assert.Equal(finalization.Token, repository.MarkPublishedToken);
+        Assert.NotEqual(request.Token, repository.StartToken);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ProviderTimeout_RecordsFailedWithBoundedFinalization()
+    {
+        using var finalization = new CancellationTokenSource();
+        var repository = new PublishFakePublicationRepository();
+        var publisher = new PublishFakePublisher
+        {
+            Throws = new PlatformPublishException(
+                "provider timeout",
+                externalResourceId: null,
+                failureKind: PlatformPublishFailureKind.Timeout)
+        };
+        var executionScopes = new PublishFakeExecutionScopeFactory();
+        executionScopes.Scope.FinalizationToken = finalization.Token;
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            publisher,
+            repository: repository,
+            executionScopes: executionScopes);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Failed, result.Status);
+        Assert.Equal(finalization.Token, repository.MarkFailedToken);
+    }
+
+    [Fact]
+    public async Task HandleAsync_CheckpointRace_StopsPublishAndRecordsFailed()
+    {
+        var repository = new PublishFakePublicationRepository
+        {
+            SaveExternalResourceIdOutcome = SaveExternalResourceIdResult.Changed
+        };
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            new PublishFakePublisher(),
+            repository: repository);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Failed, result.Status);
+        Assert.True(repository.SaveExternalResourceIdCalled);
+        Assert.True(repository.MarkFailedCalled);
+        Assert.Equal("yt-broadcast-id", repository.FailedExternalResourceId);
+        Assert.False(repository.MarkPublishedCalled);
+    }
+
+    [Fact]
+    public async Task HandleAsync_CheckpointCancellation_RetriesKnownIdDuringFinalization()
+    {
+        var repository = new PublishFakePublicationRepository
+        {
+            CheckpointThrows = new OperationCanceledException()
+        };
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            new PublishFakePublisher(),
+            repository: repository);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Failed, result.Status);
+        Assert.Equal("yt-broadcast-id", repository.FailedExternalResourceId);
+        Assert.False(repository.MarkPublishedCalled);
+    }
+
+    [Fact]
+    public async Task HandleAsync_FinalizationTimeout_ReturnsFinalizeFailedAndLogsCritical()
+    {
+        var repository = new PublishFakePublicationRepository();
+        var executionScopes = new PublishFakeExecutionScopeFactory();
+        executionScopes.Scope.FinalizationThrows = new OperationCanceledException();
+        var logger = new CapturingLogger<PublishHandler>();
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            new PublishFakePublisher(),
+            repository: repository,
+            logger: logger,
+            executionScopes: executionScopes);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.FinalizeFailed, result.Status);
+        Assert.Equal(2, executionScopes.Scope.FinalizationCalls);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Critical);
+    }
+
+    [Fact]
+    public async Task HandleAsync_PublishedFollowUpCancellation_DoesNotReopenFinalRow()
+    {
+        var repository = new PublishFakePublicationRepository();
+        var publicationIndex = new FakeCalendarEventPublicationIndexWriter
+        {
+            AddException = new OperationCanceledException()
+        };
+        var handler = CreateHandler(
+            Event(FutureStart),
+            Platform(),
+            new PublishFakePublisher(),
+            repository: repository,
+            publicationIndex: publicationIndex);
+
+        var result = await Handle(handler);
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.True(repository.MarkPublishedCalled);
+        Assert.False(repository.MarkFailedCalled);
     }
 
     [Fact]

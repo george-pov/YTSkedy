@@ -37,6 +37,24 @@ public static class PlatformActionPolicy
         status == PublishStatus.Published;
 
     /// <summary>
+    /// True when an active future publication has remained in Publishing for
+    /// at least the configured stale interval. The inclusive boundary permits
+    /// recovery at exactly <paramref name="staleAfter"/>.
+    /// </summary>
+    public static bool CanRecoverPublication(
+        PublishStatus status,
+        bool isOrphaned,
+        bool isFuture,
+        DateTimeOffset? publicationUpdatedUtc,
+        DateTimeOffset now,
+        TimeSpan staleAfter) =>
+        status == PublishStatus.Publishing &&
+        !isOrphaned &&
+        isFuture &&
+        publicationUpdatedUtc is not null &&
+        publicationUpdatedUtc.Value <= now - staleAfter;
+
+    /// <summary>
     /// True when row-level publishing content can be read. Active
     /// <see cref="PublishStatus.NotPublished"/> rows can render a current
     /// preview. In-progress, failed, and completed rows can read the stored

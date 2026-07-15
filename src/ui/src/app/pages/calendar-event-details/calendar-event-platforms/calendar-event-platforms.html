@@ -48,6 +48,16 @@
           (click)="platformState.deletePlatformPublication(platform)"
         />
       }
+      @if (platform.canRecoverPublication) {
+        <app-button
+          class="platform-recover-publication-button"
+          iconButton
+          icon="error"
+          [ariaLabel]="'Mark publication attempt as failed for ' + platform.platformName"
+          [disabled]="platformState.actionsDisabled()"
+          (click)="platformState.recoverPlatformPublication(platform)"
+        />
+      }
     </div>
   </ng-template>
 </app-data-table>
@@ -95,6 +105,12 @@
 }
 
 @if (platformState.deletePublicationErrorMessage(); as message) {
+  <app-alert variant="error">
+    {{ message }}
+  </app-alert>
+}
+
+@if (platformState.recoverPublicationErrorMessage(); as message) {
   <app-alert variant="error">
     {{ message }}
   </app-alert>

@@ -29,6 +29,18 @@ public sealed class CalendarEventRouteTests
     }
 
     [Fact]
+    public void RecoverPublication_Route_TargetsOneEventPlatformPublication()
+    {
+        var trigger = GetHttpTrigger<RecoverPlatformPublicationApi>(
+            nameof(RecoverPlatformPublicationApi.RecoverAsync));
+
+        Assert.Equal(
+            "calendar-events/{calendarEventId}/platforms/{platformId}/publication/recover",
+            trigger.Route);
+        Assert.Contains("post", trigger.Methods!, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void CalendarEventIdRoutePattern_MatchesIdsButNotStartSuggestion()
     {
         Assert.True(

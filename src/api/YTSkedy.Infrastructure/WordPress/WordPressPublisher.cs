@@ -39,9 +39,11 @@ public sealed class WordPressPublisher : IPlatformPublisher
 
     public async Task<PlatformPublishResult> PublishAsync(
         PlatformPublishRequest request,
+        IPlatformPublishCheckpoint checkpoint,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(checkpoint);
 
         if (request.PublishSettings is not WordPressSettings settings)
         {
@@ -93,6 +95,26 @@ public sealed class WordPressPublisher : IPlatformPublisher
                     $"WordPress returned an invalid post id while publishing calendar event '{request.CalendarEventId}'.");
             }
 
+            var externalResourceId = body.Id.Value.ToString(CultureInfo.InvariantCulture);
+            try
+            {
+                await checkpoint.SaveExternalResourceIdAsync(
+                    externalResourceId,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new PlatformPublishException(
+                    $"WordPress post creation succeeded for calendar event " +
+                    $"'{request.CalendarEventId}', but its id could not be checkpointed.",
+                    externalResourceId,
+                    exception);
+            }
+
             logger.LogInformation(
                 "Created WordPress post {PostId} for calendar event {CalendarEventId} " +
                 "and platform {PlatformId} at host {WordPressHost}.",
@@ -101,8 +123,15 @@ public sealed class WordPressPublisher : IPlatformPublisher
                 request.PlatformId,
                 endpoint.Host);
 
-            return new PlatformPublishResult(
-                body.Id.Value.ToString(CultureInfo.InvariantCulture));
+            return new PlatformPublishResult(externalResourceId);
+        }
+        catch (OperationCanceledException exception) when (
+            !PublishCancellationClassifier.IsCallerCancellation(exception, cancellationToken))
+        {
+            throw PublishCancellationClassifier.ToPublishException(
+                exception,
+                "WordPress",
+                request.CalendarEventId);
         }
         catch (OperationCanceledException)
         {

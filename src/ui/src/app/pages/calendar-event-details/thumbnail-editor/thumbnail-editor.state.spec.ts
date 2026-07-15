@@ -191,4 +191,23 @@ describe('ThumbnailEditorState', () => {
     expect(service.uploadThumbnail).not.toHaveBeenCalled();
     expect(state.selectedFile()).toBeNull();
   });
+
+  it('clears upload-after-create mutation state before emitting success', () => {
+    const upload = new Subject<CalendarEventThumbnail>();
+    service.uploadThumbnail.mockReturnValue(upload.asObservable());
+    const state = createState(null, false);
+    state.selectThumbnail(imageFile());
+    const mutationStatesAtEmission: boolean[] = [];
+
+    state.uploadAfterCreate('created-event').subscribe(() => {
+      mutationStatesAtEmission.push(state.isUploading());
+    });
+
+    expect(state.isUploading()).toBe(true);
+    upload.next(thumbnail());
+    upload.complete();
+
+    expect(mutationStatesAtEmission).toEqual([false]);
+    expect(state.isUploading()).toBe(false);
+  });
 });

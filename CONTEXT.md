@@ -45,6 +45,14 @@ suitable for external contributors and real deployments.
   identifiers independently from the calendar event. Caught publish failures
   are operator-visible, retryable records that may retain an external resource
   id for provider verification.
+- Reads and publish preflight remain request-cancelable. After a publication
+  attempt starts, a server-owned deadline bounds provider work and a separate
+  short deadline bounds final-state persistence. Known provider ids are
+  checkpointed before later provider work.
+- Hard termination can still leave a `Publishing` row. The backend exposes
+  recovery eligibility only for an active future attempt older than the
+  configured stale threshold, and an authenticated operator can conditionally
+  mark that exact row `Failed` after verifying the provider.
 - Calendar-event thumbnails are application-owned artifacts and may be applied
   to supported provider resources during publication.
 
@@ -83,6 +91,8 @@ ownership rules live in
 - Retrying a failed publication is an explicit operator action after checking
   the publishing platform and removing any uncertain provider resource when
   necessary.
+- Provider writes are not automatically retried, and uncertain provider
+  resources are not automatically deleted.
 - Public HTTP contracts must remain stable enough for independent UI and API
   work.
 - Deployment-specific values belong in environment configuration rather than
