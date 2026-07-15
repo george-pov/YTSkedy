@@ -22,8 +22,11 @@ The workflow path variables point at the backend workspace under `src/api/`.
 It does not install npm packages, build the Angular app, publish frontend
 assets, or deploy a frontend host.
 
-Infrastructure deployment is separate from application deployment. The Bicep
-entry point, guarded validation, what-if, and apply process are documented in
+Infrastructure deployment is separate from application deployment. The
+dedicated infrastructure workflow performs source validation and supports
+manually dispatched Azure validation, what-if, and apply operations. Its Bicep
+entry point, environment secrets, identity bootstrap, and approval process are
+documented in
 [`../../operations/azure-environments.md`](../../operations/azure-environments.md).
 
 ## GitHub Environment

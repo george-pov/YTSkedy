@@ -6,7 +6,9 @@ param(
 
     [switch]$ValidateOnly,
 
-    [switch]$Apply
+    [switch]$Apply,
+
+    [switch]$GitHubActionsApply
 )
 
 Set-StrictMode -Version Latest
@@ -335,8 +337,32 @@ if ($selectedModeCount -ne 1) {
     throw 'Select exactly one mode: -ValidateOnly, -WhatIf, or -Apply.'
 }
 
+if ($GitHubActionsApply -and -not $Apply) {
+    throw 'GitHubActionsApply can be used only with Apply.'
+}
+
+if ($GitHubActionsApply -and $env:GITHUB_ACTIONS -cne 'true') {
+    throw 'GitHubActionsApply requires the GitHub Actions environment.'
+}
+
+if ($GitHubActionsApply -and $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch') {
+    throw 'GitHubActionsApply requires a manually dispatched workflow.'
+}
+
+if ($GitHubActionsApply -and $env:GITHUB_REF -cne 'refs/heads/main') {
+    throw 'GitHubActionsApply requires the main branch.'
+}
+
+if (
+    $GitHubActionsApply -and
+    $env:YTSKEDY_GITHUB_ENVIRONMENT -cne $Environment
+) {
+    throw "GitHub Actions environment '$env:YTSKEDY_GITHUB_ENVIRONMENT' does not match '$Environment'."
+}
+
 if (
     $Apply -and
+    -not $GitHubActionsApply -and
     $PSBoundParameters.ContainsKey('Confirm') -and
     -not [bool]$PSBoundParameters.Confirm
 ) {
@@ -420,17 +446,23 @@ Invoke-SubscriptionWhatIf `
     -Location $location `
     -DeploymentName $deploymentName
 
-$previousConfirmPreference = $ConfirmPreference
-$ConfirmPreference = 'High'
-
-try {
-    $deploymentConfirmed = $PSCmdlet.ShouldProcess(
-        $targetResourceGroup,
-        "Deploy '$Environment' Azure environment using '$deploymentName'"
-    )
+if ($GitHubActionsApply) {
+    Write-Output "GitHubActionsApply Approved $Environment"
+    $deploymentConfirmed = $true
 }
-finally {
-    $ConfirmPreference = $previousConfirmPreference
+else {
+    $previousConfirmPreference = $ConfirmPreference
+    $ConfirmPreference = 'High'
+
+    try {
+        $deploymentConfirmed = $PSCmdlet.ShouldProcess(
+            $targetResourceGroup,
+            "Deploy '$Environment' Azure environment using '$deploymentName'"
+        )
+    }
+    finally {
+        $ConfirmPreference = $previousConfirmPreference
+    }
 }
 
 if (-not $deploymentConfirmed) {

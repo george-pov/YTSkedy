@@ -24,7 +24,8 @@ are supplied by tracked parameter files or process-scoped deployment inputs.
 | --- | --- | --- |
 | GitHub Environment | `dev` | `prod` |
 | Application deployment | Pushes to `main`; explicit manual dispatch | Explicit manual dispatch only |
-| Deployment protection | Normal repository controls | Required reviewer and approved branch policy |
+| Infrastructure deployment | Manual workflow dispatch after reviewed what-if | Manual workflow dispatch after reviewed what-if and required approval |
+| Deployment protection | Exact `main` branch policy before infrastructure secrets are added | Required reviewer and exact `main` branch policy |
 | Log retention | 30 days | 90 days |
 | Resource-group delete lock | Disabled | `CanNotDelete`, enabled only after validation |
 | Application data | Separate storage | Separate storage |
@@ -39,6 +40,12 @@ The subscription-scope entry point is:
 
 ```text
 bicep/main.bicep
+```
+
+The infrastructure workflow is:
+
+```text
+.github/workflows/deploy-azure-infrastructure.yml
 ```
 
 Tracked environment parameters are:
@@ -69,8 +76,10 @@ Public resource names, location, tags, retention, runtime scale, and lock state
 belong in the tracked environment parameter files.
 
 Authentication and alert receiver inputs come from the PowerShell process that
-runs validation or deployment. The parameter files read these six variables
-through an environment-specific `YTSKEDY_DEV_` or `YTSKEDY_PROD_` prefix:
+runs validation or deployment. For GitHub Actions, Environment secrets are
+mapped into that process only for the infrastructure job. The parameter files
+read these six variables through an environment-specific `YTSKEDY_DEV_` or
+`YTSKEDY_PROD_` prefix:
 
 ```text
 AUTH_INSTANCE
@@ -83,13 +92,14 @@ ALERT_RECEIVER_EMAIL_ADDRESS
 
 Bicep marks all six values secure so they are not retained in normal deployment
 history. Do not place their values in command history, tracked parameter files,
-generated templates, workflow variables, or durable documentation. Remove them
-from the process when the operation ends.
+generated templates, GitHub variables, or durable documentation. Store the
+GitHub copies as Environment secrets. Remove local process values when the
+operation ends.
 
 Provider credentials are not infrastructure deployment inputs. Configure them
 only through the application-owned platform settings flow.
 
-## Validation And Deployment
+## Local Validation And Deployment
 
 Run commands from the repository root. Select one environment and populate its
 six process variables before invoking the wrapper:
@@ -124,30 +134,154 @@ The wrapper always repeats name ownership checks, Bicep build, subscription
 validation, and what-if before the confirmation prompt. It prints only an
 approved set of public deployment outputs.
 
+## Automated Infrastructure Workflow
+
+Pull requests and pushes that change `bicep/`, `scripts/azure/`, or the
+infrastructure workflow compile the Bicep entry point and both parameter files.
+This source-validation job uses inert values, does not log in to Azure, and
+cannot apply infrastructure.
+
+Live operations use manual dispatch from `main`. Dispatches from any other ref
+run source validation only and cannot start the secret-bearing deployment job.
+Select the GitHub Environment and one operation:
+
+- `validate` runs Azure subscription deployment validation.
+- `what-if` reports resource ids and change types without applying them.
+- `apply` repeats validation and what-if, then performs the incremental
+  deployment.
+
+Run and review `what-if` before starting a separate `apply` run. Apply requires
+`apply dev` or `apply prod` in the confirmation input. The deployment job
+references the selected GitHub Environment, so its branch rules, required
+reviewers, variables, and secrets are enforced before Azure login. The script
+permits noninteractive apply only when GitHub Actions and the selected
+Environment match.
+
+### GitHub Environment Infrastructure Inputs
+
+Each `dev` and `prod` GitHub Environment requires these additional values:
+
+| Name | Classification | Purpose |
+| --- | --- | --- |
+| `AZURE_INFRA_CLIENT_ID` | Variable | Client id of the dedicated infrastructure deployment identity. |
+| `BICEP_AUTH_INSTANCE` | Secret | Matching External ID authority instance. |
+| `BICEP_AUTH_TENANT_ID` | Secret | Matching External ID tenant id. |
+| `BICEP_AUTH_CLIENT_ID` | Secret | Matching API app registration client id. |
+| `BICEP_AUTH_ISSUER` | Secret | Exact matching user-flow OpenID metadata issuer. |
+| `BICEP_ALERT_RECEIVER_NAME` | Secret | Matching action group receiver name. |
+| `BICEP_ALERT_RECEIVER_EMAIL_ADDRESS` | Secret | Matching action group receiver address. |
+
+The workflow reuses the existing `AZURE_TENANT_ID` and
+`AZURE_SUBSCRIPTION_ID` variables. `AZURE_INFRA_CLIENT_ID` must not replace the
+application deployment `AZURE_CLIENT_ID` value.
+
+Before adding the secrets, configure both Environments to allow deployments
+only from the exact `main` branch. Keep the existing required reviewer on
+`prod`. Environment secrets are released to a job only after its deployment
+branch and protection rules pass.
+
+Set each secret through an interactive prompt so its value is not written to
+shell history:
+
+```powershell
+$environment = 'dev'
+
+gh secret set BICEP_AUTH_INSTANCE --env $environment
+gh secret set BICEP_AUTH_TENANT_ID --env $environment
+gh secret set BICEP_AUTH_CLIENT_ID --env $environment
+gh secret set BICEP_AUTH_ISSUER --env $environment
+gh secret set BICEP_ALERT_RECEIVER_NAME --env $environment
+gh secret set BICEP_ALERT_RECEIVER_EMAIL_ADDRESS --env $environment
+```
+
+Repeat for `prod` with only prod values. Authentication values come from the
+matching External ID API registration and user-flow OpenID metadata. Receiver
+values come from the matching Azure Monitor action group configuration.
+
+### Infrastructure Identity Bootstrap
+
+Infrastructure automation uses a dedicated user-assigned managed identity per
+environment. Do not broaden the application deployment identity. The current
+entry point creates a resource group at subscription scope and creates Azure
+role assignments, so the infrastructure identity requires Contributor and
+Role Based Access Control Administrator at the deployment subscription. These
+are privileged assignments. Create them once through an Azure administrator,
+keep the workflow manual, and preserve prod Environment review protection.
+
+The following is a bootstrap template. Replace placeholders, review the active
+Azure subscription, and treat execution as a separately approved live Azure
+and GitHub mutation:
+
+```powershell
+$environment = 'dev'
+$resourceGroup = '<environment-resource-group>'
+$identityName = "id-ytskedy-infrastructure-$environment"
+$repository = '<owner>/<repository>'
+$subscriptionId = az account show --query id --output tsv
+$subscriptionScope = "/subscriptions/$subscriptionId"
+
+$identity = az identity create `
+  --name $identityName `
+  --resource-group $resourceGroup `
+  --output json | ConvertFrom-Json
+
+az identity federated-credential create `
+  --name "github-infrastructure-$environment" `
+  --identity-name $identityName `
+  --resource-group $resourceGroup `
+  --issuer 'https://token.actions.githubusercontent.com' `
+  --subject "repo:${repository}:environment:$environment" `
+  --audiences 'api://AzureADTokenExchange' `
+  --output none
+
+az role assignment create `
+  --assignee-object-id $identity.principalId `
+  --assignee-principal-type ServicePrincipal `
+  --role 'b24988ac-6180-42a0-ab88-20f7382dd24c' `
+  --scope $subscriptionScope `
+  --output none
+
+az role assignment create `
+  --assignee-object-id $identity.principalId `
+  --assignee-principal-type ServicePrincipal `
+  --role 'f58310d9-a9f6-439a-9e8d-f62e7b41a168' `
+  --scope $subscriptionScope `
+  --output none
+
+gh variable set AZURE_INFRA_CLIENT_ID `
+  --env $environment `
+  --body $identity.clientId
+```
+
+The first role id is Contributor. The second is Role Based Access Control
+Administrator. Repeat the bootstrap with a separate identity for `prod`.
+
 ## GitHub Environments And Promotion
 
-The Function and UI workflows use GitHub Environments named `dev` and `prod`.
-Both use public Environment variables and GitHub OIDC. They do not require an
-Azure client secret.
+The infrastructure, Function, and UI workflows use GitHub Environments named
+`dev` and `prod`. They use GitHub OIDC and do not require an Azure client
+secret.
 
 Pushes to `main` resolve to `dev`. A prod deployment must be started manually
 with `prod` selected and must pass the prod Environment reviewer and branch
 policy. Promote an exact commit that has already completed dev deployment and
 validation.
 
-Each environment identity has one federated subject:
+Each application or infrastructure environment identity has one federated
+subject:
 
 ```text
 repo:OWNER/REPOSITORY:environment:<environment>
 ```
 
-The identity receives only:
+The application deployment identity receives only:
 
 - Website Contributor scoped to the matching Function App.
 - Storage Blob Data Contributor scoped to the matching UI storage account.
 
-Do not grant either deployment identity Contributor at subscription or
-resource-group scope.
+Do not grant the application deployment identity Contributor at subscription
+or resource-group scope. The separately bootstrapped infrastructure identity
+owns the privileged subscription deployment path.
 
 ## Manual Platform Boundaries
 

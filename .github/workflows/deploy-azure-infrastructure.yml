@@ -1,0 +1,241 @@
+name: Deploy Azure Infrastructure
+
+on:
+  pull_request:
+    paths:
+      - bicep/**
+      - scripts/azure/**
+      - .github/workflows/deploy-azure-infrastructure.yml
+  push:
+    branches:
+      - main
+    paths:
+      - bicep/**
+      - scripts/azure/**
+      - .github/workflows/deploy-azure-infrastructure.yml
+  workflow_dispatch:
+    inputs:
+      github_environment:
+        description: GitHub Environment containing the infrastructure deployment inputs.
+        required: true
+        default: dev
+        type: environment
+      operation:
+        description: Azure infrastructure operation to run.
+        required: true
+        default: what-if
+        type: choice
+        options:
+          - validate
+          - what-if
+          - apply
+      apply_confirmation:
+        description: For apply, enter "apply dev" or "apply prod" exactly.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-azure-infrastructure-${{ inputs.github_environment || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-source:
+    name: Validate infrastructure source
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: |
+          $parseFailures = [Collections.Generic.List[string]]::new()
+
+          foreach ($path in Get-ChildItem -LiteralPath scripts/azure -Filter *.ps1) {
+            $tokens = $null
+            $parseErrors = $null
+            $null = [Management.Automation.Language.Parser]::ParseFile(
+              $path.FullName,
+              [ref]$tokens,
+              [ref]$parseErrors
+            )
+
+            foreach ($parseError in $parseErrors) {
+              $parseFailures.Add("$($path.FullName): $($parseError.Message)")
+            }
+          }
+
+          if ($parseFailures.Count -gt 0) {
+            throw ($parseFailures -join [Environment]::NewLine)
+          }
+
+      - name: Compile Bicep source and parameters
+        shell: bash
+        env:
+          YTSKEDY_DEV_AUTH_INSTANCE: https://example.invalid/
+          YTSKEDY_DEV_AUTH_TENANT_ID: 00000000-0000-0000-0000-000000000000
+          YTSKEDY_DEV_AUTH_CLIENT_ID: 00000000-0000-0000-0000-000000000000
+          YTSKEDY_DEV_AUTH_ISSUER: https://example.invalid/00000000-0000-0000-0000-000000000000/v2.0
+          YTSKEDY_DEV_ALERT_RECEIVER_NAME: validation
+          YTSKEDY_DEV_ALERT_RECEIVER_EMAIL_ADDRESS: validation@example.invalid
+          YTSKEDY_PROD_AUTH_INSTANCE: https://example.invalid/
+          YTSKEDY_PROD_AUTH_TENANT_ID: 00000000-0000-0000-0000-000000000000
+          YTSKEDY_PROD_AUTH_CLIENT_ID: 00000000-0000-0000-0000-000000000000
+          YTSKEDY_PROD_AUTH_ISSUER: https://example.invalid/00000000-0000-0000-0000-000000000000/v2.0
+          YTSKEDY_PROD_ALERT_RECEIVER_NAME: validation
+          YTSKEDY_PROD_ALERT_RECEIVER_EMAIL_ADDRESS: validation@example.invalid
+        run: |
+          set -euo pipefail
+          az bicep build --file bicep/main.bicep --stdout --only-show-errors > /dev/null
+          az bicep build-params --file bicep/environments/dev.bicepparam --stdout --only-show-errors > /dev/null
+          az bicep build-params --file bicep/environments/prod.bicepparam --stdout --only-show-errors > /dev/null
+
+  deploy:
+    name: ${{ inputs.operation }} ${{ inputs.github_environment }} infrastructure
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: validate-source
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: ${{ inputs.github_environment }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Validate requested operation
+        shell: pwsh
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.github_environment }}
+          OPERATION: ${{ inputs.operation }}
+          APPLY_CONFIRMATION: ${{ inputs.apply_confirmation }}
+        run: |
+          if ($env:GITHUB_REF -cne 'refs/heads/main') {
+            throw 'Live infrastructure operations are allowed only from the main branch.'
+          }
+
+          if ($env:OPERATION -ne 'apply') {
+            return
+          }
+
+          $expectedConfirmation = "apply $env:TARGET_ENVIRONMENT"
+          if ($env:APPLY_CONFIRMATION -cne $expectedConfirmation) {
+            throw "Apply confirmation must be '$expectedConfirmation'."
+          }
+
+      - name: Verify deployment inputs
+        shell: pwsh
+        env:
+          AZURE_INFRA_CLIENT_ID: ${{ vars.AZURE_INFRA_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          BICEP_AUTH_INSTANCE: ${{ secrets.BICEP_AUTH_INSTANCE }}
+          BICEP_AUTH_TENANT_ID: ${{ secrets.BICEP_AUTH_TENANT_ID }}
+          BICEP_AUTH_CLIENT_ID: ${{ secrets.BICEP_AUTH_CLIENT_ID }}
+          BICEP_AUTH_ISSUER: ${{ secrets.BICEP_AUTH_ISSUER }}
+          BICEP_ALERT_RECEIVER_NAME: ${{ secrets.BICEP_ALERT_RECEIVER_NAME }}
+          BICEP_ALERT_RECEIVER_EMAIL_ADDRESS: ${{ secrets.BICEP_ALERT_RECEIVER_EMAIL_ADDRESS }}
+        run: |
+          $requiredNames = @(
+            'AZURE_INFRA_CLIENT_ID'
+            'AZURE_TENANT_ID'
+            'AZURE_SUBSCRIPTION_ID'
+            'BICEP_AUTH_INSTANCE'
+            'BICEP_AUTH_TENANT_ID'
+            'BICEP_AUTH_CLIENT_ID'
+            'BICEP_AUTH_ISSUER'
+            'BICEP_ALERT_RECEIVER_NAME'
+            'BICEP_ALERT_RECEIVER_EMAIL_ADDRESS'
+          )
+          $missingNames = @(
+            $requiredNames | Where-Object {
+              [string]::IsNullOrWhiteSpace(
+                [Environment]::GetEnvironmentVariable($_, 'Process')
+              )
+            }
+          )
+
+          if ($missingNames.Count -gt 0) {
+            throw "Missing GitHub Environment inputs: $($missingNames -join ', ')."
+          }
+
+      - name: Log in to Azure
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_INFRA_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run infrastructure operation
+        shell: pwsh
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.github_environment }}
+          OPERATION: ${{ inputs.operation }}
+          YTSKEDY_GITHUB_ENVIRONMENT: ${{ inputs.github_environment }}
+          BICEP_AUTH_INSTANCE: ${{ secrets.BICEP_AUTH_INSTANCE }}
+          BICEP_AUTH_TENANT_ID: ${{ secrets.BICEP_AUTH_TENANT_ID }}
+          BICEP_AUTH_CLIENT_ID: ${{ secrets.BICEP_AUTH_CLIENT_ID }}
+          BICEP_AUTH_ISSUER: ${{ secrets.BICEP_AUTH_ISSUER }}
+          BICEP_ALERT_RECEIVER_NAME: ${{ secrets.BICEP_ALERT_RECEIVER_NAME }}
+          BICEP_ALERT_RECEIVER_EMAIL_ADDRESS: ${{ secrets.BICEP_ALERT_RECEIVER_EMAIL_ADDRESS }}
+        run: |
+          $prefix = "YTSKEDY_$($env:TARGET_ENVIRONMENT.ToUpperInvariant())"
+          $deploymentInputs = @{
+            "${prefix}_AUTH_INSTANCE" = $env:BICEP_AUTH_INSTANCE
+            "${prefix}_AUTH_TENANT_ID" = $env:BICEP_AUTH_TENANT_ID
+            "${prefix}_AUTH_CLIENT_ID" = $env:BICEP_AUTH_CLIENT_ID
+            "${prefix}_AUTH_ISSUER" = $env:BICEP_AUTH_ISSUER
+            "${prefix}_ALERT_RECEIVER_NAME" = $env:BICEP_ALERT_RECEIVER_NAME
+            "${prefix}_ALERT_RECEIVER_EMAIL_ADDRESS" = $env:BICEP_ALERT_RECEIVER_EMAIL_ADDRESS
+          }
+
+          try {
+            foreach ($inputName in $deploymentInputs.Keys) {
+              [Environment]::SetEnvironmentVariable(
+                $inputName,
+                $deploymentInputs[$inputName],
+                'Process'
+              )
+            }
+
+            switch ($env:OPERATION) {
+              'validate' {
+                ./scripts/azure/Deploy-AzureEnvironment.ps1 `
+                  -Environment $env:TARGET_ENVIRONMENT `
+                  -ValidateOnly
+              }
+              'what-if' {
+                ./scripts/azure/Deploy-AzureEnvironment.ps1 `
+                  -Environment $env:TARGET_ENVIRONMENT `
+                  -WhatIf
+              }
+              'apply' {
+                ./scripts/azure/Deploy-AzureEnvironment.ps1 `
+                  -Environment $env:TARGET_ENVIRONMENT `
+                  -Apply `
+                  -GitHubActionsApply
+              }
+              default {
+                throw "Unsupported operation '$env:OPERATION'."
+              }
+            }
+
+            @(
+              "## Azure infrastructure $env:OPERATION"
+              ''
+              "- Environment: $env:TARGET_ENVIRONMENT"
+              '- Result: succeeded'
+            ) | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+          finally {
+            foreach ($inputName in $deploymentInputs.Keys) {
+              [Environment]::SetEnvironmentVariable($inputName, $null, 'Process')
+            }
+          }
