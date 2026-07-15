@@ -87,7 +87,7 @@ public sealed class DefaultStartCalculatorTests
     public void Calculate_OffsetChange_PreservesWeeklyWallClockTime()
     {
         var result = DefaultStartCalculator.Calculate(
-            new StartDefaults(DayOfWeek.Sunday, new TimeOnly(10, 0), "America/Vancouver"),
+            new StartDefaults(DayOfWeek.Sunday, new TimeOnly(10, 0), "America/Los_Angeles"),
             null,
             new HashSet<DateTimeOffset>
             {
