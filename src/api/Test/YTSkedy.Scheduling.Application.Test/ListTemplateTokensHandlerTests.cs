@@ -11,24 +11,28 @@ public class ListTemplateTokensHandlerTests
     [Fact]
     public async Task HandleAsync_ReturnsCurrentTextFieldDateAndReferenceKeyTokenCatalog()
     {
-        var handler = new ListTemplateTokensHandler(
-            new FakeEventTextFieldsReader(
-                new EventTextFields(
-                    [
-                        new EventTextField(
-                            "Episode title",
-                            EventTextType.ShortText,
-                            80),
-                        new EventTextField(
-                            "Episode details",
-                            EventTextType.LongText,
-                            2500)
-                    ])),
-            new FakePlatformReader(
+        var fields = new Mock<IEventTextFieldsReader>();
+        fields
+            .Setup(reader => reader.GetAsync(CancellationToken.None))
+            .ReturnsAsync(new EventTextFields(
                 [
-                    Platform(referenceKey: null),
-                    Platform(referenceKey: "privateYouTube")
+                    new EventTextField(
+                        "Episode title",
+                        EventTextType.ShortText,
+                        80),
+                    new EventTextField(
+                        "Episode details",
+                        EventTextType.LongText,
+                        2500)
                 ]));
+        var platforms = new Mock<IPlatformReader>();
+        platforms
+            .Setup(reader => reader.ListAsync(null, CancellationToken.None))
+            .ReturnsAsync([
+                Platform(referenceKey: null),
+                Platform(referenceKey: "privateYouTube")
+            ]);
+        var handler = new ListTemplateTokensHandler(fields.Object, platforms.Object);
 
         var tokens = await handler.HandleAsync(CancellationToken.None);
 

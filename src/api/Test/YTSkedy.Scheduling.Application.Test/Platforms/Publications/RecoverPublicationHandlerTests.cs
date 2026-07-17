@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.TestSupport;
@@ -14,7 +16,7 @@ public sealed class RecoverPublicationHandlerTests
     public async Task HandleAsync_ExactlyStalePublishingRow_RecoversObservedRow()
     {
         var updatedUtc = Now - StaleAfter;
-        var repository = new PublishFakePublicationRepository();
+        var repository = PublicationAttempts();
         var handler = CreateHandler(
             PublishHandlerScenario.Event(PublishHandlerScenario.FutureStart),
             PublishHandlerScenario.Platform(),
@@ -24,8 +26,11 @@ public sealed class RecoverPublicationHandlerTests
         var result = await Handle(handler);
 
         Assert.Equal(RecoverPublicationStatus.Recovered, result.Status);
-        Assert.True(repository.RecoverStalePublishingCalled);
-        Assert.Equal(updatedUtc, repository.RecoveredExpectedUpdatedUtc);
+        repository.Verify(candidate => candidate.RecoverStalePublishingAsync(
+            PublishHandlerScenario.CalendarEventId,
+            PublishHandlerScenario.PlatformId,
+            updatedUtc,
+            CancellationToken.None));
     }
 
     [Fact]
@@ -90,10 +95,7 @@ public sealed class RecoverPublicationHandlerTests
     [Fact]
     public async Task HandleAsync_RowChanged_ReturnsRowChanged()
     {
-        var repository = new PublishFakePublicationRepository
-        {
-            RecoverStalePublishingOutcome = RecoverStalePublishingResult.Changed
-        };
+        var repository = PublicationAttempts(RecoverStalePublishingResult.Changed);
         var handler = CreateHandler(
             PublishHandlerScenario.Event(PublishHandlerScenario.FutureStart),
             PublishHandlerScenario.Platform(),
@@ -122,20 +124,40 @@ public sealed class RecoverPublicationHandlerTests
         Domain.CalendarEvents.CalendarEventView? calendarEvent,
         PlatformView? platform,
         PlatformPublication? publication,
-        PublishFakePublicationRepository? repository = null) =>
-        new(
-            new FakeCalendarEventReader(getResult: calendarEvent),
-            new FakePlatformReader(
-                platforms: platform is null ? [] : [platform],
-                getResult: platform),
-            new FakePlatformPublicationReader(publication is null ? [] : [publication]),
-            repository ?? new PublishFakePublicationRepository(),
+        Mock<IPublicationAttemptWriter>? repository = null)
+    {
+        var calendarEvents = new Mock<ICalendarEventReader>();
+        calendarEvents
+            .Setup(candidate => candidate.GetByIdAsync(
+                PublishHandlerScenario.CalendarEventId,
+                CancellationToken.None))
+            .ReturnsAsync(calendarEvent);
+        var platforms = new Mock<IPlatformReader>();
+        platforms
+            .Setup(candidate => candidate.GetAsync(
+                PublishHandlerScenario.PlatformId,
+                CancellationToken.None))
+            .ReturnsAsync(platform);
+        var publications = new Mock<IPlatformPublicationReader>();
+        publications
+            .Setup(candidate => candidate.GetAsync(
+                PublishHandlerScenario.CalendarEventId,
+                PublishHandlerScenario.PlatformId,
+                CancellationToken.None))
+            .ReturnsAsync(publication);
+
+        return new RecoverPublicationHandler(
+            calendarEvents.Object,
+            platforms.Object,
+            publications.Object,
+            (repository ?? PublicationAttempts()).Object,
             new PublicationExecutionSettings(
                 TimeSpan.FromMinutes(2),
                 TimeSpan.FromSeconds(15),
                 StaleAfter),
             new FixedTimeProvider(Now),
             NullLogger<RecoverPublicationHandler>.Instance);
+    }
 
     private static Task<RecoverPublicationResult> Handle(RecoverPublicationHandler handler) =>
         handler.HandleAsync(
@@ -154,4 +176,18 @@ public sealed class RecoverPublicationHandlerTests
             externalResourceId: "checkpoint-id",
             updatedUtc: updatedUtc,
             contentSnapshot: new ContentSnapshot("Stored title", "Stored description"));
+
+    private static Mock<IPublicationAttemptWriter> PublicationAttempts(
+        RecoverStalePublishingResult? result = null)
+    {
+        var repository = new Mock<IPublicationAttemptWriter>();
+        repository
+            .Setup(candidate => candidate.RecoverStalePublishingAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(result ?? RecoverStalePublishingResult.Recovered);
+        return repository;
+    }
 }

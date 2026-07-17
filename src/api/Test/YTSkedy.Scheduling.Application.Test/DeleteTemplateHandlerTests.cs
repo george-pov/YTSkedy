@@ -10,21 +10,32 @@ public class DeleteTemplateHandlerTests
     [Fact]
     public async Task HandleAsync_ValidCommand_ForwardsToModifierAndReturnsResult()
     {
-        var modifier = new FakeTemplateModifier
-        {
-            DeleteResult = DeleteTemplateResult.Deleted
-        };
-        var platforms = new FakePlatformReader([]);
-        var handler = new DeleteTemplateHandler(modifier, platforms);
+        var modifier = new Mock<ITemplateModifier>();
+        modifier
+            .Setup(candidate => candidate.DeleteAsync(
+                TemplateType.YouTube,
+                "9f8b1c2d3e4f",
+                CancellationToken.None))
+            .ReturnsAsync(DeleteTemplateResult.Deleted);
+        var platforms = new Mock<IPlatformReader>();
+        platforms
+            .Setup(reader => reader.ListAsync(
+                PlatformType.YouTube,
+                CancellationToken.None))
+            .ReturnsAsync([]);
+        var handler = new DeleteTemplateHandler(modifier.Object, platforms.Object);
         var command = new DeleteTemplateCommand(TemplateType.YouTube, "9f8b1c2d3e4f");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(DeleteTemplateResult.Deleted, result);
-        Assert.Equal(1, modifier.DeleteCallCount);
-        Assert.Equal(TemplateType.YouTube, modifier.DeletedType);
-        Assert.Equal("9f8b1c2d3e4f", modifier.DeletedId);
-        Assert.Equal(PlatformType.YouTube, platforms.RequestedType);
+        modifier.Verify(candidate => candidate.DeleteAsync(
+            TemplateType.YouTube,
+            "9f8b1c2d3e4f",
+            CancellationToken.None));
+        platforms.Verify(reader => reader.ListAsync(
+            PlatformType.YouTube,
+            CancellationToken.None));
     }
 
     [Theory]
@@ -33,8 +44,20 @@ public class DeleteTemplateHandlerTests
     public async Task HandleAsync_ModifierResult_IsReturnedUnchanged(
         DeleteTemplateResult modifierResult)
     {
-        var modifier = new FakeTemplateModifier { DeleteResult = modifierResult };
-        var handler = new DeleteTemplateHandler(modifier, new FakePlatformReader([]));
+        var modifier = new Mock<ITemplateModifier>();
+        modifier
+            .Setup(candidate => candidate.DeleteAsync(
+                It.IsAny<TemplateType>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(modifierResult);
+        var platforms = new Mock<IPlatformReader>();
+        platforms
+            .Setup(reader => reader.ListAsync(
+                PlatformType.WordPress,
+                CancellationToken.None))
+            .ReturnsAsync([]);
+        var handler = new DeleteTemplateHandler(modifier.Object, platforms.Object);
         var command = new DeleteTemplateCommand(TemplateType.WordPress, "9f8b1c2d3e4f");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -45,68 +68,46 @@ public class DeleteTemplateHandlerTests
     [Fact]
     public async Task HandleAsync_TemplateReferencedByPlatform_ReturnsReferencedByPlatform()
     {
-        var modifier = new FakeTemplateModifier();
-        var handler = new DeleteTemplateHandler(
-            modifier,
-            new FakePlatformReader(
-                [
-                    ApplicationTestData.Platform(
-                        platformId: "p1",
-                        name: "Main channel",
-                        publishingContent: new PublishingContent(
-                            "9f8b1c2d3e4f",
-                            "description-template"))
-                ]));
+        var modifier = new Mock<ITemplateModifier>();
+        var platforms = new Mock<IPlatformReader>();
+        platforms
+            .Setup(reader => reader.ListAsync(
+                PlatformType.YouTube,
+                CancellationToken.None))
+            .ReturnsAsync([
+                ApplicationTestData.Platform(
+                    platformId: "p1",
+                    name: "Main channel",
+                    publishingContent: new PublishingContent(
+                        "9f8b1c2d3e4f",
+                        "description-template"))
+            ]);
+        var handler = new DeleteTemplateHandler(modifier.Object, platforms.Object);
         var command = new DeleteTemplateCommand(TemplateType.YouTube, "9f8b1c2d3e4f");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(DeleteTemplateResult.ReferencedByPlatform, result);
-        Assert.Equal(0, modifier.DeleteCallCount);
+        modifier.Verify(candidate => candidate.DeleteAsync(
+            It.IsAny<TemplateType>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
+        var modifier = new Mock<ITemplateModifier>();
         var handler = new DeleteTemplateHandler(
-            new FakeTemplateModifier(),
-            new FakePlatformReader([]));
+            modifier.Object,
+            new Mock<IPlatformReader>().Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
-    }
 
-    private sealed class FakeTemplateModifier : ITemplateModifier
-    {
-        public DeleteTemplateResult DeleteResult { get; init; } = DeleteTemplateResult.Deleted;
-
-        public int DeleteCallCount { get; private set; }
-        public TemplateType DeletedType { get; private set; }
-        public string? DeletedId { get; private set; }
-
-        public Task<CreateTemplateResult> CreateAsync(
-            Template template,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<UpdateTemplateResult> UpdateAsync(
-            TemplateType type,
-            string id,
-            string name,
-            string content,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<DeleteTemplateResult> DeleteAsync(
-            TemplateType type,
-            string id,
-            CancellationToken cancellationToken)
-        {
-            DeleteCallCount++;
-            DeletedType = type;
-            DeletedId = id;
-
-            return Task.FromResult(DeleteResult);
-        }
+        modifier.Verify(candidate => candidate.DeleteAsync(
+            It.IsAny<TemplateType>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 }

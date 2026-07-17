@@ -13,36 +13,50 @@ public sealed class UploadThumbnailHandlerTests
     [Fact]
     public async Task HandleAsync_MissingEvent_ReturnsNotFoundWithoutSaving()
     {
-        var store = new FakeThumbnailStore();
-        var modifier = new FakeThumbnailModifier();
+        var store = new Mock<IThumbnailStore>();
+        var modifier = new Mock<ICalendarEventThumbnailModifier>();
         var handler = CreateHandler(null, modifier, store);
 
         var result = await handler.HandleAsync(ValidCommand(), CancellationToken.None);
 
         Assert.Equal(UploadThumbnailStatus.EventNotFound, result.Status);
-        Assert.Equal(0, store.SaveCallCount);
-        Assert.Equal(0, modifier.SaveCallCount);
+        store.Verify(candidate => candidate.SaveAsync(
+            It.IsAny<string>(),
+            It.IsAny<byte[]>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
+        modifier.Verify(candidate => candidate.SaveThumbnailAsync(
+            It.IsAny<string>(),
+            It.IsAny<Thumbnail>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
     public async Task HandleAsync_PublicationRowsExist_ReturnsConflictWithoutSaving()
     {
-        var store = new FakeThumbnailStore();
-        var modifier = new FakeThumbnailModifier();
+        var store = new Mock<IThumbnailStore>();
+        var modifier = new Mock<ICalendarEventThumbnailModifier>();
         var handler = CreateHandler(CreateEvent(), modifier, store, canMutate: false);
 
         var result = await handler.HandleAsync(ValidCommand(), CancellationToken.None);
 
         Assert.Equal(UploadThumbnailStatus.HasPlatformPublications, result.Status);
-        Assert.Equal(0, store.SaveCallCount);
-        Assert.Equal(0, modifier.SaveCallCount);
+        store.Verify(candidate => candidate.SaveAsync(
+            It.IsAny<string>(),
+            It.IsAny<byte[]>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
+        modifier.Verify(candidate => candidate.SaveThumbnailAsync(
+            It.IsAny<string>(),
+            It.IsAny<Thumbnail>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
     public async Task HandleAsync_InvalidUpload_ReturnsValidationErrorWithoutSaving()
     {
-        var store = new FakeThumbnailStore();
-        var modifier = new FakeThumbnailModifier();
+        var store = new Mock<IThumbnailStore>();
+        var modifier = new Mock<ICalendarEventThumbnailModifier>();
         var handler = CreateHandler(CreateEvent(), modifier, store);
         var command = ValidCommand() with { FileName = "stream.gif" };
 
@@ -50,15 +64,22 @@ public sealed class UploadThumbnailHandlerTests
 
         Assert.Equal(UploadThumbnailStatus.Invalid, result.Status);
         Assert.Equal(ThumbnailValidationError.UnsupportedExtension, result.ValidationError);
-        Assert.Equal(0, store.SaveCallCount);
-        Assert.Equal(0, modifier.SaveCallCount);
+        store.Verify(candidate => candidate.SaveAsync(
+            It.IsAny<string>(),
+            It.IsAny<byte[]>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
+        modifier.Verify(candidate => candidate.SaveThumbnailAsync(
+            It.IsAny<string>(),
+            It.IsAny<Thumbnail>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
     public async Task HandleAsync_ValidUpload_SavesBlobThenMetadata()
     {
-        var store = new FakeThumbnailStore();
-        var modifier = new FakeThumbnailModifier();
+        var store = new Mock<IThumbnailStore>();
+        var modifier = new Mock<ICalendarEventThumbnailModifier>();
         var handler = CreateHandler(CreateEvent(), modifier, store);
 
         var result = await handler.HandleAsync(ValidCommand(), CancellationToken.None);
@@ -73,25 +94,56 @@ public sealed class UploadThumbnailHandlerTests
         Assert.Equal(
             ApplicationTestData.ThumbnailBlobName(),
             result.Thumbnail.BlobName);
-        Assert.Equal(1, store.SaveCallCount);
-        Assert.Equal(result.Thumbnail.BlobName, store.SavedBlobName);
-        Assert.Equal(1, modifier.SaveCallCount);
-        Assert.Same(result.Thumbnail, modifier.SavedThumbnail);
+        store.Verify(candidate => candidate.SaveAsync(
+            result.Thumbnail.BlobName,
+            It.Is<byte[]>(content => content.SequenceEqual(Png(1280, 720))),
+            "image/png",
+            CancellationToken.None));
+        modifier.Verify(candidate => candidate.SaveThumbnailAsync(
+            ApplicationTestData.CalendarEventId,
+            result.Thumbnail,
+            CancellationToken.None));
     }
 
     private static UploadThumbnailHandler CreateHandler(
         CalendarEventView? calendarEvent,
-        FakeThumbnailModifier modifier,
-        FakeThumbnailStore store,
-        bool canMutate = true) =>
-        new(
-            new FakeCalendarEventReader(getResult: calendarEvent),
-            new CalendarEventPublicationLock(
-                new FakePlatformPublicationReader(
-                    canMutate ? [] : [ApplicationTestData.Publication(PublishStatus.Published)])),
-            modifier,
-            store,
+        Mock<ICalendarEventThumbnailModifier> modifier,
+        Mock<IThumbnailStore> store,
+        bool canMutate = true)
+    {
+        var calendarEvents = new Mock<ICalendarEventReader>();
+        calendarEvents
+            .Setup(candidate => candidate.GetByIdAsync(
+                ApplicationTestData.CalendarEventId,
+                CancellationToken.None))
+            .ReturnsAsync(calendarEvent);
+        var publications = new Mock<IPlatformPublicationReader>();
+        publications
+            .Setup(candidate => candidate.HasAnyForEventAsync(
+                ApplicationTestData.CalendarEventId,
+                CancellationToken.None))
+            .ReturnsAsync(!canMutate);
+        modifier
+            .Setup(candidate => candidate.SaveThumbnailAsync(
+                ApplicationTestData.CalendarEventId,
+                It.IsAny<Thumbnail>(),
+                CancellationToken.None))
+            .ReturnsAsync(true);
+        store
+            .Setup(candidate => candidate.SaveAsync(
+                It.IsAny<string>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<string>(),
+                CancellationToken.None))
+            .Returns(Task.CompletedTask);
+
+        return new UploadThumbnailHandler(
+            calendarEvents.Object,
+            new CalendarEventPublicationLock(publications.Object),
+            modifier.Object,
+            store.Object,
             new FixedTimeProvider(ApplicationTestData.Now));
+    }
 
     private static UploadThumbnailCommand ValidCommand() =>
         new(
@@ -118,26 +170,4 @@ public sealed class UploadThumbnailHandlerTests
         return content;
     }
 
-    private sealed class FakeThumbnailModifier : ICalendarEventThumbnailModifier
-    {
-        public int SaveCallCount { get; private set; }
-
-        public Thumbnail? SavedThumbnail { get; private set; }
-
-        public Task<bool> SaveThumbnailAsync(
-            string calendarEventId,
-            Thumbnail thumbnail,
-            CancellationToken cancellationToken)
-        {
-            SaveCallCount++;
-            SavedThumbnail = thumbnail;
-
-            return Task.FromResult(true);
-        }
-
-        public Task<bool> DeleteThumbnailAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
 }

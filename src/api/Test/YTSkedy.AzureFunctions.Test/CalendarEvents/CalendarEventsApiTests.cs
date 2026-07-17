@@ -68,14 +68,7 @@ public sealed class CalendarEventsApiTests
     [Fact]
     public async Task ListAsync_EventPage_MapsDisplayTitleAndNotPublishedStatus()
     {
-        var api = new CalendarEventsApi(
-            null!,
-            new ListEventsHandler(
-                new FakeCalendarEventReader([CreateEvent()]),
-                new FakePlatformReader()),
-            null!,
-            null!,
-            null!);
+        var api = CreateListApi();
         var request = new DefaultHttpContext().Request;
 
         var result = await api.ListAsync(request, CancellationToken.None);
@@ -90,14 +83,7 @@ public sealed class CalendarEventsApiTests
     [Fact]
     public async Task ListAsync_EventPage_SerializesPublicationStatusFieldName()
     {
-        var api = new CalendarEventsApi(
-            null!,
-            new ListEventsHandler(
-                new FakeCalendarEventReader([CreateEvent()]),
-                new FakePlatformReader()),
-            null!,
-            null!,
-            null!);
+        var api = CreateListApi();
 
         var result = await api.ListAsync(
             new DefaultHttpContext().Request,
@@ -116,14 +102,7 @@ public sealed class CalendarEventsApiTests
     [Fact]
     public async Task ListAsync_PublicationStatusSort_EchoesContractValue()
     {
-        var api = new CalendarEventsApi(
-            null!,
-            new ListEventsHandler(
-                new FakeCalendarEventReader([CreateEvent()]),
-                new FakePlatformReader()),
-            null!,
-            null!,
-            null!);
+        var api = CreateListApi();
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString(
             "?sort=publicationStatus&direction=asc");
@@ -251,14 +230,21 @@ public sealed class CalendarEventsApiTests
     public async Task CreateCalendarEvent_DuplicateScheduledStart_ReturnsDuplicateScheduledStart()
     {
         var scheduledStartUtc = new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero);
-        var modifier = new FakeCalendarEventModifier
-        {
-            DuplicateScheduledStartUtc = scheduledStartUtc
-        };
+        var fields = new Mock<IEventTextFieldsReader>();
+        fields
+            .Setup(reader => reader.GetAsync(CancellationToken.None))
+            .ReturnsAsync(EventTextFields.Default);
+        var modifier = new Mock<ICalendarEventModifier>();
+        modifier
+            .Setup(candidate => candidate.CreateAsync(
+                It.IsAny<CalendarEvent>(),
+                scheduledStartUtc,
+                CancellationToken.None))
+            .ThrowsAsync(new DuplicateScheduledStartException(scheduledStartUtc));
         var api = new CalendarEventsApi(
             new CreateCalendarEventHandler(
-                new FakeEventTextFieldsReader(EventTextFields.Default),
-                modifier),
+                fields.Object,
+                modifier.Object),
             null!,
             null!,
             null!,
@@ -314,75 +300,28 @@ public sealed class CalendarEventsApiTests
                 title: "English stream 1",
                 description: "Event description"));
 
-    private sealed class FakeCalendarEventReader(
-        IReadOnlyList<CalendarEventView> items) : ICalendarEventReader
+    private static CalendarEventsApi CreateListApi()
     {
-        public Task<IReadOnlyList<CalendarEventListRecord>> ListAsync(
-            CalendarEventMonthCriteria? criteria,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<CalendarEventListRecord>>(
-                items.Select(item => new CalendarEventListRecord(
-                    item,
-                    new HashSet<string>(StringComparer.Ordinal))).ToArray());
+        var events = new Mock<ICalendarEventReader>();
+        events
+            .Setup(reader => reader.ListAsync(
+                It.IsAny<CalendarEventMonthCriteria?>(),
+                CancellationToken.None))
+            .ReturnsAsync([
+                new CalendarEventListRecord(
+                    CreateEvent(),
+                    new HashSet<string>(StringComparer.Ordinal))
+            ]);
+        var platforms = new Mock<IPlatformReader>();
+        platforms
+            .Setup(reader => reader.ListIdsAsync(CancellationToken.None))
+            .ReturnsAsync(new HashSet<string>(StringComparer.Ordinal));
 
-        public Task<CalendarEventView?> GetByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class FakePlatformReader : IPlatformReader
-    {
-        public Task<IReadOnlyList<PlatformView>> ListAsync(
-            PlatformType? type,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlySet<string>> ListIdsAsync(
-            CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlySet<string>>(
-                new HashSet<string>(StringComparer.Ordinal));
-
-        public Task<PlatformView?> GetAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class FakeEventTextFieldsReader(EventTextFields eventTextFields) :
-        IEventTextFieldsReader
-    {
-        public Task<EventTextFields> GetAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(eventTextFields);
-    }
-
-    private sealed class FakeCalendarEventModifier : ICalendarEventModifier
-    {
-        public DateTimeOffset? DuplicateScheduledStartUtc { get; init; }
-
-        public Task<string> CreateAsync(
-            CalendarEvent calendarEvent,
-            DateTimeOffset scheduledStartUtc,
-            CancellationToken cancellationToken)
-        {
-            if (DuplicateScheduledStartUtc is { } duplicateScheduledStartUtc)
-            {
-                throw new DuplicateScheduledStartException(duplicateScheduledStartUtc);
-            }
-
-            return Task.FromResult(CalendarEventId);
-        }
-
-        public Task<bool> UpdateAsync(
-            string calendarEventId,
-            CalendarEvent calendarEvent,
-            DateTimeOffset scheduledStartUtc,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task DeleteAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+        return new CalendarEventsApi(
+            null!,
+            new ListEventsHandler(events.Object, platforms.Object),
+            null!,
+            null!,
+            null!);
     }
 }

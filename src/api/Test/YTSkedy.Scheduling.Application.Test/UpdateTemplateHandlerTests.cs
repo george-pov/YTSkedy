@@ -8,11 +8,16 @@ public class UpdateTemplateHandlerTests
     [Fact]
     public async Task HandleAsync_ValidCommand_ForwardsToModifierAndReturnsResult()
     {
-        var modifier = new FakeTemplateModifier
-        {
-            UpdateResult = UpdateTemplateResult.Updated
-        };
-        var handler = new UpdateTemplateHandler(modifier);
+        var modifier = new Mock<ITemplateModifier>();
+        modifier
+            .Setup(candidate => candidate.UpdateAsync(
+                TemplateType.YouTube,
+                "9f8b1c2d3e4f",
+                "Renamed",
+                "Updated content",
+                CancellationToken.None))
+            .ReturnsAsync(UpdateTemplateResult.Updated);
+        var handler = new UpdateTemplateHandler(modifier.Object);
         var command = new UpdateTemplateCommand(
             TemplateType.YouTube,
             "9f8b1c2d3e4f",
@@ -22,11 +27,12 @@ public class UpdateTemplateHandlerTests
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(UpdateTemplateResult.Updated, result);
-        Assert.Equal(1, modifier.UpdateCallCount);
-        Assert.Equal(TemplateType.YouTube, modifier.UpdatedType);
-        Assert.Equal("9f8b1c2d3e4f", modifier.UpdatedId);
-        Assert.Equal("Renamed", modifier.UpdatedName);
-        Assert.Equal("Updated content", modifier.UpdatedContent);
+        modifier.Verify(candidate => candidate.UpdateAsync(
+            TemplateType.YouTube,
+            "9f8b1c2d3e4f",
+            "Renamed",
+            "Updated content",
+            CancellationToken.None));
     }
 
     [Theory]
@@ -36,8 +42,16 @@ public class UpdateTemplateHandlerTests
     public async Task HandleAsync_ModifierResult_IsReturnedUnchanged(
         UpdateTemplateResult modifierResult)
     {
-        var modifier = new FakeTemplateModifier { UpdateResult = modifierResult };
-        var handler = new UpdateTemplateHandler(modifier);
+        var modifier = new Mock<ITemplateModifier>();
+        modifier
+            .Setup(candidate => candidate.UpdateAsync(
+                It.IsAny<TemplateType>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(modifierResult);
+        var handler = new UpdateTemplateHandler(modifier.Object);
         var command = new UpdateTemplateCommand(
             TemplateType.WordPress,
             "9f8b1c2d3e4f",
@@ -52,47 +66,17 @@ public class UpdateTemplateHandlerTests
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var handler = new UpdateTemplateHandler(new FakeTemplateModifier());
+        var modifier = new Mock<ITemplateModifier>();
+        var handler = new UpdateTemplateHandler(modifier.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
-    }
 
-    private sealed class FakeTemplateModifier : ITemplateModifier
-    {
-        public UpdateTemplateResult UpdateResult { get; init; } = UpdateTemplateResult.Updated;
-
-        public int UpdateCallCount { get; private set; }
-        public TemplateType UpdatedType { get; private set; }
-        public string? UpdatedId { get; private set; }
-        public string? UpdatedName { get; private set; }
-        public string? UpdatedContent { get; private set; }
-
-        public Task<CreateTemplateResult> CreateAsync(
-            Template template,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<UpdateTemplateResult> UpdateAsync(
-            TemplateType type,
-            string id,
-            string name,
-            string content,
-            CancellationToken cancellationToken)
-        {
-            UpdateCallCount++;
-            UpdatedType = type;
-            UpdatedId = id;
-            UpdatedName = name;
-            UpdatedContent = content;
-
-            return Task.FromResult(UpdateResult);
-        }
-
-        public Task<DeleteTemplateResult> DeleteAsync(
-            TemplateType type,
-            string id,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+        modifier.Verify(candidate => candidate.UpdateAsync(
+            It.IsAny<TemplateType>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 }

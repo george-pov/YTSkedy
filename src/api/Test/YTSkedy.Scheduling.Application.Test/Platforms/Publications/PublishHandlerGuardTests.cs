@@ -10,12 +10,9 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_MissingEvent_ReturnsEventNotFound()
     {
-        var handler = CreateHandler(
-            calendarEvent: null,
-            platform: Platform(),
-            publisher: new PublishFakePublisher());
+        var scenario = new PublishHandlerScenario { CalendarEvent = null };
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.EventNotFound, result.Status);
     }
@@ -23,12 +20,9 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_MissingPlatform_ReturnsPlatformNotFound()
     {
-        var handler = CreateHandler(
-            Event(FutureStart),
-            platform: null,
-            publisher: new PublishFakePublisher());
+        var scenario = new PublishHandlerScenario { SelectedPlatform = null };
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.PlatformNotFound, result.Status);
     }
@@ -36,9 +30,12 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_NoProviderForType_ReturnsProviderNotSupported()
     {
-        var handler = CreateHandler(Event(FutureStart), Platform(), publisher: null);
+        var scenario = new PublishHandlerScenario();
+        scenario.Publisher
+            .SetupGet(candidate => candidate.Type)
+            .Returns(PlatformType.WordPress);
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.ProviderNotSupported, result.Status);
     }
@@ -46,13 +43,14 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_OrphanedRow_ReturnsPlatformDeleted()
     {
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            existing: Publication(PublishStatus.Published, platformDeletedUtc: Now));
+        var scenario = new PublishHandlerScenario
+        {
+            ExistingPublication = Publication(
+                PublishStatus.Published,
+                platformDeletedUtc: Now)
+        };
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.PlatformDeleted, result.Status);
     }
@@ -60,13 +58,12 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_PublishedRow_ReturnsAlreadyPublished()
     {
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            existing: Publication(PublishStatus.Published));
+        var scenario = new PublishHandlerScenario
+        {
+            ExistingPublication = Publication(PublishStatus.Published)
+        };
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.AlreadyPublished, result.Status);
     }
@@ -74,13 +71,12 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_PublishingRow_ReturnsPublishInProgress()
     {
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            existing: Publication(PublishStatus.Publishing));
+        var scenario = new PublishHandlerScenario
+        {
+            ExistingPublication = Publication(PublishStatus.Publishing)
+        };
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.PublishInProgress, result.Status);
     }
@@ -88,26 +84,25 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_FailedRow_RetriesPublish()
     {
-        var repository = new PublishFakePublicationRepository();
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            existing: Publication(PublishStatus.Failed),
-            repository: repository);
+        var scenario = new PublishHandlerScenario
+        {
+            ExistingPublication = Publication(PublishStatus.Failed)
+        };
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Published, result.Status);
-        Assert.True(repository.Started);
+        scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
+            It.IsAny<PlatformPublicationAttempt>(),
+            It.IsAny<CancellationToken>()));
     }
 
     [Fact]
     public async Task HandleAsync_PastStart_ReturnsPastStart()
     {
-        var handler = CreateHandler(Event(PastStart), Platform(), new PublishFakePublisher());
+        var scenario = new PublishHandlerScenario { CalendarEvent = Event(PastStart) };
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.PastStart, result.Status);
     }
@@ -115,7 +110,7 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var handler = CreateHandler(Event(FutureStart), Platform(), new PublishFakePublisher());
+        var handler = new PublishHandlerScenario().CreateHandler();
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));

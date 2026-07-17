@@ -1,4 +1,5 @@
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.Domain.Templates;
 
@@ -12,13 +13,15 @@ public class CreatePlatformHandlerTests
     [Fact]
     public async Task HandleAsync_ValidCommand_CreatesPlatformAndReturnsCreatedWithId()
     {
-        var modifier = new FakePlatformModifier
-        {
-            CreateResult = CreatePlatformResult.Created("p1")
-        };
-        var templates = ApplicationTestAdapters.DefaultTemplateReader();
+        var modifier = new Mock<IPlatformModifier>();
+        modifier
+            .Setup(candidate => candidate.CreateAsync(
+                It.IsAny<Platform>(),
+                CancellationToken.None))
+            .ReturnsAsync(CreatePlatformResult.Created("p1"));
+        var templates = RequiredTemplateReader();
         var publishingContent = ApplicationTestData.PublishingContent();
-        var handler = new CreatePlatformHandler(modifier, templates);
+        var handler = new CreatePlatformHandler(modifier.Object, templates.Object);
         var command = new CreatePlatformCommand(
             "Main channel",
             PlatformType.YouTube,
@@ -31,29 +34,28 @@ public class CreatePlatformHandlerTests
         Assert.Equal(CreatePlatformStatus.Created, result.Status);
         Assert.Equal("p1", result.PlatformId);
 
-        Assert.NotNull(modifier.CreatedPlatform);
-        Assert.Equal("Main channel", modifier.CreatedPlatform!.Name);
-        Assert.Equal(PlatformType.YouTube, modifier.CreatedPlatform.Type);
-        Assert.Same(Settings, modifier.CreatedPlatform.PublishSettings);
-        Assert.Equal("main-youtube", modifier.CreatedPlatform.ReferenceKey);
-        Assert.Same(publishingContent, modifier.CreatedPlatform.PublishingContent);
-        Assert.Equal(
-            [
-                (TemplateType.YouTube, ApplicationTestData.TitleTemplateId),
-                (TemplateType.YouTube, ApplicationTestData.DescriptionTemplateId)
-            ],
-            templates.GetCalls);
+        modifier.Verify(candidate => candidate.CreateAsync(
+            It.Is<Platform>(platform =>
+                platform.Name == "Main channel" &&
+                platform.Type == PlatformType.YouTube &&
+                ReferenceEquals(platform.PublishSettings, Settings) &&
+                platform.ReferenceKey == "main-youtube" &&
+                ReferenceEquals(platform.PublishingContent, publishingContent)),
+            CancellationToken.None));
+        VerifyRequiredTemplates(templates);
     }
 
     [Fact]
     public async Task HandleAsync_DuplicateName_ReturnsNameAlreadyExists()
     {
-        var modifier = new FakePlatformModifier
-        {
-            CreateResult = CreatePlatformResult.NameAlreadyExists()
-        };
-        var templates = ApplicationTestAdapters.DefaultTemplateReader();
-        var handler = new CreatePlatformHandler(modifier, templates);
+        var modifier = new Mock<IPlatformModifier>();
+        modifier
+            .Setup(candidate => candidate.CreateAsync(
+                It.IsAny<Platform>(),
+                CancellationToken.None))
+            .ReturnsAsync(CreatePlatformResult.NameAlreadyExists());
+        var templates = RequiredTemplateReader();
+        var handler = new CreatePlatformHandler(modifier.Object, templates.Object);
         var command = new CreatePlatformCommand(
             "Main channel",
             PlatformType.YouTube,
@@ -64,24 +66,21 @@ public class CreatePlatformHandlerTests
 
         Assert.Equal(CreatePlatformStatus.NameAlreadyExists, result.Status);
         Assert.Null(result.PlatformId);
-        Assert.Equal(
-            [
-                (TemplateType.YouTube, ApplicationTestData.TitleTemplateId),
-                (TemplateType.YouTube, ApplicationTestData.DescriptionTemplateId)
-            ],
-            templates.GetCalls);
+        VerifyRequiredTemplates(templates);
     }
 
     [Fact]
     public async Task HandleAsync_DuplicateReferenceKey_ReturnsReferenceKeyAlreadyExists()
     {
-        var modifier = new FakePlatformModifier
-        {
-            CreateResult = CreatePlatformResult.ReferenceKeyAlreadyExists()
-        };
+        var modifier = new Mock<IPlatformModifier>();
+        modifier
+            .Setup(candidate => candidate.CreateAsync(
+                It.IsAny<Platform>(),
+                CancellationToken.None))
+            .ReturnsAsync(CreatePlatformResult.ReferenceKeyAlreadyExists());
         var handler = new CreatePlatformHandler(
-            modifier,
-            ApplicationTestAdapters.DefaultTemplateReader());
+            modifier.Object,
+            RequiredTemplateReader().Object);
         var command = new CreatePlatformCommand(
             "Main channel",
             PlatformType.YouTube,
@@ -98,8 +97,15 @@ public class CreatePlatformHandlerTests
     [Fact]
     public async Task HandleAsync_LinkedTemplateMissing_ReturnsLinkedTemplateNotFound()
     {
-        var modifier = new FakePlatformModifier();
-        var handler = new CreatePlatformHandler(modifier, new FakeTemplateReader());
+        var modifier = new Mock<IPlatformModifier>();
+        var templates = new Mock<ITemplateReader>();
+        templates
+            .Setup(candidate => candidate.GetAsync(
+                TemplateType.YouTube,
+                "missing-template",
+                CancellationToken.None))
+            .ReturnsAsync((TemplateView?)null);
+        var handler = new CreatePlatformHandler(modifier.Object, templates.Object);
         var command = new CreatePlatformCommand(
             "Main channel",
             PlatformType.YouTube,
@@ -110,48 +116,52 @@ public class CreatePlatformHandlerTests
 
         Assert.Equal(CreatePlatformStatus.LinkedTemplateNotFound, result.Status);
         Assert.Null(result.PlatformId);
-        Assert.Null(modifier.CreatedPlatform);
+        modifier.Verify(candidate => candidate.CreateAsync(
+            It.IsAny<Platform>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
+        var modifier = new Mock<IPlatformModifier>();
         var handler = new CreatePlatformHandler(
-            new FakePlatformModifier(),
-            new FakeTemplateReader());
+            modifier.Object,
+            new Mock<ITemplateReader>().Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
+
+        modifier.Verify(candidate => candidate.CreateAsync(
+            It.IsAny<Platform>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
-    private sealed class FakePlatformModifier : IPlatformModifier
+    private static Mock<ITemplateReader> RequiredTemplateReader()
     {
-        public CreatePlatformResult CreateResult { get; init; } =
-            CreatePlatformResult.Created("platform-id");
-
-        public Platform? CreatedPlatform { get; private set; }
-
-        public Task<CreatePlatformResult> CreateAsync(
-            Platform platform,
-            CancellationToken cancellationToken)
+        var reader = new Mock<ITemplateReader>();
+        foreach (var template in ApplicationTestData.RequiredTemplates())
         {
-            CreatedPlatform = platform;
-
-            return Task.FromResult(CreateResult);
+            reader
+                .Setup(candidate => candidate.GetAsync(
+                    template.Type,
+                    template.Id,
+                    CancellationToken.None))
+                .ReturnsAsync(template);
         }
 
-        public Task<UpdatePlatformResult> UpdateAsync(
-            string platformId,
-            string name,
-            string? referenceKey,
-            PublishSettings publishSettings,
-            PublishingContent publishingContent,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+        return reader;
+    }
 
-        public Task<DeletePlatformResult> DeleteAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+    private static void VerifyRequiredTemplates(Mock<ITemplateReader> reader)
+    {
+        reader.Verify(candidate => candidate.GetAsync(
+            TemplateType.YouTube,
+            ApplicationTestData.TitleTemplateId,
+            CancellationToken.None));
+        reader.Verify(candidate => candidate.GetAsync(
+            TemplateType.YouTube,
+            ApplicationTestData.DescriptionTemplateId,
+            CancellationToken.None));
     }
 }

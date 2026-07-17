@@ -263,7 +263,9 @@ public class GetCalendarEventDetailsHandlerTests
 
         await scenario.HandleAsync();
 
-        Assert.Equal(1, scenario.CalendarEventReader.GetByIdCallCount);
+        scenario.CalendarEventReader.Verify(candidate => candidate.GetByIdAsync(
+            CalendarEventId,
+            CancellationToken.None), Times.Once());
     }
 
     [Theory]

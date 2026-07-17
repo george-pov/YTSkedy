@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using YTSkedy.AzureFunctions.Http;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.AzureFunctions.Test.Http;
 
@@ -14,14 +15,14 @@ public sealed class RequestCancellationTests
         using var requestAbort = new CancellationTokenSource();
         requestAbort.Cancel();
         var context = TestFunctionContext.ForHttp(requestAbort.Token);
-        var logger = new TestLogger<RequestCancellationMiddleware>();
-        var middleware = new RequestCancellationMiddleware(logger);
+        var logger = CreateLogger();
+        var middleware = new RequestCancellationMiddleware(logger.Typed);
 
         await middleware.Invoke(
             context,
             _ => throw new OperationCanceledException(requestAbort.Token));
 
-        var entry = Assert.Single(logger.Entries);
+        var entry = Assert.Single(logger.Mock.GetLogEntries());
         Assert.Equal(LogLevel.Information, entry.Level);
         Assert.Contains("TestFunction", entry.Message, StringComparison.Ordinal);
         Assert.Contains(context.InvocationId, entry.Message, StringComparison.Ordinal);
@@ -33,8 +34,7 @@ public sealed class RequestCancellationTests
         using var invocationCancellation = new CancellationTokenSource();
         invocationCancellation.Cancel();
         var context = TestFunctionContext.ForHttp(CancellationToken.None);
-        var middleware = new RequestCancellationMiddleware(
-            new TestLogger<RequestCancellationMiddleware>());
+        var middleware = new RequestCancellationMiddleware(CreateLogger().Typed);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             middleware.Invoke(
@@ -46,8 +46,7 @@ public sealed class RequestCancellationTests
     public async Task Invoke_UnrelatedOperationCanceledException_Propagates()
     {
         var context = TestFunctionContext.ForHttp(CancellationToken.None);
-        var middleware = new RequestCancellationMiddleware(
-            new TestLogger<RequestCancellationMiddleware>());
+        var middleware = new RequestCancellationMiddleware(CreateLogger().Typed);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             middleware.Invoke(context, _ => throw new OperationCanceledException()));
@@ -57,8 +56,8 @@ public sealed class RequestCancellationTests
     public async Task Invoke_NormalInvocation_Completes()
     {
         var context = TestFunctionContext.ForHttp(CancellationToken.None);
-        var logger = new TestLogger<RequestCancellationMiddleware>();
-        var middleware = new RequestCancellationMiddleware(logger);
+        var logger = CreateLogger();
+        var middleware = new RequestCancellationMiddleware(logger.Typed);
         var called = false;
 
         await middleware.Invoke(
@@ -70,7 +69,20 @@ public sealed class RequestCancellationTests
             });
 
         Assert.True(called);
-        Assert.Empty(logger.Entries);
+        Assert.Empty(logger.Mock.GetLogEntries());
+    }
+
+    private static (
+        ILogger<RequestCancellationMiddleware> Typed,
+        Mock<ILogger> Mock) CreateLogger()
+    {
+        var logger = new Mock<ILogger>();
+        var loggerFactory = new Mock<ILoggerFactory>();
+        loggerFactory
+            .Setup(candidate => candidate.CreateLogger(It.IsAny<string>()))
+            .Returns(logger.Object);
+
+        return (new Logger<RequestCancellationMiddleware>(loggerFactory.Object), logger);
     }
 
     private sealed class TestFunctionContext : FunctionContext
@@ -145,22 +157,4 @@ public sealed class RequestCancellationTests
             ImmutableDictionary<string, BindingMetadata>.Empty;
     }
 
-    private sealed class TestLogger<T> : ILogger<T>
-    {
-        public List<Entry> Entries { get; } = [];
-
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter) =>
-            Entries.Add(new Entry(logLevel, formatter(state, exception)));
-
-        public sealed record Entry(LogLevel Level, string Message);
-    }
 }

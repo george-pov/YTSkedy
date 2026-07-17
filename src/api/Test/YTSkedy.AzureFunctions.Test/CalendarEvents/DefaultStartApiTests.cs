@@ -43,29 +43,23 @@ public sealed class DefaultStartApiTests
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
-    private static DefaultStartApi CreateApi(StartDefaults defaults) =>
-        new(
+    private static DefaultStartApi CreateApi(StartDefaults defaults)
+    {
+        var startDefaults = new Mock<IStartDefaultsReader>();
+        startDefaults
+            .Setup(reader => reader.GetAsync(CancellationToken.None))
+            .ReturnsAsync(defaults);
+        var calendarEvents = new Mock<ICalendarEventReader>();
+        calendarEvents
+            .Setup(reader => reader.ListAsync(
+                It.IsAny<CalendarEventMonthCriteria?>(),
+                CancellationToken.None))
+            .ReturnsAsync([]);
+
+        return new DefaultStartApi(
             new GetDefaultStartHandler(
-                new StartDefaultsReader(defaults),
-                new EmptyCalendarEventReader(),
+                startDefaults.Object,
+                calendarEvents.Object,
                 new FixedTimeProvider(DateTimeOffset.Parse("2026-07-12T16:00:00+00:00"))));
-
-    private sealed class StartDefaultsReader(StartDefaults defaults) : IStartDefaultsReader
-    {
-        public Task<StartDefaults> GetAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(defaults);
-    }
-
-    private sealed class EmptyCalendarEventReader : ICalendarEventReader
-    {
-        public Task<IReadOnlyList<CalendarEventListRecord>> ListAsync(
-            CalendarEventMonthCriteria? criteria,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<CalendarEventListRecord>>([]);
-
-        public Task<CalendarEventView?> GetByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<CalendarEventView?>(null);
     }
 }

@@ -8,8 +8,16 @@ public sealed class UpdateCalendarEventDefaultsHandlerTests
     [Fact]
     public async Task HandleAsync_Replacement_SavesAndReturnsNormalizedSettings()
     {
-        var modifier = new FakeDefaultsModifier();
-        var handler = new UpdateCalendarEventDefaultsHandler(modifier);
+        CalendarEventDefaults? saved = null;
+        var modifier = new Mock<ICalendarEventDefaultsModifier>();
+        modifier
+            .Setup(candidate => candidate.SaveAsync(
+                It.IsAny<CalendarEventDefaults>(),
+                CancellationToken.None))
+            .Callback<CalendarEventDefaults, CancellationToken>(
+                (defaults, _) => saved = defaults)
+            .Returns(Task.CompletedTask);
+        var handler = new UpdateCalendarEventDefaultsHandler(modifier.Object);
         var command = new UpdateCalendarEventDefaultsCommand(
             [
                 new EventTextField(" Title ", EventTextType.ShortText, 80),
@@ -21,7 +29,7 @@ public sealed class UpdateCalendarEventDefaultsHandlerTests
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
-        Assert.Same(result, modifier.Saved);
+        Assert.Same(result, saved);
         Assert.Equal(
             ["text1", "text2"],
             result.EventTextFields.Fields.Select(field => field.FieldKey));
@@ -39,8 +47,8 @@ public sealed class UpdateCalendarEventDefaultsHandlerTests
     [Fact]
     public async Task HandleAsync_InvalidTimeZone_DoesNotSave()
     {
-        var modifier = new FakeDefaultsModifier();
-        var handler = new UpdateCalendarEventDefaultsHandler(modifier);
+        var modifier = new Mock<ICalendarEventDefaultsModifier>();
+        var handler = new UpdateCalendarEventDefaultsHandler(modifier.Object);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             handler.HandleAsync(
@@ -51,28 +59,22 @@ public sealed class UpdateCalendarEventDefaultsHandlerTests
                     "Unknown/Zone"),
                 CancellationToken.None));
 
-        Assert.Null(modifier.Saved);
+        modifier.Verify(candidate => candidate.SaveAsync(
+            It.IsAny<CalendarEventDefaults>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var handler = new UpdateCalendarEventDefaultsHandler(new FakeDefaultsModifier());
+        var modifier = new Mock<ICalendarEventDefaultsModifier>();
+        var handler = new UpdateCalendarEventDefaultsHandler(modifier.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
-    }
 
-    private sealed class FakeDefaultsModifier : ICalendarEventDefaultsModifier
-    {
-        public CalendarEventDefaults? Saved { get; private set; }
-
-        public Task SaveAsync(
-            CalendarEventDefaults defaults,
-            CancellationToken cancellationToken)
-        {
-            Saved = defaults;
-            return Task.CompletedTask;
-        }
+        modifier.Verify(candidate => candidate.SaveAsync(
+            It.IsAny<CalendarEventDefaults>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 }

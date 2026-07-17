@@ -4,6 +4,7 @@ using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Providers;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
@@ -12,180 +13,143 @@ public class PublishHandlerLifecycleTests
     [Fact]
     public async Task HandleAsync_AttemptConflict_ReturnsPublishInProgress()
     {
-        var repository = new PublishFakePublicationRepository
-        {
-            StartResult = StartPublicationResult.Conflict
-        };
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            repository: repository,
-            publicationIndex: publicationIndex);
+        var scenario = new PublishHandlerScenario();
+        scenario.PublicationAttempts
+            .Setup(candidate => candidate.StartPublishingAsync(
+                It.IsAny<PlatformPublicationAttempt>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(StartPublicationResult.Conflict);
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.PublishInProgress, result.Status);
-        Assert.Empty(publicationIndex.AddCalls);
+        VerifyNoIndexAdd(scenario);
     }
 
     [Fact]
     public async Task HandleAsync_ProviderFailure_MarksFailedWithoutExternalId()
     {
-        var repository = new PublishFakePublicationRepository();
-        var publisher = new PublishFakePublisher
-        {
-            Throws = new PlatformPublishException("provider down")
-        };
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            publisher,
-            repository: repository,
-            publicationIndex: publicationIndex);
+        var scenario = new PublishHandlerScenario();
+        SetPublisherException(scenario, new PlatformPublishException("provider down"));
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        Assert.True(repository.MarkFailedCalled);
-        Assert.Null(repository.FailedExternalResourceId);
-        Assert.False(repository.ReleaseCalled);
-        Assert.False(repository.MarkPublishedCalled);
-        Assert.Empty(publicationIndex.AddCalls);
+        VerifyMarkedFailed(scenario, externalResourceId: null);
+        VerifyNoReleaseOrPublished(scenario);
+        VerifyNoIndexAdd(scenario);
     }
 
     [Fact]
     public async Task HandleAsync_ProviderFailureWithExternalId_MarksFailedWithExternalId()
     {
-        var repository = new PublishFakePublicationRepository();
-        var publisher = new PublishFakePublisher
-        {
-            Throws = new PlatformPublishException(
+        var scenario = new PublishHandlerScenario();
+        SetPublisherException(
+            scenario,
+            new PlatformPublishException(
                 "metadata update failed",
-                "yt-created-broadcast-id")
-        };
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            publisher,
-            repository: repository);
+                "yt-created-broadcast-id"));
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        Assert.Equal("yt-created-broadcast-id", repository.FailedExternalResourceId);
-        Assert.False(repository.ReleaseCalled);
+        VerifyMarkedFailed(scenario, "yt-created-broadcast-id");
+        VerifyNoRelease(scenario);
     }
 
     [Fact]
     public async Task HandleAsync_ProviderValidationFailure_MarksFailed()
     {
-        var repository = new PublishFakePublicationRepository();
-        var publisher = new PublishFakePublisher
-        {
-            Throws = new PlatformPublishValidationException("invalid provider settings")
-        };
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            publisher,
-            repository: repository,
-            publicationIndex: publicationIndex);
+        var scenario = new PublishHandlerScenario();
+        SetPublisherException(
+            scenario,
+            new PlatformPublishValidationException("invalid provider settings"));
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        Assert.True(repository.MarkFailedCalled);
-        Assert.False(repository.ReleaseCalled);
-        Assert.False(repository.MarkPublishedCalled);
-        Assert.Empty(publicationIndex.AddCalls);
+        VerifyMarkedFailed(scenario, externalResourceId: null);
+        VerifyNoReleaseOrPublished(scenario);
+        VerifyNoIndexAdd(scenario);
     }
 
     [Fact]
     public async Task HandleAsync_FinalizeReturnsNull_MarksFailedWithProviderId()
     {
-        var repository = new PublishFakePublicationRepository { MarkPublishedResult = null };
-        var publisher = new PublishFakePublisher
-        {
-            Result = new PlatformPublishResult("yt-broadcast-id")
-        };
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            publisher,
-            repository: repository,
-            publicationIndex: publicationIndex);
+        var scenario = new PublishHandlerScenario();
+        scenario.PublicationAttempts
+            .Setup(candidate => candidate.MarkPublishedAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DateTimeOffset?)null);
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        Assert.True(repository.MarkFailedCalled);
-        Assert.Equal("yt-broadcast-id", repository.FailedExternalResourceId);
-        Assert.False(repository.ReleaseCalled);
-        Assert.Empty(publicationIndex.AddCalls);
+        VerifyMarkedFailed(scenario, ExternalResourceId);
+        VerifyNoRelease(scenario);
+        VerifyNoIndexAdd(scenario);
     }
 
     [Fact]
     public async Task HandleAsync_FinalizeAndMarkFailedCannotWrite_ReturnsFinalizeFailed()
     {
-        var repository = new PublishFakePublicationRepository
-        {
-            MarkPublishedResult = null,
-            MarkFailedOutcome = MarkFailedResult.Changed
-        };
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            repository: repository);
+        var scenario = new PublishHandlerScenario();
+        scenario.PublicationAttempts
+            .Setup(candidate => candidate.MarkPublishedAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DateTimeOffset?)null);
+        scenario.PublicationAttempts
+            .Setup(candidate => candidate.MarkFailedAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MarkFailedResult.Changed);
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.FinalizeFailed, result.Status);
-        Assert.True(repository.MarkFailedCalled);
+        VerifyMarkedFailed(scenario, ExternalResourceId);
     }
 
     [Fact]
     public async Task HandleAsync_FinalizeThrows_MarksFailedWithProviderId()
     {
-        var repository = new PublishFakePublicationRepository
-        {
-            MarkPublishedThrows = new InvalidOperationException("storage unavailable")
-        };
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            repository: repository);
+        var scenario = new PublishHandlerScenario();
+        scenario.PublicationAttempts
+            .Setup(candidate => candidate.MarkPublishedAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("storage unavailable"));
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        Assert.Equal("yt-broadcast-id", repository.FailedExternalResourceId);
+        VerifyMarkedFailed(scenario, ExternalResourceId);
     }
 
     [Fact]
     public async Task HandleAsync_MarkFailedThrows_ReturnsFinalizeFailed()
     {
-        var repository = new PublishFakePublicationRepository
-        {
-            MarkFailedThrows = new InvalidOperationException("storage unavailable")
-        };
-        var publisher = new PublishFakePublisher
-        {
-            Throws = new PlatformPublishException("provider down")
-        };
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            publisher,
-            repository: repository);
+        var scenario = new PublishHandlerScenario();
+        SetPublisherException(scenario, new PlatformPublishException("provider down"));
+        scenario.PublicationAttempts
+            .Setup(candidate => candidate.MarkFailedAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("storage unavailable"));
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.FinalizeFailed, result.Status);
     }
@@ -193,23 +157,17 @@ public class PublishHandlerLifecycleTests
     [Fact]
     public async Task HandleAsync_PostStartOperationCanceled_AttemptsFailedFinalization()
     {
-        var repository = new PublishFakePublicationRepository();
-        var publisher = new PublishFakePublisher
-        {
-            Throws = new OperationCanceledException()
-        };
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            publisher,
-            repository: repository);
+        var scenario = new PublishHandlerScenario();
+        SetPublisherException(scenario, new OperationCanceledException());
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        Assert.True(repository.Started);
-        Assert.True(repository.MarkFailedCalled);
-        Assert.False(repository.ReleaseCalled);
+        scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
+            It.IsAny<PlatformPublicationAttempt>(),
+            It.IsAny<CancellationToken>()));
+        VerifyMarkedFailed(scenario, externalResourceId: null);
+        VerifyNoRelease(scenario);
     }
 
     [Fact]
@@ -217,22 +175,15 @@ public class PublishHandlerLifecycleTests
     {
         using var request = new CancellationTokenSource();
         request.Cancel();
-        var repository = new PublishFakePublicationRepository();
-        var executionScopes = new PublishFakeExecutionScopeFactory();
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            repository: repository,
-            executionScopes: executionScopes);
+        var scenario = new PublishHandlerScenario();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
-            handler.HandleAsync(
-                new PublishCommand(CalendarEventId, PlatformId),
-                request.Token));
+            scenario.HandleAsync(request.Token));
 
-        Assert.False(repository.Started);
-        Assert.False(executionScopes.CreateCalled);
+        scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
+            It.IsAny<PlatformPublicationAttempt>(),
+            It.IsAny<CancellationToken>()), Times.Never());
+        Assert.False(scenario.ExecutionScopes.CreateCalled);
     }
 
     [Fact]
@@ -241,165 +192,161 @@ public class PublishHandlerLifecycleTests
         using var request = new CancellationTokenSource();
         using var operation = new CancellationTokenSource();
         using var finalization = new CancellationTokenSource();
-        var repository = new PublishFakePublicationRepository();
-        var publisher = new PublishFakePublisher { OnPublish = request.Cancel };
-        var executionScopes = new PublishFakeExecutionScopeFactory();
-        executionScopes.Scope.OperationToken = operation.Token;
-        executionScopes.Scope.FinalizationToken = finalization.Token;
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            publisher,
-            repository: repository,
-            executionScopes: executionScopes);
+        var scenario = new PublishHandlerScenario();
+        scenario.ExecutionScopes.Scope.OperationToken = operation.Token;
+        scenario.ExecutionScopes.Scope.FinalizationToken = finalization.Token;
+        scenario.Publisher
+            .Setup(candidate => candidate.PublishAsync(
+                It.IsAny<PlatformPublishRequest>(),
+                It.IsAny<IPlatformPublishCheckpoint>(),
+                operation.Token))
+            .Returns<PlatformPublishRequest, IPlatformPublishCheckpoint, CancellationToken>(
+                async (_, checkpoint, cancellationToken) =>
+                {
+                    request.Cancel();
+                    await checkpoint.SaveExternalResourceIdAsync(
+                        ExternalResourceId,
+                        cancellationToken);
+                    return new PlatformPublishResult(ExternalResourceId);
+                });
 
-        var result = await handler.HandleAsync(
-            new PublishCommand(CalendarEventId, PlatformId),
-            request.Token);
+        var result = await scenario.HandleAsync(request.Token);
 
         Assert.Equal(PublishResultStatus.Published, result.Status);
         Assert.True(request.IsCancellationRequested);
-        Assert.Equal(operation.Token, repository.StartToken);
-        Assert.Equal(operation.Token, publisher.CancellationToken);
-        Assert.Equal(operation.Token, repository.CheckpointToken);
-        Assert.Equal(finalization.Token, repository.MarkPublishedToken);
-        Assert.NotEqual(request.Token, repository.StartToken);
+        scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
+            It.IsAny<PlatformPublicationAttempt>(),
+            operation.Token));
+        scenario.Publisher.Verify(candidate => candidate.PublishAsync(
+            It.IsAny<PlatformPublishRequest>(),
+            It.IsAny<IPlatformPublishCheckpoint>(),
+            operation.Token));
+        scenario.PublicationAttempts.Verify(candidate => candidate.SaveExternalResourceIdAsync(
+            CalendarEventId,
+            PlatformId,
+            ExternalResourceId,
+            operation.Token));
+        scenario.PublicationAttempts.Verify(candidate => candidate.MarkPublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            ExternalResourceId,
+            finalization.Token));
+        Assert.NotEqual(request.Token, operation.Token);
     }
 
     [Fact]
     public async Task HandleAsync_ProviderTimeout_RecordsFailedWithBoundedFinalization()
     {
         using var finalization = new CancellationTokenSource();
-        var repository = new PublishFakePublicationRepository();
-        var publisher = new PublishFakePublisher
-        {
-            Throws = new PlatformPublishException(
+        var scenario = new PublishHandlerScenario();
+        scenario.ExecutionScopes.Scope.FinalizationToken = finalization.Token;
+        SetPublisherException(
+            scenario,
+            new PlatformPublishException(
                 "provider timeout",
                 externalResourceId: null,
-                failureKind: PlatformPublishFailureKind.Timeout)
-        };
-        var executionScopes = new PublishFakeExecutionScopeFactory();
-        executionScopes.Scope.FinalizationToken = finalization.Token;
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            publisher,
-            repository: repository,
-            executionScopes: executionScopes);
+                failureKind: PlatformPublishFailureKind.Timeout));
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        Assert.Equal(finalization.Token, repository.MarkFailedToken);
+        scenario.PublicationAttempts.Verify(candidate => candidate.MarkFailedAsync(
+            CalendarEventId,
+            PlatformId,
+            null,
+            finalization.Token));
     }
 
     [Fact]
     public async Task HandleAsync_CheckpointRace_StopsPublishAndRecordsFailed()
     {
-        var repository = new PublishFakePublicationRepository
-        {
-            SaveExternalResourceIdOutcome = SaveExternalResourceIdResult.Changed
-        };
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            repository: repository);
+        var scenario = new PublishHandlerScenario();
+        scenario.PublicationAttempts
+            .Setup(candidate => candidate.SaveExternalResourceIdAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(SaveExternalResourceIdResult.Changed);
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        Assert.True(repository.SaveExternalResourceIdCalled);
-        Assert.True(repository.MarkFailedCalled);
-        Assert.Equal("yt-broadcast-id", repository.FailedExternalResourceId);
-        Assert.False(repository.MarkPublishedCalled);
+        scenario.PublicationAttempts.Verify(candidate => candidate.SaveExternalResourceIdAsync(
+            CalendarEventId,
+            PlatformId,
+            ExternalResourceId,
+            It.IsAny<CancellationToken>()));
+        VerifyMarkedFailed(scenario, ExternalResourceId);
+        VerifyNoMarkPublished(scenario);
     }
 
     [Fact]
     public async Task HandleAsync_CheckpointCancellation_RetriesKnownIdDuringFinalization()
     {
-        var repository = new PublishFakePublicationRepository
-        {
-            CheckpointThrows = new OperationCanceledException()
-        };
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            repository: repository);
+        var scenario = new PublishHandlerScenario();
+        scenario.PublicationAttempts
+            .Setup(candidate => candidate.SaveExternalResourceIdAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        Assert.Equal("yt-broadcast-id", repository.FailedExternalResourceId);
-        Assert.False(repository.MarkPublishedCalled);
+        VerifyMarkedFailed(scenario, ExternalResourceId);
+        VerifyNoMarkPublished(scenario);
     }
 
     [Fact]
     public async Task HandleAsync_FinalizationTimeout_ReturnsFinalizeFailedAndLogsCritical()
     {
-        var repository = new PublishFakePublicationRepository();
-        var executionScopes = new PublishFakeExecutionScopeFactory();
-        executionScopes.Scope.FinalizationThrows = new OperationCanceledException();
-        var logger = new CapturingLogger<PublishHandler>();
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            repository: repository,
-            logger: logger,
-            executionScopes: executionScopes);
+        var scenario = new PublishHandlerScenario();
+        scenario.ExecutionScopes.Scope.FinalizationThrows = new OperationCanceledException();
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.FinalizeFailed, result.Status);
-        Assert.Equal(2, executionScopes.Scope.FinalizationCalls);
-        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Critical);
+        Assert.Equal(2, scenario.ExecutionScopes.Scope.FinalizationCalls);
+        Assert.Contains(
+            scenario.Logger.GetLogEntries(),
+            entry => entry.Level == LogLevel.Critical);
     }
 
     [Fact]
     public async Task HandleAsync_PublishedFollowUpCancellation_DoesNotReopenFinalRow()
     {
-        var repository = new PublishFakePublicationRepository();
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter
-        {
-            AddException = new OperationCanceledException()
-        };
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            repository: repository,
-            publicationIndex: publicationIndex);
+        var scenario = new PublishHandlerScenario();
+        scenario.PublicationIndex
+            .Setup(candidate => candidate.AddPublishedPlatformAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Published, result.Status);
-        Assert.True(repository.MarkPublishedCalled);
-        Assert.False(repository.MarkFailedCalled);
+        scenario.PublicationAttempts.Verify(candidate => candidate.MarkPublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            ExternalResourceId,
+            It.IsAny<CancellationToken>()));
+        scenario.PublicationAttempts.Verify(candidate => candidate.MarkFailedAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string?>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
     public async Task HandleAsync_Success_StartsPublishesFinalizesAndReturnsPublished()
     {
-        var publishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 5, TimeSpan.Zero);
-        var repository = new PublishFakePublicationRepository
-        {
-            MarkPublishedResult = publishedUtc
-        };
-        var publisher = new PublishFakePublisher
-        {
-            Result = new PlatformPublishResult("yt-broadcast-id")
-        };
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            publisher,
-            repository: repository,
-            publicationIndex: publicationIndex);
+        var scenario = new PublishHandlerScenario();
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Published, result.Status);
         Assert.NotNull(result.Platform);
@@ -407,47 +354,58 @@ public class PublishHandlerLifecycleTests
         Assert.Equal("Main YouTube channel", result.Platform.PlatformName);
         Assert.Equal(PlatformType.YouTube, result.Platform.PlatformType);
         Assert.Equal(PublishStatus.Published, result.Platform.Status);
-        Assert.Equal("yt-broadcast-id", result.Platform.ExternalResourceId);
+        Assert.Equal(ExternalResourceId, result.Platform.ExternalResourceId);
         Assert.Equal(ThumbnailPublishStatus.NotConfigured, result.Platform.ThumbnailStatus);
-        Assert.Equal(publishedUtc, result.Platform.PublishedUtc);
+        Assert.Equal(DefaultPublishedUtc, result.Platform.PublishedUtc);
         Assert.Null(result.Platform.PlatformDeletedUtc);
         Assert.False(result.Platform.CanPublish);
         Assert.True(result.Platform.CanDeletePublication);
         Assert.True(result.Platform.CanPreviewPublishingContent);
 
-        Assert.True(repository.Started);
-        Assert.Equal("yt-broadcast-id", repository.MarkedExternalResourceId);
-        Assert.False(repository.ReleaseCalled);
-        Assert.Equal("English title", repository.StartedAttempt!.ContentSnapshot.Title);
-        Assert.Equal("English description", repository.StartedAttempt.ContentSnapshot.Description);
-
-        Assert.Equal("English title", publisher.Request!.Title);
-        Assert.Equal("English description", publisher.Request.Description);
-        Assert.Equal(FutureStart, publisher.Request.ScheduledStartUtc);
-        Assert.Same(YouTubePublishSettings, publisher.Request.PublishSettings);
-        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.AddCalls);
+        scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
+            It.Is<PlatformPublicationAttempt>(attempt =>
+                attempt.ContentSnapshot.Title == "English title" &&
+                attempt.ContentSnapshot.Description == "English description"),
+            It.IsAny<CancellationToken>()));
+        scenario.PublicationAttempts.Verify(candidate => candidate.MarkPublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            ExternalResourceId,
+            It.IsAny<CancellationToken>()));
+        VerifyNoRelease(scenario);
+        scenario.Publisher.Verify(candidate => candidate.PublishAsync(
+            It.Is<PlatformPublishRequest>(request =>
+                request.Title == "English title" &&
+                request.Description == "English description" &&
+                request.ScheduledStartUtc == FutureStart &&
+                ReferenceEquals(request.PublishSettings, YouTubePublishSettings)),
+            It.IsAny<IPlatformPublishCheckpoint>(),
+            It.IsAny<CancellationToken>()));
+        scenario.PublicationIndex.Verify(candidate => candidate.AddPublishedPlatformAsync(
+            CalendarEventId,
+            PlatformId,
+            It.IsAny<CancellationToken>()));
     }
 
     [Fact]
     public async Task HandleAsync_PublicationIndexReturnsFalse_LogsAndReturnsPublished()
     {
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter
-        {
-            AddResult = false
-        };
-        var logger = new CapturingLogger<PublicationIndexUpdater>();
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            publicationIndex: publicationIndex,
-            publicationIndexLogger: logger);
+        var scenario = new PublishHandlerScenario();
+        scenario.PublicationIndex
+            .Setup(candidate => candidate.AddPublishedPlatformAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Published, result.Status);
-        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.AddCalls);
-        var entry = Assert.Single(logger.Entries);
+        scenario.PublicationIndex.Verify(candidate => candidate.AddPublishedPlatformAsync(
+            CalendarEventId,
+            PlatformId,
+            It.IsAny<CancellationToken>()));
+        var entry = Assert.Single(scenario.PublicationIndexLogger.GetLogEntries());
         Assert.Equal(LogLevel.Error, entry.Level);
         Assert.Contains("AddPublishedPlatform", entry.Message, StringComparison.Ordinal);
         Assert.Contains(CalendarEventId, entry.Message, StringComparison.Ordinal);
@@ -457,23 +415,22 @@ public class PublishHandlerLifecycleTests
     [Fact]
     public async Task HandleAsync_PublicationIndexThrows_LogsAndReturnsPublished()
     {
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter
-        {
-            AddException = new InvalidOperationException("storage unavailable")
-        };
-        var logger = new CapturingLogger<PublicationIndexUpdater>();
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(),
-            new PublishFakePublisher(),
-            publicationIndex: publicationIndex,
-            publicationIndexLogger: logger);
+        var scenario = new PublishHandlerScenario();
+        scenario.PublicationIndex
+            .Setup(candidate => candidate.AddPublishedPlatformAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("storage unavailable"));
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Published, result.Status);
-        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.AddCalls);
-        var entry = Assert.Single(logger.Entries);
+        scenario.PublicationIndex.Verify(candidate => candidate.AddPublishedPlatformAsync(
+            CalendarEventId,
+            PlatformId,
+            It.IsAny<CancellationToken>()));
+        var entry = Assert.Single(scenario.PublicationIndexLogger.GetLogEntries());
         Assert.Equal(LogLevel.Error, entry.Level);
         Assert.Contains("AddPublishedPlatform", entry.Message, StringComparison.Ordinal);
     }
@@ -481,37 +438,94 @@ public class PublishHandlerLifecycleTests
     [Fact]
     public async Task HandleAsync_WordPressSuccess_ReturnsWordPressPlatformAndPostId()
     {
-        var publishedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 5, TimeSpan.Zero);
-        var repository = new PublishFakePublicationRepository
-        {
-            MarkPublishedResult = publishedUtc
-        };
-        var publisher = new PublishFakePublisher(
+        var wordpressPlatform = Platform(
+            "Company blog",
             PlatformType.WordPress,
-            new PlatformPublishResult("123"));
-        var handler = CreateHandler(
-            Event(FutureStart),
-            Platform(
-                "Company blog",
-                PlatformType.WordPress,
-                WordPressPublishSettings),
-            publisher,
-            repository: repository);
+            WordPressPublishSettings);
+        var scenario = new PublishHandlerScenario
+        {
+            SelectedPlatform = wordpressPlatform,
+            ActivePlatforms = [wordpressPlatform]
+        };
+        scenario.Publisher.SetupGet(candidate => candidate.Type).Returns(PlatformType.WordPress);
+        scenario.Publisher
+            .Setup(candidate => candidate.PublishAsync(
+                It.IsAny<PlatformPublishRequest>(),
+                It.IsAny<IPlatformPublishCheckpoint>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<PlatformPublishRequest, IPlatformPublishCheckpoint, CancellationToken>(
+                async (_, checkpoint, cancellationToken) =>
+                {
+                    await checkpoint.SaveExternalResourceIdAsync("123", cancellationToken);
+                    return new PlatformPublishResult("123");
+                });
 
-        var result = await Handle(handler);
+        var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Published, result.Status);
         Assert.NotNull(result.Platform);
         Assert.Equal("Company blog", result.Platform!.PlatformName);
         Assert.Equal(PlatformType.WordPress, result.Platform.PlatformType);
-        Assert.Equal(publishedUtc, result.Platform.PublishedUtc);
+        Assert.Equal(DefaultPublishedUtc, result.Platform.PublishedUtc);
         Assert.Equal("123", result.Platform.ExternalResourceId);
         Assert.Null(result.Platform.ThumbnailStatus);
         Assert.False(result.Platform.CanPublish);
         Assert.True(result.Platform.CanDeletePublication);
         Assert.True(result.Platform.CanPreviewPublishingContent);
-
-        Assert.Equal("123", repository.MarkedExternalResourceId);
-        Assert.Same(WordPressPublishSettings, publisher.Request!.PublishSettings);
+        scenario.PublicationAttempts.Verify(candidate => candidate.MarkPublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            "123",
+            It.IsAny<CancellationToken>()));
+        scenario.Publisher.Verify(candidate => candidate.PublishAsync(
+            It.Is<PlatformPublishRequest>(request =>
+                ReferenceEquals(request.PublishSettings, WordPressPublishSettings)),
+            It.IsAny<IPlatformPublishCheckpoint>(),
+            It.IsAny<CancellationToken>()));
     }
+
+    private static void SetPublisherException(
+        PublishHandlerScenario scenario,
+        Exception exception) =>
+        scenario.Publisher
+            .Setup(candidate => candidate.PublishAsync(
+                It.IsAny<PlatformPublishRequest>(),
+                It.IsAny<IPlatformPublishCheckpoint>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(exception);
+
+    private static void VerifyMarkedFailed(
+        PublishHandlerScenario scenario,
+        string? externalResourceId) =>
+        scenario.PublicationAttempts.Verify(candidate => candidate.MarkFailedAsync(
+            CalendarEventId,
+            PlatformId,
+            externalResourceId,
+            It.IsAny<CancellationToken>()));
+
+    private static void VerifyNoRelease(PublishHandlerScenario scenario) =>
+        scenario.PublicationAttempts.Verify(candidate => candidate.ReleasePublishingAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
+
+    private static void VerifyNoReleaseOrPublished(PublishHandlerScenario scenario)
+    {
+        VerifyNoRelease(scenario);
+        VerifyNoMarkPublished(scenario);
+    }
+
+    private static void VerifyNoMarkPublished(PublishHandlerScenario scenario) =>
+        scenario.PublicationAttempts.Verify(candidate => candidate.MarkPublishedAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
+
+    private static void VerifyNoIndexAdd(PublishHandlerScenario scenario) =>
+        scenario.PublicationIndex.Verify(candidate => candidate.AddPublishedPlatformAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
+
 }

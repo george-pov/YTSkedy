@@ -1,4 +1,5 @@
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
@@ -34,7 +35,7 @@ internal sealed class GetCalendarEventDetailsScenario
 
     public DateTimeOffset Now { get; set; } = DefaultNow;
 
-    public FakeCalendarEventReader CalendarEventReader { get; private set; } = null!;
+    public Mock<ICalendarEventReader> CalendarEventReader { get; } = new();
 
     public Task<CalendarEventDetailsView?> HandleAsync(
         string calendarEventId = CalendarEventId,
@@ -43,14 +44,36 @@ internal sealed class GetCalendarEventDetailsScenario
 
     public GetCalendarEventDetailsHandler CreateHandler()
     {
-        CalendarEventReader = new FakeCalendarEventReader(getResult: CalendarEvent);
+        CalendarEventReader
+            .Setup(candidate => candidate.GetByIdAsync(
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CalendarEvent);
+        var platforms = new Mock<IPlatformReader>();
+        platforms
+            .Setup(candidate => candidate.ListAsync(
+                null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Platforms);
+        var publications = new Mock<IPlatformPublicationReader>();
+        publications
+            .Setup(candidate => candidate.ListByEventAsync(
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Publications);
+        var thumbnails = new Mock<ICalendarEventThumbnailReader>();
+        thumbnails
+            .Setup(candidate => candidate.GetThumbnailAsync(
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Thumbnail);
 
         return new GetCalendarEventDetailsHandler(
-            CalendarEventReader,
-            new FakePlatformReader(Platforms),
-            new FakePlatformPublicationReader(Publications),
+            CalendarEventReader.Object,
+            platforms.Object,
+            publications.Object,
             new FixedTimeProvider(Now),
-            new FakeThumbnailReader(Thumbnail),
+            thumbnails.Object,
             new PublicationExecutionSettings(
                 TimeSpan.FromMinutes(2),
                 TimeSpan.FromSeconds(15),

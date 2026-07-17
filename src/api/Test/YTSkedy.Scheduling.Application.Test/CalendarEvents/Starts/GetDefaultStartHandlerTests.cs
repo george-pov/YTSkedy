@@ -1,4 +1,6 @@
+using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents.Starts;
+using YTSkedy.Scheduling.Application.Settings;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.TestSupport;
 
@@ -11,21 +13,30 @@ public sealed class GetDefaultStartHandlerTests
     {
         var cancellationToken = new CancellationTokenSource().Token;
         var occupied = DateTimeOffset.Parse("2026-07-12T17:00:00+00:00");
-        var events = new FakeCalendarEventReader(
-            [ApplicationTestData.CalendarEvent(scheduledStartUtc: occupied)]);
-        var defaults = new FakeStartDefaultsStore(
-            new StartDefaults(DayOfWeek.Sunday, new TimeOnly(10, 0), "America/Vancouver"));
+        var events = new Mock<ICalendarEventReader>();
+        events
+            .Setup(reader => reader.ListAsync(null, cancellationToken))
+            .ReturnsAsync([
+                new CalendarEventListRecord(
+                    ApplicationTestData.CalendarEvent(scheduledStartUtc: occupied),
+                    new HashSet<string>(StringComparer.Ordinal))
+            ]);
+        var defaults = new Mock<IStartDefaultsReader>();
+        defaults
+            .Setup(reader => reader.GetAsync(cancellationToken))
+            .ReturnsAsync(new StartDefaults(
+                DayOfWeek.Sunday,
+                new TimeOnly(10, 0),
+                "America/Vancouver"));
         var handler = new GetDefaultStartHandler(
-            defaults,
-            events,
+            defaults.Object,
+            events.Object,
             new FixedTimeProvider(DateTimeOffset.Parse("2026-07-12T16:00:00+00:00")));
 
         var result = await handler.HandleAsync(null, cancellationToken);
 
         Assert.Equal(new DateOnly(2026, 7, 19), result.LocalDate);
-        Assert.True(events.ListCalled);
-        Assert.Null(events.Criteria);
-        Assert.Equal(cancellationToken, events.CancellationToken);
-        Assert.Equal(cancellationToken, defaults.CancellationToken);
+        events.Verify(reader => reader.ListAsync(null, cancellationToken));
+        defaults.Verify(reader => reader.GetAsync(cancellationToken));
     }
 }

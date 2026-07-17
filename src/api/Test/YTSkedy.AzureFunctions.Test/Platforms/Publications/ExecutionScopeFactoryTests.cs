@@ -69,24 +69,19 @@ public sealed class ExecutionScopeFactoryTests
     private static PublishExecutionScopeFactory CreateFactory(
         TimeSpan? operationTimeout = null,
         TimeSpan? finalizationTimeout = null,
-        CancellationTokenSource? hostStopping = null) =>
-        new(
+        CancellationTokenSource? hostStopping = null)
+    {
+        var lifetime = new Mock<IHostApplicationLifetime>();
+        lifetime
+            .SetupGet(candidate => candidate.ApplicationStopping)
+            .Returns(hostStopping?.Token ?? CancellationToken.None);
+
+        return new PublishExecutionScopeFactory(
             new PublicationExecutionSettings(
                 operationTimeout ?? TimeSpan.FromSeconds(10),
                 finalizationTimeout ?? TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30)),
-            new TestHostApplicationLifetime(hostStopping),
+            lifetime.Object,
             TimeProvider.System);
-
-    private sealed class TestHostApplicationLifetime(
-        CancellationTokenSource? stopping = null) : IHostApplicationLifetime
-    {
-        public CancellationToken ApplicationStarted => CancellationToken.None;
-
-        public CancellationToken ApplicationStopping => stopping?.Token ?? CancellationToken.None;
-
-        public CancellationToken ApplicationStopped => CancellationToken.None;
-
-        public void StopApplication() => stopping?.Cancel();
     }
 }

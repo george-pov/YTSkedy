@@ -14,17 +14,23 @@ public sealed class GetCalendarEventDefaultsHandlerTests
             DayOfWeek.Friday,
             new TimeOnly(9, 15),
             "UTC");
-        var fieldsReader = new FakeEventTextFieldsReader(fields);
-        var startDefaultsReader = new FakeStartDefaultsStore(startDefaults);
+        var fieldsReader = new Mock<IEventTextFieldsReader>();
+        fieldsReader
+            .Setup(reader => reader.GetAsync(CancellationToken.None))
+            .ReturnsAsync(fields);
+        var startDefaultsReader = new Mock<IStartDefaultsReader>();
+        startDefaultsReader
+            .Setup(reader => reader.GetAsync(CancellationToken.None))
+            .ReturnsAsync(startDefaults);
         var handler = new GetCalendarEventDefaultsHandler(
-            fieldsReader,
-            startDefaultsReader);
+            fieldsReader.Object,
+            startDefaultsReader.Object);
 
         var result = await handler.HandleAsync(CancellationToken.None);
 
         Assert.Same(fields, result.EventTextFields);
         Assert.Equal(startDefaults, result.StartDefaults);
-        Assert.True(fieldsReader.WasCalled);
-        Assert.Equal(1, startDefaultsReader.GetCallCount);
+        fieldsReader.Verify(reader => reader.GetAsync(CancellationToken.None));
+        startDefaultsReader.Verify(reader => reader.GetAsync(CancellationToken.None));
     }
 }

@@ -21,7 +21,22 @@ public class UpdateCalendarEventHandlerTests
     [Fact]
     public async Task HandleAsync_ExistingEvent_UpdatesStartAndTextAndReturnsUpdated()
     {
-        var modifier = new FakeCalendarEventModifier(updateResult: true);
+        CalendarEvent? updatedCalendarEvent = null;
+        DateTimeOffset? updatedScheduledStartUtc = null;
+        var modifier = new Mock<ICalendarEventModifier>();
+        modifier
+            .Setup(candidate => candidate.UpdateAsync(
+                CalendarEventId,
+                It.IsAny<CalendarEvent>(),
+                It.IsAny<DateTimeOffset>(),
+                CancellationToken.None))
+            .Callback<string, CalendarEvent, DateTimeOffset, CancellationToken>(
+                (_, calendarEvent, scheduledStartUtc, _) =>
+                {
+                    updatedCalendarEvent = calendarEvent;
+                    updatedScheduledStartUtc = scheduledStartUtc;
+                })
+            .ReturnsAsync(true);
         var handler = CreateHandler(CreateCalendarEventView(), modifier);
         var updatedStart = ValidUpdatedStart();
 
@@ -30,22 +45,20 @@ public class UpdateCalendarEventHandlerTests
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventStatus.Updated, result.Status);
-        Assert.Equal(1, modifier.UpdateCallCount);
-        Assert.Equal(CalendarEventId, modifier.UpdatedCalendarEventId);
-        Assert.NotNull(modifier.UpdatedCalendarEvent);
-        Assert.Equal(updatedStart, modifier.UpdatedCalendarEvent!.Start);
+        Assert.NotNull(updatedCalendarEvent);
+        Assert.Equal(updatedStart, updatedCalendarEvent!.Start);
         Assert.Equal(
             ["Updated title", "Updated description"],
-            modifier.UpdatedCalendarEvent.Text.Values.Select(value => value.Value));
+            updatedCalendarEvent.Text.Values.Select(value => value.Value));
         Assert.Equal(
             new DateTimeOffset(2026, 07, 20, 08, 30, 00, TimeSpan.Zero),
-            modifier.UpdatedScheduledStartUtc);
+            updatedScheduledStartUtc);
     }
 
     [Fact]
     public async Task HandleAsync_ExistingEvent_InvalidText_ReturnsInvalidWithoutUpdating()
     {
-        var modifier = new FakeCalendarEventModifier(updateResult: true);
+        var modifier = new Mock<ICalendarEventModifier>();
         var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
         var result = await handler.HandleAsync(
@@ -57,13 +70,13 @@ public class UpdateCalendarEventHandlerTests
 
         Assert.Equal(UpdateCalendarEventStatus.Invalid, result.Status);
         Assert.False(string.IsNullOrWhiteSpace(result.ValidationError));
-        Assert.Equal(0, modifier.UpdateCallCount);
+        VerifyNoUpdate(modifier);
     }
 
     [Fact]
     public async Task HandleAsync_InvalidScheduledStart_ReturnsInvalid()
     {
-        var modifier = new FakeCalendarEventModifier(updateResult: true);
+        var modifier = new Mock<ICalendarEventModifier>();
         var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
         var result = await handler.HandleAsync(
@@ -77,13 +90,13 @@ public class UpdateCalendarEventHandlerTests
         Assert.Equal(
             "Scheduled start time does not exist in the specified time zone.",
             result.ValidationError);
-        Assert.Equal(0, modifier.UpdateCallCount);
+        VerifyNoUpdate(modifier);
     }
 
     [Fact]
     public async Task HandleAsync_MissingEvent_ReturnsNotFoundWithoutUpdating()
     {
-        var modifier = new FakeCalendarEventModifier(updateResult: true);
+        var modifier = new Mock<ICalendarEventModifier>();
         var handler = CreateHandler(calendarEvent: null, modifier);
 
         var result = await handler.HandleAsync(
@@ -91,13 +104,13 @@ public class UpdateCalendarEventHandlerTests
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventStatus.NotFound, result.Status);
-        Assert.Equal(0, modifier.UpdateCallCount);
+        VerifyNoUpdate(modifier);
     }
 
     [Fact]
     public async Task HandleAsync_EventWithPlatformPublications_ReturnsConflictWithoutUpdating()
     {
-        var modifier = new FakeCalendarEventModifier(updateResult: true);
+        var modifier = new Mock<ICalendarEventModifier>();
         var handler = CreateHandler(
             CreateCalendarEventView(),
             modifier,
@@ -108,13 +121,20 @@ public class UpdateCalendarEventHandlerTests
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventStatus.HasPlatformPublications, result.Status);
-        Assert.Equal(0, modifier.UpdateCallCount);
+        VerifyNoUpdate(modifier);
     }
 
     [Fact]
     public async Task HandleAsync_RowVanishedBeforeWrite_ReturnsNotFound()
     {
-        var modifier = new FakeCalendarEventModifier(updateResult: false);
+        var modifier = new Mock<ICalendarEventModifier>();
+        modifier
+            .Setup(candidate => candidate.UpdateAsync(
+                CalendarEventId,
+                It.IsAny<CalendarEvent>(),
+                It.IsAny<DateTimeOffset>(),
+                CancellationToken.None))
+            .ReturnsAsync(false);
         var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
         var result = await handler.HandleAsync(
@@ -122,17 +142,25 @@ public class UpdateCalendarEventHandlerTests
             CancellationToken.None);
 
         Assert.Equal(UpdateCalendarEventStatus.NotFound, result.Status);
-        Assert.Equal(1, modifier.UpdateCallCount);
+        modifier.Verify(candidate => candidate.UpdateAsync(
+            CalendarEventId,
+            It.IsAny<CalendarEvent>(),
+            It.IsAny<DateTimeOffset>(),
+            CancellationToken.None));
     }
 
     [Fact]
     public async Task HandleAsync_DuplicateScheduledStart_ReturnsDuplicateScheduledStartWithoutUpdating()
     {
         var scheduledStartUtc = new DateTimeOffset(2026, 7, 20, 8, 30, 0, TimeSpan.Zero);
-        var modifier = new FakeCalendarEventModifier(updateResult: true)
-        {
-            DuplicateScheduledStartUtc = scheduledStartUtc
-        };
+        var modifier = new Mock<ICalendarEventModifier>();
+        modifier
+            .Setup(candidate => candidate.UpdateAsync(
+                CalendarEventId,
+                It.IsAny<CalendarEvent>(),
+                scheduledStartUtc,
+                CancellationToken.None))
+            .ThrowsAsync(new DuplicateScheduledStartException(scheduledStartUtc));
         var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
         var result = await handler.HandleAsync(
@@ -148,7 +176,7 @@ public class UpdateCalendarEventHandlerTests
     {
         var handler = CreateHandler(
             CreateCalendarEventView(),
-            new FakeCalendarEventModifier(updateResult: true));
+            new Mock<ICalendarEventModifier>());
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
@@ -156,18 +184,27 @@ public class UpdateCalendarEventHandlerTests
 
     private static UpdateCalendarEventHandler CreateHandler(
         CalendarEventView? calendarEvent,
-        FakeCalendarEventModifier modifier,
-        bool canMutate = true) =>
-        new(
-            new FakeCalendarEventReader(getResult: calendarEvent),
-            new CalendarEventPublicationLock(
-                new FakePlatformPublicationReader(
-                    canMutate
-                        ? []
-                        : [ApplicationTestData.Publication(
-                            PublishStatus.Published,
-                            calendarEventId: CalendarEventId)])),
-            modifier);
+        Mock<ICalendarEventModifier> modifier,
+        bool canMutate = true)
+    {
+        var calendarEvents = new Mock<ICalendarEventReader>();
+        calendarEvents
+            .Setup(candidate => candidate.GetByIdAsync(
+                CalendarEventId,
+                CancellationToken.None))
+            .ReturnsAsync(calendarEvent);
+        var publications = new Mock<IPlatformPublicationReader>();
+        publications
+            .Setup(candidate => candidate.HasAnyForEventAsync(
+                CalendarEventId,
+                CancellationToken.None))
+            .ReturnsAsync(!canMutate);
+
+        return new UpdateCalendarEventHandler(
+            calendarEvents.Object,
+            new CalendarEventPublicationLock(publications.Object),
+            modifier.Object);
+    }
 
     private static CalendarEventView CreateCalendarEventView() =>
         new(
@@ -184,46 +221,10 @@ public class UpdateCalendarEventHandlerTests
     private static ScheduledStart ValidUpdatedStart() =>
         new(new DateTime(2026, 07, 20, 09, 30, 00), "Europe/London");
 
-    private sealed class FakeCalendarEventModifier(bool updateResult) : ICalendarEventModifier
-    {
-        public int UpdateCallCount { get; private set; }
-
-        public string? UpdatedCalendarEventId { get; private set; }
-
-        public CalendarEvent? UpdatedCalendarEvent { get; private set; }
-
-        public DateTimeOffset? UpdatedScheduledStartUtc { get; private set; }
-
-        public DateTimeOffset? DuplicateScheduledStartUtc { get; init; }
-
-        public Task<string> CreateAsync(
-            CalendarEvent calendarEvent,
-            DateTimeOffset scheduledStartUtc,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> UpdateAsync(
-            string calendarEventId,
-            CalendarEvent calendarEvent,
-            DateTimeOffset scheduledStartUtc,
-            CancellationToken cancellationToken)
-        {
-            if (DuplicateScheduledStartUtc is { } duplicateScheduledStartUtc)
-            {
-                throw new DuplicateScheduledStartException(duplicateScheduledStartUtc);
-            }
-
-            UpdateCallCount++;
-            UpdatedCalendarEventId = calendarEventId;
-            UpdatedCalendarEvent = calendarEvent;
-            UpdatedScheduledStartUtc = scheduledStartUtc;
-
-            return Task.FromResult(updateResult);
-        }
-
-        public Task DeleteAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
+    private static void VerifyNoUpdate(Mock<ICalendarEventModifier> modifier) =>
+        modifier.Verify(candidate => candidate.UpdateAsync(
+            It.IsAny<string>(),
+            It.IsAny<CalendarEvent>(),
+            It.IsAny<DateTimeOffset>(),
+            It.IsAny<CancellationToken>()), Times.Never());
 }

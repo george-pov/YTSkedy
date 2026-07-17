@@ -8,6 +8,7 @@ using YTSkedy.Scheduling.Application.Platforms.PublicationThumbnails;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.TestSupport;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.Infrastructure.Test.YouTube;
 
@@ -53,20 +54,21 @@ public class YouTubeThumbnailPublisherTests
     [Fact]
     public async Task PublishAsync_ProviderFailure_ThrowsWithoutLoggingSecrets()
     {
-        var logger = new CapturingLogger<YouTubeThumbnailPublisher>();
+        var logger = new Mock<ILogger<YouTubeThumbnailPublisher>>();
         var publisher = CreatePublisher(
             new FakeThumbnailClient
             {
                 Throws = new YouTubeThumbnailPublishException(null, ["invalidImage"])
             },
-            logger);
+            logger.Object);
 
         await Assert.ThrowsAsync<ThumbnailPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
 
-        Assert.DoesNotContain(ClientSecret, logger.Text);
-        Assert.DoesNotContain(RefreshToken, logger.Text);
-        Assert.Contains("invalidImage", logger.Text);
+        var logText = logger.GetLogText();
+        Assert.DoesNotContain(ClientSecret, logText);
+        Assert.DoesNotContain(RefreshToken, logText);
+        Assert.Contains("invalidImage", logText);
     }
 
     [Fact]
@@ -85,7 +87,7 @@ public class YouTubeThumbnailPublisherTests
     private static YouTubeThumbnailPublisher CreatePublisher(
         FakeThumbnailClient client,
         ILogger<YouTubeThumbnailPublisher>? logger = null) =>
-        new(client, logger ?? new CapturingLogger<YouTubeThumbnailPublisher>());
+        new(client, logger ?? Mock.Of<ILogger<YouTubeThumbnailPublisher>>());
 
     private static ThumbnailPublishRequest Request(PublishSettings? settings = null) =>
         new(

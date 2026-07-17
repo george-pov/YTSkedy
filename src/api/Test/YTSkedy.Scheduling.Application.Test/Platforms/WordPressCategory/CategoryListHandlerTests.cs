@@ -1,3 +1,4 @@
+using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.WordPressCategory;
 using YTSkedy.Scheduling.Domain.Platforms;
 
@@ -17,10 +18,19 @@ public class CategoryListHandlerTests
             25,
             26,
             2);
-        var categoryReader = new FakeCategoryReader { Result = page };
-        var platformReader = new FakePlatformReader(
-            getResult: Platform(PlatformType.WordPress, settings));
-        var handler = new CategoryListHandler(platformReader, categoryReader);
+        var categoryReader = new Mock<ICategoryReader>();
+        categoryReader
+            .Setup(candidate => candidate.ListAsync(
+                settings,
+                It.Is<CategoryQuery>(query =>
+                    query.Search == "events" &&
+                    query.IncludeIds.SequenceEqual(new long[] { 12, 34 }) &&
+                    query.Page == 2 &&
+                    query.PageSize == 25),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(page);
+        var platformReader = PlatformReader(Platform(PlatformType.WordPress, settings));
+        var handler = new CategoryListHandler(platformReader.Object, categoryReader.Object);
         var cancellationToken = new CancellationTokenSource().Token;
 
         var result = await handler.HandleAsync(
@@ -29,75 +39,77 @@ public class CategoryListHandlerTests
 
         Assert.Equal(CategoryListStatus.Listed, result.Status);
         Assert.Same(page, result.Page);
-        Assert.Equal(PlatformId, platformReader.PlatformId);
-        Assert.Equal(cancellationToken, platformReader.CancellationToken);
-        Assert.Same(settings, categoryReader.Settings);
-        Assert.Equal("events", categoryReader.Query!.Search);
-        Assert.Equal([12, 34], categoryReader.Query.IncludeIds);
-        Assert.Equal(2, categoryReader.Query.Page);
-        Assert.Equal(25, categoryReader.Query.PageSize);
-        Assert.Equal(cancellationToken, categoryReader.CancellationToken);
+        platformReader.Verify(candidate => candidate.GetAsync(PlatformId, cancellationToken));
+        categoryReader.Verify(candidate => candidate.ListAsync(
+            settings,
+            It.Is<CategoryQuery>(query =>
+                query.Search == "events" &&
+                query.IncludeIds.SequenceEqual(new long[] { 12, 34 }) &&
+                query.Page == 2 &&
+                query.PageSize == 25),
+            cancellationToken));
     }
 
     [Fact]
     public async Task HandleAsync_MissingPlatform_ReturnsPlatformNotFound()
     {
-        var categoryReader = new FakeCategoryReader();
+        var categoryReader = new Mock<ICategoryReader>();
         var handler = new CategoryListHandler(
-            new FakePlatformReader(),
-            categoryReader);
+            PlatformReader(null).Object,
+            categoryReader.Object);
 
         var result = await HandleAsync(handler);
 
         Assert.Equal(CategoryListStatus.PlatformNotFound, result.Status);
         Assert.Null(result.Page);
-        Assert.Equal(0, categoryReader.CallCount);
+        VerifyNoCategoryRead(categoryReader);
     }
 
     [Fact]
     public async Task HandleAsync_YouTubePlatform_ReturnsInvalidPlatformType()
     {
-        var categoryReader = new FakeCategoryReader();
+        var categoryReader = new Mock<ICategoryReader>();
         var handler = new CategoryListHandler(
-            new FakePlatformReader(getResult: Platform(PlatformType.YouTube)),
-            categoryReader);
+            PlatformReader(Platform(PlatformType.YouTube)).Object,
+            categoryReader.Object);
 
         var result = await HandleAsync(handler);
 
         Assert.Equal(CategoryListStatus.InvalidPlatformType, result.Status);
         Assert.Null(result.Page);
-        Assert.Equal(0, categoryReader.CallCount);
+        VerifyNoCategoryRead(categoryReader);
     }
 
     [Fact]
     public async Task HandleAsync_WordPressTypeWithYouTubeSettings_ReturnsInvalidPlatformType()
     {
-        var categoryReader = new FakeCategoryReader();
+        var categoryReader = new Mock<ICategoryReader>();
         var handler = new CategoryListHandler(
-            new FakePlatformReader(
-                getResult: Platform(
-                    PlatformType.WordPress,
-                    ApplicationTestData.YouTubeSettings())),
-            categoryReader);
+            PlatformReader(Platform(
+                PlatformType.WordPress,
+                ApplicationTestData.YouTubeSettings())).Object,
+            categoryReader.Object);
 
         var result = await HandleAsync(handler);
 
         Assert.Equal(CategoryListStatus.InvalidPlatformType, result.Status);
-        Assert.Equal(0, categoryReader.CallCount);
+        VerifyNoCategoryRead(categoryReader);
     }
 
     [Fact]
     public async Task HandleAsync_ProviderFailure_ReturnsProviderFailed()
     {
+        var settings = ApplicationTestData.WordPressSettings();
+        var categoryReader = new Mock<ICategoryReader>();
+        categoryReader
+            .Setup(candidate => candidate.ListAsync(
+                settings,
+                It.IsAny<CategoryQuery>(),
+                CancellationToken.None))
+            .ThrowsAsync(new CategoryReadException("Provider failed."));
         var handler = new CategoryListHandler(
-            new FakePlatformReader(
-                getResult: Platform(
-                    PlatformType.WordPress,
-                    ApplicationTestData.WordPressSettings())),
-            new FakeCategoryReader
-            {
-                Exception = new CategoryReadException("Provider failed.")
-            });
+            PlatformReader(Platform(PlatformType.WordPress, settings)).Object,
+            categoryReader.Object);
 
         var result = await HandleAsync(handler);
 
@@ -109,12 +121,17 @@ public class CategoryListHandlerTests
     public async Task HandleAsync_ReaderCancellation_PropagatesCancellation()
     {
         var cancellation = new OperationCanceledException();
+        var settings = ApplicationTestData.WordPressSettings();
+        var categoryReader = new Mock<ICategoryReader>();
+        categoryReader
+            .Setup(candidate => candidate.ListAsync(
+                settings,
+                It.IsAny<CategoryQuery>(),
+                CancellationToken.None))
+            .ThrowsAsync(cancellation);
         var handler = new CategoryListHandler(
-            new FakePlatformReader(
-                getResult: Platform(
-                    PlatformType.WordPress,
-                    ApplicationTestData.WordPressSettings())),
-            new FakeCategoryReader { Exception = cancellation });
+            PlatformReader(Platform(PlatformType.WordPress, settings)).Object,
+            categoryReader.Object);
 
         var exception = await Assert.ThrowsAsync<OperationCanceledException>(
             () => HandleAsync(handler));
@@ -126,8 +143,8 @@ public class CategoryListHandlerTests
     public async Task HandleAsync_NullQuery_Throws()
     {
         var handler = new CategoryListHandler(
-            new FakePlatformReader(),
-            new FakeCategoryReader());
+            new Mock<IPlatformReader>().Object,
+            new Mock<ICategoryReader>().Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
@@ -145,4 +162,21 @@ public class CategoryListHandlerTests
             platformId: PlatformId,
             type: type,
             publishSettings: settings);
+
+    private static Mock<IPlatformReader> PlatformReader(PlatformView? platform)
+    {
+        var reader = new Mock<IPlatformReader>();
+        reader
+            .Setup(candidate => candidate.GetAsync(
+                PlatformId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(platform);
+        return reader;
+    }
+
+    private static void VerifyNoCategoryRead(Mock<ICategoryReader> reader) =>
+        reader.Verify(candidate => candidate.ListAsync(
+            It.IsAny<WordPressSettings>(),
+            It.IsAny<CategoryQuery>(),
+            It.IsAny<CancellationToken>()), Times.Never());
 }

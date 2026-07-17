@@ -6,6 +6,7 @@ using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.TestSupport;
+using YTSkedy.TestSupport;
 
 namespace YTSkedy.Infrastructure.Test.YouTube;
 
@@ -75,19 +76,20 @@ public class YouTubePublicationDeleterTests
     public async Task DeleteAsync_ProviderOrAuthorizationFailure_ReturnsFailed(
         HttpStatusCode statusCode)
     {
-        var logger = new CapturingLogger<YouTubePublicationDeleter>();
+        var logger = new Mock<ILogger<YouTubePublicationDeleter>>();
         var deleter = CreateDeleter(
             new FakeDeletionClient
             {
                 Throws = new YouTubePublicationDeleteException(statusCode, ["authError"])
             },
-            logger);
+            logger.Object);
 
         var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
 
         Assert.Equal(PublicationDeleteStatus.Failed, result.Status);
-        Assert.DoesNotContain(ClientSecret, logger.Text);
-        Assert.DoesNotContain(RefreshToken, logger.Text);
+        var logText = logger.GetLogText();
+        Assert.DoesNotContain(ClientSecret, logText);
+        Assert.DoesNotContain(RefreshToken, logText);
     }
 
     [Fact]
@@ -123,7 +125,7 @@ public class YouTubePublicationDeleterTests
     private static YouTubePublicationDeleter CreateDeleter(
         FakeDeletionClient client,
         ILogger<YouTubePublicationDeleter>? logger = null) =>
-        new(client, logger ?? new CapturingLogger<YouTubePublicationDeleter>());
+        new(client, logger ?? Mock.Of<ILogger<YouTubePublicationDeleter>>());
 
     private static PublicationDeleteRequest Request(PublishSettings? settings = null) =>
         new(

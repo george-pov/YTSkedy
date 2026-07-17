@@ -56,8 +56,8 @@ public class DeletePublicationHandlerTests
     [Fact]
     public async Task DeletePublication_MissingRow_ReturnsNotPublishedRowWithoutProviderCall()
     {
-        var repository = new FakePublicationRepository();
-        var deleter = new FakePublicationDeleter();
+        var repository = PublicationRepository();
+        var deleter = PublicationDeleter();
         var handler = CreateHandler(
             publication: null,
             hasPublication: false,
@@ -71,8 +71,14 @@ public class DeletePublicationHandlerTests
         Assert.Equal(PublishStatus.NotPublished, result.Platform!.Status);
         Assert.True(result.Platform.CanPublish);
         Assert.False(result.Platform.CanDeletePublication);
-        Assert.False(deleter.Called);
-        Assert.False(repository.DeletePublishedCalled);
+        deleter.Verify(candidate => candidate.DeleteAsync(
+            It.IsAny<PublicationDeleteRequest>(),
+            It.IsAny<CancellationToken>()), Times.Never());
+        repository.Verify(candidate => candidate.DeletePublishedAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
@@ -137,46 +143,44 @@ public class DeletePublicationHandlerTests
     [Fact]
     public async Task DeletePublication_ProviderStateConflict_ReturnsProviderStateConflict()
     {
-        var repository = new FakePublicationRepository();
+        var repository = PublicationRepository();
         var handler = CreateHandler(
             repository: repository,
-            deleter: new FakePublicationDeleter
-            {
-                Result = PublicationDeleteResult.StateConflict
-            });
+            deleter: PublicationDeleter(PublicationDeleteResult.StateConflict));
 
         var result = await Handle(handler);
 
         Assert.Equal(DeletePublicationStatus.ProviderStateConflict, result.Status);
-        Assert.False(repository.DeletePublishedCalled);
+        repository.Verify(candidate => candidate.DeletePublishedAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
     public async Task DeletePublication_ProviderFailure_ReturnsProviderFailed()
     {
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
+        var publicationIndex = PublicationIndex();
         var handler = CreateHandler(
-            deleter: new FakePublicationDeleter
-            {
-                Result = PublicationDeleteResult.Failed
-            },
+            deleter: PublicationDeleter(PublicationDeleteResult.Failed),
             publicationIndex: publicationIndex);
 
         var result = await Handle(handler);
 
         Assert.Equal(DeletePublicationStatus.ProviderFailed, result.Status);
-        Assert.Empty(publicationIndex.RemoveCalls);
+        publicationIndex.Verify(candidate => candidate.RemovePublishedPlatformAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
     public async Task DeletePublication_ProviderAlreadyGoneDeletesRow_ReturnsNotPublishedRow()
     {
-        var repository = new FakePublicationRepository();
-        var deleter = new FakePublicationDeleter
-        {
-            Result = PublicationDeleteResult.AlreadyGone
-        };
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
+        var repository = PublicationRepository();
+        var deleter = PublicationDeleter(PublicationDeleteResult.AlreadyGone);
+        var publicationIndex = PublicationIndex();
         var handler = CreateHandler(
             repository: repository,
             deleter: deleter,
@@ -185,22 +189,29 @@ public class DeletePublicationHandlerTests
         var result = await Handle(handler);
 
         Assert.Equal(DeletePublicationStatus.Deleted, result.Status);
-        Assert.Equal(ExternalResourceId, repository.DeletedExternalResourceId);
-        Assert.Same(Settings, deleter.Request!.PublishSettings);
+        repository.Verify(candidate => candidate.DeletePublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            ExternalResourceId,
+            CancellationToken.None));
+        deleter.Verify(candidate => candidate.DeleteAsync(
+            It.Is<PublicationDeleteRequest>(request =>
+                ReferenceEquals(request.PublishSettings, Settings)),
+            CancellationToken.None));
         Assert.Equal(PublishStatus.NotPublished, result.Platform!.Status);
         Assert.True(result.Platform.CanPublish);
         Assert.False(result.Platform.CanDeletePublication);
-        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.RemoveCalls);
+        publicationIndex.Verify(candidate => candidate.RemovePublishedPlatformAsync(
+            CalendarEventId,
+            PlatformId,
+            CancellationToken.None));
     }
 
     [Fact]
     public async Task DeletePublication_RowAlreadyMissingAfterProviderCleanup_RemovesIndex()
     {
-        var repository = new FakePublicationRepository
-        {
-            DeletePublishedResult = DeletePublishedResult.NotFound
-        };
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
+        var repository = PublicationRepository(DeletePublishedResult.NotFound);
+        var publicationIndex = PublicationIndex();
         var handler = CreateHandler(
             repository: repository,
             publicationIndex: publicationIndex);
@@ -208,43 +219,46 @@ public class DeletePublicationHandlerTests
         var result = await Handle(handler);
 
         Assert.Equal(DeletePublicationStatus.Deleted, result.Status);
-        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.RemoveCalls);
+        publicationIndex.Verify(candidate => candidate.RemovePublishedPlatformAsync(
+            CalendarEventId,
+            PlatformId,
+            CancellationToken.None));
     }
 
     [Fact]
     public async Task DeletePublication_RowChangedAfterProviderCleanup_ReturnsRowChanged()
     {
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter();
+        var publicationIndex = PublicationIndex();
         var handler = CreateHandler(
-            repository: new FakePublicationRepository
-            {
-                DeletePublishedResult = DeletePublishedResult.Changed
-            },
+            repository: PublicationRepository(DeletePublishedResult.Changed),
             publicationIndex: publicationIndex);
 
         var result = await Handle(handler);
 
         Assert.Equal(DeletePublicationStatus.RowChanged, result.Status);
-        Assert.Empty(publicationIndex.RemoveCalls);
+        publicationIndex.Verify(candidate => candidate.RemovePublishedPlatformAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
     public async Task DeletePublication_IndexReturnsFalse_LogsAndReturnsDeleted()
     {
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter
-        {
-            RemoveResult = false
-        };
-        var logger = new CapturingLogger<PublicationIndexUpdater>();
+        var publicationIndex = PublicationIndex(removeResult: false);
+        var logger = new Mock<ILogger<PublicationIndexUpdater>>();
         var handler = CreateHandler(
             publicationIndex: publicationIndex,
-            publicationIndexLogger: logger);
+            publicationIndexLogger: logger.Object);
 
         var result = await Handle(handler);
 
         Assert.Equal(DeletePublicationStatus.Deleted, result.Status);
-        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.RemoveCalls);
-        var entry = Assert.Single(logger.Entries);
+        publicationIndex.Verify(candidate => candidate.RemovePublishedPlatformAsync(
+            CalendarEventId,
+            PlatformId,
+            CancellationToken.None));
+        var entry = Assert.Single(logger.GetLogEntries());
         Assert.Equal(LogLevel.Error, entry.Level);
         Assert.Contains("RemovePublishedPlatform", entry.Message, StringComparison.Ordinal);
         Assert.Contains(CalendarEventId, entry.Message, StringComparison.Ordinal);
@@ -254,20 +268,21 @@ public class DeletePublicationHandlerTests
     [Fact]
     public async Task DeletePublication_IndexThrows_LogsAndReturnsDeleted()
     {
-        var publicationIndex = new FakeCalendarEventPublicationIndexWriter
-        {
-            RemoveException = new InvalidOperationException("storage unavailable")
-        };
-        var logger = new CapturingLogger<PublicationIndexUpdater>();
+        var publicationIndex = PublicationIndex(
+            exception: new InvalidOperationException("storage unavailable"));
+        var logger = new Mock<ILogger<PublicationIndexUpdater>>();
         var handler = CreateHandler(
             publicationIndex: publicationIndex,
-            publicationIndexLogger: logger);
+            publicationIndexLogger: logger.Object);
 
         var result = await Handle(handler);
 
         Assert.Equal(DeletePublicationStatus.Deleted, result.Status);
-        Assert.Equal([(CalendarEventId, PlatformId)], publicationIndex.RemoveCalls);
-        var entry = Assert.Single(logger.Entries);
+        publicationIndex.Verify(candidate => candidate.RemovePublishedPlatformAsync(
+            CalendarEventId,
+            PlatformId,
+            CancellationToken.None));
+        var entry = Assert.Single(logger.GetLogEntries());
         Assert.Equal(LogLevel.Error, entry.Level);
         Assert.Contains("RemovePublishedPlatform", entry.Message, StringComparison.Ordinal);
     }
@@ -281,29 +296,47 @@ public class DeletePublicationHandlerTests
         CalendarEventView? calendarEvent = null,
         PlatformView? platform = null,
         PlatformPublication? publication = null,
-        FakePublicationRepository? repository = null,
-        IPlatformPublicationDeleter? deleter = null,
+        Mock<IPublicationCleanupWriter>? repository = null,
+        Mock<IPlatformPublicationDeleter>? deleter = null,
         bool hasCalendarEvent = true,
         bool hasPlatform = true,
         bool hasPublication = true,
         bool hasDeleter = true,
-        FakeCalendarEventPublicationIndexWriter? publicationIndex = null,
+        Mock<IPublicationIndexWriter>? publicationIndex = null,
         ILogger<DeletePublicationHandler>? logger = null,
-        ILogger<PublicationIndexUpdater>? publicationIndexLogger = null) =>
-        new(
-            new FakeCalendarEventReader(
-                getResult: hasCalendarEvent ? calendarEvent ?? Event(FutureStart) : null),
-            new FakePlatformReader(getResult: hasPlatform ? platform ?? Platform() : null),
-            new FakePlatformPublicationReader(
-                hasPublication ? [publication ?? Publication(PublishStatus.Published)] : []),
-            repository ?? new FakePublicationRepository(),
+        ILogger<PublicationIndexUpdater>? publicationIndexLogger = null)
+    {
+        var calendarEvents = new Mock<ICalendarEventReader>();
+        calendarEvents
+            .Setup(candidate => candidate.GetByIdAsync(
+                CalendarEventId,
+                CancellationToken.None))
+            .ReturnsAsync(hasCalendarEvent ? calendarEvent ?? Event(FutureStart) : null);
+        var platforms = new Mock<IPlatformReader>();
+        platforms
+            .Setup(candidate => candidate.GetAsync(PlatformId, CancellationToken.None))
+            .ReturnsAsync(hasPlatform ? platform ?? Platform() : null);
+        var publications = new Mock<IPlatformPublicationReader>();
+        publications
+            .Setup(candidate => candidate.GetAsync(
+                CalendarEventId,
+                PlatformId,
+                CancellationToken.None))
+            .ReturnsAsync(hasPublication ? publication ?? Publication(PublishStatus.Published) : null);
+
+        return new DeletePublicationHandler(
+            calendarEvents.Object,
+            platforms.Object,
+            publications.Object,
+            (repository ?? PublicationRepository()).Object,
             new PublicationIndexUpdater(
-                publicationIndex ?? new FakeCalendarEventPublicationIndexWriter(),
+                (publicationIndex ?? PublicationIndex()).Object,
                 publicationIndexLogger ?? NullLogger<PublicationIndexUpdater>.Instance),
             new PlatformTypeAdapterSelector<IPlatformPublicationDeleter>(
-                hasDeleter ? [deleter ?? new FakePublicationDeleter()] : []),
+                hasDeleter ? [(deleter ?? PublicationDeleter()).Object] : []),
             new FixedTimeProvider(Now),
             logger ?? NullLogger<DeletePublicationHandler>.Instance);
+    }
 
     private static CalendarEventView Event(DateTimeOffset startUtc) =>
         ApplicationTestData.CalendarEvent(
@@ -336,46 +369,51 @@ public class DeletePublicationHandlerTests
                 WordPressSiteUrl: null,
                 YouTubeClientId: ApplicationTestData.YouTubeClientId));
 
-    private sealed class FakePublicationRepository : IPublicationCleanupWriter
+    private static Mock<IPublicationCleanupWriter> PublicationRepository(
+        DeletePublishedResult? result = null)
     {
-        public DeletePublishedResult DeletePublishedResult { get; init; } =
-            DeletePublishedResult.Deleted;
-
-        public bool DeletePublishedCalled { get; private set; }
-
-        public string? DeletedExternalResourceId { get; private set; }
-
-        public Task<DeletePublishedResult> DeletePublishedAsync(
-            string calendarEventId,
-            string platformId,
-            string externalResourceId,
-            CancellationToken cancellationToken)
-        {
-            DeletePublishedCalled = true;
-            DeletedExternalResourceId = externalResourceId;
-
-            return Task.FromResult(DeletePublishedResult);
-        }
+        var repository = new Mock<IPublicationCleanupWriter>();
+        repository
+            .Setup(candidate => candidate.DeletePublishedAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(result ?? DeletePublishedResult.Deleted);
+        return repository;
     }
 
-    private sealed class FakePublicationDeleter : IPlatformPublicationDeleter
+    private static Mock<IPlatformPublicationDeleter> PublicationDeleter(
+        PublicationDeleteResult? result = null)
     {
-        public PlatformType Type => PlatformType.YouTube;
+        var deleter = new Mock<IPlatformPublicationDeleter>();
+        deleter.SetupGet(candidate => candidate.Type).Returns(PlatformType.YouTube);
+        deleter
+            .Setup(candidate => candidate.DeleteAsync(
+                It.IsAny<PublicationDeleteRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(result ?? PublicationDeleteResult.Deleted);
+        return deleter;
+    }
 
-        public PublicationDeleteResult Result { get; init; } = PublicationDeleteResult.Deleted;
-
-        public bool Called { get; private set; }
-
-        public PublicationDeleteRequest? Request { get; private set; }
-
-        public Task<PublicationDeleteResult> DeleteAsync(
-            PublicationDeleteRequest request,
-            CancellationToken cancellationToken)
+    private static Mock<IPublicationIndexWriter> PublicationIndex(
+        bool removeResult = true,
+        Exception? exception = null)
+    {
+        var index = new Mock<IPublicationIndexWriter>();
+        var setup = index.Setup(candidate => candidate.RemovePublishedPlatformAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()));
+        if (exception is null)
         {
-            Called = true;
-            Request = request;
-
-            return Task.FromResult(Result);
+            setup.ReturnsAsync(removeResult);
         }
+        else
+        {
+            setup.ThrowsAsync(exception);
+        }
+
+        return index;
     }
 }

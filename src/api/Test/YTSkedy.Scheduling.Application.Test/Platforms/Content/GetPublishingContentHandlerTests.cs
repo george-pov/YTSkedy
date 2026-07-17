@@ -1,6 +1,7 @@
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Content;
+using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
@@ -34,7 +35,7 @@ public class GetPublishingContentHandlerTests
             Event(),
             Platform(),
             publication: null,
-            templates: new FakeTemplateReader(
+            templates: TemplateReader(
                 new TemplateView(
                     "title-template",
                     "Title",
@@ -70,7 +71,7 @@ public class GetPublishingContentHandlerTests
             Event(),
             wordpressPlatform,
             publication: null,
-            templates: new FakeTemplateReader(
+            templates: TemplateReader(
                 new TemplateView(
                     "wordpress-title-template",
                     "WordPress title",
@@ -201,7 +202,7 @@ public class GetPublishingContentHandlerTests
             Event(description: null),
             Platform(),
             publication: null,
-            templates: new FakeTemplateReader(
+            templates: TemplateReader(
                 new TemplateView(
                     "title-template",
                     "Title",
@@ -225,7 +226,7 @@ public class GetPublishingContentHandlerTests
             Event(),
             Platform(),
             publication: null,
-            templates: new FakeTemplateReader(
+            templates: TemplateReader(
                 new TemplateView(
                     "title-template",
                     "Title",
@@ -262,18 +263,61 @@ public class GetPublishingContentHandlerTests
         CalendarEventView? calendarEvent,
         PlatformView? platform,
         PlatformPublication? publication,
-        ITemplateReader? templates = null,
+        Mock<ITemplateReader>? templates = null,
         IReadOnlyList<PlatformView>? activePlatforms = null,
-        IReadOnlyList<PlatformPublication>? publicationRows = null) =>
-        new(
-            new FakeCalendarEventReader(getResult: calendarEvent),
-            new FakePlatformReader(
-                platforms: activePlatforms ?? (platform is null ? [] : [platform]),
-                getResult: platform),
-            new FakePlatformPublicationReader(
-                publicationRows ?? (publication is null ? [] : [publication])),
-            new PublishingContentRenderer(
-                templates ?? ApplicationTestAdapters.DefaultTemplateReader()));
+        IReadOnlyList<PlatformPublication>? publicationRows = null)
+    {
+        var calendarEvents = new Mock<ICalendarEventReader>();
+        calendarEvents
+            .Setup(candidate => candidate.GetByIdAsync(
+                CalendarEventId,
+                CancellationToken.None))
+            .ReturnsAsync(calendarEvent);
+        var platforms = new Mock<IPlatformReader>();
+        platforms
+            .Setup(candidate => candidate.GetAsync(PlatformId, CancellationToken.None))
+            .ReturnsAsync(platform);
+        platforms
+            .Setup(candidate => candidate.ListAsync(null, CancellationToken.None))
+            .ReturnsAsync(activePlatforms ?? (platform is null ? [] : [platform]));
+        var publications = new Mock<IPlatformPublicationReader>();
+        publications
+            .Setup(candidate => candidate.GetAsync(
+                CalendarEventId,
+                PlatformId,
+                CancellationToken.None))
+            .ReturnsAsync(publication);
+        publications
+            .Setup(candidate => candidate.ListByEventAsync(
+                CalendarEventId,
+                CancellationToken.None))
+            .ReturnsAsync(publicationRows ?? (publication is null ? [] : [publication]));
+
+        return new GetPublishingContentHandler(
+            calendarEvents.Object,
+            platforms.Object,
+            publications.Object,
+            new PublishingContentRenderer((templates ?? RequiredTemplateReader()).Object));
+    }
+
+    private static Mock<ITemplateReader> TemplateReader(params TemplateView[] templates)
+    {
+        var reader = new Mock<ITemplateReader>();
+        foreach (var template in templates)
+        {
+            reader
+                .Setup(candidate => candidate.GetAsync(
+                    template.Type,
+                    template.Id,
+                    CancellationToken.None))
+                .ReturnsAsync(template);
+        }
+
+        return reader;
+    }
+
+    private static Mock<ITemplateReader> RequiredTemplateReader() =>
+        TemplateReader(ApplicationTestData.RequiredTemplates().ToArray());
 
     private static CalendarEventView Event(string? description = "English description") =>
         ApplicationTestData.CalendarEvent(

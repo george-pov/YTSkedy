@@ -8,11 +8,16 @@ public class CreateTemplateHandlerTests
     [Fact]
     public async Task HandleAsync_ValidCommand_CreatesTemplateAndReturnsCreatedWithId()
     {
-        var modifier = new FakeTemplateModifier
-        {
-            CreateResult = CreateTemplateResult.Created("9f8b1c2d3e4f")
-        };
-        var handler = new CreateTemplateHandler(modifier);
+        var modifier = new Mock<ITemplateModifier>();
+        modifier
+            .Setup(candidate => candidate.CreateAsync(
+                It.Is<Template>(template =>
+                    template.Name == "Weeknight stream" &&
+                    template.Type == TemplateType.YouTube &&
+                    template.Content == "Live on {{ longDateEn }}"),
+                CancellationToken.None))
+            .ReturnsAsync(CreateTemplateResult.Created("9f8b1c2d3e4f"));
+        var handler = new CreateTemplateHandler(modifier.Object);
         var command = new CreateTemplateCommand(
             "Weeknight stream",
             TemplateType.YouTube,
@@ -23,20 +28,24 @@ public class CreateTemplateHandlerTests
         Assert.Equal(CreateTemplateStatus.Created, result.Status);
         Assert.Equal("9f8b1c2d3e4f", result.TemplateId);
 
-        Assert.NotNull(modifier.CreatedTemplate);
-        Assert.Equal("Weeknight stream", modifier.CreatedTemplate!.Name);
-        Assert.Equal(TemplateType.YouTube, modifier.CreatedTemplate.Type);
-        Assert.Equal("Live on {{ longDateEn }}", modifier.CreatedTemplate.Content);
+        modifier.Verify(candidate => candidate.CreateAsync(
+            It.Is<Template>(template =>
+                template.Name == "Weeknight stream" &&
+                template.Type == TemplateType.YouTube &&
+                template.Content == "Live on {{ longDateEn }}"),
+            CancellationToken.None));
     }
 
     [Fact]
     public async Task HandleAsync_DuplicateName_ReturnsNameAlreadyExists()
     {
-        var modifier = new FakeTemplateModifier
-        {
-            CreateResult = CreateTemplateResult.NameAlreadyExists()
-        };
-        var handler = new CreateTemplateHandler(modifier);
+        var modifier = new Mock<ITemplateModifier>();
+        modifier
+            .Setup(candidate => candidate.CreateAsync(
+                It.IsAny<Template>(),
+                CancellationToken.None))
+            .ReturnsAsync(CreateTemplateResult.NameAlreadyExists());
+        var handler = new CreateTemplateHandler(modifier.Object);
         var command = new CreateTemplateCommand(
             "Weeknight stream",
             TemplateType.YouTube,
@@ -51,40 +60,14 @@ public class CreateTemplateHandlerTests
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var handler = new CreateTemplateHandler(new FakeTemplateModifier());
+        var modifier = new Mock<ITemplateModifier>();
+        var handler = new CreateTemplateHandler(modifier.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
-    }
 
-    private sealed class FakeTemplateModifier : ITemplateModifier
-    {
-        public CreateTemplateResult CreateResult { get; init; } =
-            CreateTemplateResult.Created("template-id");
-
-        public Template? CreatedTemplate { get; private set; }
-
-        public Task<CreateTemplateResult> CreateAsync(
-            Template template,
-            CancellationToken cancellationToken)
-        {
-            CreatedTemplate = template;
-
-            return Task.FromResult(CreateResult);
-        }
-
-        public Task<UpdateTemplateResult> UpdateAsync(
-            TemplateType type,
-            string id,
-            string name,
-            string content,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<DeleteTemplateResult> DeleteAsync(
-            TemplateType type,
-            string id,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+        modifier.Verify(candidate => candidate.CreateAsync(
+            It.IsAny<Template>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 }

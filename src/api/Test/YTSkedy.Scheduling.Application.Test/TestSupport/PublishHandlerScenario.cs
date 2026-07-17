@@ -14,71 +14,244 @@ using YTSkedy.TestSupport;
 
 namespace YTSkedy.Scheduling.Application.Test;
 
-internal static class PublishHandlerScenario
+internal sealed class PublishHandlerScenario
 {
     public const string CalendarEventId = ApplicationTestData.CalendarEventId;
     public const string PlatformId = ApplicationTestData.PlatformId;
     public const string YouTubePlatformId = ApplicationTestData.YouTubePlatformId;
+    public const string ExternalResourceId = "yt-broadcast-id";
 
     public static readonly DateTimeOffset Now = ApplicationTestData.Now;
     public static readonly DateTimeOffset FutureStart = ApplicationTestData.FutureStart;
     public static readonly DateTimeOffset PastStart =
         new(2026, 6, 1, 17, 0, 0, TimeSpan.Zero);
+    public static readonly DateTimeOffset DefaultPublishedUtc =
+        new(2026, 6, 22, 12, 0, 5, TimeSpan.Zero);
 
     public static readonly YouTubeSettings YouTubePublishSettings =
         ApplicationTestData.YouTubeSettings();
     public static readonly WordPressSettings WordPressPublishSettings =
         ApplicationTestData.WordPressSettings();
 
-    public static Task<PublishResult> Handle(PublishHandler handler) =>
-        handler.HandleAsync(
-            new PublishCommand(CalendarEventId, PlatformId),
-            CancellationToken.None);
-
-    public static PublishHandler CreateHandler(
-        CalendarEventView? calendarEvent,
-        PlatformView? platform,
-        IPlatformPublisher? publisher,
-        PlatformPublication? existing = null,
-        PublishFakePublicationRepository? repository = null,
-        ITemplateReader? templates = null,
-        IReadOnlyList<PlatformView>? activePlatforms = null,
-        IReadOnlyList<PlatformPublication>? publicationRows = null,
-        Thumbnail? thumbnail = null,
-        ThumbnailContent? thumbnailContent = null,
-        IThumbnailPublisher? thumbnailPublisher = null,
-        FakeCalendarEventPublicationIndexWriter? publicationIndex = null,
-        ILogger<PublishHandler>? logger = null,
-        ILogger<PublicationIndexUpdater>? publicationIndexLogger = null,
-        IPublishExecutionScopeFactory? executionScopes = null)
+    public PublishHandlerScenario()
     {
-        var publicationRepository = repository ?? new PublishFakePublicationRepository();
-        var publicationIndexWriter = publicationIndex ?? new FakeCalendarEventPublicationIndexWriter();
+        CalendarEvent = Event(FutureStart);
+        SelectedPlatform = Platform();
+        ActivePlatforms = [SelectedPlatform];
+
+        foreach (var template in ApplicationTestData.RequiredTemplates())
+        {
+            Templates
+                .Setup(candidate => candidate.GetAsync(
+                    template.Type,
+                    template.Id,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(template);
+        }
+
+        Publisher.SetupGet(candidate => candidate.Type).Returns(PlatformType.YouTube);
+        Publisher
+            .Setup(candidate => candidate.PublishAsync(
+                It.IsAny<PlatformPublishRequest>(),
+                It.IsAny<IPlatformPublishCheckpoint>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<PlatformPublishRequest, IPlatformPublishCheckpoint, CancellationToken>(
+                async (_, checkpoint, cancellationToken) =>
+                {
+                    await checkpoint.SaveExternalResourceIdAsync(
+                        ExternalResourceId,
+                        cancellationToken);
+                    return new PlatformPublishResult(ExternalResourceId);
+                });
+
+        PublicationAttempts
+            .Setup(candidate => candidate.StartPublishingAsync(
+                It.IsAny<PlatformPublicationAttempt>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(StartPublicationResult.Started);
+        PublicationAttempts
+            .Setup(candidate => candidate.ReleasePublishingAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        PublicationAttempts
+            .Setup(candidate => candidate.SaveExternalResourceIdAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(SaveExternalResourceIdResult.Saved);
+        PublicationAttempts
+            .Setup(candidate => candidate.RecoverStalePublishingAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RecoverStalePublishingResult.Recovered);
+        PublicationAttempts
+            .Setup(candidate => candidate.MarkPublishedAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DefaultPublishedUtc);
+        PublicationAttempts
+            .Setup(candidate => candidate.MarkFailedAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MarkFailedResult.Marked);
+
+        var publicationThumbnails = PublicationAttempts.As<IPublicationThumbnailWriter>();
+        publicationThumbnails
+            .Setup(candidate => candidate.MarkThumbnailAppliedAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        publicationThumbnails
+            .Setup(candidate => candidate.MarkThumbnailFailedAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        PublicationIndex
+            .Setup(candidate => candidate.AddPublishedPlatformAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        PublicationIndex
+            .Setup(candidate => candidate.RemovePublishedPlatformAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        ThumbnailPublisher
+            .SetupGet(candidate => candidate.Type)
+            .Returns(PlatformType.YouTube);
+        ThumbnailPublisher
+            .Setup(candidate => candidate.PublishAsync(
+                It.IsAny<ThumbnailPublishRequest>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+    }
+
+    public Mock<ICalendarEventReader> CalendarEvents { get; } = new();
+
+    public Mock<IPlatformReader> Platforms { get; } = new();
+
+    public Mock<IPlatformPublicationReader> Publications { get; } = new();
+
+    public Mock<ITemplateReader> Templates { get; } = new();
+
+    public Mock<ICalendarEventThumbnailReader> Thumbnails { get; } = new();
+
+    public Mock<IThumbnailStore> ThumbnailStore { get; } = new();
+
+    public Mock<IPlatformPublisher> Publisher { get; } = new();
+
+    public Mock<IPublicationAttemptWriter> PublicationAttempts { get; } = new();
+
+    public Mock<IPublicationIndexWriter> PublicationIndex { get; } = new();
+
+    public Mock<IThumbnailPublisher> ThumbnailPublisher { get; } = new();
+
+    public Mock<ILogger<PublishHandler>> Logger { get; } = new();
+
+    public Mock<ILogger<PublicationIndexUpdater>> PublicationIndexLogger { get; } = new();
+
+    public PublishFakeExecutionScopeFactory ExecutionScopes { get; } = new();
+
+    public IPublicationThumbnailWriter PublicationThumbnails =>
+        PublicationAttempts.As<IPublicationThumbnailWriter>().Object;
+
+    public CalendarEventView? CalendarEvent { get; set; }
+
+    public PlatformView? SelectedPlatform { get; set; }
+
+    public PlatformPublication? ExistingPublication { get; set; }
+
+    public IReadOnlyList<PlatformView> ActivePlatforms { get; set; }
+
+    public IReadOnlyList<PlatformPublication> PublicationRows { get; set; } = [];
+
+    public Thumbnail? CalendarEventThumbnail { get; set; }
+
+    public ThumbnailContent? StoredThumbnailContent { get; set; }
+
+    public Task<PublishResult> HandleAsync(CancellationToken cancellationToken = default) =>
+        CreateHandler().HandleAsync(
+            new PublishCommand(CalendarEventId, PlatformId),
+            cancellationToken);
+
+    public PublishHandler CreateHandler()
+    {
+        CalendarEvents
+            .Setup(candidate => candidate.GetByIdAsync(
+                CalendarEventId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CalendarEvent);
+        Platforms
+            .Setup(candidate => candidate.GetAsync(
+                PlatformId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(SelectedPlatform);
+        Platforms
+            .Setup(candidate => candidate.ListAsync(
+                null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ActivePlatforms);
+        Publications
+            .Setup(candidate => candidate.GetAsync(
+                CalendarEventId,
+                PlatformId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ExistingPublication);
+        Publications
+            .Setup(candidate => candidate.ListByEventAsync(
+                CalendarEventId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PublicationRows);
+        Thumbnails
+            .Setup(candidate => candidate.GetThumbnailAsync(
+                CalendarEventId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CalendarEventThumbnail);
+
+        if (CalendarEventThumbnail is not null)
+        {
+            ThumbnailStore
+                .Setup(candidate => candidate.GetAsync(
+                    CalendarEventThumbnail.BlobName,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(StoredThumbnailContent);
+        }
 
         return new PublishHandler(
-            new FakeCalendarEventReader(getResult: calendarEvent),
-            new FakePlatformReader(
-                platforms: activePlatforms ?? (platform is null ? [] : [platform]),
-                getResult: platform),
-            new FakePlatformPublicationReader(
-                publicationRows ?? (existing is null ? [] : [existing])),
-            publicationRepository,
+            CalendarEvents.Object,
+            Platforms.Object,
+            Publications.Object,
+            PublicationAttempts.Object,
             new PublicationIndexUpdater(
-                publicationIndexWriter,
-                publicationIndexLogger ?? NullLogger<PublicationIndexUpdater>.Instance),
-            new PlatformTypeAdapterSelector<IPlatformPublisher>(
-                publisher is null ? [] : [publisher]),
+                PublicationIndex.Object,
+                PublicationIndexLogger.Object),
+            new PlatformTypeAdapterSelector<IPlatformPublisher>([Publisher.Object]),
             new PublicationThumbnailApplier(
-                new FakeThumbnailReader(thumbnail),
-                new FakeThumbnailStore(thumbnailContent),
-                publicationRepository,
+                Thumbnails.Object,
+                ThumbnailStore.Object,
+                PublicationThumbnails,
                 new PlatformTypeAdapterSelector<IThumbnailPublisher>(
-                    thumbnailPublisher is null ? [] : [thumbnailPublisher]),
+                    [ThumbnailPublisher.Object]),
                 NullLogger<PublicationThumbnailApplier>.Instance),
-            new PublishingContentRenderer(templates ?? DefaultTemplateReader()),
-            executionScopes ?? new PublishFakeExecutionScopeFactory(),
+            new PublishingContentRenderer(Templates.Object),
+            ExecutionScopes,
             new FixedTimeProvider(Now),
-            logger ?? NullLogger<PublishHandler>.Instance);
+            Logger.Object);
     }
 
     public static CalendarEventView Event(
@@ -134,9 +307,6 @@ internal static class PublishHandlerScenario
             publishSettings: settings,
             publishingContent: publishingContent ?? ApplicationTestData.PublishingContent());
 
-    private static FakeTemplateReader DefaultTemplateReader() =>
-        ApplicationTestAdapters.DefaultTemplateReader();
-
     public static PlatformPublication Publication(
         PublishStatus status,
         DateTimeOffset? platformDeletedUtc = null,
@@ -161,223 +331,6 @@ internal static class PublishHandlerScenario
 
     public static ThumbnailContent ThumbnailContent() =>
         ApplicationTestData.ThumbnailContent();
-
-}
-
-internal sealed class PublishFakePublicationRepository :
-    IPublicationAttemptWriter,
-    IPublicationThumbnailWriter
-{
-    public StartPublicationResult StartResult { get; init; } = StartPublicationResult.Started;
-
-    public DateTimeOffset? MarkPublishedResult { get; init; } =
-        new DateTimeOffset(2026, 6, 22, 12, 0, 5, TimeSpan.Zero);
-
-    public Exception? MarkPublishedThrows { get; init; }
-
-    public bool Started { get; private set; }
-
-    public bool ReleaseCalled { get; private set; }
-
-    public bool MarkPublishedCalled { get; private set; }
-
-    public MarkFailedResult MarkFailedOutcome { get; init; } = MarkFailedResult.Marked;
-
-    public Exception? MarkFailedThrows { get; init; }
-
-    public bool MarkFailedCalled { get; private set; }
-
-    public SaveExternalResourceIdResult SaveExternalResourceIdOutcome { get; init; } =
-        SaveExternalResourceIdResult.Saved;
-
-    public Exception? CheckpointThrows { get; init; }
-
-    public RecoverStalePublishingResult RecoverStalePublishingOutcome { get; init; } =
-        RecoverStalePublishingResult.Recovered;
-
-    public bool SaveExternalResourceIdCalled { get; private set; }
-
-    public bool RecoverStalePublishingCalled { get; private set; }
-
-    public DateTimeOffset? RecoveredExpectedUpdatedUtc { get; private set; }
-
-    public bool MarkThumbnailAppliedCalled { get; private set; }
-
-    public bool MarkThumbnailFailedCalled { get; private set; }
-
-    public string? MarkedExternalResourceId { get; private set; }
-
-    public string? FailedExternalResourceId { get; private set; }
-
-    public PlatformPublicationAttempt? StartedAttempt { get; private set; }
-
-    public CancellationToken StartToken { get; private set; }
-
-    public CancellationToken CheckpointToken { get; private set; }
-
-    public CancellationToken MarkPublishedToken { get; private set; }
-
-    public CancellationToken MarkFailedToken { get; private set; }
-
-    public Task<StartPublicationResult> StartPublishingAsync(
-        PlatformPublicationAttempt attempt,
-        CancellationToken cancellationToken)
-    {
-        Started = StartResult == StartPublicationResult.Started;
-        StartedAttempt = attempt;
-        StartToken = cancellationToken;
-
-        return Task.FromResult(StartResult);
-    }
-
-    public Task ReleasePublishingAsync(
-        string calendarEventId,
-        string platformId,
-        CancellationToken cancellationToken)
-    {
-        ReleaseCalled = true;
-
-        return Task.CompletedTask;
-    }
-
-    public Task<SaveExternalResourceIdResult> SaveExternalResourceIdAsync(
-        string calendarEventId,
-        string platformId,
-        string externalResourceId,
-        CancellationToken cancellationToken)
-    {
-        SaveExternalResourceIdCalled = true;
-        CheckpointToken = cancellationToken;
-        if (CheckpointThrows is not null)
-        {
-            throw CheckpointThrows;
-        }
-
-        return Task.FromResult(SaveExternalResourceIdOutcome);
-    }
-
-    public Task<RecoverStalePublishingResult> RecoverStalePublishingAsync(
-        string calendarEventId,
-        string platformId,
-        DateTimeOffset expectedUpdatedUtc,
-        CancellationToken cancellationToken)
-    {
-        RecoverStalePublishingCalled = true;
-        RecoveredExpectedUpdatedUtc = expectedUpdatedUtc;
-        return Task.FromResult(RecoverStalePublishingOutcome);
-    }
-
-    public Task<DateTimeOffset?> MarkPublishedAsync(
-        string calendarEventId,
-        string platformId,
-        string externalResourceId,
-        CancellationToken cancellationToken)
-    {
-        MarkPublishedCalled = true;
-        MarkPublishedToken = cancellationToken;
-        MarkedExternalResourceId = externalResourceId;
-
-        if (MarkPublishedThrows is not null)
-        {
-            throw MarkPublishedThrows;
-        }
-
-        return Task.FromResult(MarkPublishedResult);
-    }
-
-    public Task<MarkFailedResult> MarkFailedAsync(
-        string calendarEventId,
-        string platformId,
-        string? externalResourceId,
-        CancellationToken cancellationToken)
-    {
-        MarkFailedCalled = true;
-        MarkFailedToken = cancellationToken;
-        FailedExternalResourceId = externalResourceId;
-
-        if (MarkFailedThrows is not null)
-        {
-            throw MarkFailedThrows;
-        }
-
-        return Task.FromResult(MarkFailedOutcome);
-    }
-
-    public Task<bool> MarkThumbnailAppliedAsync(
-        string calendarEventId,
-        string platformId,
-        CancellationToken cancellationToken)
-    {
-        MarkThumbnailAppliedCalled = true;
-
-        return Task.FromResult(true);
-    }
-
-    public Task<bool> MarkThumbnailFailedAsync(
-        string calendarEventId,
-        string platformId,
-        CancellationToken cancellationToken)
-    {
-        MarkThumbnailFailedCalled = true;
-
-        return Task.FromResult(true);
-    }
-
-}
-
-internal sealed class PublishFakePublisher : IPlatformPublisher
-{
-    private readonly PlatformType _type;
-    private readonly PlatformPublishResult? _result;
-
-    public PublishFakePublisher(
-        PlatformType type = PlatformType.YouTube,
-        PlatformPublishResult? result = null)
-    {
-        _type = type;
-        _result = result;
-    }
-
-    public PlatformPublishResult? Result { get; init; }
-
-    public Exception? Throws { get; init; }
-
-    public PlatformPublishRequest? Request { get; private set; }
-
-    public Action? OnPublish { get; init; }
-
-    public CancellationToken CancellationToken { get; private set; }
-
-    public PlatformType Type => _type;
-
-    public Task<PlatformPublishResult> PublishAsync(
-        PlatformPublishRequest request,
-        IPlatformPublishCheckpoint checkpoint,
-        CancellationToken cancellationToken)
-    {
-        Request = request;
-        CancellationToken = cancellationToken;
-        OnPublish?.Invoke();
-
-        if (Throws is not null)
-        {
-            throw Throws;
-        }
-
-        var result = Result ?? _result ?? new PlatformPublishResult("yt-broadcast-id");
-        return PublishAndCheckpointAsync(result, checkpoint, cancellationToken);
-    }
-
-    private static async Task<PlatformPublishResult> PublishAndCheckpointAsync(
-        PlatformPublishResult result,
-        IPlatformPublishCheckpoint checkpoint,
-        CancellationToken cancellationToken)
-    {
-        await checkpoint.SaveExternalResourceIdAsync(
-            result.ExternalResourceId,
-            cancellationToken);
-        return result;
-    }
 }
 
 internal sealed class PublishFakeExecutionScopeFactory : IPublishExecutionScopeFactory
@@ -422,35 +375,5 @@ internal sealed class PublishFakeExecutionScope : IPublishExecutionScope
 
     public void Dispose()
     {
-    }
-}
-
-internal sealed class PublishFakeThumbnailPublisher : IThumbnailPublisher
-{
-    private readonly PlatformType _type;
-
-    public PublishFakeThumbnailPublisher(PlatformType type = PlatformType.YouTube)
-    {
-        _type = type;
-    }
-
-    public Exception? Throws { get; init; }
-
-    public ThumbnailPublishRequest? Request { get; private set; }
-
-    public PlatformType Type => _type;
-
-    public Task PublishAsync(
-        ThumbnailPublishRequest request,
-        CancellationToken cancellationToken)
-    {
-        Request = request;
-
-        if (Throws is not null)
-        {
-            throw Throws;
-        }
-
-        return Task.CompletedTask;
     }
 }

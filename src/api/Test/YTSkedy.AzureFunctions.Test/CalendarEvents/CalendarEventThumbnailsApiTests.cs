@@ -24,13 +24,37 @@ public sealed class CalendarEventThumbnailsApiTests
     [Fact]
     public async Task UploadAsync_ThumbnailFile_ReturnsMetadata()
     {
+        var events = new Mock<ICalendarEventReader>();
+        events
+            .Setup(reader => reader.GetByIdAsync(CalendarEventId, CancellationToken.None))
+            .ReturnsAsync(CreateEvent());
+        var publications = new Mock<IPlatformPublicationReader>();
+        publications
+            .Setup(reader => reader.HasAnyForEventAsync(
+                CalendarEventId,
+                CancellationToken.None))
+            .ReturnsAsync(false);
+        var thumbnails = new Mock<ICalendarEventThumbnailModifier>();
+        thumbnails
+            .Setup(modifier => modifier.SaveThumbnailAsync(
+                CalendarEventId,
+                It.IsAny<Thumbnail>(),
+                CancellationToken.None))
+            .ReturnsAsync(true);
+        var thumbnailStore = new Mock<IThumbnailStore>();
+        thumbnailStore
+            .Setup(store => store.SaveAsync(
+                It.IsAny<string>(),
+                It.IsAny<byte[]>(),
+                "image/png",
+                CancellationToken.None))
+            .Returns(Task.CompletedTask);
         var api = new CalendarEventThumbnailsApi(
             new UploadThumbnailHandler(
-                new FakeCalendarEventReader(CreateEvent()),
-                new CalendarEventPublicationLock(
-                    new FakePublicationReader(hasAnyForEvent: false)),
-                new FakeThumbnailModifier(),
-                new FakeThumbnailStore(),
+                events.Object,
+                new CalendarEventPublicationLock(publications.Object),
+                thumbnails.Object,
+                thumbnailStore.Object,
                 new FixedTimeProvider(Now)),
             null!,
             null!);
@@ -194,74 +218,4 @@ public sealed class CalendarEventThumbnailsApiTests
         return content;
     }
 
-    private sealed class FakeCalendarEventReader(CalendarEventView? calendarEvent) : ICalendarEventReader
-    {
-        public Task<IReadOnlyList<CalendarEventListRecord>> ListAsync(
-            CalendarEventMonthCriteria? criteria,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<CalendarEventView?> GetByIdAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(calendarEvent);
-    }
-
-    private sealed class FakePublicationReader(bool hasAnyForEvent) : IPlatformPublicationReader
-    {
-        public Task<IReadOnlyList<PlatformPublication>> ListByEventAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> HasAnyForEventAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(hasAnyForEvent);
-
-        public Task<PlatformPublication?> GetAsync(
-            string calendarEventId,
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<PlatformPublication>> ListPublishingByPlatformAsync(
-            string platformId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class FakeThumbnailModifier : ICalendarEventThumbnailModifier
-    {
-        public Task<bool> SaveThumbnailAsync(
-            string calendarEventId,
-            Thumbnail thumbnail,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(true);
-
-        public Task<bool> DeleteThumbnailAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class FakeThumbnailStore : IThumbnailStore
-    {
-        public Task SaveAsync(
-            string blobName,
-            byte[] content,
-            string contentType,
-            CancellationToken cancellationToken) =>
-            Task.CompletedTask;
-
-        public Task<ThumbnailContent?> GetAsync(
-            string blobName,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task DeleteAsync(
-            string blobName,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-    }
 }

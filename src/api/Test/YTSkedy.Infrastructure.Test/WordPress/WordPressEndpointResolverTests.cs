@@ -3,6 +3,7 @@ using System.Net;
 using YTSkedy.Infrastructure.Test.TestSupport;
 using YTSkedy.Infrastructure.WordPress;
 using YTSkedy.Scheduling.Domain.Platforms;
+using YTSkedy.TestSupport;
 using static YTSkedy.Infrastructure.Test.WordPress.WordPressTestResponses;
 
 namespace YTSkedy.Infrastructure.Test.WordPress;
@@ -153,19 +154,19 @@ public class WordPressEndpointResolverTests
     [Fact]
     public async Task ResolveAsync_InvalidJson_ThrowsHttpRequestException()
     {
-        var logger = new CapturingLogger<WordPressEndpointResolver>();
+        var logger = new Mock<ILogger<WordPressEndpointResolver>>();
         var handler = new FakeHttpMessageHandler(request =>
             request.Method == HttpMethod.Head
                 ? new HttpResponseMessage(HttpStatusCode.OK)
                 : JsonResponse("{not-json"));
-        var resolver = CreateResolver(handler, logger);
+        var resolver = CreateResolver(handler, logger.Object);
 
         var exception = await Assert.ThrowsAsync<HttpRequestException>(
             () => resolver.ResolveAsync(Settings(), CancellationToken.None));
 
         Assert.Contains("example.com", exception.Message);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
-        Assert.DoesNotContain(ApplicationPassword, logger.Text);
+        Assert.DoesNotContain(ApplicationPassword, logger.GetLogText());
     }
 
     [Fact]
@@ -247,17 +248,17 @@ public class WordPressEndpointResolverTests
     [Fact]
     public async Task ResolveAsync_FailureLogsSecretSafeContext()
     {
-        var logger = new CapturingLogger<WordPressEndpointResolver>();
+        var logger = new Mock<ILogger<WordPressEndpointResolver>>();
         var handler = new FakeHttpMessageHandler(request =>
             request.Method == HttpMethod.Head
                 ? new HttpResponseMessage(HttpStatusCode.OK)
                 : JsonResponse("""{"namespaces":["oembed/1.0"]}"""));
-        var resolver = CreateResolver(handler, logger);
+        var resolver = CreateResolver(handler, logger.Object);
 
         await Assert.ThrowsAsync<HttpRequestException>(
             () => resolver.ResolveAsync(Settings(), CancellationToken.None));
 
-        var logText = logger.Text;
+        var logText = logger.GetLogText();
         Assert.Contains("example.com", logText);
         Assert.DoesNotContain(ApplicationPassword, logText);
         Assert.DoesNotContain("Basic", logText);
@@ -280,7 +281,7 @@ public class WordPressEndpointResolverTests
     private static WordPressEndpointResolver CreateResolver(
         FakeHttpMessageHandler handler,
         ILogger<WordPressEndpointResolver>? logger = null) =>
-        new(new HttpClient(handler), logger ?? new CapturingLogger<WordPressEndpointResolver>());
+        new(new HttpClient(handler), logger ?? Mock.Of<ILogger<WordPressEndpointResolver>>());
 
     private static WordPressSettings Settings(string siteUrl = "https://example.com") =>
         new(siteUrl, "editor", ApplicationPassword, "publish", []);

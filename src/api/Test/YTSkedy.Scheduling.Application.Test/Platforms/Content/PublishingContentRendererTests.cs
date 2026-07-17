@@ -1,5 +1,6 @@
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Content;
+using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.Domain.Templates;
@@ -159,18 +160,28 @@ public class PublishingContentRendererTests
     [Fact]
     public async Task RenderAsync_TemplateIds_RendersTemplateContent()
     {
-        var renderer = new PublishingContentRenderer(
-            new FakeTemplateReader(
-                new TemplateView(
-                    "title-template",
-                    "Title",
-                    TemplateType.YouTube,
-                    "{{ text1 }} on {{ shortDateEn }}"),
-                new TemplateView(
-                    "description-template",
-                    "Description",
-                    TemplateType.YouTube,
-                    "Details: {{ text2 }}")));
+        var templates = new Mock<ITemplateReader>();
+        templates
+            .Setup(candidate => candidate.GetAsync(
+                TemplateType.YouTube,
+                "title-template",
+                CancellationToken.None))
+            .ReturnsAsync(new TemplateView(
+                "title-template",
+                "Title",
+                TemplateType.YouTube,
+                "{{ text1 }} on {{ shortDateEn }}"));
+        templates
+            .Setup(candidate => candidate.GetAsync(
+                TemplateType.YouTube,
+                "description-template",
+                CancellationToken.None))
+            .ReturnsAsync(new TemplateView(
+                "description-template",
+                "Description",
+                TemplateType.YouTube,
+                "Details: {{ text2 }}"));
+        var renderer = new PublishingContentRenderer(templates.Object);
 
         var result = await renderer.RenderAsync(
             Platform(new PublishingContent("title-template", "description-template")),
@@ -186,7 +197,14 @@ public class PublishingContentRendererTests
     [Fact]
     public async Task RenderAsync_MissingTemplate_ReturnsTemplateNotFound()
     {
-        var renderer = new PublishingContentRenderer(new FakeTemplateReader());
+        var templates = new Mock<ITemplateReader>();
+        templates
+            .Setup(candidate => candidate.GetAsync(
+                TemplateType.YouTube,
+                "missing-template",
+                CancellationToken.None))
+            .ReturnsAsync((TemplateView?)null);
+        var renderer = new PublishingContentRenderer(templates.Object);
 
         var result = await renderer.RenderAsync(
             Platform(new PublishingContent("missing-template", "description-template")),

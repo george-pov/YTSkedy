@@ -1,4 +1,5 @@
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
 
 namespace YTSkedy.Scheduling.Application.Test;
@@ -14,7 +15,7 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_DefaultSort_OrdersByScheduledStartDescending()
     {
-        var reader = new FakeCalendarEventReader(
+        var reader = CalendarEventReader(
         [
             CreateView(FirstId, ScheduledStartUtc(2026, 1, 1)),
             CreateView(ThirdId, ScheduledStartUtc(2026, 1, 3)),
@@ -30,7 +31,7 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_ScheduledStartAscending_OrdersByScheduledStartAscending()
     {
-        var reader = new FakeCalendarEventReader(
+        var reader = CalendarEventReader(
         [
             CreateView(ThirdId, ScheduledStartUtc(2026, 1, 3)),
             CreateView(FirstId, ScheduledStartUtc(2026, 1, 1)),
@@ -50,7 +51,7 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_TimeZoneAscending_SortsByTimeZoneOrdinal()
     {
-        var reader = new FakeCalendarEventReader(
+        var reader = CalendarEventReader(
         [
             CreateView(FirstId, ScheduledStartUtc(2026, 1, 1), timeZoneId: "Europe/London"),
             CreateView(SecondId, ScheduledStartUtc(2026, 1, 2), timeZoneId: "America/Vancouver"),
@@ -68,7 +69,7 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_TitleAscending_SortsByDisplayTitleOrdinal()
     {
-        var reader = new FakeCalendarEventReader(
+        var reader = CalendarEventReader(
         [
             CreateView(FirstId, ScheduledStartUtc(2026, 1, 1), title: "Charlie stream"),
             CreateView(SecondId, ScheduledStartUtc(2026, 1, 2), title: "Alpha stream"),
@@ -86,7 +87,7 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_TitleAscending_SortsByDisplayTitleFallback()
     {
-        var reader = new FakeCalendarEventReader(
+        var reader = CalendarEventReader(
         [
             CreateView(
                 FirstId,
@@ -116,8 +117,7 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_PublicationStatusAscending_SortsBeforePaging()
     {
-        var reader = new FakeCalendarEventReader(
-            listRecords:
+        var reader = CalendarEventRecordReader(
             [
                 Record(
                     CreateView(ThirdId, ScheduledStartUtc(2026, 1, 3)),
@@ -129,8 +129,7 @@ public class ListEventsHandlerTests
                     CreateView(SecondId, ScheduledStartUtc(2026, 1, 2)),
                     ["platform-a"])
             ]);
-        var platformReader = new FakePlatformReader(
-            platformIds: Set("platform-a", "platform-b"));
+        var platformReader = PlatformReader(Set("platform-a", "platform-b"));
         var handler = CreateHandler(reader, platformReader);
 
         var result = await handler.HandleAsync(
@@ -149,7 +148,7 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_FirstPage_ReturnsFirstSlice()
     {
-        var handler = CreateHandler(new FakeCalendarEventReader(FiveAscendingItems()));
+        var handler = CreateHandler(CalendarEventReader(FiveAscendingItems()));
 
         var result = await handler.HandleAsync(
             Query(page: 0, pageSize: 2, direction: SortDirection.Descending),
@@ -164,7 +163,7 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_MiddlePage_ReturnsMiddleSlice()
     {
-        var handler = CreateHandler(new FakeCalendarEventReader(FiveAscendingItems()));
+        var handler = CreateHandler(CalendarEventReader(FiveAscendingItems()));
 
         var result = await handler.HandleAsync(
             Query(page: 1, pageSize: 2, direction: SortDirection.Descending),
@@ -177,7 +176,7 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_LastPartialPage_ReturnsRemainder()
     {
-        var handler = CreateHandler(new FakeCalendarEventReader(FiveAscendingItems()));
+        var handler = CreateHandler(CalendarEventReader(FiveAscendingItems()));
 
         var result = await handler.HandleAsync(
             Query(page: 2, pageSize: 2, direction: SortDirection.Descending),
@@ -190,7 +189,7 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_PagePastEnd_ReturnsEmptyItemsWithTotalCount()
     {
-        var handler = CreateHandler(new FakeCalendarEventReader(FiveAscendingItems()));
+        var handler = CreateHandler(CalendarEventReader(FiveAscendingItems()));
 
         var result = await handler.HandleAsync(Query(page: 3, pageSize: 2), CancellationToken.None);
 
@@ -202,7 +201,7 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_NoCandidates_ReturnsEmptyPage()
     {
-        var handler = CreateHandler(new FakeCalendarEventReader([]));
+        var handler = CreateHandler(CalendarEventReader([]));
 
         var result = await handler.HandleAsync(Query(), CancellationToken.None);
 
@@ -213,7 +212,7 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_EchoesSortAndDirection()
     {
-        var handler = CreateHandler(new FakeCalendarEventReader([]));
+        var handler = CreateHandler(CalendarEventReader([]));
 
         var result = await handler.HandleAsync(
             Query(sort: CalendarEventSortField.TimeZone, direction: SortDirection.Ascending),
@@ -226,59 +225,59 @@ public class ListEventsHandlerTests
     [Fact]
     public async Task HandleAsync_YearAndMonthProvided_PassesMonthCriteria()
     {
-        var reader = new FakeCalendarEventReader([]);
+        var reader = CalendarEventReader([]);
         var handler = CreateHandler(reader);
 
         await handler.HandleAsync(Query(year: 2026, month: 6), CancellationToken.None);
 
-        Assert.True(reader.ListCalled);
-        Assert.Equal(new CalendarEventMonthCriteria(2026, 6), reader.Criteria);
+        reader.Verify(candidate => candidate.ListAsync(
+            new CalendarEventMonthCriteria(2026, 6),
+            CancellationToken.None));
     }
 
     [Fact]
     public async Task HandleAsync_NoYearOrMonth_PassesNullCriteria()
     {
-        var reader = new FakeCalendarEventReader([]);
+        var reader = CalendarEventReader([]);
         var handler = CreateHandler(reader);
 
         await handler.HandleAsync(Query(), CancellationToken.None);
 
-        Assert.True(reader.ListCalled);
-        Assert.Null(reader.Criteria);
+        reader.Verify(candidate => candidate.ListAsync(null, CancellationToken.None));
     }
 
     [Fact]
     public async Task HandleAsync_OnlyYear_PassesNullCriteria()
     {
-        var reader = new FakeCalendarEventReader([]);
+        var reader = CalendarEventReader([]);
         var handler = CreateHandler(reader);
 
         await handler.HandleAsync(Query(year: 2026), CancellationToken.None);
 
-        Assert.Null(reader.Criteria);
+        reader.Verify(candidate => candidate.ListAsync(null, CancellationToken.None));
     }
 
     [Fact]
     public async Task HandleAsync_ForwardsCancellationToken()
     {
-        var reader = new FakeCalendarEventReader([]);
-        var platformReader = new FakePlatformReader();
+        var reader = CalendarEventReader([]);
+        var platformReader = PlatformReader(Set());
         var handler = CreateHandler(reader, platformReader);
         using var cancellationTokenSource = new CancellationTokenSource();
 
         await handler.HandleAsync(Query(), cancellationTokenSource.Token);
 
-        Assert.Equal(cancellationTokenSource.Token, reader.CancellationToken);
-        Assert.Equal(
-            cancellationTokenSource.Token,
-            platformReader.ListIdsCancellationToken);
+        reader.Verify(candidate => candidate.ListAsync(
+            null,
+            cancellationTokenSource.Token));
+        platformReader.Verify(candidate => candidate.ListIdsAsync(
+            cancellationTokenSource.Token));
     }
 
     [Fact]
     public async Task HandleAsync_ListRecords_ComposesPublicationStatusFromActivePlatformIds()
     {
-        var reader = new FakeCalendarEventReader(
-            listRecords:
+        var reader = CalendarEventRecordReader(
             [
                 Record(
                     CreateView(FirstId, ScheduledStartUtc(2026, 1, 1)),
@@ -290,8 +289,7 @@ public class ListEventsHandlerTests
                     CreateView(ThirdId, ScheduledStartUtc(2026, 1, 3)),
                     ["historical-platform", "platform-a", "platform-b"])
             ]);
-        var platformReader = new FakePlatformReader(
-            platformIds: Set("platform-a", "platform-b"));
+        var platformReader = PlatformReader(Set("platform-a", "platform-b"));
         var handler = CreateHandler(reader, platformReader);
 
         var result = await handler.HandleAsync(Query(), CancellationToken.None);
@@ -299,13 +297,13 @@ public class ListEventsHandlerTests
         Assert.Equal(PublishingStatus.NotPublished, StatusFor(result, FirstId));
         Assert.Equal(PublishingStatus.PartiallyPublished, StatusFor(result, SecondId));
         Assert.Equal(PublishingStatus.FullyPublished, StatusFor(result, ThirdId));
-        Assert.Equal(1, platformReader.ListIdsCallCount);
+        platformReader.Verify(candidate => candidate.ListIdsAsync(CancellationToken.None));
     }
 
     [Fact]
     public async Task HandleAsync_NullQuery_Throws()
     {
-        var handler = CreateHandler(new FakeCalendarEventReader([]));
+        var handler = CreateHandler(CalendarEventReader([]));
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));
@@ -321,9 +319,34 @@ public class ListEventsHandlerTests
         new(page, pageSize, sort, direction, year, month);
 
     private static ListEventsHandler CreateHandler(
-        FakeCalendarEventReader calendarEvents,
-        FakePlatformReader? platforms = null) =>
-        new(calendarEvents, platforms ?? new FakePlatformReader());
+        Mock<ICalendarEventReader> calendarEvents,
+        Mock<IPlatformReader>? platforms = null) =>
+        new(calendarEvents.Object, (platforms ?? PlatformReader(Set())).Object);
+
+    private static Mock<ICalendarEventReader> CalendarEventReader(
+        IReadOnlyList<CalendarEventView> events) =>
+        CalendarEventRecordReader(events.Select(calendarEvent => Record(calendarEvent, [])).ToArray());
+
+    private static Mock<ICalendarEventReader> CalendarEventRecordReader(
+        IReadOnlyList<CalendarEventListRecord> records)
+    {
+        var reader = new Mock<ICalendarEventReader>();
+        reader
+            .Setup(candidate => candidate.ListAsync(
+                It.IsAny<CalendarEventMonthCriteria?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(records);
+        return reader;
+    }
+
+    private static Mock<IPlatformReader> PlatformReader(IReadOnlySet<string> platformIds)
+    {
+        var reader = new Mock<IPlatformReader>();
+        reader
+            .Setup(candidate => candidate.ListIdsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(platformIds);
+        return reader;
+    }
 
     private static CalendarEventListRecord Record(
         CalendarEventView calendarEvent,

@@ -1,4 +1,5 @@
 using YTSkedy.Scheduling.Application.CalendarEvents;
+using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
@@ -16,33 +17,36 @@ public class DeleteCalendarEventHandlerTests
     [Fact]
     public async Task Delete_MissingEvent_ReturnsNotFoundWithoutDeleting()
     {
-        var modifier = new FakeCalendarEventModifier();
+        var modifier = new Mock<ICalendarEventModifier>();
         var handler = CreateHandler(calendarEvent: null, modifier);
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
         Assert.Equal(DeleteCalendarEventResult.NotFound, result);
-        Assert.Equal(0, modifier.DeleteCallCount);
+        modifier.Verify(candidate => candidate.DeleteAsync(
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
     public async Task Delete_ExistingEvent_DeletesRowAndReturnsDeleted()
     {
-        var modifier = new FakeCalendarEventModifier();
+        var modifier = new Mock<ICalendarEventModifier>();
         var handler = CreateHandler(CreateCalendarEventView(), modifier);
 
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
         Assert.Equal(DeleteCalendarEventResult.Deleted, result);
-        Assert.Equal(1, modifier.DeleteCallCount);
-        Assert.Equal(CalendarEventId, modifier.DeletedCalendarEventId);
+        modifier.Verify(candidate => candidate.DeleteAsync(
+            CalendarEventId,
+            CancellationToken.None));
     }
 
     [Fact]
     public async Task Delete_EventWithPlatformPublications_ReturnsConflictWithoutDeleting()
     {
-        var modifier = new FakeCalendarEventModifier();
-        var store = new FakeThumbnailStore();
+        var modifier = new Mock<ICalendarEventModifier>();
+        var store = new Mock<IThumbnailStore>();
         var handler = CreateHandler(
             CreateCalendarEventView(),
             modifier,
@@ -53,15 +57,22 @@ public class DeleteCalendarEventHandlerTests
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
         Assert.Equal(DeleteCalendarEventResult.HasPlatformPublications, result);
-        Assert.Equal(0, modifier.DeleteCallCount);
-        Assert.Equal(0, store.DeleteCallCount);
+        modifier.Verify(candidate => candidate.DeleteAsync(
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
+        store.Verify(candidate => candidate.DeleteAsync(
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
     }
 
     [Fact]
     public async Task Delete_ExistingEventWithThumbnail_DeletesBlob()
     {
-        var modifier = new FakeCalendarEventModifier();
-        var store = new FakeThumbnailStore();
+        var modifier = new Mock<ICalendarEventModifier>();
+        var store = new Mock<IThumbnailStore>();
+        store
+            .Setup(candidate => candidate.DeleteAsync(BlobName, CancellationToken.None))
+            .Returns(Task.CompletedTask);
         var handler = CreateHandler(
             CreateCalendarEventView(),
             modifier,
@@ -71,16 +82,20 @@ public class DeleteCalendarEventHandlerTests
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
         Assert.Equal(DeleteCalendarEventResult.Deleted, result);
-        Assert.Equal(1, modifier.DeleteCallCount);
-        Assert.Equal(1, store.DeleteCallCount);
-        Assert.Equal(BlobName, store.DeletedBlobName);
+        modifier.Verify(candidate => candidate.DeleteAsync(
+            CalendarEventId,
+            CancellationToken.None));
+        store.Verify(candidate => candidate.DeleteAsync(BlobName, CancellationToken.None));
     }
 
     [Fact]
     public async Task Delete_ThumbnailCleanupFails_ReturnsDeleted()
     {
-        var modifier = new FakeCalendarEventModifier();
-        var store = new FakeThumbnailStore { ThrowOnDelete = true };
+        var modifier = new Mock<ICalendarEventModifier>();
+        var store = new Mock<IThumbnailStore>();
+        store
+            .Setup(candidate => candidate.DeleteAsync(BlobName, CancellationToken.None))
+            .ThrowsAsync(new InvalidOperationException("Blob delete failed."));
         var handler = CreateHandler(
             CreateCalendarEventView(),
             modifier,
@@ -90,14 +105,18 @@ public class DeleteCalendarEventHandlerTests
         var result = await handler.HandleAsync(CalendarEventId, CancellationToken.None);
 
         Assert.Equal(DeleteCalendarEventResult.Deleted, result);
-        Assert.Equal(1, modifier.DeleteCallCount);
-        Assert.Equal(1, store.DeleteCallCount);
+        modifier.Verify(candidate => candidate.DeleteAsync(
+            CalendarEventId,
+            CancellationToken.None));
+        store.Verify(candidate => candidate.DeleteAsync(BlobName, CancellationToken.None));
     }
 
     [Fact]
     public async Task Delete_BlankId_Throws()
     {
-        var handler = CreateHandler(CreateCalendarEventView(), new FakeCalendarEventModifier());
+        var handler = CreateHandler(
+            CreateCalendarEventView(),
+            new Mock<ICalendarEventModifier>());
 
         await Assert.ThrowsAsync<ArgumentException>(
             () => handler.HandleAsync("   ", CancellationToken.None));
@@ -105,22 +124,42 @@ public class DeleteCalendarEventHandlerTests
 
     private static DeleteCalendarEventHandler CreateHandler(
         CalendarEventView? calendarEvent,
-        FakeCalendarEventModifier modifier,
+        Mock<ICalendarEventModifier> modifier,
         Thumbnail? thumbnail = null,
-        FakeThumbnailStore? store = null,
-        bool canMutate = true) =>
-        new(
-            new FakeCalendarEventReader(getResult: calendarEvent),
-            new CalendarEventPublicationLock(
-                new FakePlatformPublicationReader(
-                    canMutate
-                        ? []
-                        : [ApplicationTestData.Publication(
-                            PublishStatus.Published,
-                            calendarEventId: CalendarEventId)])),
-            modifier,
-            new FakeThumbnailReader(thumbnail),
-            store ?? new FakeThumbnailStore());
+        Mock<IThumbnailStore>? store = null,
+        bool canMutate = true)
+    {
+        var calendarEvents = new Mock<ICalendarEventReader>();
+        calendarEvents
+            .Setup(candidate => candidate.GetByIdAsync(
+                CalendarEventId,
+                CancellationToken.None))
+            .ReturnsAsync(calendarEvent);
+        var publications = new Mock<IPlatformPublicationReader>();
+        publications
+            .Setup(candidate => candidate.HasAnyForEventAsync(
+                CalendarEventId,
+                CancellationToken.None))
+            .ReturnsAsync(!canMutate);
+        var thumbnails = new Mock<ICalendarEventThumbnailReader>();
+        thumbnails
+            .Setup(candidate => candidate.GetThumbnailAsync(
+                CalendarEventId,
+                CancellationToken.None))
+            .ReturnsAsync(thumbnail);
+        modifier
+            .Setup(candidate => candidate.DeleteAsync(
+                CalendarEventId,
+                CancellationToken.None))
+            .Returns(Task.CompletedTask);
+
+        return new DeleteCalendarEventHandler(
+            calendarEvents.Object,
+            new CalendarEventPublicationLock(publications.Object),
+            modifier.Object,
+            thumbnails.Object,
+            (store ?? new Mock<IThumbnailStore>()).Object);
+    }
 
     private static CalendarEventView CreateCalendarEventView() =>
         new(
@@ -139,35 +178,5 @@ public class DeleteCalendarEventHandlerTests
             calendarEventId: CalendarEventId,
             updatedUtc: StartUtc,
             blobName: BlobName);
-
-    private sealed class FakeCalendarEventModifier : ICalendarEventModifier
-    {
-        public int DeleteCallCount { get; private set; }
-
-        public string? DeletedCalendarEventId { get; private set; }
-
-        public Task<string> CreateAsync(
-            CalendarEvent calendarEvent,
-            DateTimeOffset scheduledStartUtc,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<bool> UpdateAsync(
-            string calendarEventId,
-            CalendarEvent calendarEvent,
-            DateTimeOffset scheduledStartUtc,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task DeleteAsync(
-            string calendarEventId,
-            CancellationToken cancellationToken)
-        {
-            DeleteCallCount++;
-            DeletedCalendarEventId = calendarEventId;
-
-            return Task.CompletedTask;
-        }
-    }
 
 }
