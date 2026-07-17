@@ -25,6 +25,8 @@ export const youtubeSettingsFormDefaults: Pick<
   | 'youTubeMadeForKids'
   | 'youTubeCategoryId'
   | 'youTubeContainsSyntheticMedia'
+  | 'youTubeDefaultAudioLanguage'
+  | 'youTubeDefaultLanguage'
 > = {
   youTubeClientId: '',
   youTubeClientSecret: '',
@@ -37,6 +39,8 @@ export const youtubeSettingsFormDefaults: Pick<
   youTubeMadeForKids: 'false',
   youTubeCategoryId: '',
   youTubeContainsSyntheticMedia: 'false',
+  youTubeDefaultAudioLanguage: '',
+  youTubeDefaultLanguage: '',
 };
 
 export function applyYouTubeSettingsRules(path: SchemaPathTree<PlatformFormModel>): void {
@@ -89,6 +93,8 @@ export function toYouTubePublishSettings(model: PlatformFormModel): YouTubePubli
   }
 
   const categoryId = model.youTubeCategoryId.trim();
+  const defaultAudioLanguage = model.youTubeDefaultAudioLanguage.trim();
+  const defaultLanguage = model.youTubeDefaultLanguage.trim();
 
   return {
     credentials,
@@ -96,6 +102,8 @@ export function toYouTubePublishSettings(model: PlatformFormModel): YouTubePubli
     selfDeclaredMadeForKids: model.youTubeMadeForKids === 'true',
     categoryId: categoryId.length === 0 ? null : categoryId,
     containsSyntheticMedia: model.youTubeContainsSyntheticMedia === 'true',
+    defaultAudioLanguage: defaultAudioLanguage.length === 0 ? null : defaultAudioLanguage,
+    defaultLanguage: defaultLanguage.length === 0 ? null : defaultLanguage,
   };
 }
 
@@ -133,6 +141,11 @@ export function withYouTubeSettingsFormModel(
       youTubeSettings?.containsSyntheticMedia ??
         youtubeSettingsFormDefaults.youTubeContainsSyntheticMedia,
     ),
+    youTubeDefaultAudioLanguage:
+      youTubeSettings?.defaultAudioLanguage ??
+      youtubeSettingsFormDefaults.youTubeDefaultAudioLanguage,
+    youTubeDefaultLanguage:
+      youTubeSettings?.defaultLanguage ?? youtubeSettingsFormDefaults.youTubeDefaultLanguage,
   };
 }
 

@@ -18,6 +18,8 @@ import {
 describe('platforms form request mapping', () => {
   it('uses non-sticky Draft defaults with no scheduled offset', () => {
     expect(createPlatformFormModel()).toMatchObject({
+      youTubeDefaultAudioLanguage: '',
+      youTubeDefaultLanguage: '',
       wordPressPostStatus: 'draft',
       wordPressCategoryIds: [],
       wordPressSticky: false,
@@ -61,6 +63,8 @@ describe('platforms form request mapping', () => {
       selfDeclaredMadeForKids: false,
       categoryId: null,
       containsSyntheticMedia: false,
+      defaultAudioLanguage: null,
+      defaultLanguage: null,
     });
   });
 
@@ -425,6 +429,8 @@ describe('platforms form request mapping', () => {
           selfDeclaredMadeForKids: true,
           categoryId: '27',
           containsSyntheticMedia: true,
+          defaultAudioLanguage: 'en-US',
+          defaultLanguage: 'ru',
         },
       }),
     );
@@ -446,14 +452,18 @@ describe('platforms form request mapping', () => {
       youTubeMadeForKids: 'true',
       youTubeCategoryId: '27',
       youTubeContainsSyntheticMedia: 'true',
+      youTubeDefaultAudioLanguage: 'en-US',
+      youTubeDefaultLanguage: 'ru',
     });
   });
 
-  it('maps legacy YouTube response settings to default category and disclosure', () => {
+  it('maps legacy YouTube response settings to all optional defaults', () => {
     const model = toPlatformFormModel(platform());
 
     expect(model.youTubeCategoryId).toBe('');
     expect(model.youTubeContainsSyntheticMedia).toBe('false');
+    expect(model.youTubeDefaultAudioLanguage).toBe('');
+    expect(model.youTubeDefaultLanguage).toBe('');
   });
 
   it('maps YouTube category and disclosure into requests and dirty comparison', () => {
@@ -470,6 +480,38 @@ describe('platforms form request mapping', () => {
       containsSyntheticMedia: true,
     });
     expect(sameUpdatePlatformRequest(baseline, changed)).toBe(false);
+  });
+
+  it('maps YouTube languages independently into requests and dirty comparison', () => {
+    const baseline = toUpdatePlatformRequest(validModel({}));
+    const audioChanged = toUpdatePlatformRequest(
+      validModel({ youTubeDefaultAudioLanguage: ' en-US ' }),
+    );
+    const metadataChanged = toUpdatePlatformRequest(
+      validModel({ youTubeDefaultLanguage: ' x-unknown ' }),
+    );
+
+    expect(audioChanged.publishSettings).toMatchObject({
+      defaultAudioLanguage: 'en-US',
+      defaultLanguage: null,
+    });
+    expect(metadataChanged.publishSettings).toMatchObject({
+      defaultAudioLanguage: null,
+      defaultLanguage: 'x-unknown',
+    });
+    expect(sameUpdatePlatformRequest(baseline, audioChanged)).toBe(false);
+    expect(sameUpdatePlatformRequest(baseline, metadataChanged)).toBe(false);
+    expect(
+      sameUpdatePlatformRequest(
+        audioChanged,
+        toUpdatePlatformRequest(
+          validModel({
+            youTubeDefaultAudioLanguage: ' en-US ',
+            youTubeDefaultLanguage: '',
+          }),
+        ),
+      ),
+    ).toBe(true);
   });
 
   it('maps WordPress response settings to the form without copying replacement secrets', () => {
@@ -562,6 +604,8 @@ describe('platforms form request mapping', () => {
       youTubeRefreshToken: '',
       youTubeClientSecretConfigured: 'false',
       youTubeRefreshTokenConfigured: 'false',
+      youTubeDefaultAudioLanguage: '',
+      youTubeDefaultLanguage: '',
       youTubePrivacyStatus: 'private',
       youTubeMadeForKids: 'false',
     });

@@ -9,6 +9,8 @@ namespace YTSkedy.Scheduling.Domain.Platforms;
 /// </summary>
 public sealed record YouTubeSettings : PublishSettings
 {
+    public const int MaxLanguageCodeLength = 35;
+
     public static readonly IReadOnlyList<string> AllowedPrivacyStatuses =
         ["private", "public", "unlisted"];
 
@@ -17,7 +19,9 @@ public sealed record YouTubeSettings : PublishSettings
         string privacyStatus,
         bool selfDeclaredMadeForKids,
         string? categoryId = null,
-        bool containsSyntheticMedia = false)
+        bool containsSyntheticMedia = false,
+        string? defaultAudioLanguage = null,
+        string? defaultLanguage = null)
     {
         ArgumentNullException.ThrowIfNull(credentials);
 
@@ -35,11 +39,27 @@ public sealed record YouTubeSettings : PublishSettings
                 nameof(categoryId));
         }
 
+        if (!IsValidLanguageCode(defaultAudioLanguage))
+        {
+            throw new ArgumentException(
+                $"Default audio language must be null or a non-blank code up to {MaxLanguageCodeLength} characters.",
+                nameof(defaultAudioLanguage));
+        }
+
+        if (!IsValidLanguageCode(defaultLanguage))
+        {
+            throw new ArgumentException(
+                $"Default language must be null or a non-blank code up to {MaxLanguageCodeLength} characters.",
+                nameof(defaultLanguage));
+        }
+
         Credentials = credentials;
         PrivacyStatus = privacyStatus;
         SelfDeclaredMadeForKids = selfDeclaredMadeForKids;
         CategoryId = categoryId?.Trim();
         ContainsSyntheticMedia = containsSyntheticMedia;
+        DefaultAudioLanguage = defaultAudioLanguage?.Trim();
+        DefaultLanguage = defaultLanguage?.Trim();
     }
 
     public YouTubeCredentials Credentials { get; }
@@ -52,6 +72,10 @@ public sealed record YouTubeSettings : PublishSettings
 
     public bool ContainsSyntheticMedia { get; }
 
+    public string? DefaultAudioLanguage { get; }
+
+    public string? DefaultLanguage { get; }
+
     /// <summary>
     /// True when <paramref name="privacyStatus"/> is one of the lowercase
     /// YouTube privacy values (<c>private</c>, <c>public</c>, <c>unlisted</c>).
@@ -62,4 +86,15 @@ public sealed record YouTubeSettings : PublishSettings
 
     public static bool IsValidCategoryId(string? categoryId) =>
         categoryId is null || !string.IsNullOrWhiteSpace(categoryId);
+
+    public static bool IsValidLanguageCode(string? languageCode)
+    {
+        if (languageCode is null)
+        {
+            return true;
+        }
+
+        var trimmed = languageCode.Trim();
+        return trimmed.Length > 0 && trimmed.Length <= MaxLanguageCodeLength;
+    }
 }

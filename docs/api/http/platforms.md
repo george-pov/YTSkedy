@@ -57,6 +57,8 @@ A YouTube platform is returned as:
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false,
     "categoryId": null,
+    "defaultAudioLanguage": null,
+    "defaultLanguage": null,
     "containsSyntheticMedia": false
   }
 }
@@ -121,10 +123,17 @@ A WordPress platform is returned as:
   `selfDeclaredMadeForKids` defaults to `false` on create when omitted.
   `categoryId` is a nullable opaque YouTube string id. Missing and null values
   mean provider default; a blank non-null string is invalid. Responses always
-  return the property as a string or null. `containsSyntheticMedia` is the
-  altered or synthetic content disclosure. Missing and null request values,
-  and legacy stored settings without the property, default to `false`.
-  Responses always return it as a boolean.
+  return the property as a string or null.
+  `defaultAudioLanguage` is the nullable default stream language and
+  `defaultLanguage` is the nullable default title and description language.
+  Missing, null, and blank values mean YouTube Default. Non-null values are
+  trimmed, preserve their casing, and must be at most 35 characters. Responses
+  always return both properties as a string or null. The shared bound is
+  `YouTubeSettings.MaxLanguageCodeLength`. Legacy stored settings without
+  either property read as null.
+  `containsSyntheticMedia` is the altered or synthetic content disclosure.
+  Missing and null request values, and legacy stored settings without the
+  property, default to `false`. Responses always return it as a boolean.
 - WordPress `publishSettings.siteUrl` is the WordPress site root used for REST
   API discovery. Non-local site URLs must use HTTPS. `http://localhost` and
   `http://127.0.0.1` are allowed for local development only.
@@ -182,6 +191,20 @@ assigned provider ids remain compatible. The browser keeps an unknown stored id
 visible as `Category #{id}`. YouTube validates the id during publication and a
 provider rejection follows the failed-publication recovery contract.
 
+### Static YouTube Language Catalogs
+
+The browser owns separate static catalogs for the Stream language and Title and
+description language single-selects. They were reviewed against YouTube Studio
+on 2026-07-16 and are not returned by a YTSkedy route or refreshed at runtime.
+Each select begins with `YouTube Default`, which sends null.
+
+The Stream language catalog has 239 provider values. The Title and description
+language catalog has 238 provider values. Their common codes and labels are
+identical; only Stream language includes `zxx` with label `Not applicable`.
+Provider values are sorted by English label after the default option. If a
+stored code is not in the current catalog, the browser preserves it as
+`Language code: {code}` until the operator changes it.
+
 ## List Platforms
 
 ```text
@@ -218,6 +241,8 @@ Success response (`200 OK`):
         "privacyStatus": "private",
         "selfDeclaredMadeForKids": false,
         "categoryId": null,
+        "defaultAudioLanguage": null,
+        "defaultLanguage": null,
         "containsSyntheticMedia": false
       }
     }
@@ -270,6 +295,8 @@ YouTube request body:
     "privacyStatus": "private",
     "selfDeclaredMadeForKids": false,
     "categoryId": null,
+    "defaultAudioLanguage": "en-US",
+    "defaultLanguage": "en",
     "containsSyntheticMedia": false
   }
 }
@@ -325,7 +352,8 @@ Status codes:
   missing `credentials.clientId`, missing `credentials.clientSecret` on create,
   missing `credentials.refreshToken` on create, or `privacyStatus` not
   `private`, `public`, or `unlisted`. A non-null blank `categoryId` is also
-  invalid.
+  invalid. A non-null `defaultAudioLanguage` or `defaultLanguage` longer than
+  35 characters is invalid; blank language values normalize to null.
 - `400 Bad Request` for invalid WordPress settings: missing `siteUrl`, invalid
   or insecure `siteUrl`, missing `username`, missing `applicationPassword`, or
   `postStatus` not `draft`, `pending`, `private`, `future`, or `publish`.
@@ -366,6 +394,8 @@ YouTube request body:
     "privacyStatus": "unlisted",
     "selfDeclaredMadeForKids": false,
     "categoryId": "27",
+    "defaultAudioLanguage": "en-US",
+    "defaultLanguage": "en",
     "containsSyntheticMedia": true
   }
 }

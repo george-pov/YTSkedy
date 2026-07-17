@@ -190,8 +190,15 @@ redacted display strings may appear in blank replacement inputs but are never
 copied into save requests. A typed replacement is visible while focused and
 masked again on blur.
 
-YouTube settings include two page-owned single-select controls:
+YouTube settings include four page-owned single-select controls:
 
+- Stream language begins with `YouTube Default`, which sends
+  `defaultAudioLanguage: null`, followed by the application-owned catalog
+  reviewed against YouTube Studio on 2026-07-16. It includes `zxx` as
+  `Not applicable`.
+- Title and description language begins with `YouTube Default`, which sends
+  `defaultLanguage: null`. Its catalog has the same common codes and labels as
+  Stream language but does not include `zxx`.
 - Category begins with `YouTube Default`, which sends `categoryId: null`, then
   lists the application-owned US categories reviewed as assignable on
   2026-07-14. The list is static source data and never performs runtime YouTube
@@ -201,8 +208,11 @@ YouTube settings include two page-owned single-select controls:
   `containsSyntheticMedia: false` or `true`. Existing settings without the
   property and new forms default to No.
 
-Both controls use the existing `app-select` single-value interaction. YouTube
-does not use the WordPress category chip selector.
+All four controls use the existing `app-select` single-value interaction. The
+language catalogs are static and perform no runtime YouTube or backend lookup.
+An unknown stored language remains visible as `Language code: {code}` and is
+preserved across save, cancel, and reopen until the operator changes it.
+YouTube does not use the WordPress category chip selector.
 
 WordPress settings include an ordered category selection. New WordPress
 platforms send `categoryIds: []` and show save-first guidance because lookup

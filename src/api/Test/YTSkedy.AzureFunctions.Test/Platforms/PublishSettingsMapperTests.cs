@@ -80,7 +80,9 @@ public sealed class PublishSettingsMapperTests
                 clientSecret: "stored-client-secret-A3B",
                 refreshToken: "stored-refresh-token-Z9Y",
                 categoryId: "27",
-                containsSyntheticMedia: true));
+                containsSyntheticMedia: true,
+                defaultAudioLanguage: "en-US",
+                defaultLanguage: "ru"));
 
         Assert.NotNull(response.Credentials);
         Assert.Equal(SchedulingSampleIds.YouTubeClientId, response.Credentials.ClientId);
@@ -92,6 +94,8 @@ public sealed class PublishSettingsMapperTests
         Assert.False(response.SelfDeclaredMadeForKids);
         Assert.Equal("27", response.CategoryId);
         Assert.True(response.ContainsSyntheticMedia);
+        Assert.Equal("en-US", response.DefaultAudioLanguage);
+        Assert.Equal("ru", response.DefaultLanguage);
         Assert.Null(response.SiteUrl);
         Assert.Null(response.CategoryIds);
         Assert.Null(response.ApplicationPasswordConfigured);
@@ -100,6 +104,10 @@ public sealed class PublishSettingsMapperTests
         using var document = JsonDocument.Parse(json);
         Assert.Equal("27", document.RootElement.GetProperty("categoryId").GetString());
         Assert.True(document.RootElement.GetProperty("containsSyntheticMedia").GetBoolean());
+        Assert.Equal(
+            "en-US",
+            document.RootElement.GetProperty("defaultAudioLanguage").GetString());
+        Assert.Equal("ru", document.RootElement.GetProperty("defaultLanguage").GetString());
         Assert.Contains("*********A3B", json);
         Assert.Contains("*********Z9Y", json);
         Assert.DoesNotContain("stored-client-secret-A3B", json);
@@ -117,6 +125,8 @@ public sealed class PublishSettingsMapperTests
 
         Assert.Equal(JsonValueKind.Null, root.GetProperty("categoryId").ValueKind);
         Assert.False(root.GetProperty("containsSyntheticMedia").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("defaultAudioLanguage").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("defaultLanguage").ValueKind);
     }
 
     [Fact]

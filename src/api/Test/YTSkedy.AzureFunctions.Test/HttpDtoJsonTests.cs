@@ -163,7 +163,9 @@ public sealed class HttpDtoJsonTests
                 "privacyStatus": "private",
                 "selfDeclaredMadeForKids": false,
                 "categoryId": "27",
-                "containsSyntheticMedia": true
+                "containsSyntheticMedia": true,
+                "defaultAudioLanguage": "en-US",
+                "defaultLanguage": "ru"
               }
             }
             """;
@@ -186,6 +188,8 @@ public sealed class HttpDtoJsonTests
         Assert.False(request.PublishSettings.SelfDeclaredMadeForKids.GetValueOrDefault());
         Assert.Equal("27", request.PublishSettings.CategoryId);
         Assert.True(request.PublishSettings.ContainsSyntheticMedia);
+        Assert.Equal("en-US", request.PublishSettings.DefaultAudioLanguage);
+        Assert.Equal("ru", request.PublishSettings.DefaultLanguage);
     }
 
     [Fact]
@@ -328,7 +332,9 @@ public sealed class HttpDtoJsonTests
                 "private",
                 false,
                 categoryId: null,
-                containsSyntheticMedia: false),
+                containsSyntheticMedia: false,
+                defaultAudioLanguage: "en-US",
+                defaultLanguage: "ru"),
             new PublishingContent(
                 "title-template",
                 "description-template"));
@@ -354,6 +360,8 @@ public sealed class HttpDtoJsonTests
         Assert.DoesNotContain("stored-refresh-token-Z9Y", json);
         Assert.Equal(JsonValueKind.Null, settings.GetProperty("categoryId").ValueKind);
         Assert.False(settings.GetProperty("containsSyntheticMedia").GetBoolean());
+        Assert.Equal("en-US", settings.GetProperty("defaultAudioLanguage").GetString());
+        Assert.Equal("ru", settings.GetProperty("defaultLanguage").GetString());
     }
 
     [Fact]
@@ -401,6 +409,8 @@ public sealed class HttpDtoJsonTests
         Assert.DoesNotContain("local-test-password", json);
         Assert.False(settings.TryGetProperty("categoryId", out _));
         Assert.False(settings.TryGetProperty("containsSyntheticMedia", out _));
+        Assert.False(settings.TryGetProperty("defaultAudioLanguage", out _));
+        Assert.False(settings.TryGetProperty("defaultLanguage", out _));
     }
 
     [Fact]

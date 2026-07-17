@@ -67,6 +67,8 @@ describe('PlatformsService', () => {
             selfDeclaredMadeForKids: false,
             categoryId: null,
             containsSyntheticMedia: false,
+            defaultAudioLanguage: null,
+            defaultLanguage: null,
           },
           publishingContent: {
             titleTemplateId: 'youtube-title-template',
@@ -116,6 +118,8 @@ describe('PlatformsService', () => {
             selfDeclaredMadeForKids: false,
             categoryId: null,
             containsSyntheticMedia: false,
+            defaultAudioLanguage: null,
+            defaultLanguage: null,
           },
           publishingContent: {
             titleTemplateId: 'youtube-title-template',
@@ -268,6 +272,8 @@ describe('PlatformsService', () => {
         selfDeclaredMadeForKids: true,
         categoryId: '27',
         containsSyntheticMedia: true,
+        defaultAudioLanguage: 'en-US',
+        defaultLanguage: 'ru',
       },
       publishingContent: {
         titleTemplateId: 'youtube-title-template',
@@ -299,6 +305,8 @@ describe('PlatformsService', () => {
         selfDeclaredMadeForKids: true,
         categoryId: '27',
         containsSyntheticMedia: true,
+        defaultAudioLanguage: 'en-US',
+        defaultLanguage: 'ru',
       },
       publishingContent: {
         titleTemplateId: 'youtube-title-template',
@@ -323,6 +331,8 @@ describe('PlatformsService', () => {
         selfDeclaredMadeForKids: true,
         categoryId: '27',
         containsSyntheticMedia: true,
+        defaultAudioLanguage: 'en-US',
+        defaultLanguage: 'ru',
       },
       publishingContent: {
         titleTemplateId: 'youtube-title-template',
@@ -470,6 +480,8 @@ describe('PlatformsService', () => {
         selfDeclaredMadeForKids: false,
         categoryId: null,
         containsSyntheticMedia: false,
+        defaultAudioLanguage: 'x-audio',
+        defaultLanguage: null,
       },
       publishingContent: {
         titleTemplateId: 'updated-title-template',
@@ -505,6 +517,8 @@ describe('PlatformsService', () => {
         selfDeclaredMadeForKids: false,
         categoryId: null,
         containsSyntheticMedia: false,
+        defaultAudioLanguage: 'x-audio',
+        defaultLanguage: null,
       },
       publishingContent: {
         titleTemplateId: 'updated-title-template',
@@ -529,6 +543,8 @@ describe('PlatformsService', () => {
         selfDeclaredMadeForKids: false,
         categoryId: null,
         containsSyntheticMedia: false,
+        defaultAudioLanguage: 'x-audio',
+        defaultLanguage: null,
       },
       publishingContent: {
         titleTemplateId: 'updated-title-template',

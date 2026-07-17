@@ -41,7 +41,11 @@ public sealed class PlatformsApiCommandTests
             "Main YouTube channel",
             "YouTube",
             null,
-            CreateYouTubeSettingsRequest(categoryId: "27", containsSyntheticMedia: true),
+            CreateYouTubeSettingsRequest(
+                categoryId: "27",
+                containsSyntheticMedia: true,
+                defaultAudioLanguage: " en-US ",
+                defaultLanguage: "ru"),
             CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
@@ -57,10 +61,59 @@ public sealed class PlatformsApiCommandTests
         Assert.False(settings.SelfDeclaredMadeForKids);
         Assert.Equal("27", settings.CategoryId);
         Assert.True(settings.ContainsSyntheticMedia);
+        Assert.Equal("en-US", settings.DefaultAudioLanguage);
+        Assert.Equal("ru", settings.DefaultLanguage);
         Assert.Equal(SchedulingSampleIds.TitleTemplateId, command.PublishingContent.TitleTemplateId);
         Assert.Equal(
             SchedulingSampleIds.DescriptionTemplateId,
             command.PublishingContent.DescriptionTemplateId);
+    }
+
+    [Fact]
+    public void TryBuildCreateCommand_YouTubeBlankLanguages_NormalizesToNull()
+    {
+        var request = new CreatePlatformRequest(
+            "Main YouTube channel",
+            "YouTube",
+            null,
+            CreateYouTubeSettingsRequest(
+                defaultAudioLanguage: "   ",
+                defaultLanguage: ""),
+            CreatePublishingContentRequest());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
+
+        Assert.True(built);
+        var settings = Assert.IsType<YouTubeSettings>(command.PublishSettings);
+        Assert.Null(settings.DefaultAudioLanguage);
+        Assert.Null(settings.DefaultLanguage);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TryBuildCreateCommand_YouTubeOverlongLanguage_ReturnsBadRequest(
+        bool useAudioLanguage)
+    {
+        var overlong = new string(
+            'a',
+            YTSkedy.Scheduling.Domain.Platforms.YouTubeSettings.MaxLanguageCodeLength + 1);
+        var request = new CreatePlatformRequest(
+            "Main YouTube channel",
+            "YouTube",
+            null,
+            CreateYouTubeSettingsRequest(
+                defaultAudioLanguage: useAudioLanguage ? overlong : null,
+                defaultLanguage: useAudioLanguage ? null : overlong),
+            CreatePublishingContentRequest());
+
+        var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
+
+        Assert.False(built);
+        var field = useAudioLanguage ? "defaultAudioLanguage" : "defaultLanguage";
+        Assert.Equal(
+            $"Publish settings {field} must be at most {YTSkedy.Scheduling.Domain.Platforms.YouTubeSettings.MaxLanguageCodeLength} characters.",
+            ActionResultAssertions.BadRequestMessage(error));
     }
 
     [Theory]
@@ -585,7 +638,9 @@ public sealed class PlatformsApiCommandTests
                 refreshToken: null,
                 privacyStatus: "unlisted",
                 categoryId: " 27 ",
-                containsSyntheticMedia: true),
+                containsSyntheticMedia: true,
+                defaultAudioLanguage: " en-CA ",
+                defaultLanguage: "fr"),
             CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
@@ -599,6 +654,8 @@ public sealed class PlatformsApiCommandTests
         Assert.Equal("unlisted", settings.PrivacyStatus);
         Assert.Equal("27", settings.CategoryId);
         Assert.True(settings.ContainsSyntheticMedia);
+        Assert.Equal("en-CA", settings.DefaultAudioLanguage);
+        Assert.Equal("fr", settings.DefaultLanguage);
     }
 
     [Fact]

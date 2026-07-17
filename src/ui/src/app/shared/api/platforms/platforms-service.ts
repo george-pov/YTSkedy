@@ -29,6 +29,8 @@ export interface YouTubePublishSettings {
   selfDeclaredMadeForKids: boolean;
   categoryId?: string | null;
   containsSyntheticMedia?: boolean;
+  defaultAudioLanguage?: string | null;
+  defaultLanguage?: string | null;
 }
 
 export type WordPressPostStatus = 'draft' | 'pending' | 'private' | 'future' | 'publish';
@@ -230,6 +232,8 @@ function copyPublishSettings(
     credentials: { ...settings.credentials },
     categoryId: settings.categoryId ?? null,
     containsSyntheticMedia: settings.containsSyntheticMedia ?? false,
+    defaultAudioLanguage: settings.defaultAudioLanguage ?? null,
+    defaultLanguage: settings.defaultLanguage ?? null,
   };
 }
 

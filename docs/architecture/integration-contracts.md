@@ -109,11 +109,16 @@ Cross-boundary rules:
   names and slugs are provider lookup data only. The `Platforms` page searches
   them through the protected backend route after the platform is saved; browser
   code never receives WordPress credentials or calls WordPress directly.
-- YouTube platform CRUD carries nullable opaque `categoryId` and boolean
-  `containsSyntheticMedia` defaults. Null category means provider default and
-  missing legacy values read as null and false. The `Platforms` page owns a
-  static reviewed US category list and does not call YouTube or the backend for
-  runtime category discovery.
+- YouTube platform CRUD carries nullable opaque `categoryId`,
+  `defaultAudioLanguage`, and `defaultLanguage` values plus the boolean
+  `containsSyntheticMedia` disclosure. Null category or language means provider
+  default. Missing legacy values read as null for category and languages and
+  false for the disclosure.
+- The `Platforms` page owns the static reviewed YouTube category and language
+  catalogs. Stream language and title and description language are separate
+  catalogs because only the stream catalog includes `zxx` (`Not applicable`).
+  The UI does not call YouTube or the backend for runtime discovery and
+  preserves unknown stored language codes until the operator changes them.
 - Secret-bearing settings may be accepted by write routes, but read models must
   return redacted configuration flags instead of secrets.
 - Function keys are not part of the frontend-backend contract.
@@ -211,9 +216,11 @@ HTTP routes.
   operation token bounded by configuration and host shutdown. Final-state
   writes use fresh, independently bounded tokens.
 - YouTube publication creates a private scheduled broadcast first. When
-  category, disclosure, or final visibility requires a video update, the
-  adapter reads only the included mutable parts, preserves their values, and
-  applies YTSkedy-owned values before the local row becomes `Published`.
+  category, default audio language, default title and description language,
+  disclosure, or final visibility requires a video update, the adapter reads
+  only the included mutable parts, preserves their values, and applies
+  YTSkedy-owned values before the local row becomes `Published`. The language
+  update shares the existing replacement-safe read and single update call.
 - YouTube checkpoints the broadcast id immediately after insert and before
   later video metadata work. WordPress checkpoints the post id after validating
   the create response. Checkpoint and final-state writes are conditional.

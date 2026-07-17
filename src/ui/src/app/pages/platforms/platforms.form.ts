@@ -56,6 +56,8 @@ export interface PlatformFormModel {
   youTubeMadeForKids: string;
   youTubeCategoryId: string;
   youTubeContainsSyntheticMedia: string;
+  youTubeDefaultAudioLanguage: string;
+  youTubeDefaultLanguage: string;
   wordPressSiteUrl: string;
   wordPressUsername: string;
   wordPressApplicationPassword: string;

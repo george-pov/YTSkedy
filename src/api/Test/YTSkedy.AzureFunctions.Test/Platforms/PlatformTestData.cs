@@ -17,7 +17,9 @@ internal static class PlatformTestData
         string? privacyStatus = "private",
         bool? selfDeclaredMadeForKids = false,
         string? categoryId = null,
-        bool? containsSyntheticMedia = null) =>
+        bool? containsSyntheticMedia = null,
+        string? defaultAudioLanguage = null,
+        string? defaultLanguage = null) =>
         new(
             new YouTubeCredentialsRequest(clientId, clientSecret, refreshToken),
             privacyStatus,
@@ -27,7 +29,9 @@ internal static class PlatformTestData
             null,
             null,
             CategoryId: categoryId,
-            ContainsSyntheticMedia: containsSyntheticMedia);
+            ContainsSyntheticMedia: containsSyntheticMedia,
+            DefaultAudioLanguage: defaultAudioLanguage,
+            DefaultLanguage: defaultLanguage);
 
     public static PublishSettingsRequest CreateWordPressSettingsRequest(
         string? siteUrl = "https://example.com",
@@ -75,13 +79,17 @@ internal static class PlatformTestData
         string refreshToken = SchedulingSampleIds.YouTubeRefreshToken,
         string privacyStatus = "private",
         string? categoryId = null,
-        bool containsSyntheticMedia = false) =>
+        bool containsSyntheticMedia = false,
+        string? defaultAudioLanguage = null,
+        string? defaultLanguage = null) =>
         new(
             new YouTubeCredentials(clientId, clientSecret, refreshToken),
             privacyStatus,
             false,
             categoryId,
-            containsSyntheticMedia);
+            containsSyntheticMedia,
+            defaultAudioLanguage,
+            defaultLanguage);
 
     public static WordPressSettings WordPressSettings(
         string applicationPassword = "application-password",
@@ -139,6 +147,8 @@ internal static class PlatformTestData
         Assert.Equal(categoryIds ?? [], response.CategoryIds);
         Assert.True(response.ApplicationPasswordConfigured);
         Assert.Equal("*******", response.PasswordDisplayValue);
+        Assert.Null(response.DefaultAudioLanguage);
+        Assert.Null(response.DefaultLanguage);
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
         using var document = JsonDocument.Parse(json);

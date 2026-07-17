@@ -14,13 +14,17 @@ public class YouTubeSettingsTests
             "unlisted",
             true,
             " 27 ",
-            containsSyntheticMedia: true);
+            containsSyntheticMedia: true,
+            defaultAudioLanguage: "en-US",
+            defaultLanguage: "ru");
 
         Assert.Same(credentials, settings.Credentials);
         Assert.Equal("unlisted", settings.PrivacyStatus);
         Assert.True(settings.SelfDeclaredMadeForKids);
         Assert.Equal("27", settings.CategoryId);
         Assert.True(settings.ContainsSyntheticMedia);
+        Assert.Equal("en-US", settings.DefaultAudioLanguage);
+        Assert.Equal("ru", settings.DefaultLanguage);
     }
 
     [Fact]
@@ -33,6 +37,56 @@ public class YouTubeSettingsTests
 
         Assert.Null(settings.CategoryId);
         Assert.False(settings.ContainsSyntheticMedia);
+        Assert.Null(settings.DefaultAudioLanguage);
+        Assert.Null(settings.DefaultLanguage);
+    }
+
+    [Fact]
+    public void Constructor_ValidLanguageCodes_TrimsAndSetsProperties()
+    {
+        var settings = new YouTubeSettings(
+            PlatformSamples.YouTubeCredentials(),
+            "private",
+            false,
+            defaultAudioLanguage: " en-US ",
+            defaultLanguage: " ZH-hant ");
+
+        Assert.Equal("en-US", settings.DefaultAudioLanguage);
+        Assert.Equal("ZH-hant", settings.DefaultLanguage);
+    }
+
+    [Theory]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    [InlineData(null, "")]
+    [InlineData(null, "   ")]
+    public void Constructor_BlankLanguageCode_Throws(
+        string? defaultAudioLanguage,
+        string? defaultLanguage)
+    {
+        Assert.Throws<ArgumentException>(
+            () => new YouTubeSettings(
+                PlatformSamples.YouTubeCredentials(),
+                "private",
+                false,
+                defaultAudioLanguage: defaultAudioLanguage,
+                defaultLanguage: defaultLanguage));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Constructor_OverlongLanguageCode_Throws(bool useAudioLanguage)
+    {
+        var overlong = new string('a', YouTubeSettings.MaxLanguageCodeLength + 1);
+
+        Assert.Throws<ArgumentException>(
+            () => new YouTubeSettings(
+                PlatformSamples.YouTubeCredentials(),
+                "private",
+                false,
+                defaultAudioLanguage: useAudioLanguage ? overlong : null,
+                defaultLanguage: useAudioLanguage ? null : overlong));
     }
 
     [Fact]

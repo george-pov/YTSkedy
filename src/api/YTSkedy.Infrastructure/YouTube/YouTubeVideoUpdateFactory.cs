@@ -14,7 +14,10 @@ internal static class YouTubeVideoUpdateFactory
         ArgumentNullException.ThrowIfNull(settings);
 
         return new YouTubeVideoUpdateParts(
-            IncludeSnippet: settings.CategoryId is not null,
+            IncludeSnippet:
+                settings.CategoryId is not null ||
+                settings.DefaultAudioLanguage is not null ||
+                settings.DefaultLanguage is not null,
             IncludeStatus:
                 settings.ContainsSyntheticMedia ||
                 !string.Equals(settings.PrivacyStatus, "private", StringComparison.Ordinal));
@@ -40,7 +43,9 @@ internal static class YouTubeVideoUpdateFactory
             update.Snippet = new VideoSnippet
             {
                 CategoryId = settings.CategoryId ?? snippet.CategoryId,
-                DefaultLanguage = snippet.DefaultLanguage,
+                DefaultAudioLanguage =
+                    settings.DefaultAudioLanguage ?? snippet.DefaultAudioLanguage,
+                DefaultLanguage = settings.DefaultLanguage ?? snippet.DefaultLanguage,
                 Description = snippet.Description,
                 Tags = snippet.Tags?.ToArray(),
                 Title = snippet.Title

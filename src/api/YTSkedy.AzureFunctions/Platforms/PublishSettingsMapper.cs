@@ -30,7 +30,9 @@ internal static class PublishSettingsMapper
                 youTube.PrivacyStatus,
                 youTube.SelfDeclaredMadeForKids,
                 youTube.CategoryId,
-                youTube.ContainsSyntheticMedia),
+                youTube.ContainsSyntheticMedia,
+                youTube.DefaultAudioLanguage,
+                youTube.DefaultLanguage),
             WordPressSettings wordPress => ToWordPressResponse(wordPress),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(publishSettings),
@@ -236,14 +238,34 @@ internal static class PublishSettingsMapper
             return false;
         }
 
+        var defaultAudioLanguage = NormalizeYouTubeLanguageCode(
+            request.DefaultAudioLanguage);
+        if (!YouTubeSettings.IsValidLanguageCode(defaultAudioLanguage))
+        {
+            error = InvalidYouTubeDefaultAudioLanguageResult();
+            return false;
+        }
+
+        var defaultLanguage = NormalizeYouTubeLanguageCode(request.DefaultLanguage);
+        if (!YouTubeSettings.IsValidLanguageCode(defaultLanguage))
+        {
+            error = InvalidYouTubeDefaultLanguageResult();
+            return false;
+        }
+
         publishSettings = new YouTubeSettings(
             credentials,
             request.PrivacyStatus!,
             request.SelfDeclaredMadeForKids ?? false,
             request.CategoryId,
-            request.ContainsSyntheticMedia ?? false);
+            request.ContainsSyntheticMedia ?? false,
+            defaultAudioLanguage,
+            defaultLanguage);
         return true;
     }
+
+    internal static string? NormalizeYouTubeLanguageCode(string? languageCode) =>
+        string.IsNullOrWhiteSpace(languageCode) ? null : languageCode.Trim();
 
     private static bool TryBuildWordPressSettings(
         PublishSettingsRequest request,
@@ -363,6 +385,14 @@ internal static class PublishSettingsMapper
     private static IActionResult InvalidYouTubeCategoryIdResult() =>
         new BadRequestObjectResult(
             "Publish settings categoryId must be omitted, null, or a non-blank YouTube category ID.");
+
+    private static IActionResult InvalidYouTubeDefaultAudioLanguageResult() =>
+        new BadRequestObjectResult(
+            $"Publish settings defaultAudioLanguage must be at most {YouTubeSettings.MaxLanguageCodeLength} characters.");
+
+    private static IActionResult InvalidYouTubeDefaultLanguageResult() =>
+        new BadRequestObjectResult(
+            $"Publish settings defaultLanguage must be at most {YouTubeSettings.MaxLanguageCodeLength} characters.");
 
     private static IActionResult MissingWordPressSiteUrlResult() =>
         new BadRequestObjectResult("Publish settings site URL is required.");

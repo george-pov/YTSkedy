@@ -12,6 +12,8 @@ interface YouTubeSettingsModel {
   refreshToken: string;
   privacyStatus: string;
   madeForKids: string;
+  defaultAudioLanguage: string;
+  defaultLanguage: string;
   categoryId: string;
   containsSyntheticMedia: string;
 }
@@ -27,6 +29,8 @@ interface YouTubeSettingsModel {
     refreshTokenDisplayValue="*********Z9Y"
     [privacyStatus]="form.privacyStatus"
     [madeForKids]="form.madeForKids"
+    [defaultAudioLanguage]="form.defaultAudioLanguage"
+    [defaultLanguage]="form.defaultLanguage"
     [categoryId]="form.categoryId"
     [containsSyntheticMedia]="form.containsSyntheticMedia"
   />`,
@@ -38,6 +42,8 @@ class YouTubeSettingsHost {
     refreshToken: '',
     privacyStatus: 'private',
     madeForKids: 'false',
+    defaultAudioLanguage: '',
+    defaultLanguage: '',
     categoryId: '',
     containsSyntheticMedia: 'false',
   });
@@ -57,10 +63,12 @@ describe('YouTubeSettings', () => {
     fixture.detectChanges();
   });
 
-  it('renders the credential inputs and four settings selects', () => {
+  it('renders the credential inputs and six settings selects', () => {
     expect(fixture.nativeElement.querySelectorAll('app-input input')).toHaveLength(1);
     expect(fixture.nativeElement.querySelectorAll('app-masked-input input')).toHaveLength(2);
-    expect(fixture.nativeElement.querySelectorAll('app-select')).toHaveLength(4);
+    expect(fixture.nativeElement.querySelectorAll('app-select')).toHaveLength(6);
+    expect(fixture.nativeElement.textContent).toContain('Stream language');
+    expect(fixture.nativeElement.textContent).toContain('Title and description language');
     expect(fixture.nativeElement.textContent).toContain('Category');
     expect(fixture.nativeElement.textContent).toContain('Altered or synthetic content');
   });
@@ -73,8 +81,8 @@ describe('YouTubeSettings', () => {
     const selects = fixture.debugElement
       .queryAll(By.css('app-select'))
       .map((element) => element.componentInstance);
-    const categoryOptions = selects[2].options();
-    const syntheticMediaOptions = selects[3].options();
+    const categoryOptions = selects[4].options();
+    const syntheticMediaOptions = selects[5].options();
 
     expect(categoryOptions[0]).toEqual({ value: '', label: 'YouTube Default' });
     expect(categoryOptions.at(-1)).toEqual({ value: '999', label: 'Category #999' });
@@ -82,6 +90,33 @@ describe('YouTubeSettings', () => {
       { value: 'false', label: 'No' },
       { value: 'true', label: 'Yes' },
     ]);
+  });
+
+  it('uses separate language catalogs and keeps unknown saved codes selectable', async () => {
+    host.model.update((model) => ({
+      ...model,
+      defaultAudioLanguage: 'x-audio',
+      defaultLanguage: 'x-metadata',
+    }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const selects = fixture.debugElement
+      .queryAll(By.css('app-select'))
+      .map((element) => element.componentInstance);
+    const audioOptions = selects[2].options();
+    const metadataOptions = selects[3].options();
+
+    expect(audioOptions.at(-1)).toEqual({
+      value: 'x-audio',
+      label: 'Language code: x-audio',
+    });
+    expect(metadataOptions.at(-1)).toEqual({
+      value: 'x-metadata',
+      label: 'Language code: x-metadata',
+    });
+    expect(audioOptions).toContainEqual({ value: 'zxx', label: 'Not applicable' });
+    expect(metadataOptions.some((option: { value: string }) => option.value === 'zxx')).toBe(false);
   });
 
   it('shows display values inside replacement inputs while values stay empty', () => {

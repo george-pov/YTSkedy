@@ -16,7 +16,9 @@ public class PublishSettingsSerializerTests
                 "unlisted",
                 true,
                 "27",
-                containsSyntheticMedia: true));
+                containsSyntheticMedia: true,
+                defaultAudioLanguage: "en-US",
+                defaultLanguage: "ru"));
 
         var settings = Assert.IsType<YouTubeSettings>(
             PublishSettingsSerializer.Deserialize(PlatformType.YouTube, json));
@@ -27,6 +29,8 @@ public class PublishSettingsSerializerTests
         Assert.True(settings.SelfDeclaredMadeForKids);
         Assert.Equal("27", settings.CategoryId);
         Assert.True(settings.ContainsSyntheticMedia);
+        Assert.Equal("en-US", settings.DefaultAudioLanguage);
+        Assert.Equal("ru", settings.DefaultLanguage);
     }
 
     [Fact]
@@ -49,6 +53,39 @@ public class PublishSettingsSerializerTests
 
         Assert.Null(settings.CategoryId);
         Assert.False(settings.ContainsSyntheticMedia);
+        Assert.Null(settings.DefaultAudioLanguage);
+        Assert.Null(settings.DefaultLanguage);
+    }
+
+    [Theory]
+    [InlineData("defaultAudioLanguage", "en-US")]
+    [InlineData("defaultLanguage", "ru")]
+    public void Deserialize_YouTubeSingleLanguageSettingsJson_PreservesConfiguredField(
+        string propertyName,
+        string value)
+    {
+        var json = $$"""
+            {
+              "credentials": {
+                "clientId": "client-id",
+                "clientSecret": "client-secret",
+                "refreshToken": "refresh-token"
+              },
+              "privacyStatus": "private",
+              "selfDeclaredMadeForKids": false,
+              "{{propertyName}}": "{{value}}"
+            }
+            """;
+
+        var settings = Assert.IsType<YouTubeSettings>(
+            PublishSettingsSerializer.Deserialize(PlatformType.YouTube, json));
+
+        Assert.Equal(
+            propertyName == "defaultAudioLanguage" ? value : null,
+            settings.DefaultAudioLanguage);
+        Assert.Equal(
+            propertyName == "defaultLanguage" ? value : null,
+            settings.DefaultLanguage);
     }
 
     [Fact]
@@ -153,7 +190,9 @@ public class PublishSettingsSerializerTests
                 "private",
                 false,
                 "27",
-                containsSyntheticMedia: true));
+                containsSyntheticMedia: true,
+                defaultAudioLanguage: "en-US",
+                defaultLanguage: "ru"));
 
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
@@ -167,6 +206,8 @@ public class PublishSettingsSerializerTests
         Assert.True(root.GetProperty("containsSyntheticMedia").GetBoolean());
         Assert.False(credentials.TryGetProperty("clientSecret", out _));
         Assert.False(credentials.TryGetProperty("refreshToken", out _));
+        Assert.False(root.TryGetProperty("defaultAudioLanguage", out _));
+        Assert.False(root.TryGetProperty("defaultLanguage", out _));
         Assert.DoesNotContain("client-secret", json);
         Assert.DoesNotContain("refresh-token", json);
     }

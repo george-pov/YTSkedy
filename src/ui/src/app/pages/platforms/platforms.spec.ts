@@ -103,6 +103,8 @@ describe('Platforms', () => {
         selfDeclaredMadeForKids: false,
         categoryId: null,
         containsSyntheticMedia: false,
+        defaultAudioLanguage: null,
+        defaultLanguage: null,
       },
       ...overrides,
     };
@@ -168,6 +170,8 @@ describe('Platforms', () => {
       youTubeMadeForKids: 'false',
       youTubeCategoryId: '',
       youTubeContainsSyntheticMedia: 'false',
+      youTubeDefaultAudioLanguage: '',
+      youTubeDefaultLanguage: '',
       wordPressSiteUrl: '',
       wordPressUsername: '',
       wordPressApplicationPassword: '',
@@ -728,6 +732,8 @@ describe('Platforms', () => {
       youTubeMadeForKids: 'false',
       youTubeCategoryId: '',
       youTubeContainsSyntheticMedia: 'false',
+      youTubeDefaultAudioLanguage: '',
+      youTubeDefaultLanguage: '',
       wordPressSiteUrl: ' https://blog.example.test/ ',
       wordPressUsername: ' publisher ',
       wordPressApplicationPassword: 'local-test-password',
@@ -982,6 +988,8 @@ describe('Platforms', () => {
       youTubeMadeForKids: 'false',
       youTubeCategoryId: '',
       youTubeContainsSyntheticMedia: 'false',
+      youTubeDefaultAudioLanguage: '',
+      youTubeDefaultLanguage: '',
       wordPressSiteUrl: 'https://blog.example.test/',
       wordPressUsername: 'publisher',
       wordPressApplicationPassword: 'replacement-local-password',
@@ -1055,12 +1063,152 @@ describe('Platforms', () => {
         selfDeclaredMadeForKids: false,
         categoryId: null,
         containsSyntheticMedia: false,
+        defaultAudioLanguage: null,
+        defaultLanguage: null,
       },
       publishingContent: publishingContent(),
     });
     expect(inputByLabel('Client secret').value).toBe('*********N3W');
     expect(await canDeactivate()).toBe(true);
     expect(confirmation.confirm).not.toHaveBeenCalled();
+  });
+
+  it('saves language fields independently and refreshes the saved baseline', async () => {
+    service.list.mockReturnValue(
+      of({
+        platforms: [
+          youTubePlatform({
+            publishSettings: {
+              credentials: {
+                clientId: 'client-id',
+                clientSecretConfigured: true,
+                refreshTokenConfigured: true,
+              },
+              privacyStatus: 'private',
+              selfDeclaredMadeForKids: false,
+              categoryId: null,
+              containsSyntheticMedia: false,
+              defaultAudioLanguage: 'en-US',
+              defaultLanguage: 'x-metadata',
+            },
+          }),
+        ],
+      }),
+    );
+    service.update.mockReturnValue(
+      of(
+        youTubePlatform({
+          publishSettings: {
+            credentials: {
+              clientId: 'client-id',
+              clientSecretConfigured: true,
+              refreshTokenConfigured: true,
+            },
+            privacyStatus: 'private',
+            selfDeclaredMadeForKids: false,
+            categoryId: null,
+            containsSyntheticMedia: false,
+            defaultAudioLanguage: 'fr',
+            defaultLanguage: 'x-metadata',
+          },
+        }),
+      ),
+    );
+
+    await createComponent();
+    await selectRow(0);
+    componentModel().set({
+      ...componentModel().get(),
+      youTubeDefaultAudioLanguage: 'fr',
+    });
+    fixture.detectChanges();
+
+    expect(buttonByText('Save changes').disabled).toBe(false);
+    await submitEditor();
+
+    expect(service.update).toHaveBeenCalledWith(
+      'YouTube',
+      'id-1',
+      expect.objectContaining({
+        publishSettings: expect.objectContaining({
+          defaultAudioLanguage: 'fr',
+          defaultLanguage: 'x-metadata',
+        }),
+      }),
+    );
+    expect(componentModel().get().youTubeDefaultAudioLanguage).toBe('fr');
+    expect(componentModel().get().youTubeDefaultLanguage).toBe('x-metadata');
+    expect(buttonByText('Save changes').disabled).toBe(true);
+  });
+
+  it('restores saved language fields after discarding edits', async () => {
+    service.list.mockReturnValue(
+      of({
+        platforms: [
+          youTubePlatform({
+            publishSettings: {
+              credentials: {
+                clientId: 'client-id',
+                clientSecretConfigured: true,
+                refreshTokenConfigured: true,
+              },
+              privacyStatus: 'private',
+              selfDeclaredMadeForKids: false,
+              categoryId: null,
+              containsSyntheticMedia: false,
+              defaultAudioLanguage: 'en-US',
+              defaultLanguage: 'ru',
+            },
+          }),
+        ],
+      }),
+    );
+    confirmation.confirm.mockReturnValue(of('discard'));
+
+    await createComponent();
+    await selectRow(0);
+    componentModel().set({
+      ...componentModel().get(),
+      youTubeDefaultAudioLanguage: 'fr',
+      youTubeDefaultLanguage: 'de',
+    });
+    fixture.detectChanges();
+    buttonByText('Cancel').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(editor()).toBeNull();
+    await selectRow(0);
+    expect(componentModel().get().youTubeDefaultAudioLanguage).toBe('en-US');
+    expect(componentModel().get().youTubeDefaultLanguage).toBe('ru');
+  });
+
+  it('preserves language values while switching new-platform types', async () => {
+    service.list.mockReturnValue(of({ platforms: [] }));
+
+    await createComponent();
+    buttonByText('Add Platform').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    componentModel().set({
+      ...componentModel().get(),
+      type: 'WordPress',
+      youTubeDefaultAudioLanguage: 'en-US',
+      youTubeDefaultLanguage: 'x-metadata',
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-youtube-settings')).toBeNull();
+    expect(fixture.nativeElement.querySelector('app-wordpress-settings')).not.toBeNull();
+
+    componentModel().set({ ...componentModel().get(), type: 'YouTube' });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-youtube-settings')).not.toBeNull();
+    expect(componentModel().get().youTubeDefaultAudioLanguage).toBe('en-US');
+    expect(componentModel().get().youTubeDefaultLanguage).toBe('x-metadata');
   });
 
   it('surfaces a friendly message when the name is already taken', async () => {
@@ -1281,9 +1429,9 @@ describe('Platforms', () => {
 
     expect(await canDeactivate()).toBe(false);
     deletion.error(new Error('delete failed'));
-    expect((fixture.componentInstance as unknown as { isDeleting: () => boolean }).isDeleting()).toBe(
-      false,
-    );
+    expect(
+      (fixture.componentInstance as unknown as { isDeleting: () => boolean }).isDeleting(),
+    ).toBe(false);
   });
 
   it('allows route exit while initial platform reads are active', async () => {

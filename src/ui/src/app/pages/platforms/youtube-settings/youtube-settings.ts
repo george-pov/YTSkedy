@@ -5,6 +5,10 @@ import { Input } from 'src/app/shared/components/input/input';
 import { MaskedInput } from 'src/app/shared/components/masked-input/masked-input';
 import { Select, SelectOption } from 'src/app/shared/components/select/select';
 import { youtubeCategoryOptionsFor } from './youtube-categories';
+import {
+  youtubeAudioLanguageOptionsFor,
+  youtubeMetadataLanguageOptionsFor,
+} from './youtube-languages';
 
 /**
  * Editor settings specific to a YouTube platform. Presentational only: the
@@ -29,9 +33,17 @@ export class YouTubeSettings {
   readonly madeForKids = input.required<Field<string>>();
   readonly categoryId = input.required<Field<string>>();
   readonly containsSyntheticMedia = input.required<Field<string>>();
+  readonly defaultAudioLanguage = input.required<Field<string>>();
+  readonly defaultLanguage = input.required<Field<string>>();
 
   protected readonly categoryOptions = computed(() =>
     youtubeCategoryOptionsFor(this.categoryId()().value()),
+  );
+  protected readonly audioLanguageOptions = computed(() =>
+    youtubeAudioLanguageOptionsFor(this.defaultAudioLanguage()().value()),
+  );
+  protected readonly metadataLanguageOptions = computed(() =>
+    youtubeMetadataLanguageOptionsFor(this.defaultLanguage()().value()),
   );
 
   protected readonly privacyOptions: readonly SelectOption[] = [

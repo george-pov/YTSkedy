@@ -100,11 +100,13 @@ flow.
          "clientId": "your-google-oauth-client-id",
          "clientSecret": "your-google-oauth-client-secret",
          "refreshToken": "your-refresh-token-from-the-playground"
-       },
-       "privacyStatus": "private",
-       "selfDeclaredMadeForKids": false
-     }
-   }
+        },
+        "privacyStatus": "private",
+        "selfDeclaredMadeForKids": false,
+        "defaultAudioLanguage": "en-US",
+        "defaultLanguage": "en"
+      }
+    }
    ```
 
 Privacy and the made-for-kids flag are not configured here. They are part of each
@@ -113,6 +115,24 @@ test broadcasts. YouTube provider credentials are stored in the platform row in
 this local/test slice, matching WordPress Application Password storage. An
 app-managed secret store such as Key Vault is not part of the current
 implementation.
+
+Language settings do not add an OAuth scope or change channel ownership. The
+Google account and refresh token used by the platform still determine the
+YouTube channel that receives the broadcast. `defaultAudioLanguage` sets the
+default stream language and `defaultLanguage` sets the title and description
+language. Omit either property, send null, or send a blank value to use YouTube
+Default.
+
+The YouTube video resource documents both language properties:
+<https://developers.google.com/youtube/v3/docs/videos>. The
+`videos.update` writable-property summary does not list
+`snippet.defaultAudioLanguage`:
+<https://developers.google.com/youtube/v3/docs/videos/update>. YTSkedy accepts
+that documentation discrepancy based on the API resource shape and verified
+YouTube Studio behavior, but YouTube remains the runtime authority. If YouTube
+rejects a language value or update, publication follows the normal failed-state
+contract and retains a known external id for operator verification. Inspect the
+broadcast in YouTube Studio before retrying or cleaning it up.
 
 ## Part D: Run and verify
 
@@ -138,11 +158,13 @@ implementation.
          "clientId": "your-google-oauth-client-id",
          "clientSecret": "your-google-oauth-client-secret",
          "refreshToken": "your-refresh-token-from-the-playground"
-       },
-       "privacyStatus": "private",
-       "selfDeclaredMadeForKids": false
-     }
-   }
+        },
+        "privacyStatus": "private",
+        "selfDeclaredMadeForKids": false,
+        "defaultAudioLanguage": "en-US",
+        "defaultLanguage": "en"
+      }
+    }
    ```
 
 5. Create a calendar event with a future start time and required text values.
@@ -152,6 +174,8 @@ implementation.
    `status: "Published"`, an `externalResourceId`, and `publishedUtc`.
 7. Confirm in YouTube Studio under Content, then Live: a private scheduled
    broadcast appears with the rendered template title at the scheduled time.
+   Open its details and confirm Stream language and Title and description
+   language match the platform settings.
 8. To delete that created broadcast through YTSkedy, call
    `DELETE /api/calendar-events/{calendarEventId}/platforms/{platformId}/publication`
    before the event start time. On success the platform row returns to

@@ -79,7 +79,7 @@ public class YouTubePublisherTests
     }
 
     [Fact]
-    public async Task PublishAsync_CategoryDisclosureAndVisibility_ReadsAndUpdatesRequiredParts()
+    public async Task PublishAsync_CategoryLanguagesDisclosureAndVisibility_ReadsAndUpdatesRequiredParts()
     {
         _client
             .Setup(candidate => candidate.InsertBroadcastAsync(
@@ -103,15 +103,21 @@ public class YouTubePublisherTests
             .Returns<Video, string, CancellationToken>(
                 (video, _, _) => Task.FromResult(video));
         await _publisher.PublishAsync(
-            Request(Settings("public", "27", containsSyntheticMedia: true)),
+            Request(Settings(
+                "public",
+                "27",
+                containsSyntheticMedia: true,
+                defaultAudioLanguage: "en-US",
+                defaultLanguage: "ru")),
             CancellationToken.None);
 
         Assert.NotNull(updatedVideo);
         Assert.Equal("27", updatedVideo!.Snippet.CategoryId);
+        Assert.Equal("en-US", updatedVideo.Snippet.DefaultAudioLanguage);
+        Assert.Equal("ru", updatedVideo.Snippet.DefaultLanguage);
         Assert.Equal("Original title", updatedVideo.Snippet.Title);
         Assert.Equal("Original description", updatedVideo.Snippet.Description);
         Assert.Equal(["one", "two"], updatedVideo.Snippet.Tags);
-        Assert.Equal("en", updatedVideo.Snippet.DefaultLanguage);
         Assert.Equal("public", updatedVideo.Status.PrivacyStatus);
         Assert.True(updatedVideo.Status.ContainsSyntheticMedia);
         Assert.False(updatedVideo.Status.SelfDeclaredMadeForKids);
@@ -119,6 +125,14 @@ public class YouTubePublisherTests
         Assert.Equal("youtube", updatedVideo.Status.License);
         Assert.True(updatedVideo.Status.PublicStatsViewable);
         Assert.Null(updatedVideo.Status.PublishAtDateTimeOffset);
+        _client.Verify(candidate => candidate.GetVideoAsync(
+            BroadcastId,
+            "snippet,status",
+            CancellationToken.None), Times.Once());
+        _client.Verify(candidate => candidate.UpdateVideoAsync(
+            It.IsAny<Video>(),
+            "snippet,status",
+            CancellationToken.None), Times.Once());
     }
 
     [Fact]
@@ -143,14 +157,18 @@ public class YouTubePublisherTests
             .ThrowsAsync(new InvalidOperationException("provider rejected update"));
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
             () => _publisher.PublishAsync(
-                Request(Settings(categoryId: "999999")),
+                Request(Settings(defaultAudioLanguage: "provider-invalid")),
                 CancellationToken.None));
 
         Assert.Equal(BroadcastId, exception.ExternalResourceId);
         _client.Verify(candidate => candidate.UpdateVideoAsync(
             It.IsAny<Video>(),
             "snippet",
-            CancellationToken.None));
+            CancellationToken.None), Times.Once());
+        _client.Verify(candidate => candidate.GetVideoAsync(
+            BroadcastId,
+            "snippet",
+            CancellationToken.None), Times.Once());
     }
 
     [Fact]
@@ -280,13 +298,17 @@ public class YouTubePublisherTests
     private static YouTubeSettings Settings(
         string privacyStatus = "private",
         string? categoryId = null,
-        bool containsSyntheticMedia = false) =>
+        bool containsSyntheticMedia = false,
+        string? defaultAudioLanguage = null,
+        string? defaultLanguage = null) =>
         new(
             new YouTubeCredentials("client-id", ClientSecret, RefreshToken),
             privacyStatus,
             false,
             categoryId,
-            containsSyntheticMedia);
+            containsSyntheticMedia,
+            defaultAudioLanguage,
+            defaultLanguage);
 
     private static Video Video() =>
         new()
@@ -295,7 +317,8 @@ public class YouTubePublisherTests
             Snippet = new VideoSnippet
             {
                 CategoryId = "22",
-                DefaultLanguage = "en",
+                DefaultAudioLanguage = "en",
+                DefaultLanguage = "de",
                 Description = "Original description",
                 Tags = ["one", "two"],
                 Title = "Original title"

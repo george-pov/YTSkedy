@@ -7,18 +7,27 @@ namespace YTSkedy.Infrastructure.Test.YouTube;
 public class YouTubeVideoUpdateFactoryTests
 {
     [Theory]
-    [InlineData("private", null, false, null)]
-    [InlineData("private", "27", false, "snippet")]
-    [InlineData("private", null, true, "status")]
-    [InlineData("unlisted", null, false, "status")]
-    [InlineData("public", "27", false, "snippet,status")]
+    [InlineData("private", null, false, null, null, null)]
+    [InlineData("private", "27", false, null, null, "snippet")]
+    [InlineData("private", null, false, "en-US", null, "snippet")]
+    [InlineData("private", null, false, null, "ru", "snippet")]
+    [InlineData("private", null, true, null, null, "status")]
+    [InlineData("unlisted", null, false, null, null, "status")]
+    [InlineData("public", "27", false, "en-US", "ru", "snippet,status")]
     public void RequiredParts_Settings_ReturnsMinimumParts(
         string privacyStatus,
         string? categoryId,
         bool containsSyntheticMedia,
+        string? defaultAudioLanguage,
+        string? defaultLanguage,
         string? expected)
     {
-        var settings = Settings(privacyStatus, categoryId, containsSyntheticMedia);
+        var settings = Settings(
+            privacyStatus,
+            categoryId,
+            containsSyntheticMedia,
+            defaultAudioLanguage,
+            defaultLanguage);
 
         var parts = YouTubeVideoUpdateFactory.RequiredParts(settings);
 
@@ -40,9 +49,49 @@ public class YouTubeVideoUpdateFactoryTests
         Assert.Equal("27", update.Video.Snippet.CategoryId);
         Assert.Equal(current.Snippet.Title, update.Video.Snippet.Title);
         Assert.Equal(current.Snippet.Description, update.Video.Snippet.Description);
+        Assert.Equal(
+            current.Snippet.DefaultAudioLanguage,
+            update.Video.Snippet.DefaultAudioLanguage);
         Assert.Equal(current.Snippet.DefaultLanguage, update.Video.Snippet.DefaultLanguage);
         Assert.Equal(current.Snippet.Tags, update.Video.Snippet.Tags);
         Assert.Null(update.Video.Status);
+    }
+
+    [Theory]
+    [InlineData("en-US", null, "en-US", "ru")]
+    [InlineData(null, "fr", "en", "fr")]
+    [InlineData("en-US", "fr", "en-US", "fr")]
+    public void Create_LanguageSettings_OverridesConfiguredAndPreservesUnconfigured(
+        string? defaultAudioLanguage,
+        string? defaultLanguage,
+        string expectedAudioLanguage,
+        string expectedLanguage)
+    {
+        var update = YouTubeVideoUpdateFactory.Create(
+            CurrentVideo(),
+            Settings(
+                defaultAudioLanguage: defaultAudioLanguage,
+                defaultLanguage: defaultLanguage),
+            new YouTubeVideoUpdateParts(IncludeSnippet: true, IncludeStatus: false));
+
+        Assert.Equal(expectedAudioLanguage, update.Video.Snippet.DefaultAudioLanguage);
+        Assert.Equal(expectedLanguage, update.Video.Snippet.DefaultLanguage);
+    }
+
+    [Fact]
+    public void Create_CategoryOnly_PreservesAudioAndMetadataLanguages()
+    {
+        var current = CurrentVideo();
+
+        var update = YouTubeVideoUpdateFactory.Create(
+            current,
+            Settings(categoryId: "27"),
+            new YouTubeVideoUpdateParts(IncludeSnippet: true, IncludeStatus: false));
+
+        Assert.Equal(
+            current.Snippet.DefaultAudioLanguage,
+            update.Video.Snippet.DefaultAudioLanguage);
+        Assert.Equal(current.Snippet.DefaultLanguage, update.Video.Snippet.DefaultLanguage);
     }
 
     [Fact]
@@ -71,13 +120,17 @@ public class YouTubeVideoUpdateFactoryTests
     private static YouTubeSettings Settings(
         string privacyStatus = "private",
         string? categoryId = null,
-        bool containsSyntheticMedia = false) =>
+        bool containsSyntheticMedia = false,
+        string? defaultAudioLanguage = null,
+        string? defaultLanguage = null) =>
         new(
             new YouTubeCredentials("client-id", "client-secret", "refresh-token"),
             privacyStatus,
             false,
             categoryId,
-            containsSyntheticMedia);
+            containsSyntheticMedia,
+            defaultAudioLanguage,
+            defaultLanguage);
 
     private static Video CurrentVideo() =>
         new()
@@ -86,7 +139,8 @@ public class YouTubeVideoUpdateFactoryTests
             Snippet = new VideoSnippet
             {
                 CategoryId = "22",
-                DefaultLanguage = "en",
+                DefaultAudioLanguage = "en",
+                DefaultLanguage = "ru",
                 Description = "Description",
                 Tags = ["one", "two"],
                 Title = "Title"

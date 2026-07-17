@@ -18,7 +18,9 @@ internal sealed record PublishSettingsRequest(
     int? ScheduleOffsetHours = null,
     IReadOnlyList<long>? CategoryIds = null,
     string? CategoryId = null,
-    bool? ContainsSyntheticMedia = null);
+    bool? ContainsSyntheticMedia = null,
+    string? DefaultAudioLanguage = null,
+    string? DefaultLanguage = null);
 
 internal sealed record YouTubeCredentialsRequest(
     string? ClientId,

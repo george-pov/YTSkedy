@@ -13,6 +13,16 @@
 />
 <app-select [field]="privacyStatus()" label="Privacy status" [options]="privacyOptions" />
 <app-select [field]="madeForKids()" label="Made for kids" [options]="madeForKidsOptions" />
+<app-select
+  [field]="defaultAudioLanguage()"
+  label="Stream language"
+  [options]="audioLanguageOptions()"
+/>
+<app-select
+  [field]="defaultLanguage()"
+  label="Title and description language"
+  [options]="metadataLanguageOptions()"
+/>
 <app-select [field]="categoryId()" label="Category" [options]="categoryOptions()" />
 <app-select
   [field]="containsSyntheticMedia()"

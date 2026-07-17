@@ -32,7 +32,11 @@ internal sealed record PublishSettingsResponse(
     [property: JsonIgnore]
     string? CategoryId,
     [property: JsonIgnore]
-    bool? ContainsSyntheticMedia)
+    bool? ContainsSyntheticMedia,
+    [property: JsonIgnore]
+    string? DefaultAudioLanguage,
+    [property: JsonIgnore]
+    string? DefaultLanguage)
 {
     [JsonExtensionData]
     public Dictionary<string, object?>? ProviderFields { get; init; }
@@ -42,7 +46,9 @@ internal sealed record PublishSettingsResponse(
         string privacyStatus,
         bool selfDeclaredMadeForKids,
         string? categoryId,
-        bool containsSyntheticMedia) =>
+        bool containsSyntheticMedia,
+        string? defaultAudioLanguage,
+        string? defaultLanguage) =>
         new(
             credentials,
             privacyStatus,
@@ -56,12 +62,16 @@ internal sealed record PublishSettingsResponse(
             ApplicationPasswordConfigured: null,
             PasswordDisplayValue: null,
             CategoryId: categoryId,
-            ContainsSyntheticMedia: containsSyntheticMedia)
+            ContainsSyntheticMedia: containsSyntheticMedia,
+            DefaultAudioLanguage: defaultAudioLanguage,
+            DefaultLanguage: defaultLanguage)
         {
             ProviderFields = new Dictionary<string, object?>
             {
                 ["categoryId"] = categoryId,
-                ["containsSyntheticMedia"] = containsSyntheticMedia
+                ["containsSyntheticMedia"] = containsSyntheticMedia,
+                ["defaultAudioLanguage"] = defaultAudioLanguage,
+                ["defaultLanguage"] = defaultLanguage
             }
         };
 
@@ -87,7 +97,9 @@ internal sealed record PublishSettingsResponse(
             ApplicationPasswordConfigured: applicationPasswordConfigured,
             PasswordDisplayValue: passwordDisplayValue,
             CategoryId: null,
-            ContainsSyntheticMedia: null);
+            ContainsSyntheticMedia: null,
+            DefaultAudioLanguage: null,
+            DefaultLanguage: null);
 }
 
 internal sealed record YouTubeCredentialsResponse(
