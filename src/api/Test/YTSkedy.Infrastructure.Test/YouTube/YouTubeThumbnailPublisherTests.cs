@@ -19,6 +19,7 @@ public class YouTubeThumbnailPublisherTests
     private const string BroadcastId = SchedulingSampleIds.YouTubeBroadcastId;
     private const string ClientSecret = "client-secret-value";
     private const string RefreshToken = "refresh-token-value";
+    private readonly Mock<ILogger<YouTubeThumbnailPublisher>> _logger = new();
 
     [Fact]
     public void Type_IsYouTube()
@@ -54,18 +55,16 @@ public class YouTubeThumbnailPublisherTests
     [Fact]
     public async Task PublishAsync_ProviderFailure_ThrowsWithoutLoggingSecrets()
     {
-        var logger = new Mock<ILogger<YouTubeThumbnailPublisher>>();
         var publisher = CreatePublisher(
             new FakeThumbnailClient
             {
                 Throws = new YouTubeThumbnailPublishException(null, ["invalidImage"])
-            },
-            logger.Object);
+            });
 
         await Assert.ThrowsAsync<ThumbnailPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
 
-        var logText = logger.GetLogText();
+        var logText = _logger.GetLogText();
         Assert.DoesNotContain(ClientSecret, logText);
         Assert.DoesNotContain(RefreshToken, logText);
         Assert.Contains("invalidImage", logText);
@@ -84,10 +83,8 @@ public class YouTubeThumbnailPublisherTests
             () => publisher.PublishAsync(Request(), CancellationToken.None));
     }
 
-    private static YouTubeThumbnailPublisher CreatePublisher(
-        FakeThumbnailClient client,
-        ILogger<YouTubeThumbnailPublisher>? logger = null) =>
-        new(client, logger ?? Mock.Of<ILogger<YouTubeThumbnailPublisher>>());
+    private YouTubeThumbnailPublisher CreatePublisher(FakeThumbnailClient client) =>
+        new(client, _logger.Object);
 
     private static ThumbnailPublishRequest Request(PublishSettings? settings = null) =>
         new(

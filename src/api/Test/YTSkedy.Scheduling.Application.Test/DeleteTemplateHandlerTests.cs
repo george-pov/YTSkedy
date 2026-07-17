@@ -7,33 +7,39 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class DeleteTemplateHandlerTests
 {
+    private readonly Mock<ITemplateModifier> _modifier = new();
+    private readonly Mock<IPlatformReader> _platforms = new();
+    private readonly DeleteTemplateHandler _handler;
+
+    public DeleteTemplateHandlerTests()
+    {
+        _handler = new DeleteTemplateHandler(_modifier.Object, _platforms.Object);
+    }
+
     [Fact]
     public async Task HandleAsync_ValidCommand_ForwardsToModifierAndReturnsResult()
     {
-        var modifier = new Mock<ITemplateModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.DeleteAsync(
                 TemplateType.YouTube,
                 "9f8b1c2d3e4f",
                 CancellationToken.None))
             .ReturnsAsync(DeleteTemplateResult.Deleted);
-        var platforms = new Mock<IPlatformReader>();
-        platforms
+        _platforms
             .Setup(reader => reader.ListAsync(
                 PlatformType.YouTube,
                 CancellationToken.None))
             .ReturnsAsync([]);
-        var handler = new DeleteTemplateHandler(modifier.Object, platforms.Object);
         var command = new DeleteTemplateCommand(TemplateType.YouTube, "9f8b1c2d3e4f");
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(DeleteTemplateResult.Deleted, result);
-        modifier.Verify(candidate => candidate.DeleteAsync(
+        _modifier.Verify(candidate => candidate.DeleteAsync(
             TemplateType.YouTube,
             "9f8b1c2d3e4f",
             CancellationToken.None));
-        platforms.Verify(reader => reader.ListAsync(
+        _platforms.Verify(reader => reader.ListAsync(
             PlatformType.YouTube,
             CancellationToken.None));
     }
@@ -44,23 +50,20 @@ public class DeleteTemplateHandlerTests
     public async Task HandleAsync_ModifierResult_IsReturnedUnchanged(
         DeleteTemplateResult modifierResult)
     {
-        var modifier = new Mock<ITemplateModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.DeleteAsync(
                 It.IsAny<TemplateType>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(modifierResult);
-        var platforms = new Mock<IPlatformReader>();
-        platforms
+        _platforms
             .Setup(reader => reader.ListAsync(
                 PlatformType.WordPress,
                 CancellationToken.None))
             .ReturnsAsync([]);
-        var handler = new DeleteTemplateHandler(modifier.Object, platforms.Object);
         var command = new DeleteTemplateCommand(TemplateType.WordPress, "9f8b1c2d3e4f");
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(modifierResult, result);
     }
@@ -68,9 +71,7 @@ public class DeleteTemplateHandlerTests
     [Fact]
     public async Task HandleAsync_TemplateReferencedByPlatform_ReturnsReferencedByPlatform()
     {
-        var modifier = new Mock<ITemplateModifier>();
-        var platforms = new Mock<IPlatformReader>();
-        platforms
+        _platforms
             .Setup(reader => reader.ListAsync(
                 PlatformType.YouTube,
                 CancellationToken.None))
@@ -82,13 +83,12 @@ public class DeleteTemplateHandlerTests
                         "9f8b1c2d3e4f",
                         "description-template"))
             ]);
-        var handler = new DeleteTemplateHandler(modifier.Object, platforms.Object);
         var command = new DeleteTemplateCommand(TemplateType.YouTube, "9f8b1c2d3e4f");
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(DeleteTemplateResult.ReferencedByPlatform, result);
-        modifier.Verify(candidate => candidate.DeleteAsync(
+        _modifier.Verify(candidate => candidate.DeleteAsync(
             It.IsAny<TemplateType>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
@@ -97,15 +97,10 @@ public class DeleteTemplateHandlerTests
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var modifier = new Mock<ITemplateModifier>();
-        var handler = new DeleteTemplateHandler(
-            modifier.Object,
-            new Mock<IPlatformReader>().Object);
-
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => handler.HandleAsync(null!, CancellationToken.None));
+            () => _handler.HandleAsync(null!, CancellationToken.None));
 
-        modifier.Verify(candidate => candidate.DeleteAsync(
+        _modifier.Verify(candidate => candidate.DeleteAsync(
             It.IsAny<TemplateType>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());

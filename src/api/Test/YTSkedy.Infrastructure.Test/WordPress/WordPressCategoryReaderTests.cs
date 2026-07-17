@@ -12,6 +12,8 @@ namespace YTSkedy.Infrastructure.Test.WordPress;
 public class WordPressCategoryReaderTests
 {
     private const string ApplicationPassword = "application-password-secret";
+    private readonly Mock<ILogger<WordPressCategoryReader>> _logger = new();
+    private readonly Mock<ILogger<WordPressEndpointResolver>> _resolverLogger = new();
 
     [Fact]
     public async Task ListAsync_PrettyRoot_MapsRequestResponseAndPaging()
@@ -100,18 +102,17 @@ public class WordPressCategoryReaderTests
     [Fact]
     public async Task ListAsync_NonSuccessStatus_ThrowsAndLogsSafeContext()
     {
-        var logger = new Mock<ILogger<WordPressCategoryReader>>();
         var handler = CategoryHandler(
             PagedJsonResponse(
                 """{"code":"rest_forbidden","message":"secret body"}""",
                 statusCode: HttpStatusCode.Forbidden));
-        var reader = CreateReader(handler, logger.Object);
+        var reader = CreateReader(handler);
 
         var exception = await Assert.ThrowsAsync<CategoryReadException>(
             () => ListAsync(reader));
 
         Assert.Equal("WordPress category lookup failed.", exception.Message);
-        var logText = logger.GetLogText();
+        var logText = _logger.GetLogText();
         Assert.Contains("403", logText);
         Assert.Contains("example.com", logText);
         Assert.DoesNotContain(ApplicationPassword, logText);
@@ -177,18 +178,17 @@ public class WordPressCategoryReaderTests
     [Fact]
     public async Task ListAsync_HttpFailure_ThrowsAndDoesNotLogCredentials()
     {
-        var logger = new Mock<ILogger<WordPressCategoryReader>>();
         var handler = CategoryHandler(
             response: null,
             categoryException: new HttpRequestException(
                 $"network down search=private-query password={ApplicationPassword}"));
-        var reader = CreateReader(handler, logger.Object);
+        var reader = CreateReader(handler);
 
         var exception = await Assert.ThrowsAsync<CategoryReadException>(
             () => ListAsync(reader));
 
         Assert.IsType<HttpRequestException>(exception.InnerException);
-        var logText = logger.GetLogText();
+        var logText = _logger.GetLogText();
         Assert.DoesNotContain(ApplicationPassword, logText);
         Assert.DoesNotContain("Basic", logText);
         Assert.DoesNotContain("private-query", logText);
@@ -228,17 +228,15 @@ public class WordPressCategoryReaderTests
             new CategoryQuery("events", [], 1, 25),
             CancellationToken.None);
 
-    private static WordPressCategoryReader CreateReader(
-        FakeHttpMessageHandler handler,
-        ILogger<WordPressCategoryReader>? logger = null)
+    private WordPressCategoryReader CreateReader(FakeHttpMessageHandler handler)
     {
         var client = new HttpClient(handler);
         return new WordPressCategoryReader(
             client,
             new WordPressEndpointResolver(
                 client,
-                Mock.Of<ILogger<WordPressEndpointResolver>>()),
-            logger ?? Mock.Of<ILogger<WordPressCategoryReader>>());
+                _resolverLogger.Object),
+            _logger.Object);
     }
 
     private static FakeHttpMessageHandler CategoryHandler(

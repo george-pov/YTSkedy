@@ -5,19 +5,25 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public sealed class UpdateCalendarEventDefaultsHandlerTests
 {
+    private readonly Mock<ICalendarEventDefaultsModifier> _modifier = new();
+    private readonly UpdateCalendarEventDefaultsHandler _handler;
+
+    public UpdateCalendarEventDefaultsHandlerTests()
+    {
+        _handler = new UpdateCalendarEventDefaultsHandler(_modifier.Object);
+    }
+
     [Fact]
     public async Task HandleAsync_Replacement_SavesAndReturnsNormalizedSettings()
     {
         CalendarEventDefaults? saved = null;
-        var modifier = new Mock<ICalendarEventDefaultsModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.SaveAsync(
                 It.IsAny<CalendarEventDefaults>(),
                 CancellationToken.None))
             .Callback<CalendarEventDefaults, CancellationToken>(
                 (defaults, _) => saved = defaults)
             .Returns(Task.CompletedTask);
-        var handler = new UpdateCalendarEventDefaultsHandler(modifier.Object);
         var command = new UpdateCalendarEventDefaultsCommand(
             [
                 new EventTextField(" Title ", EventTextType.ShortText, 80),
@@ -27,7 +33,7 @@ public sealed class UpdateCalendarEventDefaultsHandlerTests
             new TimeOnly(10, 30),
             "America/Vancouver");
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Same(result, saved);
         Assert.Equal(
@@ -47,11 +53,8 @@ public sealed class UpdateCalendarEventDefaultsHandlerTests
     [Fact]
     public async Task HandleAsync_InvalidTimeZone_DoesNotSave()
     {
-        var modifier = new Mock<ICalendarEventDefaultsModifier>();
-        var handler = new UpdateCalendarEventDefaultsHandler(modifier.Object);
-
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            handler.HandleAsync(
+            _handler.HandleAsync(
                 new UpdateCalendarEventDefaultsCommand(
                     [new EventTextField("Title", EventTextType.ShortText, 50)],
                     null,
@@ -59,7 +62,7 @@ public sealed class UpdateCalendarEventDefaultsHandlerTests
                     "Unknown/Zone"),
                 CancellationToken.None));
 
-        modifier.Verify(candidate => candidate.SaveAsync(
+        _modifier.Verify(candidate => candidate.SaveAsync(
             It.IsAny<CalendarEventDefaults>(),
             It.IsAny<CancellationToken>()), Times.Never());
     }
@@ -67,13 +70,10 @@ public sealed class UpdateCalendarEventDefaultsHandlerTests
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var modifier = new Mock<ICalendarEventDefaultsModifier>();
-        var handler = new UpdateCalendarEventDefaultsHandler(modifier.Object);
-
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => handler.HandleAsync(null!, CancellationToken.None));
+            () => _handler.HandleAsync(null!, CancellationToken.None));
 
-        modifier.Verify(candidate => candidate.SaveAsync(
+        _modifier.Verify(candidate => candidate.SaveAsync(
             It.IsAny<CalendarEventDefaults>(),
             It.IsAny<CancellationToken>()), Times.Never());
     }

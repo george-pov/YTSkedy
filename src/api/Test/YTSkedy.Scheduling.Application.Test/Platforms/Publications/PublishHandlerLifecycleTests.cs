@@ -10,10 +10,12 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class PublishHandlerLifecycleTests
 {
+    private readonly PublishHandlerScenario _scenario = new();
+
     [Fact]
     public async Task HandleAsync_AttemptConflict_ReturnsPublishInProgress()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         scenario.PublicationAttempts
             .Setup(candidate => candidate.StartPublishingAsync(
                 It.IsAny<PlatformPublicationAttempt>(),
@@ -23,29 +25,28 @@ public class PublishHandlerLifecycleTests
         var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.PublishInProgress, result.Status);
-        VerifyNoIndexAdd(scenario);
+        VerifyNoIndexAdd();
     }
 
     [Fact]
     public async Task HandleAsync_ProviderFailure_MarksFailedWithoutExternalId()
     {
-        var scenario = new PublishHandlerScenario();
-        SetPublisherException(scenario, new PlatformPublishException("provider down"));
+        var scenario = _scenario;
+        SetPublisherException(new PlatformPublishException("provider down"));
 
         var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        VerifyMarkedFailed(scenario, externalResourceId: null);
-        VerifyNoReleaseOrPublished(scenario);
-        VerifyNoIndexAdd(scenario);
+        VerifyMarkedFailed(externalResourceId: null);
+        VerifyNoReleaseOrPublished();
+        VerifyNoIndexAdd();
     }
 
     [Fact]
     public async Task HandleAsync_ProviderFailureWithExternalId_MarksFailedWithExternalId()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         SetPublisherException(
-            scenario,
             new PlatformPublishException(
                 "metadata update failed",
                 "yt-created-broadcast-id"));
@@ -53,30 +54,29 @@ public class PublishHandlerLifecycleTests
         var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        VerifyMarkedFailed(scenario, "yt-created-broadcast-id");
-        VerifyNoRelease(scenario);
+        VerifyMarkedFailed("yt-created-broadcast-id");
+        VerifyNoRelease();
     }
 
     [Fact]
     public async Task HandleAsync_ProviderValidationFailure_MarksFailed()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         SetPublisherException(
-            scenario,
             new PlatformPublishValidationException("invalid provider settings"));
 
         var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        VerifyMarkedFailed(scenario, externalResourceId: null);
-        VerifyNoReleaseOrPublished(scenario);
-        VerifyNoIndexAdd(scenario);
+        VerifyMarkedFailed(externalResourceId: null);
+        VerifyNoReleaseOrPublished();
+        VerifyNoIndexAdd();
     }
 
     [Fact]
     public async Task HandleAsync_FinalizeReturnsNull_MarksFailedWithProviderId()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         scenario.PublicationAttempts
             .Setup(candidate => candidate.MarkPublishedAsync(
                 It.IsAny<string>(),
@@ -88,15 +88,15 @@ public class PublishHandlerLifecycleTests
         var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        VerifyMarkedFailed(scenario, ExternalResourceId);
-        VerifyNoRelease(scenario);
-        VerifyNoIndexAdd(scenario);
+        VerifyMarkedFailed(ExternalResourceId);
+        VerifyNoRelease();
+        VerifyNoIndexAdd();
     }
 
     [Fact]
     public async Task HandleAsync_FinalizeAndMarkFailedCannotWrite_ReturnsFinalizeFailed()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         scenario.PublicationAttempts
             .Setup(candidate => candidate.MarkPublishedAsync(
                 It.IsAny<string>(),
@@ -115,13 +115,13 @@ public class PublishHandlerLifecycleTests
         var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.FinalizeFailed, result.Status);
-        VerifyMarkedFailed(scenario, ExternalResourceId);
+        VerifyMarkedFailed(ExternalResourceId);
     }
 
     [Fact]
     public async Task HandleAsync_FinalizeThrows_MarksFailedWithProviderId()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         scenario.PublicationAttempts
             .Setup(candidate => candidate.MarkPublishedAsync(
                 It.IsAny<string>(),
@@ -133,14 +133,14 @@ public class PublishHandlerLifecycleTests
         var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        VerifyMarkedFailed(scenario, ExternalResourceId);
+        VerifyMarkedFailed(ExternalResourceId);
     }
 
     [Fact]
     public async Task HandleAsync_MarkFailedThrows_ReturnsFinalizeFailed()
     {
-        var scenario = new PublishHandlerScenario();
-        SetPublisherException(scenario, new PlatformPublishException("provider down"));
+        var scenario = _scenario;
+        SetPublisherException(new PlatformPublishException("provider down"));
         scenario.PublicationAttempts
             .Setup(candidate => candidate.MarkFailedAsync(
                 It.IsAny<string>(),
@@ -157,8 +157,8 @@ public class PublishHandlerLifecycleTests
     [Fact]
     public async Task HandleAsync_PostStartOperationCanceled_AttemptsFailedFinalization()
     {
-        var scenario = new PublishHandlerScenario();
-        SetPublisherException(scenario, new OperationCanceledException());
+        var scenario = _scenario;
+        SetPublisherException(new OperationCanceledException());
 
         var result = await scenario.HandleAsync();
 
@@ -166,8 +166,8 @@ public class PublishHandlerLifecycleTests
         scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
             It.IsAny<PlatformPublicationAttempt>(),
             It.IsAny<CancellationToken>()));
-        VerifyMarkedFailed(scenario, externalResourceId: null);
-        VerifyNoRelease(scenario);
+        VerifyMarkedFailed(externalResourceId: null);
+        VerifyNoRelease();
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public class PublishHandlerLifecycleTests
     {
         using var request = new CancellationTokenSource();
         request.Cancel();
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             scenario.HandleAsync(request.Token));
@@ -192,7 +192,7 @@ public class PublishHandlerLifecycleTests
         using var request = new CancellationTokenSource();
         using var operation = new CancellationTokenSource();
         using var finalization = new CancellationTokenSource();
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         scenario.ExecutionScopes.Scope.OperationToken = operation.Token;
         scenario.ExecutionScopes.Scope.FinalizationToken = finalization.Token;
         scenario.Publisher
@@ -238,10 +238,9 @@ public class PublishHandlerLifecycleTests
     public async Task HandleAsync_ProviderTimeout_RecordsFailedWithBoundedFinalization()
     {
         using var finalization = new CancellationTokenSource();
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         scenario.ExecutionScopes.Scope.FinalizationToken = finalization.Token;
         SetPublisherException(
-            scenario,
             new PlatformPublishException(
                 "provider timeout",
                 externalResourceId: null,
@@ -260,7 +259,7 @@ public class PublishHandlerLifecycleTests
     [Fact]
     public async Task HandleAsync_CheckpointRace_StopsPublishAndRecordsFailed()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         scenario.PublicationAttempts
             .Setup(candidate => candidate.SaveExternalResourceIdAsync(
                 It.IsAny<string>(),
@@ -277,14 +276,14 @@ public class PublishHandlerLifecycleTests
             PlatformId,
             ExternalResourceId,
             It.IsAny<CancellationToken>()));
-        VerifyMarkedFailed(scenario, ExternalResourceId);
-        VerifyNoMarkPublished(scenario);
+        VerifyMarkedFailed(ExternalResourceId);
+        VerifyNoMarkPublished();
     }
 
     [Fact]
     public async Task HandleAsync_CheckpointCancellation_RetriesKnownIdDuringFinalization()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         scenario.PublicationAttempts
             .Setup(candidate => candidate.SaveExternalResourceIdAsync(
                 It.IsAny<string>(),
@@ -296,14 +295,14 @@ public class PublishHandlerLifecycleTests
         var result = await scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Failed, result.Status);
-        VerifyMarkedFailed(scenario, ExternalResourceId);
-        VerifyNoMarkPublished(scenario);
+        VerifyMarkedFailed(ExternalResourceId);
+        VerifyNoMarkPublished();
     }
 
     [Fact]
     public async Task HandleAsync_FinalizationTimeout_ReturnsFinalizeFailedAndLogsCritical()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         scenario.ExecutionScopes.Scope.FinalizationThrows = new OperationCanceledException();
 
         var result = await scenario.HandleAsync();
@@ -318,7 +317,7 @@ public class PublishHandlerLifecycleTests
     [Fact]
     public async Task HandleAsync_PublishedFollowUpCancellation_DoesNotReopenFinalRow()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         scenario.PublicationIndex
             .Setup(candidate => candidate.AddPublishedPlatformAsync(
                 It.IsAny<string>(),
@@ -344,7 +343,7 @@ public class PublishHandlerLifecycleTests
     [Fact]
     public async Task HandleAsync_Success_StartsPublishesFinalizesAndReturnsPublished()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
 
         var result = await scenario.HandleAsync();
 
@@ -372,7 +371,7 @@ public class PublishHandlerLifecycleTests
             PlatformId,
             ExternalResourceId,
             It.IsAny<CancellationToken>()));
-        VerifyNoRelease(scenario);
+        VerifyNoRelease();
         scenario.Publisher.Verify(candidate => candidate.PublishAsync(
             It.Is<PlatformPublishRequest>(request =>
                 request.Title == "English title" &&
@@ -390,7 +389,7 @@ public class PublishHandlerLifecycleTests
     [Fact]
     public async Task HandleAsync_PublicationIndexReturnsFalse_LogsAndReturnsPublished()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         scenario.PublicationIndex
             .Setup(candidate => candidate.AddPublishedPlatformAsync(
                 It.IsAny<string>(),
@@ -415,7 +414,7 @@ public class PublishHandlerLifecycleTests
     [Fact]
     public async Task HandleAsync_PublicationIndexThrows_LogsAndReturnsPublished()
     {
-        var scenario = new PublishHandlerScenario();
+        var scenario = _scenario;
         scenario.PublicationIndex
             .Setup(candidate => candidate.AddPublishedPlatformAsync(
                 It.IsAny<string>(),
@@ -442,11 +441,9 @@ public class PublishHandlerLifecycleTests
             "Company blog",
             PlatformType.WordPress,
             WordPressPublishSettings);
-        var scenario = new PublishHandlerScenario
-        {
-            SelectedPlatform = wordpressPlatform,
-            ActivePlatforms = [wordpressPlatform]
-        };
+        var scenario = _scenario;
+        scenario.SelectedPlatform = wordpressPlatform;
+        scenario.ActivePlatforms = [wordpressPlatform];
         scenario.Publisher.SetupGet(candidate => candidate.Type).Returns(PlatformType.WordPress);
         scenario.Publisher
             .Setup(candidate => candidate.PublishAsync(
@@ -484,46 +481,42 @@ public class PublishHandlerLifecycleTests
             It.IsAny<CancellationToken>()));
     }
 
-    private static void SetPublisherException(
-        PublishHandlerScenario scenario,
-        Exception exception) =>
-        scenario.Publisher
+    private void SetPublisherException(Exception exception) =>
+        _scenario.Publisher
             .Setup(candidate => candidate.PublishAsync(
                 It.IsAny<PlatformPublishRequest>(),
                 It.IsAny<IPlatformPublishCheckpoint>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(exception);
 
-    private static void VerifyMarkedFailed(
-        PublishHandlerScenario scenario,
-        string? externalResourceId) =>
-        scenario.PublicationAttempts.Verify(candidate => candidate.MarkFailedAsync(
+    private void VerifyMarkedFailed(string? externalResourceId) =>
+        _scenario.PublicationAttempts.Verify(candidate => candidate.MarkFailedAsync(
             CalendarEventId,
             PlatformId,
             externalResourceId,
             It.IsAny<CancellationToken>()));
 
-    private static void VerifyNoRelease(PublishHandlerScenario scenario) =>
-        scenario.PublicationAttempts.Verify(candidate => candidate.ReleasePublishingAsync(
+    private void VerifyNoRelease() =>
+        _scenario.PublicationAttempts.Verify(candidate => candidate.ReleasePublishingAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
 
-    private static void VerifyNoReleaseOrPublished(PublishHandlerScenario scenario)
+    private void VerifyNoReleaseOrPublished()
     {
-        VerifyNoRelease(scenario);
-        VerifyNoMarkPublished(scenario);
+        VerifyNoRelease();
+        VerifyNoMarkPublished();
     }
 
-    private static void VerifyNoMarkPublished(PublishHandlerScenario scenario) =>
-        scenario.PublicationAttempts.Verify(candidate => candidate.MarkPublishedAsync(
+    private void VerifyNoMarkPublished() =>
+        _scenario.PublicationAttempts.Verify(candidate => candidate.MarkPublishedAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
 
-    private static void VerifyNoIndexAdd(PublishHandlerScenario scenario) =>
-        scenario.PublicationIndex.Verify(candidate => candidate.AddPublishedPlatformAsync(
+    private void VerifyNoIndexAdd() =>
+        _scenario.PublicationIndex.Verify(candidate => candidate.AddPublishedPlatformAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());

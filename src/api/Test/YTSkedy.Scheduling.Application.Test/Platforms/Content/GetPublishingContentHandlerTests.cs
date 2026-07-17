@@ -14,6 +14,20 @@ public class GetPublishingContentHandlerTests
     private const string CalendarEventId = "f81d4fae7dec11d0a76500a0c91e6bf6";
     private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
     private const string YouTubePlatformId = "6ab4a32f3f344de1a7c3a9f4a2f94918";
+    private readonly Mock<ICalendarEventReader> _calendarEvents = new();
+    private readonly Mock<IPlatformReader> _platforms = new();
+    private readonly Mock<IPlatformPublicationReader> _publications = new();
+    private readonly Mock<ITemplateReader> _templates = new();
+    private readonly GetPublishingContentHandler _handler;
+
+    public GetPublishingContentHandlerTests()
+    {
+        _handler = new GetPublishingContentHandler(
+            _calendarEvents.Object,
+            _platforms.Object,
+            _publications.Object,
+            new PublishingContentRenderer(_templates.Object));
+    }
 
     [Fact]
     public async Task HandleAsync_ActiveNotPublishedRow_ReturnsPreview()
@@ -259,7 +273,7 @@ public class GetPublishingContentHandlerTests
             new GetPublishingContentQuery(CalendarEventId, PlatformId),
             CancellationToken.None);
 
-    private static GetPublishingContentHandler CreateHandler(
+    private GetPublishingContentHandler CreateHandler(
         CalendarEventView? calendarEvent,
         PlatformView? platform,
         PlatformPublication? publication,
@@ -267,45 +281,42 @@ public class GetPublishingContentHandlerTests
         IReadOnlyList<PlatformView>? activePlatforms = null,
         IReadOnlyList<PlatformPublication>? publicationRows = null)
     {
-        var calendarEvents = new Mock<ICalendarEventReader>();
-        calendarEvents
+        _calendarEvents
             .Setup(candidate => candidate.GetByIdAsync(
                 CalendarEventId,
                 CancellationToken.None))
             .ReturnsAsync(calendarEvent);
-        var platforms = new Mock<IPlatformReader>();
-        platforms
+        _platforms
             .Setup(candidate => candidate.GetAsync(PlatformId, CancellationToken.None))
             .ReturnsAsync(platform);
-        platforms
+        _platforms
             .Setup(candidate => candidate.ListAsync(null, CancellationToken.None))
             .ReturnsAsync(activePlatforms ?? (platform is null ? [] : [platform]));
-        var publications = new Mock<IPlatformPublicationReader>();
-        publications
+        _publications
             .Setup(candidate => candidate.GetAsync(
                 CalendarEventId,
                 PlatformId,
                 CancellationToken.None))
             .ReturnsAsync(publication);
-        publications
+        _publications
             .Setup(candidate => candidate.ListByEventAsync(
                 CalendarEventId,
                 CancellationToken.None))
             .ReturnsAsync(publicationRows ?? (publication is null ? [] : [publication]));
 
-        return new GetPublishingContentHandler(
-            calendarEvents.Object,
-            platforms.Object,
-            publications.Object,
-            new PublishingContentRenderer((templates ?? RequiredTemplateReader()).Object));
+        if (templates is null)
+        {
+            RequiredTemplateReader();
+        }
+
+        return _handler;
     }
 
-    private static Mock<ITemplateReader> TemplateReader(params TemplateView[] templates)
+    private Mock<ITemplateReader> TemplateReader(params TemplateView[] templates)
     {
-        var reader = new Mock<ITemplateReader>();
         foreach (var template in templates)
         {
-            reader
+            _templates
                 .Setup(candidate => candidate.GetAsync(
                     template.Type,
                     template.Id,
@@ -313,10 +324,10 @@ public class GetPublishingContentHandlerTests
                 .ReturnsAsync(template);
         }
 
-        return reader;
+        return _templates;
     }
 
-    private static Mock<ITemplateReader> RequiredTemplateReader() =>
+    private Mock<ITemplateReader> RequiredTemplateReader() =>
         TemplateReader(ApplicationTestData.RequiredTemplates().ToArray());
 
     private static CalendarEventView Event(string? description = "English description") =>

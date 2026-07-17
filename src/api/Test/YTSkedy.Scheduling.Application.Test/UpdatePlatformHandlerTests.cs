@@ -9,12 +9,23 @@ public class UpdatePlatformHandlerTests
 {
     private static readonly YouTubeSettings Settings =
         ApplicationTestData.YouTubeSettings("unlisted");
+    private readonly Mock<IPlatformReader> _platforms = new();
+    private readonly Mock<ITemplateReader> _templates = new();
+    private readonly Mock<IPlatformModifier> _modifier = new();
+    private readonly UpdatePlatformHandler _handler;
+
+    public UpdatePlatformHandlerTests()
+    {
+        _handler = new UpdatePlatformHandler(
+            _platforms.Object,
+            _modifier.Object,
+            _templates.Object);
+    }
 
     [Fact]
     public async Task HandleAsync_Updated_ForwardsCommandAndReturnsUpdated()
     {
-        var modifier = new Mock<IPlatformModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.UpdateAsync(
                 "p1",
                 "Renamed channel",
@@ -25,10 +36,7 @@ public class UpdatePlatformHandlerTests
             .ReturnsAsync(UpdatePlatformResult.Updated);
         var templates = RequiredTemplateReader();
         var publishingContent = ApplicationTestData.PublishingContent();
-        var handler = new UpdatePlatformHandler(
-            PlatformReader(ExistingPlatform()).Object,
-            modifier.Object,
-            templates.Object);
+        PlatformReader(ExistingPlatform());
         var command = new UpdatePlatformCommand(
             "p1",
             "Renamed channel",
@@ -36,10 +44,10 @@ public class UpdatePlatformHandlerTests
             Settings,
             publishingContent);
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(UpdatePlatformResult.Updated, result);
-        modifier.Verify(candidate => candidate.UpdateAsync(
+        _modifier.Verify(candidate => candidate.UpdateAsync(
             "p1",
             "Renamed channel",
             "main-youtube",
@@ -52,11 +60,7 @@ public class UpdatePlatformHandlerTests
     [Fact]
     public async Task HandleAsync_NotFound_ReturnsNotFound()
     {
-        var modifier = new Mock<IPlatformModifier>();
-        var handler = new UpdatePlatformHandler(
-            PlatformReader(null).Object,
-            modifier.Object,
-            new Mock<ITemplateReader>().Object);
+        PlatformReader(null);
         var command = new UpdatePlatformCommand(
             "missing",
             "Renamed channel",
@@ -64,17 +68,16 @@ public class UpdatePlatformHandlerTests
             Settings,
             ApplicationTestData.PublishingContent());
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(UpdatePlatformResult.NotFound, result);
-        VerifyNoUpdate(modifier);
+        VerifyNoUpdate();
     }
 
     [Fact]
     public async Task HandleAsync_DuplicateName_ReturnsNameAlreadyExists()
     {
-        var modifier = new Mock<IPlatformModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.UpdateAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
@@ -83,10 +86,8 @@ public class UpdatePlatformHandlerTests
                 It.IsAny<PublishingContent>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(UpdatePlatformResult.NameAlreadyExists);
-        var handler = new UpdatePlatformHandler(
-            PlatformReader(ExistingPlatform()).Object,
-            modifier.Object,
-            RequiredTemplateReader().Object);
+        PlatformReader(ExistingPlatform());
+        RequiredTemplateReader();
         var command = new UpdatePlatformCommand(
             "p1",
             "Taken name",
@@ -94,7 +95,7 @@ public class UpdatePlatformHandlerTests
             Settings,
             ApplicationTestData.PublishingContent());
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(UpdatePlatformResult.NameAlreadyExists, result);
     }
@@ -102,8 +103,7 @@ public class UpdatePlatformHandlerTests
     [Fact]
     public async Task HandleAsync_DuplicateReferenceKey_ReturnsReferenceKeyAlreadyExists()
     {
-        var modifier = new Mock<IPlatformModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.UpdateAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
@@ -112,10 +112,8 @@ public class UpdatePlatformHandlerTests
                 It.IsAny<PublishingContent>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(UpdatePlatformResult.ReferenceKeyAlreadyExists);
-        var handler = new UpdatePlatformHandler(
-            PlatformReader(ExistingPlatform()).Object,
-            modifier.Object,
-            RequiredTemplateReader().Object);
+        PlatformReader(ExistingPlatform());
+        RequiredTemplateReader();
         var command = new UpdatePlatformCommand(
             "p1",
             "Main channel",
@@ -123,7 +121,7 @@ public class UpdatePlatformHandlerTests
             Settings,
             ApplicationTestData.PublishingContent());
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(UpdatePlatformResult.ReferenceKeyAlreadyExists, result);
     }
@@ -131,18 +129,13 @@ public class UpdatePlatformHandlerTests
     [Fact]
     public async Task HandleAsync_LinkedTemplateMissing_ReturnsLinkedTemplateNotFound()
     {
-        var modifier = new Mock<IPlatformModifier>();
-        var templates = new Mock<ITemplateReader>();
-        templates
+        _templates
             .Setup(candidate => candidate.GetAsync(
                 TemplateType.YouTube,
                 "missing-template",
                 CancellationToken.None))
             .ReturnsAsync((TemplateView?)null);
-        var handler = new UpdatePlatformHandler(
-            PlatformReader(ExistingPlatform()).Object,
-            modifier.Object,
-            templates.Object);
+        PlatformReader(ExistingPlatform());
         var command = new UpdatePlatformCommand(
             "p1",
             "Main channel",
@@ -150,22 +143,19 @@ public class UpdatePlatformHandlerTests
             Settings,
             ApplicationTestData.PublishingContent("missing-template"));
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(UpdatePlatformResult.LinkedTemplateNotFound, result);
-        VerifyNoUpdate(modifier);
+        VerifyNoUpdate();
     }
 
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var handler = new UpdatePlatformHandler(
-            PlatformReader(ExistingPlatform()).Object,
-            new Mock<IPlatformModifier>().Object,
-            new Mock<ITemplateReader>().Object);
+        PlatformReader(ExistingPlatform());
 
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => handler.HandleAsync(null!, CancellationToken.None));
+            () => _handler.HandleAsync(null!, CancellationToken.None));
     }
 
     private static PlatformView ExistingPlatform() =>
@@ -175,23 +165,21 @@ public class UpdatePlatformHandlerTests
             referenceKey: "main-youtube",
             publishSettings: Settings);
 
-    private static Mock<IPlatformReader> PlatformReader(PlatformView? platform)
+    private Mock<IPlatformReader> PlatformReader(PlatformView? platform)
     {
-        var reader = new Mock<IPlatformReader>();
-        reader
+        _platforms
             .Setup(candidate => candidate.GetAsync(
                 It.IsAny<string>(),
                 CancellationToken.None))
             .ReturnsAsync(platform);
-        return reader;
+        return _platforms;
     }
 
-    private static Mock<ITemplateReader> RequiredTemplateReader()
+    private Mock<ITemplateReader> RequiredTemplateReader()
     {
-        var reader = new Mock<ITemplateReader>();
         foreach (var template in ApplicationTestData.RequiredTemplates())
         {
-            reader
+            _templates
                 .Setup(candidate => candidate.GetAsync(
                     template.Type,
                     template.Id,
@@ -199,7 +187,7 @@ public class UpdatePlatformHandlerTests
                 .ReturnsAsync(template);
         }
 
-        return reader;
+        return _templates;
     }
 
     private static void VerifyRequiredTemplates(Mock<ITemplateReader> reader)
@@ -214,8 +202,8 @@ public class UpdatePlatformHandlerTests
             CancellationToken.None));
     }
 
-    private static void VerifyNoUpdate(Mock<IPlatformModifier> modifier) =>
-        modifier.Verify(candidate => candidate.UpdateAsync(
+    private void VerifyNoUpdate() =>
+        _modifier.Verify(candidate => candidate.UpdateAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<string?>(),

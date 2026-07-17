@@ -6,13 +6,21 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class CreateCalendarEventHandlerTests
 {
+    private readonly Mock<IEventTextFieldsReader> _fields = new();
+    private readonly Mock<ICalendarEventModifier> _modifier = new();
+    private readonly CreateCalendarEventHandler _handler;
+
+    public CreateCalendarEventHandlerTests()
+    {
+        _handler = new CreateCalendarEventHandler(_fields.Object, _modifier.Object);
+    }
+
     [Fact]
     public async Task CreateCalendarEvent_ValidCommand_CreatesCalendarEventAndReturnsCalendarEventId()
     {
-        var modifier = new Mock<ICalendarEventModifier>();
         CalendarEvent? createdCalendarEvent = null;
         DateTimeOffset? createdScheduledStartUtc = null;
-        modifier
+        _modifier
             .Setup(candidate => candidate.CreateAsync(
                 It.IsAny<CalendarEvent>(),
                 It.IsAny<DateTimeOffset>(),
@@ -30,7 +38,6 @@ public class CreateCalendarEventHandlerTests
                 new EventTextField("Description", EventTextType.LongText, 2500)
             ]);
         var reader = EventTextFieldsReader(settings);
-        var handler = new CreateCalendarEventHandler(reader.Object, modifier.Object);
         var start = new ScheduledStart(
             new DateTime(2026, 06, 05, 10, 00, 00),
             "America/Vancouver");
@@ -41,7 +48,7 @@ public class CreateCalendarEventHandlerTests
         };
         var command = new CreateCalendarEventCommand(start, texts);
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(CreateCalendarEventStatus.Created, result.Status);
         Assert.Equal("1001", result.CalendarEventId);
@@ -60,20 +67,17 @@ public class CreateCalendarEventHandlerTests
     [Fact]
     public async Task CreateCalendarEvent_MissingRequiredText_ReturnsInvalidWithoutCreating()
     {
-        var modifier = new Mock<ICalendarEventModifier>();
-        var handler = new CreateCalendarEventHandler(
-            EventTextFieldsReader(EventTextFields.Default).Object,
-            modifier.Object);
+        EventTextFieldsReader(EventTextFields.Default);
         var command = new CreateCalendarEventCommand(
             new ScheduledStart(new DateTime(2026, 06, 05, 10, 00, 00), "America/Vancouver"),
             [new EventTextValue("text1", "English stream 1")]);
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(CreateCalendarEventStatus.Invalid, result.Status);
         Assert.False(string.IsNullOrWhiteSpace(result.ValidationError));
         Assert.Null(result.CalendarEventId);
-        modifier.Verify(candidate => candidate.CreateAsync(
+        _modifier.Verify(candidate => candidate.CreateAsync(
             It.IsAny<CalendarEvent>(),
             It.IsAny<DateTimeOffset>(),
             It.IsAny<CancellationToken>()), Times.Never());
@@ -82,10 +86,7 @@ public class CreateCalendarEventHandlerTests
     [Fact]
     public async Task HandleAsync_InvalidScheduledStart_ReturnsInvalid()
     {
-        var modifier = new Mock<ICalendarEventModifier>();
-        var handler = new CreateCalendarEventHandler(
-            EventTextFieldsReader(EventTextFields.Default).Object,
-            modifier.Object);
+        EventTextFieldsReader(EventTextFields.Default);
         var command = new CreateCalendarEventCommand(
             new ScheduledStart(new DateTime(2026, 3, 8, 2, 30, 0), "America/Vancouver"),
             [
@@ -93,13 +94,13 @@ public class CreateCalendarEventHandlerTests
                 new EventTextValue("text2", "Description for stream 1 in English")
             ]);
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(CreateCalendarEventStatus.Invalid, result.Status);
         Assert.Equal(
             "Scheduled start time does not exist in the specified time zone.",
             result.ValidationError);
-        modifier.Verify(candidate => candidate.CreateAsync(
+        _modifier.Verify(candidate => candidate.CreateAsync(
             It.IsAny<CalendarEvent>(),
             It.IsAny<DateTimeOffset>(),
             It.IsAny<CancellationToken>()), Times.Never());
@@ -109,16 +110,13 @@ public class CreateCalendarEventHandlerTests
     public async Task HandleAsync_DuplicateScheduledStart_ReturnsDuplicateScheduledStartWithoutCreating()
     {
         var scheduledStartUtc = new DateTimeOffset(2026, 6, 5, 17, 0, 0, TimeSpan.Zero);
-        var modifier = new Mock<ICalendarEventModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.CreateAsync(
                 It.IsAny<CalendarEvent>(),
                 scheduledStartUtc,
                 CancellationToken.None))
             .ThrowsAsync(new DuplicateScheduledStartException(scheduledStartUtc));
-        var handler = new CreateCalendarEventHandler(
-            EventTextFieldsReader(EventTextFields.Default).Object,
-            modifier.Object);
+        EventTextFieldsReader(EventTextFields.Default);
         var command = new CreateCalendarEventCommand(
             new ScheduledStart(new DateTime(2026, 6, 5, 10, 0, 0), "America/Vancouver"),
             [
@@ -126,19 +124,18 @@ public class CreateCalendarEventHandlerTests
                 new EventTextValue("text2", "Description for stream 1 in English")
             ]);
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(CreateCalendarEventStatus.DuplicateScheduledStart, result.Status);
         Assert.Equal(scheduledStartUtc, result.ScheduledStartUtc);
     }
 
-    private static Mock<IEventTextFieldsReader> EventTextFieldsReader(EventTextFields fields)
+    private Mock<IEventTextFieldsReader> EventTextFieldsReader(EventTextFields fields)
     {
-        var reader = new Mock<IEventTextFieldsReader>();
-        reader
+        _fields
             .Setup(candidate => candidate.GetAsync(CancellationToken.None))
             .ReturnsAsync(fields);
-        return reader;
+        return _fields;
     }
 
 }

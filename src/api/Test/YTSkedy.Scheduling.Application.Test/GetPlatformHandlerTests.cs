@@ -5,6 +5,14 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class GetPlatformHandlerTests
 {
+    private readonly Mock<IPlatformReader> _reader = new();
+    private readonly GetPlatformHandler _handler;
+
+    public GetPlatformHandlerTests()
+    {
+        _handler = new GetPlatformHandler(_reader.Object);
+    }
+
     [Fact]
     public async Task HandleAsync_Found_ReturnsView()
     {
@@ -12,28 +20,22 @@ public class GetPlatformHandlerTests
             platformId: "p1",
             name: "Main channel",
             referenceKey: "main-youtube");
-        var reader = new Mock<IPlatformReader>();
-        reader
+        _reader
             .Setup(candidate => candidate.GetAsync("p1", CancellationToken.None))
             .ReturnsAsync(view);
-        var handler = new GetPlatformHandler(reader.Object);
-
-        var result = await handler.HandleAsync("p1", CancellationToken.None);
+        var result = await _handler.HandleAsync("p1", CancellationToken.None);
 
         Assert.Same(view, result);
-        reader.Verify(candidate => candidate.GetAsync("p1", CancellationToken.None));
+        _reader.Verify(candidate => candidate.GetAsync("p1", CancellationToken.None));
     }
 
     [Fact]
     public async Task HandleAsync_Missing_ReturnsNull()
     {
-        var reader = new Mock<IPlatformReader>();
-        reader
+        _reader
             .Setup(candidate => candidate.GetAsync("missing", CancellationToken.None))
             .ReturnsAsync((PlatformView?)null);
-        var handler = new GetPlatformHandler(reader.Object);
-
-        var result = await handler.HandleAsync("missing", CancellationToken.None);
+        var result = await _handler.HandleAsync("missing", CancellationToken.None);
 
         Assert.Null(result);
     }
@@ -44,9 +46,7 @@ public class GetPlatformHandlerTests
     [InlineData("   ")]
     public async Task HandleAsync_EmptyId_Throws(string? platformId)
     {
-        var handler = new GetPlatformHandler(new Mock<IPlatformReader>().Object);
-
         await Assert.ThrowsAnyAsync<ArgumentException>(
-            () => handler.HandleAsync(platformId!, CancellationToken.None));
+            () => _handler.HandleAsync(platformId!, CancellationToken.None));
     }
 }

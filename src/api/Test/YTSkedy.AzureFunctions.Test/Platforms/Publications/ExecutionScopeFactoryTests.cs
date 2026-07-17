@@ -6,6 +6,8 @@ namespace YTSkedy.AzureFunctions.Test.Platforms.Publications;
 
 public sealed class ExecutionScopeFactoryTests
 {
+    private readonly Mock<IHostApplicationLifetime> _lifetime = new();
+
     [Fact]
     public async Task OperationDeadline_CancelsAndClassifiesTimeout()
     {
@@ -66,13 +68,12 @@ public sealed class ExecutionScopeFactoryTests
         Assert.False(token.IsCancellationRequested);
     }
 
-    private static PublishExecutionScopeFactory CreateFactory(
+    private PublishExecutionScopeFactory CreateFactory(
         TimeSpan? operationTimeout = null,
         TimeSpan? finalizationTimeout = null,
         CancellationTokenSource? hostStopping = null)
     {
-        var lifetime = new Mock<IHostApplicationLifetime>();
-        lifetime
+        _lifetime
             .SetupGet(candidate => candidate.ApplicationStopping)
             .Returns(hostStopping?.Token ?? CancellationToken.None);
 
@@ -81,7 +82,7 @@ public sealed class ExecutionScopeFactoryTests
                 operationTimeout ?? TimeSpan.FromSeconds(10),
                 finalizationTimeout ?? TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(30)),
-            lifetime.Object,
+            _lifetime.Object,
             TimeProvider.System);
     }
 }

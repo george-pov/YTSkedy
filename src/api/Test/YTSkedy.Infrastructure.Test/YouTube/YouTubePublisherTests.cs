@@ -15,32 +15,36 @@ public class YouTubePublisherTests
     private const string BroadcastId = SchedulingSampleIds.YouTubeBroadcastId;
     private const string ClientSecret = "client-secret-value";
     private const string RefreshToken = "refresh-token-value";
+    private readonly Mock<IYouTubePublishClient> _client = new();
+    private readonly Mock<IYouTubePublishClientFactory> _factory = new();
+    private readonly Mock<ILogger<YouTubePublisher>> _logger = new();
+    private readonly YouTubePublisher _publisher;
+
+    public YouTubePublisherTests()
+    {
+        _factory
+            .Setup(candidate => candidate.Create(It.IsAny<YouTubeCredentials>()))
+            .Returns(_client.Object);
+        _publisher = new YouTubePublisher(_factory.Object, _logger.Object);
+    }
 
     [Fact]
     public void Type_IsYouTube()
     {
-        var publisher = CreatePublisher(new Mock<IYouTubePublishClient>());
-
-        Assert.Equal(PlatformType.YouTube, publisher.Type);
+        Assert.Equal(PlatformType.YouTube, _publisher.Type);
     }
 
     [Fact]
     public async Task PublishAsync_DefaultSettings_CreatesPrivateBroadcastWithoutVideoUpdate()
     {
-        var client = new Mock<IYouTubePublishClient>();
         LiveBroadcast? insertedBroadcast = null;
-        client
+        _client
             .Setup(candidate => candidate.InsertBroadcastAsync(
                 It.IsAny<LiveBroadcast>(),
                 CancellationToken.None))
             .Callback<LiveBroadcast, CancellationToken>(
                 (broadcast, _) => insertedBroadcast = broadcast)
             .ReturnsAsync(new LiveBroadcast { Id = BroadcastId });
-        var factory = new Mock<IYouTubePublishClientFactory>();
-        factory
-            .Setup(candidate => candidate.Create(It.IsAny<YouTubeCredentials>()))
-            .Returns(client.Object);
-        var publisher = CreatePublisher(factory.Object);
         var checkpoint = new Mock<IPlatformPublishCheckpoint>();
         checkpoint
             .Setup(candidate => candidate.SaveExternalResourceIdAsync(
@@ -48,24 +52,24 @@ public class YouTubePublisherTests
                 CancellationToken.None))
             .Returns(Task.CompletedTask);
 
-        var result = await publisher.PublishAsync(
+        var result = await _publisher.PublishAsync(
             Request(Settings()),
             checkpoint.Object,
             CancellationToken.None);
 
         Assert.Equal(BroadcastId, result.ExternalResourceId);
-        factory.Verify(candidate => candidate.Create(It.Is<YouTubeCredentials>(credentials =>
+        _factory.Verify(candidate => candidate.Create(It.Is<YouTubeCredentials>(credentials =>
             credentials.ClientId == "client-id")));
         Assert.NotNull(insertedBroadcast);
         Assert.Equal("private", insertedBroadcast!.Status.PrivacyStatus);
         Assert.False(insertedBroadcast.Status.SelfDeclaredMadeForKids);
         Assert.Equal("English title", insertedBroadcast.Snippet.Title);
         Assert.Equal("English description", insertedBroadcast.Snippet.Description);
-        client.Verify(candidate => candidate.GetVideoAsync(
+        _client.Verify(candidate => candidate.GetVideoAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
-        client.Verify(candidate => candidate.UpdateVideoAsync(
+        _client.Verify(candidate => candidate.UpdateVideoAsync(
             It.IsAny<Video>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
@@ -77,20 +81,19 @@ public class YouTubePublisherTests
     [Fact]
     public async Task PublishAsync_CategoryDisclosureAndVisibility_ReadsAndUpdatesRequiredParts()
     {
-        var client = new Mock<IYouTubePublishClient>();
-        client
+        _client
             .Setup(candidate => candidate.InsertBroadcastAsync(
                 It.IsAny<LiveBroadcast>(),
                 CancellationToken.None))
             .ReturnsAsync(new LiveBroadcast { Id = BroadcastId });
-        client
+        _client
             .Setup(candidate => candidate.GetVideoAsync(
                 BroadcastId,
                 "snippet,status",
                 CancellationToken.None))
             .ReturnsAsync(Video());
         Video? updatedVideo = null;
-        client
+        _client
             .Setup(candidate => candidate.UpdateVideoAsync(
                 It.IsAny<Video>(),
                 "snippet,status",
@@ -99,9 +102,7 @@ public class YouTubePublisherTests
                 (video, _, _) => updatedVideo = video)
             .Returns<Video, string, CancellationToken>(
                 (video, _, _) => Task.FromResult(video));
-        var publisher = CreatePublisher(client);
-
-        await publisher.PublishAsync(
+        await _publisher.PublishAsync(
             Request(Settings("public", "27", containsSyntheticMedia: true)),
             CancellationToken.None);
 
@@ -123,33 +124,30 @@ public class YouTubePublisherTests
     [Fact]
     public async Task PublishAsync_UpdateFailure_RetainsCreatedBroadcastIdAndDoesNotDelete()
     {
-        var client = new Mock<IYouTubePublishClient>();
-        client
+        _client
             .Setup(candidate => candidate.InsertBroadcastAsync(
                 It.IsAny<LiveBroadcast>(),
                 CancellationToken.None))
             .ReturnsAsync(new LiveBroadcast { Id = BroadcastId });
-        client
+        _client
             .Setup(candidate => candidate.GetVideoAsync(
                 BroadcastId,
                 "snippet",
                 CancellationToken.None))
             .ReturnsAsync(Video());
-        client
+        _client
             .Setup(candidate => candidate.UpdateVideoAsync(
                 It.IsAny<Video>(),
                 "snippet",
                 CancellationToken.None))
             .ThrowsAsync(new InvalidOperationException("provider rejected update"));
-        var publisher = CreatePublisher(client);
-
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
-            () => publisher.PublishAsync(
+            () => _publisher.PublishAsync(
                 Request(Settings(categoryId: "999999")),
                 CancellationToken.None));
 
         Assert.Equal(BroadcastId, exception.ExternalResourceId);
-        client.Verify(candidate => candidate.UpdateVideoAsync(
+        _client.Verify(candidate => candidate.UpdateVideoAsync(
             It.IsAny<Video>(),
             "snippet",
             CancellationToken.None));
@@ -158,13 +156,11 @@ public class YouTubePublisherTests
     [Fact]
     public async Task PublishAsync_CheckpointFailure_StopsLaterMetadataAndCarriesCreatedId()
     {
-        var client = new Mock<IYouTubePublishClient>();
-        client
+        _client
             .Setup(candidate => candidate.InsertBroadcastAsync(
                 It.IsAny<LiveBroadcast>(),
                 CancellationToken.None))
             .ReturnsAsync(new LiveBroadcast { Id = BroadcastId });
-        var publisher = CreatePublisher(client);
         var checkpoint = new Mock<IPlatformPublishCheckpoint>();
         checkpoint
             .Setup(candidate => candidate.SaveExternalResourceIdAsync(
@@ -173,7 +169,7 @@ public class YouTubePublisherTests
             .ThrowsAsync(new InvalidOperationException("storage unavailable"));
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(() =>
-            publisher.PublishAsync(
+            _publisher.PublishAsync(
                 Request(Settings(categoryId: "27")),
                 checkpoint.Object,
                 CancellationToken.None));
@@ -182,11 +178,11 @@ public class YouTubePublisherTests
         checkpoint.Verify(candidate => candidate.SaveExternalResourceIdAsync(
             BroadcastId,
             CancellationToken.None), Times.Once());
-        client.Verify(candidate => candidate.GetVideoAsync(
+        _client.Verify(candidate => candidate.GetVideoAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
-        client.Verify(candidate => candidate.UpdateVideoAsync(
+        _client.Verify(candidate => candidate.UpdateVideoAsync(
             It.IsAny<Video>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
@@ -197,15 +193,14 @@ public class YouTubePublisherTests
     {
         using var caller = new CancellationTokenSource();
         caller.Cancel();
-        var client = new Mock<IYouTubePublishClient>();
-        client
+        _client
             .Setup(candidate => candidate.InsertBroadcastAsync(
                 It.IsAny<LiveBroadcast>(),
                 caller.Token))
             .ThrowsAsync(new OperationCanceledException(caller.Token));
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
-            CreatePublisher(client).PublishAsync(
+            _publisher.PublishAsync(
                 Request(Settings()),
                 caller.Token));
     }
@@ -213,8 +208,7 @@ public class YouTubePublisherTests
     [Fact]
     public async Task PublishAsync_DependencyTimeout_IsClassified()
     {
-        var client = new Mock<IYouTubePublishClient>();
-        client
+        _client
             .Setup(candidate => candidate.InsertBroadcastAsync(
                 It.IsAny<LiveBroadcast>(),
                 CancellationToken.None))
@@ -223,7 +217,7 @@ public class YouTubePublisherTests
                 new TimeoutException("deadline")));
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(() =>
-            CreatePublisher(client).PublishAsync(
+            _publisher.PublishAsync(
                 Request(Settings()),
                 CancellationToken.None));
 
@@ -233,22 +227,18 @@ public class YouTubePublisherTests
     [Fact]
     public async Task PublishAsync_ProviderFailure_ThrowsWithoutLoggingSecrets()
     {
-        var logger = new Mock<ILogger<YouTubePublisher>>();
-        var client = new Mock<IYouTubePublishClient>();
-        client
+        _client
             .Setup(candidate => candidate.InsertBroadcastAsync(
                 It.IsAny<LiveBroadcast>(),
                 CancellationToken.None))
             .ThrowsAsync(new InvalidOperationException("provider failed"));
-        var publisher = CreatePublisher(client, logger.Object);
-
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
-            () => publisher.PublishAsync(
+            () => _publisher.PublishAsync(
                 Request(Settings()),
                 CancellationToken.None));
 
         Assert.Null(exception.ExternalResourceId);
-        var logText = logger.GetLogText();
+        var logText = _logger.GetLogText();
         Assert.DoesNotContain(ClientSecret, logText);
         Assert.DoesNotContain(RefreshToken, logText);
     }
@@ -256,16 +246,13 @@ public class YouTubePublisherTests
     [Fact]
     public async Task PublishAsync_UnexpectedOperationCanceledException_IsClassified()
     {
-        var client = new Mock<IYouTubePublishClient>();
-        client
+        _client
             .Setup(candidate => candidate.InsertBroadcastAsync(
                 It.IsAny<LiveBroadcast>(),
                 CancellationToken.None))
             .ThrowsAsync(new OperationCanceledException());
-        var publisher = CreatePublisher(client);
-
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
-            () => publisher.PublishAsync(
+            () => _publisher.PublishAsync(
                 Request(Settings()),
                 CancellationToken.None));
 
@@ -275,30 +262,11 @@ public class YouTubePublisherTests
     [Fact]
     public async Task PublishAsync_NonYouTubeSettings_Throws()
     {
-        var publisher = CreatePublisher(new Mock<IYouTubePublishClient>());
-
         await Assert.ThrowsAsync<PlatformPublishException>(
-            () => publisher.PublishAsync(
+            () => _publisher.PublishAsync(
                 Request(new OtherSettings()),
                 CancellationToken.None));
     }
-
-    private static YouTubePublisher CreatePublisher(
-        Mock<IYouTubePublishClient> client,
-        ILogger<YouTubePublisher>? logger = null)
-    {
-        var factory = new Mock<IYouTubePublishClientFactory>();
-        factory
-            .Setup(candidate => candidate.Create(It.IsAny<YouTubeCredentials>()))
-            .Returns(client.Object);
-
-        return CreatePublisher(factory.Object, logger);
-    }
-
-    private static YouTubePublisher CreatePublisher(
-        IYouTubePublishClientFactory factory,
-        ILogger<YouTubePublisher>? logger = null) =>
-        new(factory, logger ?? Mock.Of<ILogger<YouTubePublisher>>());
 
     private static PlatformPublishRequest Request(PublishSettings settings) =>
         new(

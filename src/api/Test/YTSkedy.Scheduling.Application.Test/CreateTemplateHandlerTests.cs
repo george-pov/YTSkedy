@@ -5,11 +5,18 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class CreateTemplateHandlerTests
 {
+    private readonly Mock<ITemplateModifier> _modifier = new();
+    private readonly CreateTemplateHandler _handler;
+
+    public CreateTemplateHandlerTests()
+    {
+        _handler = new CreateTemplateHandler(_modifier.Object);
+    }
+
     [Fact]
     public async Task HandleAsync_ValidCommand_CreatesTemplateAndReturnsCreatedWithId()
     {
-        var modifier = new Mock<ITemplateModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.CreateAsync(
                 It.Is<Template>(template =>
                     template.Name == "Weeknight stream" &&
@@ -17,18 +24,17 @@ public class CreateTemplateHandlerTests
                     template.Content == "Live on {{ longDateEn }}"),
                 CancellationToken.None))
             .ReturnsAsync(CreateTemplateResult.Created("9f8b1c2d3e4f"));
-        var handler = new CreateTemplateHandler(modifier.Object);
         var command = new CreateTemplateCommand(
             "Weeknight stream",
             TemplateType.YouTube,
             "Live on {{ longDateEn }}");
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(CreateTemplateStatus.Created, result.Status);
         Assert.Equal("9f8b1c2d3e4f", result.TemplateId);
 
-        modifier.Verify(candidate => candidate.CreateAsync(
+        _modifier.Verify(candidate => candidate.CreateAsync(
             It.Is<Template>(template =>
                 template.Name == "Weeknight stream" &&
                 template.Type == TemplateType.YouTube &&
@@ -39,19 +45,17 @@ public class CreateTemplateHandlerTests
     [Fact]
     public async Task HandleAsync_DuplicateName_ReturnsNameAlreadyExists()
     {
-        var modifier = new Mock<ITemplateModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.CreateAsync(
                 It.IsAny<Template>(),
                 CancellationToken.None))
             .ReturnsAsync(CreateTemplateResult.NameAlreadyExists());
-        var handler = new CreateTemplateHandler(modifier.Object);
         var command = new CreateTemplateCommand(
             "Weeknight stream",
             TemplateType.YouTube,
             "content");
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(CreateTemplateStatus.NameAlreadyExists, result.Status);
         Assert.Null(result.TemplateId);
@@ -60,13 +64,10 @@ public class CreateTemplateHandlerTests
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var modifier = new Mock<ITemplateModifier>();
-        var handler = new CreateTemplateHandler(modifier.Object);
-
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => handler.HandleAsync(null!, CancellationToken.None));
+            () => _handler.HandleAsync(null!, CancellationToken.None));
 
-        modifier.Verify(candidate => candidate.CreateAsync(
+        _modifier.Verify(candidate => candidate.CreateAsync(
             It.IsAny<Template>(),
             It.IsAny<CancellationToken>()), Times.Never());
     }

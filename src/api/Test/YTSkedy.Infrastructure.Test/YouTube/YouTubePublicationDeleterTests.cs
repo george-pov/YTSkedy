@@ -17,6 +17,7 @@ public class YouTubePublicationDeleterTests
     private const string BroadcastId = SchedulingSampleIds.YouTubeBroadcastId;
     private const string ClientSecret = "client-secret-value";
     private const string RefreshToken = "refresh-token-value";
+    private readonly Mock<ILogger<YouTubePublicationDeleter>> _logger = new();
 
     [Fact]
     public void Type_IsYouTube()
@@ -76,18 +77,16 @@ public class YouTubePublicationDeleterTests
     public async Task DeleteAsync_ProviderOrAuthorizationFailure_ReturnsFailed(
         HttpStatusCode statusCode)
     {
-        var logger = new Mock<ILogger<YouTubePublicationDeleter>>();
         var deleter = CreateDeleter(
             new FakeDeletionClient
             {
                 Throws = new YouTubePublicationDeleteException(statusCode, ["authError"])
-            },
-            logger.Object);
+            });
 
         var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
 
         Assert.Equal(PublicationDeleteStatus.Failed, result.Status);
-        var logText = logger.GetLogText();
+        var logText = _logger.GetLogText();
         Assert.DoesNotContain(ClientSecret, logText);
         Assert.DoesNotContain(RefreshToken, logText);
     }
@@ -122,10 +121,8 @@ public class YouTubePublicationDeleterTests
             () => deleter.DeleteAsync(Request(), CancellationToken.None));
     }
 
-    private static YouTubePublicationDeleter CreateDeleter(
-        FakeDeletionClient client,
-        ILogger<YouTubePublicationDeleter>? logger = null) =>
-        new(client, logger ?? Mock.Of<ILogger<YouTubePublicationDeleter>>());
+    private YouTubePublicationDeleter CreateDeleter(FakeDeletionClient client) =>
+        new(client, _logger.Object);
 
     private static PublicationDeleteRequest Request(PublishSettings? settings = null) =>
         new(

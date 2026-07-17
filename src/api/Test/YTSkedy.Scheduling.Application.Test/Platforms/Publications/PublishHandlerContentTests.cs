@@ -9,45 +9,39 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class PublishHandlerContentTests
 {
+    private readonly PublishHandlerScenario _scenario = new();
+
     [Fact]
     public async Task HandleAsync_NoTitleText_ReturnsInvalidPublishingContent()
     {
-        var scenario = new PublishHandlerScenario
-        {
-            CalendarEvent = Event(FutureStart, Text(title: null))
-        };
+        _scenario.CalendarEvent = Event(FutureStart, Text(title: null));
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.InvalidPublishingContent, result.Status);
-        VerifyNoPublishAttempt(scenario);
+        VerifyNoPublishAttempt();
     }
 
     [Fact]
     public async Task HandleAsync_BlankTitleText_ReturnsInvalidPublishingContent()
     {
-        var scenario = new PublishHandlerScenario
-        {
-            CalendarEvent = Event(
-                FutureStart,
-                Text(title: "   ", description: "description"))
-        };
+        _scenario.CalendarEvent = Event(
+            FutureStart,
+            Text(title: "   ", description: "description"));
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.InvalidPublishingContent, result.Status);
-        VerifyNoPublishAttempt(scenario);
+        VerifyNoPublishAttempt();
     }
 
     [Fact]
     public async Task HandleAsync_TemplateContent_RendersBeforePublishing()
     {
-        var scenario = new PublishHandlerScenario();
-        scenario.SelectedPlatform = Platform(
+        _scenario.SelectedPlatform = Platform(
             new PublishingContent("title-template", "description-template"));
-        scenario.ActivePlatforms = [scenario.SelectedPlatform];
+        _scenario.ActivePlatforms = [_scenario.SelectedPlatform];
         SetTemplates(
-            scenario,
             new TemplateView(
                 "title-template",
                 "Title template",
@@ -59,16 +53,16 @@ public class PublishHandlerContentTests
                 TemplateType.YouTube,
                 "Details: {{ text2 }}"));
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Published, result.Status);
-        scenario.Publisher.Verify(candidate => candidate.PublishAsync(
+        _scenario.Publisher.Verify(candidate => candidate.PublishAsync(
             It.Is<PlatformPublishRequest>(request =>
                 request.Title == "English title on 2026-06-25" &&
                 request.Description == "Details: English description"),
             It.IsAny<IPlatformPublishCheckpoint>(),
             It.IsAny<CancellationToken>()));
-        scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
+        _scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
             It.Is<PlatformPublicationAttempt>(attempt =>
                 attempt.ContentSnapshot.Title == "English title on 2026-06-25" &&
                 attempt.ContentSnapshot.Description == "Details: English description"),
@@ -91,20 +85,16 @@ public class PublishHandlerContentTests
             PlatformType.YouTube,
             YouTubePublishSettings,
             referenceKey: "privateYouTube");
-        var scenario = new PublishHandlerScenario
-        {
-            SelectedPlatform = wordpressPlatform,
-            ActivePlatforms = [wordpressPlatform, youtubePlatform],
-            PublicationRows =
-            [
-                Publication(
-                    PublishStatus.Published,
-                    platformId: YouTubePlatformId,
-                    externalResourceId: "yt-broadcast-id")
-            ]
-        };
+        _scenario.SelectedPlatform = wordpressPlatform;
+        _scenario.ActivePlatforms = [wordpressPlatform, youtubePlatform];
+        _scenario.PublicationRows =
+        [
+            Publication(
+                PublishStatus.Published,
+                platformId: YouTubePlatformId,
+                externalResourceId: "yt-broadcast-id")
+        ];
         SetTemplates(
-            scenario,
             new TemplateView(
                 "wordpress-title-template",
                 "WordPress title",
@@ -115,17 +105,17 @@ public class PublishHandlerContentTests
                 "WordPress description",
                 TemplateType.WordPress,
                 "YouTube BroadcastId: {{ privateYouTube }}"));
-        SetPublisher(scenario, PlatformType.WordPress, "123");
+        SetPublisher(PlatformType.WordPress, "123");
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Published, result.Status);
-        scenario.Publisher.Verify(candidate => candidate.PublishAsync(
+        _scenario.Publisher.Verify(candidate => candidate.PublishAsync(
             It.Is<PlatformPublishRequest>(request =>
                 request.Description == "YouTube BroadcastId: yt-broadcast-id"),
             It.IsAny<IPlatformPublishCheckpoint>(),
             It.IsAny<CancellationToken>()));
-        scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
+        _scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
             It.Is<PlatformPublicationAttempt>(attempt =>
                 attempt.ContentSnapshot.Description ==
                     "YouTube BroadcastId: yt-broadcast-id"),
@@ -148,13 +138,9 @@ public class PublishHandlerContentTests
             PlatformType.YouTube,
             YouTubePublishSettings,
             referenceKey: "privateYouTube");
-        var scenario = new PublishHandlerScenario
-        {
-            SelectedPlatform = wordpressPlatform,
-            ActivePlatforms = [wordpressPlatform, youtubePlatform]
-        };
+        _scenario.SelectedPlatform = wordpressPlatform;
+        _scenario.ActivePlatforms = [wordpressPlatform, youtubePlatform];
         SetTemplates(
-            scenario,
             new TemplateView(
                 "wordpress-title-template",
                 "WordPress title",
@@ -165,37 +151,32 @@ public class PublishHandlerContentTests
                 "WordPress description",
                 TemplateType.WordPress,
                 "YouTube BroadcastId: {{ privateYouTube }}"));
-        SetPublisher(scenario, PlatformType.WordPress, "123");
+        SetPublisher(PlatformType.WordPress, "123");
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.InvalidPublishingContent, result.Status);
-        VerifyNoPublishAttempt(scenario);
+        VerifyNoPublishAttempt();
     }
 
     [Fact]
     public async Task HandleAsync_MissingTemplate_ReturnsInvalidPublishingContent()
     {
-        var scenario = new PublishHandlerScenario();
-        scenario.SelectedPlatform = Platform(
+        _scenario.SelectedPlatform = Platform(
             new PublishingContent("missing-template", "description-template"));
-        scenario.ActivePlatforms = [scenario.SelectedPlatform];
+        _scenario.ActivePlatforms = [_scenario.SelectedPlatform];
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.InvalidPublishingContent, result.Status);
-        VerifyNoPublishAttempt(scenario);
+        VerifyNoPublishAttempt();
     }
 
     [Fact]
     public async Task HandleAsync_EmptyRenderedTitle_ReturnsInvalidPublishingContent()
     {
-        var scenario = new PublishHandlerScenario
-        {
-            CalendarEvent = Event(FutureStart, Text(description: string.Empty))
-        };
+        _scenario.CalendarEvent = Event(FutureStart, Text(description: string.Empty));
         SetTemplates(
-            scenario,
             new TemplateView(
                 ApplicationTestData.TitleTemplateId,
                 "Title template",
@@ -207,18 +188,16 @@ public class PublishHandlerContentTests
                 TemplateType.YouTube,
                 "Description"));
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.InvalidPublishingContent, result.Status);
-        VerifyNoPublishAttempt(scenario);
+        VerifyNoPublishAttempt();
     }
 
     [Fact]
     public async Task HandleAsync_UnresolvedToken_ReturnsInvalidPublishingContent()
     {
-        var scenario = new PublishHandlerScenario();
         SetTemplates(
-            scenario,
             new TemplateView(
                 ApplicationTestData.TitleTemplateId,
                 "Title template",
@@ -230,19 +209,17 @@ public class PublishHandlerContentTests
                 TemplateType.YouTube,
                 "Description"));
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.InvalidPublishingContent, result.Status);
-        VerifyNoPublishAttempt(scenario);
+        VerifyNoPublishAttempt();
     }
 
-    private static void SetTemplates(
-        PublishHandlerScenario scenario,
-        params TemplateView[] templates)
+    private void SetTemplates(params TemplateView[] templates)
     {
         foreach (var template in templates)
         {
-            scenario.Templates
+            _scenario.Templates
                 .Setup(candidate => candidate.GetAsync(
                     template.Type,
                     template.Id,
@@ -251,13 +228,12 @@ public class PublishHandlerContentTests
         }
     }
 
-    private static void SetPublisher(
-        PublishHandlerScenario scenario,
+    private void SetPublisher(
         PlatformType type,
         string externalResourceId)
     {
-        scenario.Publisher.SetupGet(candidate => candidate.Type).Returns(type);
-        scenario.Publisher
+        _scenario.Publisher.SetupGet(candidate => candidate.Type).Returns(type);
+        _scenario.Publisher
             .Setup(candidate => candidate.PublishAsync(
                 It.IsAny<PlatformPublishRequest>(),
                 It.IsAny<IPlatformPublishCheckpoint>(),
@@ -272,12 +248,12 @@ public class PublishHandlerContentTests
                 });
     }
 
-    private static void VerifyNoPublishAttempt(PublishHandlerScenario scenario)
+    private void VerifyNoPublishAttempt()
     {
-        scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
+        _scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
             It.IsAny<PlatformPublicationAttempt>(),
             It.IsAny<CancellationToken>()), Times.Never());
-        scenario.Publisher.Verify(candidate => candidate.PublishAsync(
+        _scenario.Publisher.Verify(candidate => candidate.PublishAsync(
             It.IsAny<PlatformPublishRequest>(),
             It.IsAny<IPlatformPublishCheckpoint>(),
             It.IsAny<CancellationToken>()), Times.Never());

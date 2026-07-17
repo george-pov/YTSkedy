@@ -19,6 +19,8 @@ public class WordPressPublisherTests
     private const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
     private const string PlatformId = SchedulingSampleIds.PlatformId;
     private const string ApplicationPassword = "application-password-secret";
+    private readonly Mock<ILogger<WordPressPublisher>> _logger = new();
+    private readonly Mock<ILogger<WordPressEndpointResolver>> _resolverLogger = new();
 
     [Fact]
     public void Type_IsWordPress()
@@ -176,9 +178,8 @@ public class WordPressPublisherTests
     [Fact]
     public async Task PublishAsync_StaleScheduledPostTime_ThrowsBeforeProviderCall()
     {
-        var logger = new Mock<ILogger<WordPressPublisher>>();
         var handler = PrettyRoot(_ => JsonResponse("""{"id":74}"""));
-        var publisher = CreatePublisher(handler, logger.Object);
+        var publisher = CreatePublisher(handler);
         var settings = new WordPressSettings(
             "https://example.com",
             "editor",
@@ -193,7 +194,7 @@ public class WordPressPublisherTests
         Assert.Contains("scheduled post time", exception.Message);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
         Assert.DoesNotContain("Basic", exception.Message);
-        var logText = logger.GetLogText();
+        var logText = _logger.GetLogText();
         Assert.DoesNotContain(ApplicationPassword, logText);
         Assert.DoesNotContain("Basic", logText);
         Assert.Equal(0, handler.CallCount);
@@ -254,16 +255,15 @@ public class WordPressPublisherTests
     [Fact]
     public async Task PublishAsync_DiscoveryFailure_ThrowsPlatformPublishException()
     {
-        var logger = new Mock<ILogger<WordPressPublisher>>();
         var handler = UnsupportedDiscovery();
-        var publisher = CreatePublisher(handler, logger.Object);
+        var publisher = CreatePublisher(handler);
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
 
         Assert.Contains("Failed to publish", exception.Message);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
-        Assert.DoesNotContain(ApplicationPassword, logger.GetLogText());
+        Assert.DoesNotContain(ApplicationPassword, _logger.GetLogText());
         Assert.Equal(3, handler.CallCount);
     }
 
@@ -275,9 +275,8 @@ public class WordPressPublisherTests
     public async Task PublishAsync_NonSuccessStatus_ThrowsAndLogsSecretSafeContext(
         HttpStatusCode statusCode)
     {
-        var logger = new Mock<ILogger<WordPressPublisher>>();
         var handler = PrettyRoot(_ => new HttpResponseMessage(statusCode));
-        var publisher = CreatePublisher(handler, logger.Object);
+        var publisher = CreatePublisher(handler);
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
@@ -285,7 +284,7 @@ public class WordPressPublisherTests
         Assert.Contains(((int)statusCode).ToString(), exception.Message);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
 
-        var entry = Assert.Single(logger.GetLogEntries());
+        var entry = Assert.Single(_logger.GetLogEntries());
         Assert.Equal(LogLevel.Error, entry.Level);
         Assert.Contains(CalendarEventId, entry.Message);
         Assert.Contains(PlatformId, entry.Message);
@@ -298,16 +297,15 @@ public class WordPressPublisherTests
     [Fact]
     public async Task PublishAsync_MalformedJson_ThrowsPlatformPublishException()
     {
-        var logger = new Mock<ILogger<WordPressPublisher>>();
         var handler = PrettyRoot(_ => JsonResponse("{not-json"));
-        var publisher = CreatePublisher(handler, logger.Object);
+        var publisher = CreatePublisher(handler);
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
 
         Assert.Contains("malformed JSON", exception.Message);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
-        Assert.Contains("malformed JSON", Assert.Single(logger.GetLogEntries()).Message);
+        Assert.Contains("malformed JSON", Assert.Single(_logger.GetLogEntries()).Message);
     }
 
     [Theory]
@@ -317,31 +315,29 @@ public class WordPressPublisherTests
     public async Task PublishAsync_MissingOrInvalidId_ThrowsPlatformPublishException(
         string responseJson)
     {
-        var logger = new Mock<ILogger<WordPressPublisher>>();
         var handler = PrettyRoot(_ => JsonResponse(responseJson));
-        var publisher = CreatePublisher(handler, logger.Object);
+        var publisher = CreatePublisher(handler);
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
 
         Assert.Contains("invalid post id", exception.Message);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
-        Assert.Contains("invalid post id", Assert.Single(logger.GetLogEntries()).Message);
+        Assert.Contains("invalid post id", Assert.Single(_logger.GetLogEntries()).Message);
     }
 
     [Fact]
     public async Task PublishAsync_HttpRequestException_ThrowsPlatformPublishException()
     {
-        var logger = new Mock<ILogger<WordPressPublisher>>();
         var handler = PrettyRoot(_ => throw new HttpRequestException("network down"));
-        var publisher = CreatePublisher(handler, logger.Object);
+        var publisher = CreatePublisher(handler);
 
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
 
         Assert.Contains("Failed to publish", exception.Message);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
-        Assert.Contains("example.com", Assert.Single(logger.GetLogEntries()).Message);
+        Assert.Contains("example.com", Assert.Single(_logger.GetLogEntries()).Message);
     }
 
     [Fact]
@@ -426,22 +422,20 @@ public class WordPressPublisherTests
         Assert.Equal(0, handler.CallCount);
     }
 
-    private static WordPressPublisher CreatePublisher(
-        FakeHttpMessageHandler handler,
-        ILogger<WordPressPublisher>? logger = null)
+    private WordPressPublisher CreatePublisher(FakeHttpMessageHandler handler)
     {
         var resolver = new WordPressEndpointResolver(
             new HttpClient(handler),
-            Mock.Of<ILogger<WordPressEndpointResolver>>());
+            _resolverLogger.Object);
 
         return new WordPressPublisher(
             new HttpClient(handler),
             resolver,
             new FixedTimeProvider(SchedulingSampleTimes.Now),
-            logger ?? Mock.Of<ILogger<WordPressPublisher>>());
+            _logger.Object);
     }
 
-    private static async Task<PublishedPostJson> PublishAndReadPostJsonAsync(
+    private async Task<PublishedPostJson> PublishAndReadPostJsonAsync(
         WordPressSettings settings,
         string? description = "English description",
         DateTimeOffset? scheduledStartUtc = null)

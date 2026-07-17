@@ -16,6 +16,19 @@ public sealed class CalendarEventsApiTests
 {
     private const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
     private const string InvalidTextsMessage = "Text entries must each have a field key and value.";
+    private readonly Mock<ICalendarEventReader> _calendarEvents = new();
+    private readonly Mock<IPlatformReader> _platforms = new();
+    private readonly CalendarEventsApi _listApi;
+
+    public CalendarEventsApiTests()
+    {
+        _listApi = new CalendarEventsApi(
+            null!,
+            new ListEventsHandler(_calendarEvents.Object, _platforms.Object),
+            null!,
+            null!,
+            null!);
+    }
 
     public static TheoryData<object, string> InvalidCreateRequests =>
         new()
@@ -68,10 +81,10 @@ public sealed class CalendarEventsApiTests
     [Fact]
     public async Task ListAsync_EventPage_MapsDisplayTitleAndNotPublishedStatus()
     {
-        var api = CreateListApi();
+        SetListResults();
         var request = new DefaultHttpContext().Request;
 
-        var result = await api.ListAsync(request, CancellationToken.None);
+        var result = await _listApi.ListAsync(request, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         var response = Assert.IsType<CalendarEventListResponse>(ok.Value);
@@ -83,9 +96,9 @@ public sealed class CalendarEventsApiTests
     [Fact]
     public async Task ListAsync_EventPage_SerializesPublicationStatusFieldName()
     {
-        var api = CreateListApi();
+        SetListResults();
 
-        var result = await api.ListAsync(
+        var result = await _listApi.ListAsync(
             new DefaultHttpContext().Request,
             CancellationToken.None);
 
@@ -102,12 +115,12 @@ public sealed class CalendarEventsApiTests
     [Fact]
     public async Task ListAsync_PublicationStatusSort_EchoesContractValue()
     {
-        var api = CreateListApi();
+        SetListResults();
         var context = new DefaultHttpContext();
         context.Request.QueryString = new QueryString(
             "?sort=publicationStatus&direction=asc");
 
-        var result = await api.ListAsync(context.Request, CancellationToken.None);
+        var result = await _listApi.ListAsync(context.Request, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         var response = Assert.IsType<CalendarEventListResponse>(ok.Value);
@@ -300,10 +313,9 @@ public sealed class CalendarEventsApiTests
                 title: "English stream 1",
                 description: "Event description"));
 
-    private static CalendarEventsApi CreateListApi()
+    private void SetListResults()
     {
-        var events = new Mock<ICalendarEventReader>();
-        events
+        _calendarEvents
             .Setup(reader => reader.ListAsync(
                 It.IsAny<CalendarEventMonthCriteria?>(),
                 CancellationToken.None))
@@ -312,16 +324,8 @@ public sealed class CalendarEventsApiTests
                     CreateEvent(),
                     new HashSet<string>(StringComparer.Ordinal))
             ]);
-        var platforms = new Mock<IPlatformReader>();
-        platforms
+        _platforms
             .Setup(reader => reader.ListIdsAsync(CancellationToken.None))
             .ReturnsAsync(new HashSet<string>(StringComparer.Ordinal));
-
-        return new CalendarEventsApi(
-            null!,
-            new ListEventsHandler(events.Object, platforms.Object),
-            null!,
-            null!,
-            null!);
     }
 }

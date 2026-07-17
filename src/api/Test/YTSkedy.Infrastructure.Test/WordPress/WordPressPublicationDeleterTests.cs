@@ -18,6 +18,8 @@ public class WordPressPublicationDeleterTests
     private const string CalendarEventId = SchedulingSampleIds.CalendarEventId;
     private const string PlatformId = SchedulingSampleIds.PlatformId;
     private const string ApplicationPassword = "application-password-secret";
+    private readonly Mock<ILogger<WordPressPublicationDeleter>> _logger = new();
+    private readonly Mock<ILogger<WordPressEndpointResolver>> _resolverLogger = new();
 
     [Fact]
     public void Type_IsWordPress()
@@ -80,14 +82,13 @@ public class WordPressPublicationDeleterTests
     [Fact]
     public async Task DeleteAsync_DiscoveryFailure_ReturnsFailed()
     {
-        var logger = new Mock<ILogger<WordPressPublicationDeleter>>();
         var handler = UnsupportedDiscovery();
-        var deleter = CreateDeleter(handler, logger.Object);
+        var deleter = CreateDeleter(handler);
 
         var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
 
         Assert.Equal(PublicationDeleteStatus.Failed, result.Status);
-        var logText = logger.GetLogText();
+        var logText = _logger.GetLogText();
         Assert.Contains("example.com", logText);
         Assert.DoesNotContain(ApplicationPassword, logText);
         Assert.Equal(3, handler.CallCount);
@@ -111,15 +112,13 @@ public class WordPressPublicationDeleterTests
     public async Task DeleteAsync_ProviderOrAuthorizationFailure_ReturnsFailed(
         HttpStatusCode statusCode)
     {
-        var logger = new Mock<ILogger<WordPressPublicationDeleter>>();
         var deleter = CreateDeleter(
-            PrettyRoot(_ => new HttpResponseMessage(statusCode)),
-            logger.Object);
+            PrettyRoot(_ => new HttpResponseMessage(statusCode)));
 
         var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
 
         Assert.Equal(PublicationDeleteStatus.Failed, result.Status);
-        var logText = logger.GetLogText();
+        var logText = _logger.GetLogText();
         Assert.Contains(((int)statusCode).ToString(), logText);
         Assert.Contains("example.com", logText);
         Assert.DoesNotContain(ApplicationPassword, logText);
@@ -165,15 +164,13 @@ public class WordPressPublicationDeleterTests
     [Fact]
     public async Task DeleteAsync_HttpRequestException_ReturnsFailedAndLogsSecretSafeContext()
     {
-        var logger = new Mock<ILogger<WordPressPublicationDeleter>>();
         var deleter = CreateDeleter(
-            PrettyRoot(_ => throw new HttpRequestException("network down")),
-            logger.Object);
+            PrettyRoot(_ => throw new HttpRequestException("network down")));
 
         var result = await deleter.DeleteAsync(Request(), CancellationToken.None);
 
         Assert.Equal(PublicationDeleteStatus.Failed, result.Status);
-        var logText = logger.GetLogText();
+        var logText = _logger.GetLogText();
         Assert.Contains("example.com", logText);
         Assert.DoesNotContain(ApplicationPassword, logText);
         Assert.DoesNotContain("Basic", logText);
@@ -189,18 +186,16 @@ public class WordPressPublicationDeleterTests
             () => deleter.DeleteAsync(Request(), CancellationToken.None));
     }
 
-    private static WordPressPublicationDeleter CreateDeleter(
-        FakeHttpMessageHandler handler,
-        ILogger<WordPressPublicationDeleter>? logger = null)
+    private WordPressPublicationDeleter CreateDeleter(FakeHttpMessageHandler handler)
     {
         var resolver = new WordPressEndpointResolver(
             new HttpClient(handler),
-            Mock.Of<ILogger<WordPressEndpointResolver>>());
+            _resolverLogger.Object);
 
         return new WordPressPublicationDeleter(
             new HttpClient(handler),
             resolver,
-            logger ?? Mock.Of<ILogger<WordPressPublicationDeleter>>());
+            _logger.Object);
     }
 
     private static PublicationDeleteRequest Request(

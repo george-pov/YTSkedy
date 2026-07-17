@@ -5,6 +5,14 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class ListPlatformsHandlerTests
 {
+    private readonly Mock<IPlatformReader> _reader = new();
+    private readonly ListPlatformsHandler _handler;
+
+    public ListPlatformsHandlerTests()
+    {
+        _handler = new ListPlatformsHandler(_reader.Object);
+    }
+
     [Fact]
     public async Task HandleAsync_ForwardsTypeFilterAndReturnsViews()
     {
@@ -15,20 +23,17 @@ public class ListPlatformsHandlerTests
                 name: "Main channel",
                 referenceKey: "main-youtube")
         };
-        var reader = new Mock<IPlatformReader>();
-        reader
+        _reader
             .Setup(candidate => candidate.ListAsync(
                 PlatformType.YouTube,
                 CancellationToken.None))
             .ReturnsAsync(views);
-        var handler = new ListPlatformsHandler(reader.Object);
-
-        var result = await handler.HandleAsync(
+        var result = await _handler.HandleAsync(
             new ListPlatformsQuery(PlatformType.YouTube),
             CancellationToken.None);
 
         Assert.Equal(views, result);
-        reader.Verify(candidate => candidate.ListAsync(
+        _reader.Verify(candidate => candidate.ListAsync(
             PlatformType.YouTube,
             CancellationToken.None));
     }
@@ -36,23 +41,18 @@ public class ListPlatformsHandlerTests
     [Fact]
     public async Task HandleAsync_NoTypeFilter_PassesNullType()
     {
-        var reader = new Mock<IPlatformReader>();
-        reader
+        _reader
             .Setup(candidate => candidate.ListAsync(null, CancellationToken.None))
             .ReturnsAsync([]);
-        var handler = new ListPlatformsHandler(reader.Object);
+        await _handler.HandleAsync(new ListPlatformsQuery(null), CancellationToken.None);
 
-        await handler.HandleAsync(new ListPlatformsQuery(null), CancellationToken.None);
-
-        reader.Verify(candidate => candidate.ListAsync(null, CancellationToken.None));
+        _reader.Verify(candidate => candidate.ListAsync(null, CancellationToken.None));
     }
 
     [Fact]
     public async Task HandleAsync_NullQuery_Throws()
     {
-        var handler = new ListPlatformsHandler(new Mock<IPlatformReader>().Object);
-
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => handler.HandleAsync(null!, CancellationToken.None));
+            () => _handler.HandleAsync(null!, CancellationToken.None));
     }
 }

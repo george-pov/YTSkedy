@@ -20,6 +20,13 @@ public class DeletePublicationHandlerTests
     private static readonly DateTimeOffset FutureStart = new(2026, 6, 15, 17, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset PastStart = Now;
     private static readonly YouTubeSettings Settings = ApplicationTestData.YouTubeSettings();
+    private readonly Mock<ICalendarEventReader> _calendarEvents = new();
+    private readonly Mock<IPlatformReader> _platforms = new();
+    private readonly Mock<IPlatformPublicationReader> _publications = new();
+    private readonly Mock<IPublicationCleanupWriter> _repository = new();
+    private readonly Mock<IPlatformPublicationDeleter> _deleter = new();
+    private readonly Mock<IPublicationIndexWriter> _publicationIndex = new();
+    private readonly Mock<ILogger<PublicationIndexUpdater>> _publicationIndexLogger = new();
 
     [Fact]
     public async Task DeletePublication_MissingEvent_ReturnsEventNotFound()
@@ -246,10 +253,8 @@ public class DeletePublicationHandlerTests
     public async Task DeletePublication_IndexReturnsFalse_LogsAndReturnsDeleted()
     {
         var publicationIndex = PublicationIndex(removeResult: false);
-        var logger = new Mock<ILogger<PublicationIndexUpdater>>();
         var handler = CreateHandler(
-            publicationIndex: publicationIndex,
-            publicationIndexLogger: logger.Object);
+            publicationIndex: publicationIndex);
 
         var result = await Handle(handler);
 
@@ -258,7 +263,7 @@ public class DeletePublicationHandlerTests
             CalendarEventId,
             PlatformId,
             CancellationToken.None));
-        var entry = Assert.Single(logger.GetLogEntries());
+        var entry = Assert.Single(_publicationIndexLogger.GetLogEntries());
         Assert.Equal(LogLevel.Error, entry.Level);
         Assert.Contains("RemovePublishedPlatform", entry.Message, StringComparison.Ordinal);
         Assert.Contains(CalendarEventId, entry.Message, StringComparison.Ordinal);
@@ -270,10 +275,8 @@ public class DeletePublicationHandlerTests
     {
         var publicationIndex = PublicationIndex(
             exception: new InvalidOperationException("storage unavailable"));
-        var logger = new Mock<ILogger<PublicationIndexUpdater>>();
         var handler = CreateHandler(
-            publicationIndex: publicationIndex,
-            publicationIndexLogger: logger.Object);
+            publicationIndex: publicationIndex);
 
         var result = await Handle(handler);
 
@@ -282,7 +285,7 @@ public class DeletePublicationHandlerTests
             CalendarEventId,
             PlatformId,
             CancellationToken.None));
-        var entry = Assert.Single(logger.GetLogEntries());
+        var entry = Assert.Single(_publicationIndexLogger.GetLogEntries());
         Assert.Equal(LogLevel.Error, entry.Level);
         Assert.Contains("RemovePublishedPlatform", entry.Message, StringComparison.Ordinal);
     }
@@ -292,7 +295,7 @@ public class DeletePublicationHandlerTests
             new DeletePublicationCommand(CalendarEventId, PlatformId),
             CancellationToken.None);
 
-    private static DeletePublicationHandler CreateHandler(
+    private DeletePublicationHandler CreateHandler(
         CalendarEventView? calendarEvent = null,
         PlatformView? platform = null,
         PlatformPublication? publication = null,
@@ -302,40 +305,48 @@ public class DeletePublicationHandlerTests
         bool hasPlatform = true,
         bool hasPublication = true,
         bool hasDeleter = true,
-        Mock<IPublicationIndexWriter>? publicationIndex = null,
-        ILogger<DeletePublicationHandler>? logger = null,
-        ILogger<PublicationIndexUpdater>? publicationIndexLogger = null)
+        Mock<IPublicationIndexWriter>? publicationIndex = null)
     {
-        var calendarEvents = new Mock<ICalendarEventReader>();
-        calendarEvents
+        _calendarEvents
             .Setup(candidate => candidate.GetByIdAsync(
                 CalendarEventId,
                 CancellationToken.None))
             .ReturnsAsync(hasCalendarEvent ? calendarEvent ?? Event(FutureStart) : null);
-        var platforms = new Mock<IPlatformReader>();
-        platforms
+        _platforms
             .Setup(candidate => candidate.GetAsync(PlatformId, CancellationToken.None))
             .ReturnsAsync(hasPlatform ? platform ?? Platform() : null);
-        var publications = new Mock<IPlatformPublicationReader>();
-        publications
+        _publications
             .Setup(candidate => candidate.GetAsync(
                 CalendarEventId,
                 PlatformId,
                 CancellationToken.None))
             .ReturnsAsync(hasPublication ? publication ?? Publication(PublishStatus.Published) : null);
 
+        if (repository is null)
+        {
+            PublicationRepository();
+        }
+        if (deleter is null)
+        {
+            PublicationDeleter();
+        }
+        if (publicationIndex is null)
+        {
+            PublicationIndex();
+        }
+
         return new DeletePublicationHandler(
-            calendarEvents.Object,
-            platforms.Object,
-            publications.Object,
-            (repository ?? PublicationRepository()).Object,
+            _calendarEvents.Object,
+            _platforms.Object,
+            _publications.Object,
+            _repository.Object,
             new PublicationIndexUpdater(
-                (publicationIndex ?? PublicationIndex()).Object,
-                publicationIndexLogger ?? NullLogger<PublicationIndexUpdater>.Instance),
+                _publicationIndex.Object,
+                _publicationIndexLogger.Object),
             new PlatformTypeAdapterSelector<IPlatformPublicationDeleter>(
-                hasDeleter ? [(deleter ?? PublicationDeleter()).Object] : []),
+                hasDeleter ? [_deleter.Object] : []),
             new FixedTimeProvider(Now),
-            logger ?? NullLogger<DeletePublicationHandler>.Instance);
+            NullLogger<DeletePublicationHandler>.Instance);
     }
 
     private static CalendarEventView Event(DateTimeOffset startUtc) =>
@@ -369,39 +380,36 @@ public class DeletePublicationHandlerTests
                 WordPressSiteUrl: null,
                 YouTubeClientId: ApplicationTestData.YouTubeClientId));
 
-    private static Mock<IPublicationCleanupWriter> PublicationRepository(
+    private Mock<IPublicationCleanupWriter> PublicationRepository(
         DeletePublishedResult? result = null)
     {
-        var repository = new Mock<IPublicationCleanupWriter>();
-        repository
+        _repository
             .Setup(candidate => candidate.DeletePublishedAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(result ?? DeletePublishedResult.Deleted);
-        return repository;
+        return _repository;
     }
 
-    private static Mock<IPlatformPublicationDeleter> PublicationDeleter(
+    private Mock<IPlatformPublicationDeleter> PublicationDeleter(
         PublicationDeleteResult? result = null)
     {
-        var deleter = new Mock<IPlatformPublicationDeleter>();
-        deleter.SetupGet(candidate => candidate.Type).Returns(PlatformType.YouTube);
-        deleter
+        _deleter.SetupGet(candidate => candidate.Type).Returns(PlatformType.YouTube);
+        _deleter
             .Setup(candidate => candidate.DeleteAsync(
                 It.IsAny<PublicationDeleteRequest>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(result ?? PublicationDeleteResult.Deleted);
-        return deleter;
+        return _deleter;
     }
 
-    private static Mock<IPublicationIndexWriter> PublicationIndex(
+    private Mock<IPublicationIndexWriter> PublicationIndex(
         bool removeResult = true,
         Exception? exception = null)
     {
-        var index = new Mock<IPublicationIndexWriter>();
-        var setup = index.Setup(candidate => candidate.RemovePublishedPlatformAsync(
+        var setup = _publicationIndex.Setup(candidate => candidate.RemovePublishedPlatformAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()));
@@ -414,6 +422,6 @@ public class DeletePublicationHandlerTests
             setup.ThrowsAsync(exception);
         }
 
-        return index;
+        return _publicationIndex;
     }
 }

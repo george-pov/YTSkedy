@@ -9,6 +9,20 @@ namespace YTSkedy.AzureFunctions.Test.Settings;
 
 public sealed class CalendarEventDefaultsApiTests
 {
+    private readonly Mock<IEventTextFieldsReader> _fields = new();
+    private readonly Mock<IStartDefaultsReader> _startDefaults = new();
+    private readonly Mock<ICalendarEventDefaultsModifier> _modifier = new();
+    private readonly CalendarEventDefaultsApi _api;
+
+    public CalendarEventDefaultsApiTests()
+    {
+        _api = new CalendarEventDefaultsApi(
+            new GetCalendarEventDefaultsHandler(
+                _fields.Object,
+                _startDefaults.Object),
+            new UpdateCalendarEventDefaultsHandler(_modifier.Object));
+    }
+
     [Fact]
     public async Task GetAsync_CurrentDefaults_ReturnsBothSettingsSections()
     {
@@ -18,12 +32,9 @@ public sealed class CalendarEventDefaultsApiTests
             DayOfWeek.Sunday,
             new TimeOnly(9, 5),
             "America/Vancouver");
-        var api = CreateApi(
-            fields,
-            startDefaults,
-            new Mock<ICalendarEventDefaultsModifier>());
+        SetCurrentDefaults(fields, startDefaults);
 
-        var result = await api.GetAsync(
+        var result = await _api.GetAsync(
             new DefaultHttpContext().Request,
             CancellationToken.None);
 
@@ -43,15 +54,13 @@ public sealed class CalendarEventDefaultsApiTests
     public async Task UpdateAsync_ValidRequest_SavesAndReturnsNormalizedDefaults()
     {
         CalendarEventDefaults? saved = null;
-        var modifier = new Mock<ICalendarEventDefaultsModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.SaveAsync(
                 It.IsAny<CalendarEventDefaults>(),
                 CancellationToken.None))
             .Callback<CalendarEventDefaults, CancellationToken>(
                 (defaults, _) => saved = defaults)
             .Returns(Task.CompletedTask);
-        var api = CreateApi(EventTextFields.Default, StartDefaults.Empty, modifier);
         var request = HttpRequestFactory.WithBody("""
             {
               "eventTextFields": {
@@ -78,7 +87,7 @@ public sealed class CalendarEventDefaultsApiTests
             }
             """);
 
-        var result = await api.UpdateAsync(request, CancellationToken.None);
+        var result = await _api.UpdateAsync(request, CancellationToken.None);
 
         var response = Assert.IsType<CalendarEventDefaultsResponse>(
             Assert.IsType<OkObjectResult>(result).Value);
@@ -100,17 +109,14 @@ public sealed class CalendarEventDefaultsApiTests
     public async Task UpdateAsync_AllNullStartDefaults_ClearsDefaults()
     {
         CalendarEventDefaults? saved = null;
-        var modifier = new Mock<ICalendarEventDefaultsModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.SaveAsync(
                 It.IsAny<CalendarEventDefaults>(),
                 CancellationToken.None))
             .Callback<CalendarEventDefaults, CancellationToken>(
                 (defaults, _) => saved = defaults)
             .Returns(Task.CompletedTask);
-        var api = CreateApi(EventTextFields.Default, StartDefaults.Empty, modifier);
-
-        var result = await api.UpdateAsync(
+        var result = await _api.UpdateAsync(
             HttpRequestFactory.WithBody("""
                 {
                   "eventTextFields": {
@@ -175,13 +181,12 @@ public sealed class CalendarEventDefaultsApiTests
         """)]
     public async Task UpdateAsync_InvalidFieldList_ReturnsBadRequest(string json)
     {
-        var modifier = new Mock<ICalendarEventDefaultsModifier>();
-
-        var result = await CreateApi(EventTextFields.Default, StartDefaults.Empty, modifier)
-            .UpdateAsync(HttpRequestFactory.WithBody(json), CancellationToken.None);
+        var result = await _api.UpdateAsync(
+            HttpRequestFactory.WithBody(json),
+            CancellationToken.None);
 
         Assert.IsType<BadRequestObjectResult>(result);
-        modifier.Verify(candidate => candidate.SaveAsync(
+        _modifier.Verify(candidate => candidate.SaveAsync(
             It.IsAny<CalendarEventDefaults>(),
             It.IsAny<CancellationToken>()), Times.Never());
     }
@@ -214,35 +219,25 @@ public sealed class CalendarEventDefaultsApiTests
     [InlineData("not-json")]
     public async Task UpdateAsync_MissingSectionOrInvalidJson_ReturnsBadRequest(string json)
     {
-        var modifier = new Mock<ICalendarEventDefaultsModifier>();
-
-        var result = await CreateApi(EventTextFields.Default, StartDefaults.Empty, modifier)
-            .UpdateAsync(HttpRequestFactory.WithBody(json), CancellationToken.None);
+        var result = await _api.UpdateAsync(
+            HttpRequestFactory.WithBody(json),
+            CancellationToken.None);
 
         Assert.IsType<BadRequestObjectResult>(result);
-        modifier.Verify(candidate => candidate.SaveAsync(
+        _modifier.Verify(candidate => candidate.SaveAsync(
             It.IsAny<CalendarEventDefaults>(),
             It.IsAny<CancellationToken>()), Times.Never());
     }
 
-    private static CalendarEventDefaultsApi CreateApi(
+    private void SetCurrentDefaults(
         EventTextFields fields,
-        StartDefaults startDefaults,
-        Mock<ICalendarEventDefaultsModifier> modifier)
+        StartDefaults startDefaults)
     {
-        var fieldsReader = new Mock<IEventTextFieldsReader>();
-        fieldsReader
+        _fields
             .Setup(reader => reader.GetAsync(CancellationToken.None))
             .ReturnsAsync(fields);
-        var startDefaultsReader = new Mock<IStartDefaultsReader>();
-        startDefaultsReader
+        _startDefaults
             .Setup(reader => reader.GetAsync(CancellationToken.None))
             .ReturnsAsync(startDefaults);
-
-        return new CalendarEventDefaultsApi(
-            new GetCalendarEventDefaultsHandler(
-                fieldsReader.Object,
-                startDefaultsReader.Object),
-            new UpdateCalendarEventDefaultsHandler(modifier.Object));
     }
 }

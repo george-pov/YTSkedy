@@ -14,6 +14,22 @@ public sealed class PublicationThumbnailApplierTests
     private const string CalendarEventId = ApplicationTestData.CalendarEventId;
     private const string PlatformId = ApplicationTestData.PlatformId;
     private const string ExternalResourceId = "yt-broadcast-id";
+    private readonly Mock<ICalendarEventThumbnailReader> _thumbnails = new();
+    private readonly Mock<IThumbnailStore> _store = new();
+    private readonly Mock<IPublicationThumbnailWriter> _writer = new();
+    private readonly Mock<IThumbnailPublisher> _publisher = new();
+    private readonly PublicationThumbnailApplier _applier;
+
+    public PublicationThumbnailApplierTests()
+    {
+        _publisher.SetupGet(candidate => candidate.Type).Returns(PlatformType.YouTube);
+        _applier = new PublicationThumbnailApplier(
+            _thumbnails.Object,
+            _store.Object,
+            _writer.Object,
+            new PlatformTypeAdapterSelector<IThumbnailPublisher>([_publisher.Object]),
+            NullLogger<PublicationThumbnailApplier>.Instance);
+    }
 
     [Fact]
     public async Task LoadAsync_MissingThumbnail_ReturnsNotConfigured()
@@ -42,21 +58,20 @@ public sealed class PublicationThumbnailApplierTests
     [Fact]
     public async Task ApplyAsync_YouTubeThumbnailSuccess_MarksThumbnailApplied()
     {
-        var writer = new Mock<IPublicationThumbnailWriter>();
         var publisher = ThumbnailPublisher();
         var content = ApplicationTestData.ThumbnailContent();
-        var applier = CreateApplier(writer: writer, publisher: publisher);
+        var applier = CreateApplier();
 
         var result = await applier.ApplyAsync(
             Command(PublicationThumbnail.Configured(content)),
             CancellationToken.None);
 
         Assert.Equal(ThumbnailPublishStatus.Applied, result);
-        writer.Verify(candidate => candidate.MarkThumbnailAppliedAsync(
+        _writer.Verify(candidate => candidate.MarkThumbnailAppliedAsync(
             CalendarEventId,
             PlatformId,
             CancellationToken.None));
-        writer.Verify(candidate => candidate.MarkThumbnailFailedAsync(
+        _writer.Verify(candidate => candidate.MarkThumbnailFailedAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
@@ -70,48 +85,45 @@ public sealed class PublicationThumbnailApplierTests
     [Fact]
     public async Task ApplyAsync_YouTubeThumbnailFailure_MarksThumbnailFailed()
     {
-        var writer = new Mock<IPublicationThumbnailWriter>();
-        var publisher = ThumbnailPublisher(
+        ThumbnailPublisher(
             new ThumbnailPublishException("thumbnail rejected"));
-        var applier = CreateApplier(writer: writer, publisher: publisher);
+        var applier = CreateApplier();
 
         var result = await applier.ApplyAsync(
             Command(PublicationThumbnail.Configured(ApplicationTestData.ThumbnailContent())),
             CancellationToken.None);
 
         Assert.Equal(ThumbnailPublishStatus.Failed, result);
-        VerifyFailed(writer);
+        VerifyFailed();
     }
 
     [Fact]
     public async Task ApplyAsync_UnexpectedThumbnailFailure_MarksThumbnailFailed()
     {
-        var writer = new Mock<IPublicationThumbnailWriter>();
-        var publisher = ThumbnailPublisher(
+        ThumbnailPublisher(
             new InvalidOperationException("thumbnail client failed"));
-        var applier = CreateApplier(writer: writer, publisher: publisher);
+        var applier = CreateApplier();
 
         var result = await applier.ApplyAsync(
             Command(PublicationThumbnail.Configured(ApplicationTestData.ThumbnailContent())),
             CancellationToken.None);
 
         Assert.Equal(ThumbnailPublishStatus.Failed, result);
-        VerifyFailed(writer);
+        VerifyFailed();
     }
 
     [Fact]
     public async Task ApplyAsync_ConfiguredThumbnailWithMissingBytes_MarksThumbnailFailed()
     {
-        var writer = new Mock<IPublicationThumbnailWriter>();
         var publisher = ThumbnailPublisher();
-        var applier = CreateApplier(writer: writer, publisher: publisher);
+        var applier = CreateApplier();
 
         var result = await applier.ApplyAsync(
             Command(PublicationThumbnail.MissingContent),
             CancellationToken.None);
 
         Assert.Equal(ThumbnailPublishStatus.Failed, result);
-        writer.Verify(candidate => candidate.MarkThumbnailFailedAsync(
+        _writer.Verify(candidate => candidate.MarkThumbnailFailedAsync(
             CalendarEventId,
             PlatformId,
             CancellationToken.None));
@@ -123,9 +135,8 @@ public sealed class PublicationThumbnailApplierTests
     [Fact]
     public async Task ApplyAsync_WordPressWithEventThumbnail_ReturnsNullWithoutProviderCall()
     {
-        var writer = new Mock<IPublicationThumbnailWriter>();
         var publisher = ThumbnailPublisher();
-        var applier = CreateApplier(writer: writer, publisher: publisher);
+        var applier = CreateApplier();
 
         var result = await applier.ApplyAsync(
             Command(
@@ -135,11 +146,11 @@ public sealed class PublicationThumbnailApplierTests
             CancellationToken.None);
 
         Assert.Null(result);
-        writer.Verify(candidate => candidate.MarkThumbnailAppliedAsync(
+        _writer.Verify(candidate => candidate.MarkThumbnailAppliedAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
-        writer.Verify(candidate => candidate.MarkThumbnailFailedAsync(
+        _writer.Verify(candidate => candidate.MarkThumbnailFailedAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
@@ -148,48 +159,37 @@ public sealed class PublicationThumbnailApplierTests
             It.IsAny<CancellationToken>()), Times.Never());
     }
 
-    private static PublicationThumbnailApplier CreateApplier(
+    private PublicationThumbnailApplier CreateApplier(
         Thumbnail? thumbnail = null,
-        ThumbnailContent? thumbnailContent = null,
-        Mock<IPublicationThumbnailWriter>? writer = null,
-        Mock<IThumbnailPublisher>? publisher = null)
+        ThumbnailContent? thumbnailContent = null)
     {
-        var thumbnailReader = new Mock<ICalendarEventThumbnailReader>();
-        thumbnailReader
+        _thumbnails
             .Setup(candidate => candidate.GetThumbnailAsync(
                 CalendarEventId,
                 CancellationToken.None))
             .ReturnsAsync(thumbnail);
-        var thumbnailStore = new Mock<IThumbnailStore>();
         if (thumbnail is not null)
         {
-            thumbnailStore
+            _store
                 .Setup(candidate => candidate.GetAsync(
                     thumbnail.BlobName,
                     CancellationToken.None))
                 .ReturnsAsync(thumbnailContent);
         }
-        writer ??= new Mock<IPublicationThumbnailWriter>();
-        writer
+        _writer
             .Setup(candidate => candidate.MarkThumbnailAppliedAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        writer
+        _writer
             .Setup(candidate => candidate.MarkThumbnailFailedAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        return new PublicationThumbnailApplier(
-            thumbnailReader.Object,
-            thumbnailStore.Object,
-            writer.Object,
-            new PlatformTypeAdapterSelector<IThumbnailPublisher>(
-                publisher is null ? [] : [publisher.Object]),
-            NullLogger<PublicationThumbnailApplier>.Instance);
+        return _applier;
     }
 
     private static PublicationThumbnailCommand Command(
@@ -206,11 +206,9 @@ public sealed class PublicationThumbnailApplierTests
             ExternalResourceId,
             thumbnail);
 
-    private static Mock<IThumbnailPublisher> ThumbnailPublisher(Exception? exception = null)
+    private Mock<IThumbnailPublisher> ThumbnailPublisher(Exception? exception = null)
     {
-        var publisher = new Mock<IThumbnailPublisher>();
-        publisher.SetupGet(candidate => candidate.Type).Returns(PlatformType.YouTube);
-        var setup = publisher.Setup(candidate => candidate.PublishAsync(
+        var setup = _publisher.Setup(candidate => candidate.PublishAsync(
             It.IsAny<ThumbnailPublishRequest>(),
             It.IsAny<CancellationToken>()));
         if (exception is null)
@@ -222,16 +220,16 @@ public sealed class PublicationThumbnailApplierTests
             setup.ThrowsAsync(exception);
         }
 
-        return publisher;
+        return _publisher;
     }
 
-    private static void VerifyFailed(Mock<IPublicationThumbnailWriter> writer)
+    private void VerifyFailed()
     {
-        writer.Verify(candidate => candidate.MarkThumbnailAppliedAsync(
+        _writer.Verify(candidate => candidate.MarkThumbnailAppliedAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
-        writer.Verify(candidate => candidate.MarkThumbnailFailedAsync(
+        _writer.Verify(candidate => candidate.MarkThumbnailFailedAsync(
             CalendarEventId,
             PlatformId,
             CancellationToken.None));

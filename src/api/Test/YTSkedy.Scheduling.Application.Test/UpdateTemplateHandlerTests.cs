@@ -5,11 +5,18 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class UpdateTemplateHandlerTests
 {
+    private readonly Mock<ITemplateModifier> _modifier = new();
+    private readonly UpdateTemplateHandler _handler;
+
+    public UpdateTemplateHandlerTests()
+    {
+        _handler = new UpdateTemplateHandler(_modifier.Object);
+    }
+
     [Fact]
     public async Task HandleAsync_ValidCommand_ForwardsToModifierAndReturnsResult()
     {
-        var modifier = new Mock<ITemplateModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.UpdateAsync(
                 TemplateType.YouTube,
                 "9f8b1c2d3e4f",
@@ -17,17 +24,16 @@ public class UpdateTemplateHandlerTests
                 "Updated content",
                 CancellationToken.None))
             .ReturnsAsync(UpdateTemplateResult.Updated);
-        var handler = new UpdateTemplateHandler(modifier.Object);
         var command = new UpdateTemplateCommand(
             TemplateType.YouTube,
             "9f8b1c2d3e4f",
             "Renamed",
             "Updated content");
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(UpdateTemplateResult.Updated, result);
-        modifier.Verify(candidate => candidate.UpdateAsync(
+        _modifier.Verify(candidate => candidate.UpdateAsync(
             TemplateType.YouTube,
             "9f8b1c2d3e4f",
             "Renamed",
@@ -42,8 +48,7 @@ public class UpdateTemplateHandlerTests
     public async Task HandleAsync_ModifierResult_IsReturnedUnchanged(
         UpdateTemplateResult modifierResult)
     {
-        var modifier = new Mock<ITemplateModifier>();
-        modifier
+        _modifier
             .Setup(candidate => candidate.UpdateAsync(
                 It.IsAny<TemplateType>(),
                 It.IsAny<string>(),
@@ -51,14 +56,13 @@ public class UpdateTemplateHandlerTests
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(modifierResult);
-        var handler = new UpdateTemplateHandler(modifier.Object);
         var command = new UpdateTemplateCommand(
             TemplateType.WordPress,
             "9f8b1c2d3e4f",
             "name",
             "content");
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(modifierResult, result);
     }
@@ -66,13 +70,10 @@ public class UpdateTemplateHandlerTests
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var modifier = new Mock<ITemplateModifier>();
-        var handler = new UpdateTemplateHandler(modifier.Object);
-
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => handler.HandleAsync(null!, CancellationToken.None));
+            () => _handler.HandleAsync(null!, CancellationToken.None));
 
-        modifier.Verify(candidate => candidate.UpdateAsync(
+        _modifier.Verify(candidate => candidate.UpdateAsync(
             It.IsAny<TemplateType>(),
             It.IsAny<string>(),
             It.IsAny<string>(),

@@ -6,23 +6,31 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public sealed class GetThumbnailHandlerTests
 {
+    private readonly Mock<ICalendarEventReader> _calendarEvents = new();
+    private readonly Mock<ICalendarEventThumbnailReader> _thumbnails = new();
+    private readonly Mock<IThumbnailStore> _store = new();
+    private readonly GetThumbnailHandler _handler;
+
+    public GetThumbnailHandlerTests()
+    {
+        _handler = new GetThumbnailHandler(
+            _calendarEvents.Object,
+            _thumbnails.Object,
+            _store.Object);
+    }
+
     [Fact]
     public async Task HandleAsync_MissingEvent_ReturnsEventNotFound()
     {
-        var events = CalendarEventReader(null);
-        var thumbnails = ThumbnailReader(null);
-        var store = new Mock<IThumbnailStore>();
-        var handler = new GetThumbnailHandler(
-            events.Object,
-            thumbnails.Object,
-            store.Object);
+        CalendarEventReader(null);
+        ThumbnailReader(null);
 
-        var result = await handler.HandleAsync(
+        var result = await _handler.HandleAsync(
             ApplicationTestData.CalendarEventId,
             CancellationToken.None);
 
         Assert.Equal(GetThumbnailStatus.EventNotFound, result.Status);
-        store.Verify(candidate => candidate.GetAsync(
+        _store.Verify(candidate => candidate.GetAsync(
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
     }
@@ -30,20 +38,15 @@ public sealed class GetThumbnailHandlerTests
     [Fact]
     public async Task HandleAsync_MissingMetadata_ReturnsThumbnailNotFound()
     {
-        var events = CalendarEventReader(ApplicationTestData.CalendarEvent());
-        var thumbnails = ThumbnailReader(null);
-        var store = new Mock<IThumbnailStore>();
-        var handler = new GetThumbnailHandler(
-            events.Object,
-            thumbnails.Object,
-            store.Object);
+        CalendarEventReader(ApplicationTestData.CalendarEvent());
+        ThumbnailReader(null);
 
-        var result = await handler.HandleAsync(
+        var result = await _handler.HandleAsync(
             ApplicationTestData.CalendarEventId,
             CancellationToken.None);
 
         Assert.Equal(GetThumbnailStatus.ThumbnailNotFound, result.Status);
-        store.Verify(candidate => candidate.GetAsync(
+        _store.Verify(candidate => candidate.GetAsync(
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never());
     }
@@ -51,25 +54,19 @@ public sealed class GetThumbnailHandlerTests
     [Fact]
     public async Task HandleAsync_MissingBlob_ReturnsThumbnailNotFound()
     {
-        var events = CalendarEventReader(ApplicationTestData.CalendarEvent());
-        var thumbnails = ThumbnailReader(ApplicationTestData.Thumbnail());
-        var store = new Mock<IThumbnailStore>();
-        store
+        CalendarEventReader(ApplicationTestData.CalendarEvent());
+        ThumbnailReader(ApplicationTestData.Thumbnail());
+        _store
             .Setup(candidate => candidate.GetAsync(
                 ApplicationTestData.ThumbnailBlobName(),
                 CancellationToken.None))
             .ReturnsAsync((ThumbnailContent?)null);
-        var handler = new GetThumbnailHandler(
-            events.Object,
-            thumbnails.Object,
-            store.Object);
-
-        var result = await handler.HandleAsync(
+        var result = await _handler.HandleAsync(
             ApplicationTestData.CalendarEventId,
             CancellationToken.None);
 
         Assert.Equal(GetThumbnailStatus.ThumbnailNotFound, result.Status);
-        store.Verify(candidate => candidate.GetAsync(
+        _store.Verify(candidate => candidate.GetAsync(
             ApplicationTestData.ThumbnailBlobName(),
             CancellationToken.None));
     }
@@ -78,20 +75,14 @@ public sealed class GetThumbnailHandlerTests
     public async Task HandleAsync_ExistingBlob_ReturnsContent()
     {
         var content = new ThumbnailContent([1, 2, 3], "image/png");
-        var events = CalendarEventReader(ApplicationTestData.CalendarEvent());
-        var thumbnails = ThumbnailReader(ApplicationTestData.Thumbnail());
-        var store = new Mock<IThumbnailStore>();
-        store
+        CalendarEventReader(ApplicationTestData.CalendarEvent());
+        ThumbnailReader(ApplicationTestData.Thumbnail());
+        _store
             .Setup(candidate => candidate.GetAsync(
                 ApplicationTestData.ThumbnailBlobName(),
                 CancellationToken.None))
             .ReturnsAsync(content);
-        var handler = new GetThumbnailHandler(
-            events.Object,
-            thumbnails.Object,
-            store.Object);
-
-        var result = await handler.HandleAsync(
+        var result = await _handler.HandleAsync(
             ApplicationTestData.CalendarEventId,
             CancellationToken.None);
 
@@ -99,27 +90,25 @@ public sealed class GetThumbnailHandlerTests
         Assert.Same(content, result.Content);
     }
 
-    private static Mock<ICalendarEventReader> CalendarEventReader(
+    private Mock<ICalendarEventReader> CalendarEventReader(
         CalendarEventView? calendarEvent)
     {
-        var reader = new Mock<ICalendarEventReader>();
-        reader
+        _calendarEvents
             .Setup(candidate => candidate.GetByIdAsync(
                 ApplicationTestData.CalendarEventId,
                 CancellationToken.None))
             .ReturnsAsync(calendarEvent);
-        return reader;
+        return _calendarEvents;
     }
 
-    private static Mock<ICalendarEventThumbnailReader> ThumbnailReader(
+    private Mock<ICalendarEventThumbnailReader> ThumbnailReader(
         Thumbnail? thumbnail)
     {
-        var reader = new Mock<ICalendarEventThumbnailReader>();
-        reader
+        _thumbnails
             .Setup(candidate => candidate.GetThumbnailAsync(
                 ApplicationTestData.CalendarEventId,
                 CancellationToken.None))
             .ReturnsAsync(thumbnail);
-        return reader;
+        return _thumbnails;
     }
 }

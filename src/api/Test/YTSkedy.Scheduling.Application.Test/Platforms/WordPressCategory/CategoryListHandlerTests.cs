@@ -7,6 +7,14 @@ namespace YTSkedy.Scheduling.Application.Test;
 public class CategoryListHandlerTests
 {
     private const string PlatformId = "4fb4a32f3f344de1a7c3a9f4a2f94918";
+    private readonly Mock<IPlatformReader> _platforms = new();
+    private readonly Mock<ICategoryReader> _categories = new();
+    private readonly CategoryListHandler _handler;
+
+    public CategoryListHandlerTests()
+    {
+        _handler = new CategoryListHandler(_platforms.Object, _categories.Object);
+    }
 
     [Fact]
     public async Task HandleAsync_WordPressPlatform_ReturnsListedPageAndForwardsQuery()
@@ -18,8 +26,7 @@ public class CategoryListHandlerTests
             25,
             26,
             2);
-        var categoryReader = new Mock<ICategoryReader>();
-        categoryReader
+        _categories
             .Setup(candidate => candidate.ListAsync(
                 settings,
                 It.Is<CategoryQuery>(query =>
@@ -30,17 +37,16 @@ public class CategoryListHandlerTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(page);
         var platformReader = PlatformReader(Platform(PlatformType.WordPress, settings));
-        var handler = new CategoryListHandler(platformReader.Object, categoryReader.Object);
         var cancellationToken = new CancellationTokenSource().Token;
 
-        var result = await handler.HandleAsync(
+        var result = await _handler.HandleAsync(
             new CategoryListQuery(PlatformId, "events", [12, 34], 2, 25),
             cancellationToken);
 
         Assert.Equal(CategoryListStatus.Listed, result.Status);
         Assert.Same(page, result.Page);
         platformReader.Verify(candidate => candidate.GetAsync(PlatformId, cancellationToken));
-        categoryReader.Verify(candidate => candidate.ListAsync(
+        _categories.Verify(candidate => candidate.ListAsync(
             settings,
             It.Is<CategoryQuery>(query =>
                 query.Search == "events" &&
@@ -53,65 +59,53 @@ public class CategoryListHandlerTests
     [Fact]
     public async Task HandleAsync_MissingPlatform_ReturnsPlatformNotFound()
     {
-        var categoryReader = new Mock<ICategoryReader>();
-        var handler = new CategoryListHandler(
-            PlatformReader(null).Object,
-            categoryReader.Object);
+        PlatformReader(null);
 
-        var result = await HandleAsync(handler);
+        var result = await HandleAsync(_handler);
 
         Assert.Equal(CategoryListStatus.PlatformNotFound, result.Status);
         Assert.Null(result.Page);
-        VerifyNoCategoryRead(categoryReader);
+        VerifyNoCategoryRead();
     }
 
     [Fact]
     public async Task HandleAsync_YouTubePlatform_ReturnsInvalidPlatformType()
     {
-        var categoryReader = new Mock<ICategoryReader>();
-        var handler = new CategoryListHandler(
-            PlatformReader(Platform(PlatformType.YouTube)).Object,
-            categoryReader.Object);
+        PlatformReader(Platform(PlatformType.YouTube));
 
-        var result = await HandleAsync(handler);
+        var result = await HandleAsync(_handler);
 
         Assert.Equal(CategoryListStatus.InvalidPlatformType, result.Status);
         Assert.Null(result.Page);
-        VerifyNoCategoryRead(categoryReader);
+        VerifyNoCategoryRead();
     }
 
     [Fact]
     public async Task HandleAsync_WordPressTypeWithYouTubeSettings_ReturnsInvalidPlatformType()
     {
-        var categoryReader = new Mock<ICategoryReader>();
-        var handler = new CategoryListHandler(
-            PlatformReader(Platform(
-                PlatformType.WordPress,
-                ApplicationTestData.YouTubeSettings())).Object,
-            categoryReader.Object);
+        PlatformReader(Platform(
+            PlatformType.WordPress,
+            ApplicationTestData.YouTubeSettings()));
 
-        var result = await HandleAsync(handler);
+        var result = await HandleAsync(_handler);
 
         Assert.Equal(CategoryListStatus.InvalidPlatformType, result.Status);
-        VerifyNoCategoryRead(categoryReader);
+        VerifyNoCategoryRead();
     }
 
     [Fact]
     public async Task HandleAsync_ProviderFailure_ReturnsProviderFailed()
     {
         var settings = ApplicationTestData.WordPressSettings();
-        var categoryReader = new Mock<ICategoryReader>();
-        categoryReader
+        _categories
             .Setup(candidate => candidate.ListAsync(
                 settings,
                 It.IsAny<CategoryQuery>(),
                 CancellationToken.None))
             .ThrowsAsync(new CategoryReadException("Provider failed."));
-        var handler = new CategoryListHandler(
-            PlatformReader(Platform(PlatformType.WordPress, settings)).Object,
-            categoryReader.Object);
+        PlatformReader(Platform(PlatformType.WordPress, settings));
 
-        var result = await HandleAsync(handler);
+        var result = await HandleAsync(_handler);
 
         Assert.Equal(CategoryListStatus.ProviderFailed, result.Status);
         Assert.Null(result.Page);
@@ -122,19 +116,16 @@ public class CategoryListHandlerTests
     {
         var cancellation = new OperationCanceledException();
         var settings = ApplicationTestData.WordPressSettings();
-        var categoryReader = new Mock<ICategoryReader>();
-        categoryReader
+        _categories
             .Setup(candidate => candidate.ListAsync(
                 settings,
                 It.IsAny<CategoryQuery>(),
                 CancellationToken.None))
             .ThrowsAsync(cancellation);
-        var handler = new CategoryListHandler(
-            PlatformReader(Platform(PlatformType.WordPress, settings)).Object,
-            categoryReader.Object);
+        PlatformReader(Platform(PlatformType.WordPress, settings));
 
         var exception = await Assert.ThrowsAsync<OperationCanceledException>(
-            () => HandleAsync(handler));
+            () => HandleAsync(_handler));
 
         Assert.Same(cancellation, exception);
     }
@@ -142,12 +133,8 @@ public class CategoryListHandlerTests
     [Fact]
     public async Task HandleAsync_NullQuery_Throws()
     {
-        var handler = new CategoryListHandler(
-            new Mock<IPlatformReader>().Object,
-            new Mock<ICategoryReader>().Object);
-
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => handler.HandleAsync(null!, CancellationToken.None));
+            () => _handler.HandleAsync(null!, CancellationToken.None));
     }
 
     private static Task<CategoryListResult> HandleAsync(CategoryListHandler handler) =>
@@ -163,19 +150,18 @@ public class CategoryListHandlerTests
             type: type,
             publishSettings: settings);
 
-    private static Mock<IPlatformReader> PlatformReader(PlatformView? platform)
+    private Mock<IPlatformReader> PlatformReader(PlatformView? platform)
     {
-        var reader = new Mock<IPlatformReader>();
-        reader
+        _platforms
             .Setup(candidate => candidate.GetAsync(
                 PlatformId,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(platform);
-        return reader;
+        return _platforms;
     }
 
-    private static void VerifyNoCategoryRead(Mock<ICategoryReader> reader) =>
-        reader.Verify(candidate => candidate.ListAsync(
+    private void VerifyNoCategoryRead() =>
+        _categories.Verify(candidate => candidate.ListAsync(
             It.IsAny<WordPressSettings>(),
             It.IsAny<CategoryQuery>(),
             It.IsAny<CancellationToken>()), Times.Never());

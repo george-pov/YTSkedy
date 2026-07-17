@@ -7,12 +7,14 @@ namespace YTSkedy.Scheduling.Application.Test;
 
 public class PublishHandlerGuardTests
 {
+    private readonly PublishHandlerScenario _scenario = new();
+
     [Fact]
     public async Task HandleAsync_MissingEvent_ReturnsEventNotFound()
     {
-        var scenario = new PublishHandlerScenario { CalendarEvent = null };
+        _scenario.CalendarEvent = null;
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.EventNotFound, result.Status);
     }
@@ -20,9 +22,9 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_MissingPlatform_ReturnsPlatformNotFound()
     {
-        var scenario = new PublishHandlerScenario { SelectedPlatform = null };
+        _scenario.SelectedPlatform = null;
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.PlatformNotFound, result.Status);
     }
@@ -30,12 +32,11 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_NoProviderForType_ReturnsProviderNotSupported()
     {
-        var scenario = new PublishHandlerScenario();
-        scenario.Publisher
+        _scenario.Publisher
             .SetupGet(candidate => candidate.Type)
             .Returns(PlatformType.WordPress);
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.ProviderNotSupported, result.Status);
     }
@@ -43,14 +44,11 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_OrphanedRow_ReturnsPlatformDeleted()
     {
-        var scenario = new PublishHandlerScenario
-        {
-            ExistingPublication = Publication(
-                PublishStatus.Published,
-                platformDeletedUtc: Now)
-        };
+        _scenario.ExistingPublication = Publication(
+            PublishStatus.Published,
+            platformDeletedUtc: Now);
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.PlatformDeleted, result.Status);
     }
@@ -58,12 +56,9 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_PublishedRow_ReturnsAlreadyPublished()
     {
-        var scenario = new PublishHandlerScenario
-        {
-            ExistingPublication = Publication(PublishStatus.Published)
-        };
+        _scenario.ExistingPublication = Publication(PublishStatus.Published);
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.AlreadyPublished, result.Status);
     }
@@ -71,12 +66,9 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_PublishingRow_ReturnsPublishInProgress()
     {
-        var scenario = new PublishHandlerScenario
-        {
-            ExistingPublication = Publication(PublishStatus.Publishing)
-        };
+        _scenario.ExistingPublication = Publication(PublishStatus.Publishing);
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.PublishInProgress, result.Status);
     }
@@ -84,15 +76,12 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_FailedRow_RetriesPublish()
     {
-        var scenario = new PublishHandlerScenario
-        {
-            ExistingPublication = Publication(PublishStatus.Failed)
-        };
+        _scenario.ExistingPublication = Publication(PublishStatus.Failed);
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.Published, result.Status);
-        scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
+        _scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
             It.IsAny<PlatformPublicationAttempt>(),
             It.IsAny<CancellationToken>()));
     }
@@ -100,9 +89,9 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_PastStart_ReturnsPastStart()
     {
-        var scenario = new PublishHandlerScenario { CalendarEvent = Event(PastStart) };
+        _scenario.CalendarEvent = Event(PastStart);
 
-        var result = await scenario.HandleAsync();
+        var result = await _scenario.HandleAsync();
 
         Assert.Equal(PublishResultStatus.PastStart, result.Status);
     }
@@ -110,7 +99,7 @@ public class PublishHandlerGuardTests
     [Fact]
     public async Task HandleAsync_NullCommand_Throws()
     {
-        var handler = new PublishHandlerScenario().CreateHandler();
+        var handler = _scenario.CreateHandler();
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => handler.HandleAsync(null!, CancellationToken.None));

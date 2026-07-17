@@ -18,6 +18,18 @@ framework wiring.
 - Use loose `Mock<T>` instances. Configure query results explicitly with
   `Setup` and `ReturnsAsync`, and configure expected failures with
   `ThrowsAsync`.
+- xUnit creates a fresh test-class instance for each test execution, including
+  each theory data row. Recurring mocks and stable system-under-test wiring may
+  therefore be private readonly instance fields without sharing state between
+  tests.
+- Use a test-class constructor only for stable object creation and dependency
+  wiring. Keep query results, exceptions, callbacks, sequences, and
+  verifications in the test that owns the behavior or in an arrangement helper
+  that the test calls explicitly.
+- Keep single-use mocks and multiple mocks whose distinct identity matters
+  local to the test method. Do not use static mocks, shared mock fixtures, test
+  base contexts, mock `Reset()` calls, or invocation clearing to reuse mock
+  state across test executions.
 - Use `Callback` when the test needs to inspect several properties of a
   command or provider request. Keep the callback in the owning test.
 - Use `Verify` only for behaviorally important commands and arguments. Use
