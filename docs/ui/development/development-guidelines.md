@@ -54,12 +54,12 @@ npm run ng -- generate service pages/calendar-events/calendar-events-api
   `tsconfig.json` settings to make feature code compile.
 - Prefer type inference when the type is obvious from the assignment,
   initializer, or Angular API.
-- Use explicit named types for app contracts, payloads, form models, and
-  function boundaries where inference would hide intent.
+- Use explicit named types for app contracts, request and response bodies,
+  form models, and function boundaries where inference would hide intent.
 - Do not use `any` for uncertain values. Use `unknown` and narrow it before
   reading properties or passing it into typed app code.
 - Keep transformations pure when mapping form state, route data, runtime
-  configuration, or API payloads.
+  configuration, or API request and response bodies.
 
 ## Angular Conventions
 
@@ -242,7 +242,7 @@ Wrapper APIs should describe app intent:
 - Design services around one responsibility and one clear owner.
 - Use `providedIn: 'root'` for singleton services.
 - Prefer `inject()` over constructor parameter injection for new services.
-- Keep API calls, payload mapping, branching rules, and reusable
+- Keep API calls, request and response mapping, branching rules, and reusable
   transformations out of page components.
 - Put page-flow services under the page flow that owns them. Put reused app
   services under `shared/services/`.
@@ -261,8 +261,8 @@ verification guidance.
 
 Tests should live beside the code under test, but a file does not need a
 `.spec.ts` only because it exists. Prioritize tests for behavior, app-owned
-contracts, risky transformations, validation, payload mapping, request
-building, and shared form-control logic.
+contracts, risky transformations, validation, request and response mapping,
+request building, and shared form-control logic.
 
 Do not assert UI library internals, private component state, CSS layout, or
 static markup that does not protect a behavior contract.

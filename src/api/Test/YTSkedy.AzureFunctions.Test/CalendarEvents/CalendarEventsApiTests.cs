@@ -36,7 +36,7 @@ public sealed class CalendarEventsApiTests
             {
                 new CreateCalendarEventRequest(
                     null!,
-                    [new EventTextPayload("text1", "English stream 1")]),
+                    [new EventTextRequest("text1", "English stream 1")]),
                 "Start local date-time and time zone id are required."
             },
             {
@@ -60,7 +60,7 @@ public sealed class CalendarEventsApiTests
                     new CalendarEventStart(
                         new DateTime(2026, 6, 15, 10, 0, 0),
                         "America/Vancouver"),
-                    [new EventTextPayload("   ", "English stream 1")]),
+                    [new EventTextRequest("   ", "English stream 1")]),
                 InvalidTextsMessage
             }
         };
@@ -148,8 +148,8 @@ public sealed class CalendarEventsApiTests
         var request = new CreateCalendarEventRequest(
             new CalendarEventStart(new DateTime(2026, 6, 15, 10, 0, 0), "America/Vancouver"),
             [
-                new EventTextPayload("text1", "English stream 1"),
-                new EventTextPayload("text2", "Event description")
+                new EventTextRequest("text1", "English stream 1"),
+                new EventTextRequest("text2", "Event description")
             ]);
 
         var built = CalendarEventsApi.TryBuildCreateCommand(request, out var command, out _);
@@ -184,8 +184,8 @@ public sealed class CalendarEventsApiTests
         var request = new UpdateCalendarEventRequest(
             new CalendarEventStart(new DateTime(2026, 7, 20, 9, 30, 0), "Europe/London"),
             [
-                new EventTextPayload("text1", "Updated title"),
-                new EventTextPayload("text2", "Updated description")
+                new EventTextRequest("text1", "Updated title"),
+                new EventTextRequest("text2", "Updated description")
             ]);
 
         var built = CalendarEventsApi.TryBuildUpdateCommand(
@@ -209,7 +209,7 @@ public sealed class CalendarEventsApiTests
     {
         var request = new UpdateCalendarEventRequest(
             null!,
-            [new EventTextPayload("text1", "Updated title")]);
+            [new EventTextRequest("text1", "Updated title")]);
 
         var built = CalendarEventsApi.TryBuildUpdateCommand(
             CalendarEventId,

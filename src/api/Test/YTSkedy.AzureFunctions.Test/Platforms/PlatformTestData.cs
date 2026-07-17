@@ -10,7 +10,7 @@ internal static class PlatformTestData
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public static PublishSettingsPayload YouTubePayload(
+    public static PublishSettingsRequest CreateYouTubeSettingsRequest(
         string? clientId = SchedulingSampleIds.YouTubeClientId,
         string? clientSecret = SchedulingSampleIds.YouTubeClientSecret,
         string? refreshToken = SchedulingSampleIds.YouTubeRefreshToken,
@@ -19,7 +19,7 @@ internal static class PlatformTestData
         string? categoryId = null,
         bool? containsSyntheticMedia = null) =>
         new(
-            new YouTubeCredentialsPayload(clientId, clientSecret, refreshToken),
+            new YouTubeCredentialsRequest(clientId, clientSecret, refreshToken),
             privacyStatus,
             selfDeclaredMadeForKids,
             null,
@@ -29,7 +29,7 @@ internal static class PlatformTestData
             CategoryId: categoryId,
             ContainsSyntheticMedia: containsSyntheticMedia);
 
-    public static PublishSettingsPayload WordPressPayload(
+    public static PublishSettingsRequest CreateWordPressSettingsRequest(
         string? siteUrl = "https://example.com",
         string? username = "editor",
         string? applicationPassword = null,
@@ -50,7 +50,7 @@ internal static class PlatformTestData
             scheduleOffsetHours,
             useNullCategoryIds ? null : categoryIds ?? []);
 
-    public static PublishingContentPayload PublishingPayload(
+    public static PublishingContentRequest CreatePublishingContentRequest(
         string? titleTemplateId = SchedulingSampleIds.TitleTemplateId,
         string? descriptionTemplateId = SchedulingSampleIds.DescriptionTemplateId) =>
         new(titleTemplateId, descriptionTemplateId);

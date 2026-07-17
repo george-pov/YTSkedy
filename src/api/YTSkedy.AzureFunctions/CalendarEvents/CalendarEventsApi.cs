@@ -520,7 +520,7 @@ public sealed class CalendarEventsApi(
     }
 
     private static bool TryBuildEventTextValues(
-        IReadOnlyList<EventTextPayload> texts,
+        IReadOnlyList<EventTextRequest> texts,
         out EventTextValue[] values,
         out IActionResult error)
     {

@@ -1,13 +1,13 @@
 namespace YTSkedy.AzureFunctions.Platforms;
 
 /// <summary>
-/// Publish-settings object carried by platform create and update requests.
+/// Nested publish-settings request used by platform create and update requests.
 /// Fields are nullable so the API boundary can return <c>400 Bad Request</c>
 /// for missing values rather than failing deserialization. The concrete
 /// settings fields are selected by the platform type.
 /// </summary>
-internal sealed record PublishSettingsPayload(
-    YouTubeCredentialsPayload? Credentials,
+internal sealed record PublishSettingsRequest(
+    YouTubeCredentialsRequest? Credentials,
     string? PrivacyStatus,
     bool? SelfDeclaredMadeForKids,
     string? SiteUrl,
@@ -20,7 +20,7 @@ internal sealed record PublishSettingsPayload(
     string? CategoryId = null,
     bool? ContainsSyntheticMedia = null);
 
-internal sealed record YouTubeCredentialsPayload(
+internal sealed record YouTubeCredentialsRequest(
     string? ClientId,
     string? ClientSecret,
     string? RefreshToken);

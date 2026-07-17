@@ -6,4 +6,4 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 /// </summary>
 internal sealed record UpdateCalendarEventRequest(
     CalendarEventStart Start,
-    IReadOnlyList<EventTextPayload> Texts);
+    IReadOnlyList<EventTextRequest> Texts);

@@ -142,9 +142,9 @@ A WordPress platform is returned as:
   create request, update request, and response. `[]` is valid. Non-empty arrays
   must contain distinct positive integers and preserve submitted order. These
   are existing WordPress category term IDs; names and slugs are lookup data and
-  are not stored in platform settings. Payloads and stored WordPress settings
-  from the previous shape without `categoryIds` are not compatible with the
-  current contract.
+  are not stored in platform settings. API request bodies and stored WordPress
+  settings from the previous shape without `categoryIds` are not compatible
+  with the current contract.
 - WordPress create and update requests can include
   `publishSettings.applicationPassword`, but responses never return it.
   Responses return `applicationPasswordConfigured` and `passwordDisplayValue`

@@ -108,14 +108,14 @@ internal static class PublishSettingsMapper
 
     internal static bool TryBuild(
         PlatformType type,
-        PublishSettingsPayload? payload,
+        PublishSettingsRequest? request,
         out PublishSettings publishSettings,
         out IActionResult error) =>
-        TryBuild(type, payload, currentSettings: null, out publishSettings, out error);
+        TryBuild(type, request, currentSettings: null, out publishSettings, out error);
 
     internal static bool TryBuild(
         PlatformType type,
-        PublishSettingsPayload? payload,
+        PublishSettingsRequest? request,
         PublishSettings? currentSettings,
         out PublishSettings publishSettings,
         out IActionResult error)
@@ -123,7 +123,7 @@ internal static class PublishSettingsMapper
         publishSettings = default!;
         error = new EmptyResult();
 
-        if (payload is null)
+        if (request is null)
         {
             error = new BadRequestObjectResult("Publish settings are required.");
             return false;
@@ -132,12 +132,12 @@ internal static class PublishSettingsMapper
         return type switch
         {
             PlatformType.YouTube => TryBuildYouTubeSettings(
-                payload,
+                request,
                 currentSettings as YouTubeSettings,
                 out publishSettings,
                 out error),
             PlatformType.WordPress => TryBuildWordPressSettings(
-                payload,
+                request,
                 currentSettings as WordPressSettings,
                 out publishSettings,
                 out error),
@@ -175,7 +175,7 @@ internal static class PublishSettingsMapper
     }
 
     private static bool TryBuildYouTubeSettings(
-        PublishSettingsPayload payload,
+        PublishSettingsRequest request,
         YouTubeSettings? currentSettings,
         out PublishSettings publishSettings,
         out IActionResult error)
@@ -183,19 +183,19 @@ internal static class PublishSettingsMapper
         publishSettings = default!;
         error = new EmptyResult();
 
-        if (payload.Credentials is null)
+        if (request.Credentials is null)
         {
             error = MissingYouTubeCredentialsResult();
             return false;
         }
 
-        if (!YouTubeCredentials.IsValidClientId(payload.Credentials.ClientId))
+        if (!YouTubeCredentials.IsValidClientId(request.Credentials.ClientId))
         {
             error = MissingYouTubeClientIdResult();
             return false;
         }
 
-        var clientSecret = payload.Credentials.ClientSecret;
+        var clientSecret = request.Credentials.ClientSecret;
         if (string.IsNullOrWhiteSpace(clientSecret))
         {
             if (currentSettings is null)
@@ -207,7 +207,7 @@ internal static class PublishSettingsMapper
             clientSecret = currentSettings.Credentials.ClientSecret;
         }
 
-        var refreshToken = payload.Credentials.RefreshToken;
+        var refreshToken = request.Credentials.RefreshToken;
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
             if (currentSettings is null)
@@ -220,17 +220,17 @@ internal static class PublishSettingsMapper
         }
 
         var credentials = new YouTubeCredentials(
-            payload.Credentials.ClientId!,
+            request.Credentials.ClientId!,
             clientSecret,
             refreshToken);
 
-        if (!YouTubeSettings.IsValidPrivacyStatus(payload.PrivacyStatus))
+        if (!YouTubeSettings.IsValidPrivacyStatus(request.PrivacyStatus))
         {
             error = InvalidPrivacyStatusResult();
             return false;
         }
 
-        if (!YouTubeSettings.IsValidCategoryId(payload.CategoryId))
+        if (!YouTubeSettings.IsValidCategoryId(request.CategoryId))
         {
             error = InvalidYouTubeCategoryIdResult();
             return false;
@@ -238,15 +238,15 @@ internal static class PublishSettingsMapper
 
         publishSettings = new YouTubeSettings(
             credentials,
-            payload.PrivacyStatus!,
-            payload.SelfDeclaredMadeForKids ?? false,
-            payload.CategoryId,
-            payload.ContainsSyntheticMedia ?? false);
+            request.PrivacyStatus!,
+            request.SelfDeclaredMadeForKids ?? false,
+            request.CategoryId,
+            request.ContainsSyntheticMedia ?? false);
         return true;
     }
 
     private static bool TryBuildWordPressSettings(
-        PublishSettingsPayload payload,
+        PublishSettingsRequest request,
         WordPressSettings? currentSettings,
         out PublishSettings publishSettings,
         out IActionResult error)
@@ -254,18 +254,18 @@ internal static class PublishSettingsMapper
         publishSettings = default!;
         error = new EmptyResult();
 
-        if (!TryValidateWordPressSiteUrl(payload.SiteUrl, out error))
+        if (!TryValidateWordPressSiteUrl(request.SiteUrl, out error))
         {
             return false;
         }
 
-        if (!WordPressSettings.IsValidUsername(payload.Username))
+        if (!WordPressSettings.IsValidUsername(request.Username))
         {
             error = InvalidWordPressUsernameResult();
             return false;
         }
 
-        var applicationPassword = payload.ApplicationPassword;
+        var applicationPassword = request.ApplicationPassword;
         if (string.IsNullOrWhiteSpace(applicationPassword))
         {
             if (currentSettings is null)
@@ -277,27 +277,27 @@ internal static class PublishSettingsMapper
             applicationPassword = currentSettings.ApplicationPassword;
         }
 
-        if (!WordPressSettings.IsValidPostStatus(payload.PostStatus))
+        if (!WordPressSettings.IsValidPostStatus(request.PostStatus))
         {
             error = InvalidWordPressPostStatusResult();
             return false;
         }
 
-        if (payload.CategoryIds is null)
+        if (request.CategoryIds is null)
         {
             error = MissingWordPressCategoryIdsResult();
             return false;
         }
 
-        if (!WordPressSettings.AreValidCategoryIds(payload.CategoryIds))
+        if (!WordPressSettings.AreValidCategoryIds(request.CategoryIds))
         {
             error = InvalidWordPressCategoryIdsResult();
             return false;
         }
 
         var scheduleOffsetValidation = WordPressSettings.ValidateScheduleOffsetHours(
-            payload.PostStatus,
-            payload.ScheduleOffsetHours);
+            request.PostStatus,
+            request.ScheduleOffsetHours);
         if (scheduleOffsetValidation != WordPressScheduleOffsetValidationResult.Valid)
         {
             error = ScheduleOffsetHoursResult(scheduleOffsetValidation);
@@ -305,13 +305,13 @@ internal static class PublishSettingsMapper
         }
 
         publishSettings = new WordPressSettings(
-            payload.SiteUrl!,
-            payload.Username!,
+            request.SiteUrl!,
+            request.Username!,
             applicationPassword,
-            payload.PostStatus!,
-            payload.CategoryIds,
-            payload.Sticky ?? false,
-            payload.ScheduleOffsetHours);
+            request.PostStatus!,
+            request.CategoryIds,
+            request.Sticky ?? false,
+            request.ScheduleOffsetHours);
         return true;
     }
 

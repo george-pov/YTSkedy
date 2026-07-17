@@ -405,14 +405,14 @@ public sealed class PlatformsApi(
             "Publishing content titleTemplateId and descriptionTemplateId are required.");
 
     private static bool TryBuildPublishingContent(
-        PublishingContentPayload? payload,
+        PublishingContentRequest? request,
         out PublishingContent publishingContent,
         out IActionResult error)
     {
         publishingContent = default!;
         error = new EmptyResult();
 
-        if (payload is null)
+        if (request is null)
         {
             error = InvalidPublishingContentResult();
             return false;
@@ -421,8 +421,8 @@ public sealed class PlatformsApi(
         try
         {
             publishingContent = new PublishingContent(
-                payload.TitleTemplateId!,
-                payload.DescriptionTemplateId!);
+                request.TitleTemplateId!,
+                request.DescriptionTemplateId!);
             return true;
         }
         catch (ArgumentException)

@@ -41,8 +41,8 @@ public sealed class PlatformsApiCommandTests
             "Main YouTube channel",
             "YouTube",
             null,
-            YouTubePayload(categoryId: "27", containsSyntheticMedia: true),
-            PublishingPayload());
+            CreateYouTubeSettingsRequest(categoryId: "27", containsSyntheticMedia: true),
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
 
@@ -73,7 +73,7 @@ public sealed class PlatformsApiCommandTests
             "Main YouTube channel",
             "YouTube",
             null,
-            YouTubePayload(categoryId: categoryId));
+            CreateYouTubeSettingsRequest(categoryId: categoryId));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -90,7 +90,7 @@ public sealed class PlatformsApiCommandTests
             "Main YouTube channel",
             "YouTube",
             null,
-            YouTubePayload(clientSecret: ""));
+            CreateYouTubeSettingsRequest(clientSecret: ""));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -107,8 +107,8 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(applicationPassword: "application-password"),
-            PublishingPayload());
+            CreateWordPressSettingsRequest(applicationPassword: "application-password"),
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
 
@@ -136,10 +136,10 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(
+            CreateWordPressSettingsRequest(
                 applicationPassword: "application-password",
                 categoryIds: [34, 12]),
-            PublishingPayload());
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
 
@@ -156,10 +156,10 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(
+            CreateWordPressSettingsRequest(
                 applicationPassword: "application-password",
                 useNullCategoryIds: true),
-            PublishingPayload());
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -178,10 +178,10 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(
+            CreateWordPressSettingsRequest(
                 applicationPassword: "application-password",
                 categoryIds: categoryIds),
-            PublishingPayload());
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -197,10 +197,10 @@ public sealed class PlatformsApiCommandTests
         var request = new UpdatePlatformRequest(
             "Renamed WordPress site",
             null,
-            WordPressPayload(
+            CreateWordPressSettingsRequest(
                 applicationPassword: "   ",
                 categoryIds: [34, 12]),
-            PublishingPayload());
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildUpdateCommand(
             WordPressPlatform(),
@@ -232,10 +232,10 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(
+            CreateWordPressSettingsRequest(
                 applicationPassword: "application-password",
                 postStatus: postStatus),
-            PublishingPayload());
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
 
@@ -252,12 +252,12 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(
+            CreateWordPressSettingsRequest(
                 applicationPassword: "application-password",
                 postStatus: DomainWordPressSettings.ScheduledPostStatus,
                 sticky: true,
                 scheduleOffsetHours: 25),
-            PublishingPayload());
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
 
@@ -275,7 +275,7 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(siteUrl: ""));
+            CreateWordPressSettingsRequest(siteUrl: ""));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -292,8 +292,8 @@ public sealed class PlatformsApiCommandTests
             "Main YouTube channel",
             "YouTube",
             null,
-            YouTubePayload(),
-            PublishingPayload());
+            CreateYouTubeSettingsRequest(),
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
 
@@ -311,7 +311,7 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(siteUrl: "http://example.com"));
+            CreateWordPressSettingsRequest(siteUrl: "http://example.com"));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -328,7 +328,7 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(siteUrl: "https://user:password@example.com"));
+            CreateWordPressSettingsRequest(siteUrl: "https://user:password@example.com"));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -347,7 +347,7 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(applicationPassword: ""));
+            CreateWordPressSettingsRequest(applicationPassword: ""));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -364,7 +364,7 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(applicationPassword: "application-password", postStatus: "scheduled"));
+            CreateWordPressSettingsRequest(applicationPassword: "application-password", postStatus: "scheduled"));
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -381,10 +381,10 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(
+            CreateWordPressSettingsRequest(
                 applicationPassword: "application-password",
                 postStatus: DomainWordPressSettings.ScheduledPostStatus),
-            PublishingPayload());
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -401,11 +401,11 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(
+            CreateWordPressSettingsRequest(
                 applicationPassword: "application-password",
                 postStatus: "draft",
                 scheduleOffsetHours: 1),
-            PublishingPayload());
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -426,11 +426,11 @@ public sealed class PlatformsApiCommandTests
             "Main WordPress site",
             "WordPress",
             null,
-            WordPressPayload(
+            CreateWordPressSettingsRequest(
                 applicationPassword: "application-password",
                 postStatus: DomainWordPressSettings.ScheduledPostStatus,
                 scheduleOffsetHours: scheduleOffsetHours),
-            PublishingPayload());
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -446,11 +446,11 @@ public sealed class PlatformsApiCommandTests
         var request = new UpdatePlatformRequest(
             "Renamed WordPress site",
             null,
-            WordPressPayload(
+            CreateWordPressSettingsRequest(
                 applicationPassword: "   ",
                 postStatus: DomainWordPressSettings.ScheduledPostStatus,
                 scheduleOffsetHours: DomainWordPressSettings.MaxScheduleOffsetHours + 1),
-            PublishingPayload());
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildUpdateCommand(
             WordPressPlatform(),
@@ -471,8 +471,8 @@ public sealed class PlatformsApiCommandTests
             "Main YouTube channel",
             "YouTube",
             "youTube1",
-            YouTubePayload(),
-            PublishingPayload());
+            CreateYouTubeSettingsRequest(),
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
 
@@ -487,8 +487,8 @@ public sealed class PlatformsApiCommandTests
             "Main YouTube channel",
             "YouTube",
             "   ",
-            YouTubePayload(),
-            PublishingPayload());
+            CreateYouTubeSettingsRequest(),
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out var command, out _);
 
@@ -503,7 +503,7 @@ public sealed class PlatformsApiCommandTests
             "Main YouTube channel",
             "YouTube",
             "bad_key",
-            YouTubePayload());
+            CreateYouTubeSettingsRequest());
 
         var built = PlatformsApi.TryBuildCreateCommand(request, out _, out var error);
 
@@ -519,8 +519,8 @@ public sealed class PlatformsApiCommandTests
         var request = new UpdatePlatformRequest(
             "Renamed WordPress site",
             null,
-            WordPressPayload(applicationPassword: "   ", postStatus: "draft"),
-            PublishingPayload());
+            CreateWordPressSettingsRequest(applicationPassword: "   ", postStatus: "draft"),
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildUpdateCommand(
             WordPressPlatform(),
@@ -549,8 +549,8 @@ public sealed class PlatformsApiCommandTests
         var request = new UpdatePlatformRequest(
             "Renamed WordPress site",
             null,
-            WordPressPayload(applicationPassword: "replacement-password"),
-            PublishingPayload());
+            CreateWordPressSettingsRequest(applicationPassword: "replacement-password"),
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildUpdateCommand(
             WordPressPlatform(),
@@ -579,14 +579,14 @@ public sealed class PlatformsApiCommandTests
         var request = new UpdatePlatformRequest(
             "Renamed YouTube channel",
             null,
-            YouTubePayload(
+            CreateYouTubeSettingsRequest(
                 clientId: "new-client-id",
                 clientSecret: "",
                 refreshToken: null,
                 privacyStatus: "unlisted",
                 categoryId: " 27 ",
                 containsSyntheticMedia: true),
-            PublishingPayload());
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildUpdateCommand(existing, request, out var command, out _);
 
@@ -607,7 +607,7 @@ public sealed class PlatformsApiCommandTests
         var request = new UpdatePlatformRequest(
             "Renamed WordPress site",
             null,
-            WordPressPayload(applicationPassword: "replacement-password"));
+            CreateWordPressSettingsRequest(applicationPassword: "replacement-password"));
 
         var built = PlatformsApi.TryBuildUpdateCommand(
             WordPressPlatform(),
@@ -627,8 +627,8 @@ public sealed class PlatformsApiCommandTests
         var request = new UpdatePlatformRequest(
             "Renamed WordPress site",
             "blog-1",
-            WordPressPayload(applicationPassword: "replacement-password"),
-            PublishingPayload());
+            CreateWordPressSettingsRequest(applicationPassword: "replacement-password"),
+            CreatePublishingContentRequest());
 
         var built = PlatformsApi.TryBuildUpdateCommand(
             WordPressPlatform(),

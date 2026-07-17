@@ -211,6 +211,21 @@ Keep layer roles explicit but short.
 | Configuration | `{Scenario}Options` | `AuthOptions` |
 | Test double | `Fake{Role}` | `FakeCalendarEventModifier` |
 
+Use boundary-message terms consistently:
+
+- Use `Request` for strongly typed data entering an HTTP endpoint, application
+  port, provider port, or external client. This includes nested request-only
+  JSON objects.
+- Use `Response` for strongly typed data returned across a boundary.
+- Use an unqualified domain noun or value-object name for a shape intentionally
+  shared by requests and responses.
+- Reserve `Input` for UI controls, form values, or plain-language descriptions
+  of entered data. Do not use `Input` as a transport DTO suffix.
+- Reserve `Payload` for opaque or raw content such as untyped JSON, text,
+  bytes, or a signed provider body. Do not use `Payload` for a strongly typed
+  request object.
+- Keep `Command` and `Result` for application use-case intent and outcomes.
+
 When touching current calendar-event code, prefer the fully qualified domain
 name when it prevents ambiguity. Prefer shorter names when the namespace,
 endpoint, command shape, or containing type supplies the missing context.

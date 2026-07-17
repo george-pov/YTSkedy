@@ -406,11 +406,11 @@ public sealed class HttpDtoJsonTests
     [Fact]
     public void WriteRequestDtos_DoNotDeclareDisplayValueFields()
     {
-        Assert.Null(typeof(PublishSettingsPayload).GetProperty("PasswordDisplayValue"));
-        Assert.Null(typeof(PublishSettingsPayload).GetProperty("ClientSecretDisplayValue"));
-        Assert.Null(typeof(PublishSettingsPayload).GetProperty("RefreshTokenDisplayValue"));
-        Assert.Null(typeof(YouTubeCredentialsPayload).GetProperty("ClientSecretDisplayValue"));
-        Assert.Null(typeof(YouTubeCredentialsPayload).GetProperty("RefreshTokenDisplayValue"));
+        Assert.Null(typeof(PublishSettingsRequest).GetProperty("PasswordDisplayValue"));
+        Assert.Null(typeof(PublishSettingsRequest).GetProperty("ClientSecretDisplayValue"));
+        Assert.Null(typeof(PublishSettingsRequest).GetProperty("RefreshTokenDisplayValue"));
+        Assert.Null(typeof(YouTubeCredentialsRequest).GetProperty("ClientSecretDisplayValue"));
+        Assert.Null(typeof(YouTubeCredentialsRequest).GetProperty("RefreshTokenDisplayValue"));
     }
 
     [Fact]
