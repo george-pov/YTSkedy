@@ -74,6 +74,15 @@ should own meaningful reusable behavior, not merely wrap Moq or hide a setup.
   storage, a live backend host, YouTube, WordPress, or authentication behavior.
 - Use Azurite for local Azure Table Storage checks unless a real storage
   account has been explicitly selected for the run.
+- Storage integration contracts live in
+  `Test/YTSkedy.Infrastructure.IntegrationTest`. They are skipped by default
+  and run only when `YTSKEDY_RUN_AZURITE_TESTS=1`.
+- Start Azurite with Table and Blob endpoints on their default development
+  ports before opting in. The fixture performs a bounded readiness check,
+  creates unique resources for the run, and deletes only those resources.
+- The contract suite covers calendar-event round trips and conditional
+  conflicts, settings transactions, template and platform uniqueness,
+  and publication existence guards.
 - Keep deployed host URLs, bearer access tokens, and other personal environment
   values outside tracked files.
 - Do not create, update, or delete real YouTube resources by default.

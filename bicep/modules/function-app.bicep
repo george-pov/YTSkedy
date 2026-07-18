@@ -56,7 +56,14 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
 }
 
 var functionStorageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${functionStorageAccount.name};AccountKey=${functionStorageAccount.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
-var applicationStorageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${applicationStorageAccount.name};AccountKey=${applicationStorageAccount.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
+var storageTableDataContributorRoleDefinitionId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
+)
+var storageBlobDataContributorRoleDefinitionId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+)
 var apiTags = union(baseTags, {
   Component: 'Api'
 })
@@ -80,6 +87,9 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   location: location
   tags: apiTags
   kind: 'functionapp,linux'
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     serverFarmId: functionPlan.id
     httpsOnly: true
@@ -116,13 +126,43 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   }
 }
 
+resource applicationTableDataRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(
+    applicationStorageAccount.id,
+    functionApp.id,
+    storageTableDataContributorRoleDefinitionId
+  )
+  scope: applicationStorageAccount
+  properties: {
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: storageTableDataContributorRoleDefinitionId
+  }
+}
+
+resource applicationBlobDataRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(
+    applicationStorageAccount.id,
+    functionApp.id,
+    storageBlobDataContributorRoleDefinitionId
+  )
+  scope: applicationStorageAccount
+  properties: {
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: storageBlobDataContributorRoleDefinitionId
+  }
+}
+
 resource functionAppSettings 'Microsoft.Web/sites/config@2024-04-01' = {
   parent: functionApp
   name: 'appsettings'
   properties: {
     AzureWebJobsStorage: functionStorageConnectionString
     DEPLOYMENT_STORAGE_CONNECTION_STRING: functionStorageConnectionString
-    AzureStorage__ConnectionString: applicationStorageConnectionString
+    AzureStorage__TableServiceUri: applicationStorageAccount.properties.primaryEndpoints.table
+    AzureStorage__BlobServiceUri: applicationStorageAccount.properties.primaryEndpoints.blob
+    AzureStorage__CreateResourcesIfMissing: 'false'
     AzureStorage__CalendarEventsTableName: 'CalendarEvents'
     AzureStorage__TemplatesTableName: 'Templates'
     AzureStorage__ApplicationSettingsTableName: 'ApplicationSettings'

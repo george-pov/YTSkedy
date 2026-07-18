@@ -40,6 +40,8 @@ Status codes:
   fails.
 - `404 Not Found` when the calendar event id does not exist.
 - `409 Conflict` when any platform publication row exists for the event.
+- `409 Conflict` when the calendar event metadata changed during the upload.
+  Reload the event before retrying.
 
 ## Get Calendar Event Thumbnail
 
@@ -75,6 +77,8 @@ Status codes:
 - `404 Not Found` when the calendar event id does not exist.
 - `404 Not Found` when the event has no thumbnail metadata.
 - `409 Conflict` when any platform publication row exists for the event.
+- `409 Conflict` when the calendar event metadata changed during the delete.
+  Reload the event before retrying.
 
 
 Calendar-event metadata and mutation rules are documented in

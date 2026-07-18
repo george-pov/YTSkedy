@@ -104,6 +104,28 @@ public sealed class DeleteThumbnailHandlerTests
             CancellationToken.None));
     }
 
+    [Fact]
+    public async Task HandleAsync_MetadataConflict_ReturnsConflictWithoutDeletingBlob()
+    {
+        var handler = CreateHandler(
+            ApplicationTestData.CalendarEvent(),
+            ApplicationTestData.Thumbnail());
+        _modifier
+            .Setup(candidate => candidate.DeleteThumbnailAsync(
+                ApplicationTestData.CalendarEventId,
+                CancellationToken.None))
+            .Returns(Task.FromResult(CalendarEventChangeResult.Conflict));
+
+        var result = await handler.HandleAsync(
+            ApplicationTestData.CalendarEventId,
+            CancellationToken.None);
+
+        Assert.Equal(DeleteThumbnailStatus.Conflict, result.Status);
+        _store.Verify(candidate => candidate.DeleteAsync(
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never());
+    }
+
     private DeleteThumbnailHandler CreateHandler(
         CalendarEventView? calendarEvent,
         Thumbnail? thumbnail,
@@ -128,7 +150,7 @@ public sealed class DeleteThumbnailHandlerTests
             .Setup(candidate => candidate.DeleteThumbnailAsync(
                 ApplicationTestData.CalendarEventId,
                 CancellationToken.None))
-            .ReturnsAsync(true);
+            .Returns(Task.FromResult(CalendarEventChangeResult.Applied));
         _store
             .Setup(candidate => candidate.DeleteAsync(
                 ApplicationTestData.ThumbnailBlobName(),

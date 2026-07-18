@@ -85,6 +85,8 @@ public sealed class CalendarEventThumbnailsApi(
             UploadThumbnailStatus.HasPlatformPublications => new ConflictObjectResult(
                 $"Calendar event '{calendarEventId}' has platform publications. " +
                 "Delete platform publications before replacing the thumbnail."),
+            UploadThumbnailStatus.Conflict => new ConflictObjectResult(
+                $"Calendar event '{calendarEventId}' changed. Reload it before retrying."),
             UploadThumbnailStatus.Invalid => new BadRequestObjectResult(
                 DescribeValidationError(result.ValidationError!.Value)),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
@@ -126,6 +128,8 @@ public sealed class CalendarEventThumbnailsApi(
             DeleteThumbnailStatus.HasPlatformPublications => new ConflictObjectResult(
                 $"Calendar event '{calendarEventId}' has platform publications. " +
                 "Delete platform publications before deleting the thumbnail."),
+            DeleteThumbnailStatus.Conflict => new ConflictObjectResult(
+                $"Calendar event '{calendarEventId}' changed. Reload it before retrying."),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
     }

@@ -20,6 +20,16 @@ public sealed class AzurePlatformRepositoryTests
             CancellationToken.None);
 
         Assert.Equal(CreatePlatformStatus.Created, result.Status);
+        Assert.Equal(
+            [
+                nameof(PlatformEntity.RowKey),
+                nameof(PlatformEntity.Name),
+                nameof(PlatformEntity.ReferenceKey)
+            ],
+            tableClient.LastQuerySelect);
+        Assert.DoesNotContain(
+            nameof(PlatformEntity.PublishSettingsJson),
+            tableClient.LastQuerySelect!);
 
         var view = await repository.GetAsync(result.PlatformId!, CancellationToken.None);
 

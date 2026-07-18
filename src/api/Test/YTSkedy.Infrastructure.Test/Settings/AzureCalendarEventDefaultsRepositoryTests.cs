@@ -23,13 +23,13 @@ public sealed class AzureCalendarEventDefaultsRepositoryTests
             new CalendarEventDefaults(fields, startDefaults),
             CancellationToken.None);
 
-        Assert.True(table.CreateIfNotExistsCalled);
+        Assert.False(table.CreateIfNotExistsCalled);
         Assert.True(table.SubmitTransactionCalled);
         Assert.Equal(2, table.Entities.Count);
 
-        var storedFields = await new AzureEventTextFieldsRepository(table)
+        var storedFields = await ((IEventTextFieldsReader)repository)
             .GetAsync(CancellationToken.None);
-        var storedStartDefaults = await new AzureStartDefaultsRepository(table)
+        var storedStartDefaults = await ((IStartDefaultsReader)repository)
             .GetAsync(CancellationToken.None);
 
         Assert.Equal(["text1"], storedFields.Fields.Select(field => field.FieldKey));

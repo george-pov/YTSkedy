@@ -59,14 +59,22 @@ public sealed class UploadThumbnailHandler(
             command.ContentType,
             cancellationToken);
 
-        var saved = await thumbnailModifier.SaveThumbnailAsync(
+        var changeResult = await thumbnailModifier.SaveThumbnailAsync(
             command.CalendarEventId,
             thumbnail,
             cancellationToken);
 
-        return saved
-            ? UploadThumbnailResult.Uploaded(thumbnail)
-            : UploadThumbnailResult.EventNotFound;
+        return changeResult switch
+        {
+            CalendarEventChangeResult.Applied =>
+                UploadThumbnailResult.Uploaded(thumbnail),
+            CalendarEventChangeResult.NotFound =>
+                UploadThumbnailResult.EventNotFound,
+            CalendarEventChangeResult.Conflict =>
+                UploadThumbnailResult.Conflict,
+            _ => throw new InvalidOperationException(
+                $"Unknown calendar event change result '{changeResult}'.")
+        };
     }
 
     private static string BlobNameFor(string calendarEventId) =>

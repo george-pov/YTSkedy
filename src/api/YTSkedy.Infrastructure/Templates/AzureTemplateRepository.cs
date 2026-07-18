@@ -1,5 +1,6 @@
 using Azure;
 using Azure.Data.Tables;
+using YTSkedy.Infrastructure.Storage;
 using YTSkedy.Scheduling.Application.Templates;
 using YTSkedy.Scheduling.Domain.Templates;
 
@@ -31,15 +32,13 @@ public sealed class AzureTemplateRepository(
 
         var partitionKey = TemplatePartitionKey.ForType(template.Type);
 
-        await tableClient.CreateIfNotExistsAsync(cancellationToken);
-
-        // Check-then-write name uniqueness within the type partition. The rare
-        // This store does not use an atomic name-index row.
-        var partitionEntities = await QueryEntitiesAsync(
-            PartitionFilter(partitionKey),
-            cancellationToken);
-
-        if (partitionEntities.Any(entity => NameEquals(entity.Name, template.Name)))
+        // Check-then-write name uniqueness within the type partition. This
+        // store does not use an atomic name-index row.
+        if (await NameExistsAsync(
+                partitionKey,
+                template.Name,
+                excludedRowKey: null,
+                cancellationToken))
         {
             return CreateTemplateResult.NameAlreadyExists();
         }
@@ -74,23 +73,18 @@ public sealed class AzureTemplateRepository(
 
         var partitionKey = TemplatePartitionKey.ForType(type);
 
-        // One partition read serves both the locate and the rename uniqueness
-        // check; the target row and its siblings come from the same snapshot.
-        var partitionEntities = await QueryEntitiesAsync(
-            PartitionFilter(partitionKey),
-            cancellationToken);
-
-        var entity = partitionEntities.FirstOrDefault(
-            candidate => string.Equals(candidate.RowKey, id, StringComparison.Ordinal));
+        var entity = await GetEntityAsync(partitionKey, id, cancellationToken);
 
         if (entity is null)
         {
             return UpdateTemplateResult.NotFound;
         }
 
-        if (partitionEntities.Any(other =>
-                !string.Equals(other.RowKey, id, StringComparison.Ordinal) &&
-                NameEquals(other.Name, name)))
+        if (await NameExistsAsync(
+                partitionKey,
+                name,
+                id,
+                cancellationToken))
         {
             return UpdateTemplateResult.NameAlreadyExists;
         }
@@ -152,7 +146,7 @@ public sealed class AzureTemplateRepository(
             ? null
             : PartitionFilter(TemplatePartitionKey.ForType(type.Value));
 
-        var entities = await QueryEntitiesAsync(filter, cancellationToken);
+        var entities = await ListEntitiesAsync(filter, select: null, cancellationToken);
 
         return TemplateViewMapper.ToViews(entities);
     }
@@ -164,51 +158,50 @@ public sealed class AzureTemplateRepository(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(templateId);
 
-        try
-        {
-            var response = await tableClient.GetEntityIfExistsAsync<TemplateEntity>(
-                TemplatePartitionKey.ForType(type),
-                templateId,
-                cancellationToken: cancellationToken);
+        var entity = await GetEntityAsync(
+            TemplatePartitionKey.ForType(type),
+            templateId,
+            cancellationToken);
 
-            return response.HasValue
-                ? TemplateViewMapper.ToView(response.Value!)
-                : null;
-        }
-        catch (RequestFailedException exception) when (exception.Status == 404)
-        {
-            // The table does not exist yet, so there is no template to return.
-            return null;
-        }
+        return entity is null ? null : TemplateViewMapper.ToView(entity);
     }
 
-    private async Task<List<TemplateEntity>> QueryEntitiesAsync(
+    private Task<TemplateEntity?> GetEntityAsync(
+        string partitionKey,
+        string rowKey,
+        CancellationToken cancellationToken) =>
+        tableClient.GetEntityOrNullAsync<TemplateEntity>(
+            partitionKey,
+            rowKey,
+            cancellationToken);
+
+    private Task<IReadOnlyList<TemplateEntity>> ListEntitiesAsync(
         string? filter,
+        IEnumerable<string>? select,
+        CancellationToken cancellationToken) =>
+        tableClient.ListEntitiesAsync<TemplateEntity>(
+            filter,
+            select,
+            cancellationToken);
+
+    private async Task<bool> NameExistsAsync(
+        string partitionKey,
+        string name,
+        string? excludedRowKey,
         CancellationToken cancellationToken)
     {
-        var entities = new List<TemplateEntity>();
+        var entities = await ListEntitiesAsync(
+            PartitionFilter(partitionKey),
+            [nameof(TemplateEntity.RowKey), nameof(TemplateEntity.Name)],
+            cancellationToken);
 
-        try
-        {
-            await foreach (var entity in tableClient.QueryAsync<TemplateEntity>(
-                filter,
-                cancellationToken: cancellationToken))
-            {
-                entities.Add(entity);
-            }
-        }
-        catch (RequestFailedException exception) when (exception.Status == 404)
-        {
-            // The table does not exist yet, so there are no templates to return.
-        }
-
-        return entities;
+        return entities.Any(entity =>
+            !string.Equals(entity.RowKey, excludedRowKey, StringComparison.Ordinal) &&
+            NameEquals(entity.Name, name));
     }
 
-    // The partition key is a controlled value (templates-youtube or
-    // templates-wordpress), so it is safe to embed directly in the filter.
     private static string PartitionFilter(string partitionKey) =>
-        $"PartitionKey eq '{partitionKey}'";
+        TableClient.CreateQueryFilter($"PartitionKey eq {partitionKey}");
 
     private static bool NameEquals(string left, string right) =>
         string.Equals(left, right, StringComparison.Ordinal);

@@ -40,7 +40,7 @@ public sealed class CalendarEventThumbnailsApiTests
                 CalendarEventId,
                 It.IsAny<Thumbnail>(),
                 CancellationToken.None))
-            .ReturnsAsync(true);
+            .Returns(Task.FromResult(CalendarEventChangeResult.Applied));
         var thumbnailStore = new Mock<IThumbnailStore>();
         thumbnailStore
             .Setup(store => store.SaveAsync(
@@ -105,6 +105,16 @@ public sealed class CalendarEventThumbnailsApiTests
     }
 
     [Fact]
+    public void ToUploadResult_ConcurrentChange_ReturnsConflict()
+    {
+        var result = CalendarEventThumbnailsApi.ToUploadResult(
+            UploadThumbnailResult.Conflict,
+            CalendarEventId);
+
+        Assert.IsType<ConflictObjectResult>(result);
+    }
+
+    [Fact]
     public void ToUploadResult_Invalid_ReturnsBadRequest()
     {
         var result = CalendarEventThumbnailsApi.ToUploadResult(
@@ -154,6 +164,16 @@ public sealed class CalendarEventThumbnailsApiTests
     {
         var result = CalendarEventThumbnailsApi.ToDeleteResult(
             DeleteThumbnailResult.HasPlatformPublications,
+            CalendarEventId);
+
+        Assert.IsType<ConflictObjectResult>(result);
+    }
+
+    [Fact]
+    public void ToDeleteResult_ConcurrentChange_ReturnsConflict()
+    {
+        var result = CalendarEventThumbnailsApi.ToDeleteResult(
+            DeleteThumbnailResult.Conflict,
             CalendarEventId);
 
         Assert.IsType<ConflictObjectResult>(result);

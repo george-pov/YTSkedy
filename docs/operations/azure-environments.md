@@ -60,7 +60,12 @@ resource-group-scoped composition module. The modules own:
 
 - Three storage accounts: Function host and deployment storage, application
   data storage, and UI static website storage.
+- The five application-data tables and private thumbnail Blob container in the
+  application storage account.
 - A Flex Consumption plan and .NET isolated Azure Functions app.
+- The Function App system-assigned identity and its Storage Table Data
+  Contributor and Storage Blob Data Contributor assignments scoped only to the
+  application storage account.
 - Log Analytics, Application Insights, an action group, and failure anomaly
   detection.
 - One environment-specific deployment identity, GitHub OIDC credential, and
@@ -303,6 +308,11 @@ Validate each environment independently:
 
 - Resource inventory, required tags, provisioning state, and module parity.
 - Separate storage, monitoring, identity, OIDC subject, and role scopes.
+- Exact application table and thumbnail-container names, disabled Shared Key
+  authorization on application storage, and enabled Shared Key authorization
+  on Function host storage.
+- Function App system identity data-plane access scoped to application storage,
+  with no application storage connection string in app settings.
 - Exact Function runtime and app-setting names without printing values.
 - SPA redirects, API scopes, app role, token audience and issuer, and browser
   sign-in and sign-out.
@@ -353,6 +363,9 @@ cannot recreate deleted application data or provider state.
   verification is an operator responsibility.
 - Application-data backup, budget controls, custom domains, and disaster
   recovery are not configured by this deployment source.
+- Application storage role propagation can briefly delay data-plane access
+  after a new deployment. Recheck the assignments and retry after propagation
+  before changing scopes or credentials.
 - Provider credentials and provider-side recovery remain application and
   operator concerns.
 - The current UI workflow clears the static website before replacement upload.

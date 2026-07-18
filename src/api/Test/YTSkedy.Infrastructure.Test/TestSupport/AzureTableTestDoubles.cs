@@ -5,6 +5,7 @@ using Azure.Data.Tables.Models;
 using YTSkedy.Infrastructure.CalendarEvents;
 using YTSkedy.Infrastructure.Platforms;
 using YTSkedy.Infrastructure.Settings;
+using YTSkedy.Infrastructure.Templates;
 using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.Infrastructure.Test.TestSupport;
@@ -26,6 +27,10 @@ internal abstract class InMemoryTableClient<TEntity>(string tableName) : TableCl
     public TableUpdateMode? LastUpdateMode { get; private set; }
 
     public IReadOnlyList<string>? LastQuerySelect { get; private set; }
+
+    public int? LastQueryMaxPerPage { get; private set; }
+
+    public int QueryCallCount { get; private set; }
 
     public void Seed(TEntity entity)
     {
@@ -156,7 +161,9 @@ internal abstract class InMemoryTableClient<TEntity>(string tableName) : TableCl
         IEnumerable<string>? select = null,
         CancellationToken cancellationToken = default)
     {
+        QueryCallCount++;
         LastQuerySelect = select?.ToArray();
+        LastQueryMaxPerPage = maxPerPage;
 
         var values = Entities.Values
             .Where(entity => MatchesFilter(entity, filter))
@@ -197,11 +204,101 @@ internal sealed class CalendarEventTableClient : InMemoryTableClient<CalendarEve
     {
     }
 
-    protected override bool MatchesFilter(CalendarEventEntity entity, string? filter) =>
-        string.IsNullOrWhiteSpace(filter) ||
-        string.Equals(filter, CalendarEventStorageKey.PartitionFilter(), StringComparison.Ordinal)
-            ? true
-            : throw new NotSupportedException($"Unsupported filter '{filter}'.");
+    protected override bool MatchesFilter(CalendarEventEntity entity, string? filter)
+    {
+        if (string.IsNullOrWhiteSpace(filter))
+        {
+            return true;
+        }
+
+        foreach (var clause in filter.Split(" and ", StringSplitOptions.None))
+        {
+            if (TryStringClause(clause, "PartitionKey", "eq", out var partitionKey))
+            {
+                if (!string.Equals(
+                        entity.PartitionKey,
+                        partitionKey,
+                        StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (TryStringClause(clause, "RowKey", "ne", out var excludedRowKey))
+            {
+                if (string.Equals(entity.RowKey, excludedRowKey, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (TryStringClause(clause, "LocalDateTime", "ge", out var monthStart))
+            {
+                if (string.CompareOrdinal(entity.LocalDateTime, monthStart) < 0)
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (TryStringClause(clause, "LocalDateTime", "lt", out var nextMonthStart))
+            {
+                if (string.CompareOrdinal(entity.LocalDateTime, nextMonthStart) >= 0)
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            const string scheduledStartPrefix = "ScheduledStartUtc eq datetime'";
+            if (clause.StartsWith(scheduledStartPrefix, StringComparison.Ordinal) &&
+                clause.EndsWith('\'') &&
+                DateTimeOffset.TryParse(
+                    clause[scheduledStartPrefix.Length..^1],
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal,
+                    out var scheduledStartUtc))
+            {
+                if (entity.ScheduledStartUtc != scheduledStartUtc)
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            throw new NotSupportedException($"Unsupported filter '{filter}'.");
+        }
+
+        return true;
+    }
+
+    private static bool TryStringClause(
+        string clause,
+        string propertyName,
+        string operation,
+        out string value)
+    {
+        var prefix = $"{propertyName} {operation} '";
+        if (clause.StartsWith(prefix, StringComparison.Ordinal) &&
+            clause.EndsWith('\''))
+        {
+            value = clause[prefix.Length..^1].Replace(
+                "''",
+                "'",
+                StringComparison.Ordinal);
+            return true;
+        }
+
+        value = string.Empty;
+        return false;
+    }
 
     protected override CalendarEventEntity Clone(CalendarEventEntity entity) =>
         new()
@@ -250,6 +347,48 @@ internal sealed class PlatformTableClient : InMemoryTableClient<PlatformEntity>
             PublishSettingsJson = entity.PublishSettingsJson,
             CreatedUtc = entity.CreatedUtc,
             UpdatedUtc = entity.UpdatedUtc
+        };
+}
+
+internal sealed class TemplateTableClient : InMemoryTableClient<TemplateEntity>
+{
+    public TemplateTableClient()
+        : base("Templates")
+    {
+    }
+
+    protected override bool MatchesFilter(TemplateEntity entity, string? filter)
+    {
+        if (string.IsNullOrWhiteSpace(filter))
+        {
+            return true;
+        }
+
+        var prefix = "PartitionKey eq '";
+        if (!filter.StartsWith(prefix, StringComparison.Ordinal) ||
+            !filter.EndsWith('\''))
+        {
+            throw new NotSupportedException($"Unsupported filter '{filter}'.");
+        }
+
+        return string.Equals(
+            entity.PartitionKey,
+            filter[prefix.Length..^1],
+            StringComparison.Ordinal);
+    }
+
+    protected override TemplateEntity Clone(TemplateEntity entity) =>
+        new()
+        {
+            PartitionKey = entity.PartitionKey,
+            RowKey = entity.RowKey,
+            Timestamp = entity.Timestamp,
+            ETag = entity.ETag,
+            TemplateId = entity.TemplateId,
+            Name = entity.Name,
+            Type = entity.Type,
+            Content = entity.Content,
+            CreatedUtc = entity.CreatedUtc
         };
 }
 

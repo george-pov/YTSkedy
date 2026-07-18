@@ -113,6 +113,29 @@ public sealed class UploadThumbnailHandlerTests
             CancellationToken.None));
     }
 
+    [Fact]
+    public async Task HandleAsync_MetadataConflict_ReturnsConflictAfterSavingBlob()
+    {
+        var handler = CreateHandler(CreateEvent());
+        _modifier
+            .Setup(candidate => candidate.SaveThumbnailAsync(
+                ApplicationTestData.CalendarEventId,
+                It.IsAny<Thumbnail>(),
+                CancellationToken.None))
+            .Returns(Task.FromResult(CalendarEventChangeResult.Conflict));
+
+        var result = await handler.HandleAsync(
+            ValidCommand(),
+            CancellationToken.None);
+
+        Assert.Equal(UploadThumbnailStatus.Conflict, result.Status);
+        _store.Verify(candidate => candidate.SaveAsync(
+            ApplicationTestData.ThumbnailBlobName(),
+            It.IsAny<byte[]>(),
+            "image/png",
+            CancellationToken.None));
+    }
+
     private UploadThumbnailHandler CreateHandler(
         CalendarEventView? calendarEvent,
         bool canMutate = true)
@@ -132,7 +155,7 @@ public sealed class UploadThumbnailHandlerTests
                 ApplicationTestData.CalendarEventId,
                 It.IsAny<Thumbnail>(),
                 CancellationToken.None))
-            .ReturnsAsync(true);
+            .Returns(Task.FromResult(CalendarEventChangeResult.Applied));
         _store
             .Setup(candidate => candidate.SaveAsync(
                 It.IsAny<string>(),

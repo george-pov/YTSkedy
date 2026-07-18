@@ -28,14 +28,16 @@ storage connection strings for real accounts, or local credential stores.
 The Bicep deployment supplies exactly these hosted Function settings. .NET
 configuration maps double underscores to section separators, so hosted
 `Auth__ClientId` is read as `Auth:ClientId` and
-`AzureStorage__ConnectionString` is read as
-`AzureStorage:ConnectionString`.
+`AzureStorage__TableServiceUri` is read as
+`AzureStorage:TableServiceUri`.
 
 | Setting | Classification | Owner |
 | --- | --- | --- |
 | `AzureWebJobsStorage` | Secret connection string | Azure Functions host state and triggers. |
 | `DEPLOYMENT_STORAGE_CONNECTION_STRING` | Secret connection string | Flex Consumption deployment package storage. |
-| `AzureStorage__ConnectionString` | Secret connection string | Application tables and thumbnail blobs. |
+| `AzureStorage__TableServiceUri` | Non-secret HTTPS URI | Application Table service endpoint used with managed identity. |
+| `AzureStorage__BlobServiceUri` | Non-secret HTTPS URI | Application Blob service endpoint used with managed identity. |
+| `AzureStorage__CreateResourcesIfMissing` | Non-secret, `false` | Keeps hosted resource creation owned by Bicep. |
 | `AzureStorage__CalendarEventsTableName` | Non-secret | Calendar event table name. |
 | `AzureStorage__TemplatesTableName` | Non-secret | Template table name. |
 | `AzureStorage__ApplicationSettingsTableName` | Non-secret | Application settings table name. |
@@ -54,9 +56,10 @@ configuration maps double underscores to section separators, so hosted
 
 Function host and deployment storage use one environment-specific storage
 account. Application tables and blobs use a different environment-specific
-storage account. Do not point `AzureStorage__ConnectionString` at Function host
-storage in a hosted environment, and do not share either account between dev
-and prod.
+storage account. The Function App system identity accesses application storage
+through scoped Table and Blob data contributor roles. Do not configure a
+hosted application-storage connection string, and do not share either account
+between dev and prod.
 
 Connection string values, monitoring connection values, and concrete
 environment identifiers belong in Azure configuration and local operations
@@ -293,44 +296,52 @@ CORS does not apply to the local `func` host.
 
 ## Azure Storage
 
-Calendar event persistence reads the storage connection string in this order:
+Application persistence binds one validated `AzureStorage` options section.
+Exactly one authentication mode must be configured:
 
-1. `AzureStorage:ConnectionString`
-2. `AzureWebJobsStorage`
+1. Connection-string mode sets `AzureStorage:ConnectionString`.
+2. Managed-identity mode sets both `AzureStorage:TableServiceUri` and
+   `AzureStorage:BlobServiceUri` to absolute HTTPS service URIs.
 
-The fallback supports local development and older hosts. Current hosted
-environments always set a separate `AzureStorage:ConnectionString`; they must
-not rely on `AzureWebJobsStorage` for application data.
+Do not combine these modes. `AzureWebJobsStorage` belongs only to the Functions
+host and deployment process. It is not a fallback for application data.
 
 For local Azurite development, set:
 
 ```json
 {
   "Values": {
-    "AzureWebJobsStorage": "UseDevelopmentStorage=true"
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "AzureStorage:ConnectionString": "UseDevelopmentStorage=true",
+    "AzureStorage:CreateResourcesIfMissing": "true"
   }
 }
 ```
 
-Calendar event table name lookup:
+The host registers separate keyed table clients with these option names and
+defaults:
 
-1. `AzureStorage:CalendarEventsTableName`
-2. Default: `CalendarEvents`
-
-The host registers separate keyed table clients for templates, platforms,
-platform publications, and application settings, each with its own table name
-lookup and the same connection string lookup above:
-
-1. `AzureStorage:TemplatesTableName`, default `Templates`.
-2. `AzureStorage:PlatformsTableName`, default `Platforms`.
-3. `AzureStorage:PlatformPublicationsTableName`, default `PlatformPublications`.
-4. `AzureStorage:ApplicationSettingsTableName`, default `ApplicationSettings`.
+1. `AzureStorage:CalendarEventsTableName`, default `CalendarEvents`.
+2. `AzureStorage:TemplatesTableName`, default `Templates`.
+3. `AzureStorage:PlatformsTableName`, default `Platforms`.
+4. `AzureStorage:PlatformPublicationsTableName`, default `PlatformPublications`.
+5. `AzureStorage:ApplicationSettingsTableName`, default `ApplicationSettings`.
 
 The host registers a private Blob container client for calendar event thumbnail
-bytes. It uses the same connection string lookup as the table clients:
+bytes:
 
 1. `AzureStorage:ThumbnailsContainerName`
 2. Default: `calendar-event-thumbnails`
+
+All table and container names must be non-blank. In managed-identity mode, the
+Function App identity needs Storage Table Data Contributor and Storage Blob
+Data Contributor at the application storage-account scope.
+
+`AzureStorage:CreateResourcesIfMissing` defaults to `false`. When it is `true`,
+a startup initializer creates the configured tables and thumbnail container
+before the host accepts requests. This switch is intended for explicit local
+bootstrap only. Hosted environments provision resources through Bicep and keep
+it `false`; request handlers and repositories never create storage resources.
 
 The `ApplicationSettings` table stores application-owned settings such as the
 current event text fields list and calendar event start defaults. It is not an

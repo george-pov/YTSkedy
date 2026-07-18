@@ -8,18 +8,16 @@ namespace YTSkedy.Infrastructure.Test.CalendarEvents;
 public class CalendarEventViewMapperTests
 {
     [Fact]
-    public void ToListRecordsForMonth_IncludedEntity_MapsCalendarEventFieldsAndPublishedIds()
+    public void ToListRecords_Entity_MapsCalendarEventFieldsAndPublishedIds()
     {
         var entity = CreateEntity(
             "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
             new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
             "2026-06-05T10:00:00",
             Text("English stream 1", "Event description"));
-        var criteria = new CalendarEventMonthCriteria(2026, 6);
-
         entity.PublishedPlatformIdsJson = "[\"platform-b\",\"platform-a\"]";
 
-        var result = CalendarEventViewMapper.ToListRecordsForMonth([entity], criteria);
+        var result = CalendarEventViewMapper.ToListRecords([entity]);
 
         var record = Assert.Single(result);
         var calendarEvent = record.Event;
@@ -51,88 +49,15 @@ public class CalendarEventViewMapperTests
     }
 
     [Fact]
-    public void ToListRecordsForMonth_MixedLocalMonths_FiltersByRequestedMonth()
-    {
-        var entities = new[]
-        {
-            CreateEntity(
-                "11111111111111111111111111111111",
-                new DateTimeOffset(2026, 05, 31, 15, 30, 00, TimeSpan.Zero),
-                "2026-06-01T00:30:00",
-                timeZoneId: "Asia/Tokyo"),
-            CreateEntity(
-                "22222222222222222222222222222222",
-                new DateTimeOffset(2026, 06, 15, 17, 00, 00, TimeSpan.Zero),
-                "2026-06-15T10:00:00"),
-            CreateEntity(
-                "33333333333333333333333333333333",
-                new DateTimeOffset(2026, 07, 01, 06, 30, 00, TimeSpan.Zero),
-                "2026-06-30T23:30:00"),
-            CreateEntity(
-                "44444444444444444444444444444444",
-                new DateTimeOffset(2026, 06, 01, 06, 30, 00, TimeSpan.Zero),
-                "2026-05-31T23:30:00"),
-            CreateEntity(
-                "55555555555555555555555555555555",
-                new DateTimeOffset(2026, 07, 01, 07, 30, 00, TimeSpan.Zero),
-                "2026-07-01T00:30:00")
-        };
-        var criteria = new CalendarEventMonthCriteria(2026, 6);
-
-        var result = CalendarEventViewMapper.ToListRecordsForMonth(entities, criteria);
-
-        Assert.Equal(
-            [
-                "11111111111111111111111111111111",
-                "22222222222222222222222222222222",
-                "33333333333333333333333333333333"
-            ],
-            result.Select(record => record.Event.CalendarEventId));
-    }
-
-    [Fact]
-    public void ToListRecordsForMonth_UnorderedEntities_SortsByScheduledStartUtcThenId()
-    {
-        var entities = new[]
-        {
-            CreateEntity(
-                "cccccccccccccccccccccccccccccccc",
-                new DateTimeOffset(2026, 06, 06, 17, 00, 00, TimeSpan.Zero),
-                "2026-06-06T10:00:00"),
-            CreateEntity(
-                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-                new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
-                "2026-06-05T10:00:00"),
-            CreateEntity(
-                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
-                "2026-06-05T10:00:00")
-        };
-        var criteria = new CalendarEventMonthCriteria(2026, 6);
-
-        var result = CalendarEventViewMapper.ToListRecordsForMonth(entities, criteria);
-
-        Assert.Equal(
-            [
-                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-                "cccccccccccccccccccccccccccccccc"
-            ],
-            result.Select(record => record.Event.CalendarEventId));
-    }
-
-    [Fact]
-    public void ToListRecordsForMonth_MalformedTextJson_ThrowsInvalidOperationException()
+    public void ToListRecords_MalformedTextJson_ThrowsInvalidOperationException()
     {
         var entity = CreateEntity(
             "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
             new DateTimeOffset(2026, 06, 05, 17, 00, 00, TimeSpan.Zero),
             "2026-06-05T10:00:00");
         entity.TextJson = "{";
-        var criteria = new CalendarEventMonthCriteria(2026, 6);
-
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            CalendarEventViewMapper.ToListRecordsForMonth([entity], criteria));
+            CalendarEventViewMapper.ToListRecords([entity]));
 
         Assert.Contains("malformed text JSON", exception.Message);
     }
@@ -160,9 +85,9 @@ public class CalendarEventViewMapperTests
 
         Assert.Equal(
             [
+                "88888888888888888888888888888888",
                 "22222222222222222222222222222222",
-                "77777777777777777777777777777777",
-                "88888888888888888888888888888888"
+                "77777777777777777777777777777777"
             ],
             result.Select(record => record.Event.CalendarEventId));
     }

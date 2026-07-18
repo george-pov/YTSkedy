@@ -72,4 +72,15 @@ public sealed class UpdateCalendarEventResultTests
             "Delete platform publications before updating the event.",
             conflict.Value);
     }
+
+    [Fact]
+    public void ToUpdateResult_ConcurrentChange_Returns409()
+    {
+        var result = CalendarEventsApi.ToUpdateResult(
+            UpdateCalendarEventResult.Conflict,
+            CalendarEventId);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(result);
+        Assert.Contains("Reload", Assert.IsType<string>(conflict.Value));
+    }
 }

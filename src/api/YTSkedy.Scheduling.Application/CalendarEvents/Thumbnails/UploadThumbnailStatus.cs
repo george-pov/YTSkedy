@@ -5,5 +5,6 @@ public enum UploadThumbnailStatus
     Uploaded,
     EventNotFound,
     HasPlatformPublications,
-    Invalid
+    Invalid,
+    Conflict
 }

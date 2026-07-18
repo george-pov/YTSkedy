@@ -191,7 +191,7 @@ public sealed class AzureCalendarEventRepositoryTests
             CancellationToken.None);
 
         var entity = Assert.Single(tableClient.Entities.Values);
-        Assert.True(result);
+        Assert.Equal(CalendarEventChangeResult.Applied, result);
         Assert.Equal("calendar-events", entity.PartitionKey);
         Assert.Equal($"event-{calendarEventId}", entity.RowKey);
         Assert.Equal(updatedScheduledStartUtc, entity.ScheduledStartUtc);
@@ -213,7 +213,28 @@ public sealed class AzureCalendarEventRepositoryTests
             new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
             CancellationToken.None);
 
-        Assert.False(result);
+        Assert.Equal(CalendarEventChangeResult.NotFound, result);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_StaleEntity_ReturnsConflict()
+    {
+        var tableClient = new CalendarEventTableClient();
+        var repository = CreateRepository(tableClient);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        tableClient.FailNextUpdateWithPreconditionFailed(
+            Assert.Single(tableClient.Entities.Values));
+
+        var result = await repository.UpdateAsync(
+            calendarEventId,
+            Event("Updated title", "2026-06-16T10:00:00"),
+            new DateTimeOffset(2026, 6, 16, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        Assert.Equal(CalendarEventChangeResult.Conflict, result);
     }
 
     [Fact]
@@ -262,7 +283,7 @@ public sealed class AzureCalendarEventRepositoryTests
             CancellationToken.None);
 
         var entity = Assert.Single(tableClient.Entities.Values);
-        Assert.True(result);
+        Assert.Equal(CalendarEventChangeResult.Applied, result);
         Assert.NotNull(entity.ThumbnailJson);
         Assert.Equal(thumbnail, await repository.GetThumbnailAsync(
             calendarEventId,
@@ -281,7 +302,27 @@ public sealed class AzureCalendarEventRepositoryTests
             Thumbnail("6f9619ff8b864fb5bdfd4f5c2f2f16a1"),
             CancellationToken.None);
 
-        Assert.False(result);
+        Assert.Equal(CalendarEventChangeResult.NotFound, result);
+    }
+
+    [Fact]
+    public async Task SaveThumbnailAsync_StaleEntity_ReturnsConflict()
+    {
+        var tableClient = new CalendarEventTableClient();
+        var repository = CreateRepository(tableClient);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        tableClient.FailNextUpdateWithPreconditionFailed(
+            Assert.Single(tableClient.Entities.Values));
+
+        var result = await repository.SaveThumbnailAsync(
+            calendarEventId,
+            Thumbnail(calendarEventId),
+            CancellationToken.None);
+
+        Assert.Equal(CalendarEventChangeResult.Conflict, result);
     }
 
     [Fact]
@@ -324,7 +365,7 @@ public sealed class AzureCalendarEventRepositoryTests
             CancellationToken.None);
 
         var entity = Assert.Single(tableClient.Entities.Values);
-        Assert.True(result);
+        Assert.Equal(CalendarEventChangeResult.Applied, result);
         Assert.Null(entity.ThumbnailJson);
         Assert.Null(await repository.GetThumbnailAsync(
             calendarEventId,
@@ -341,7 +382,30 @@ public sealed class AzureCalendarEventRepositoryTests
             "6f9619ff8b864fb5bdfd4f5c2f2f16a1",
             CancellationToken.None);
 
-        Assert.False(result);
+        Assert.Equal(CalendarEventChangeResult.NotFound, result);
+    }
+
+    [Fact]
+    public async Task DeleteThumbnailAsync_StaleEntity_ReturnsConflict()
+    {
+        var tableClient = new CalendarEventTableClient();
+        var repository = CreateRepository(tableClient);
+        var calendarEventId = await repository.CreateAsync(
+            Event("Original title", "2026-06-15T10:00:00"),
+            new DateTimeOffset(2026, 6, 15, 17, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+        await repository.SaveThumbnailAsync(
+            calendarEventId,
+            Thumbnail(calendarEventId),
+            CancellationToken.None);
+        tableClient.FailNextUpdateWithPreconditionFailed(
+            Assert.Single(tableClient.Entities.Values));
+
+        var result = await repository.DeleteThumbnailAsync(
+            calendarEventId,
+            CancellationToken.None);
+
+        Assert.Equal(CalendarEventChangeResult.Conflict, result);
     }
 
     [Fact]

@@ -194,6 +194,12 @@ explicitly exposes them through HTTP. The UI must not depend on table names,
 partition keys, row keys, ETags, or storage-specific conflict behavior except
 through documented HTTP responses.
 
+Calendar-event update and thumbnail metadata mutations use conditional ETag
+writes. A lost ETag race is an HTTP `409 Conflict`, and the client must reload
+the event before retrying. A missing row remains `404 Not Found`. The
+application and domain projects exchange storage-neutral change results, so
+Azure SDK request failures do not cross the infrastructure boundary.
+
 Calendar-event rows carry a secret-free derived set of successfully published
 platform ids only to support the list aggregate. `PlatformPublications` remains
 the authoritative source for per-platform state, actions, mutation locks,

@@ -171,6 +171,8 @@ public sealed class CalendarEventsApi(
             UpdateCalendarEventStatus.Invalid => new BadRequestObjectResult(result.ValidationError),
             UpdateCalendarEventStatus.DuplicateScheduledStart => new ConflictObjectResult(
                 $"Calendar event scheduled for '{result.ScheduledStartUtc!.Value:o}' already exists."),
+            UpdateCalendarEventStatus.Conflict => new ConflictObjectResult(
+                $"Calendar event '{calendarEventId}' changed. Reload it before retrying."),
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
 

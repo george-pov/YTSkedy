@@ -39,12 +39,21 @@ public sealed class DeleteThumbnailHandler(
             return DeleteThumbnailResult.ThumbnailNotFound;
         }
 
-        var deleted = await thumbnailModifier.DeleteThumbnailAsync(
+        var changeResult = await thumbnailModifier.DeleteThumbnailAsync(
             calendarEventId,
             cancellationToken);
-        if (!deleted)
+        if (changeResult == CalendarEventChangeResult.NotFound)
         {
             return DeleteThumbnailResult.EventNotFound;
+        }
+        if (changeResult == CalendarEventChangeResult.Conflict)
+        {
+            return DeleteThumbnailResult.Conflict;
+        }
+        if (changeResult != CalendarEventChangeResult.Applied)
+        {
+            throw new InvalidOperationException(
+                $"Unknown calendar event change result '{changeResult}'.");
         }
 
         await thumbnailStore.DeleteAsync(thumbnail.BlobName, cancellationToken);

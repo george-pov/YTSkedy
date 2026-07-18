@@ -13,4 +13,7 @@ public sealed record DeleteThumbnailResult(DeleteThumbnailStatus Status)
 
     public static DeleteThumbnailResult HasPlatformPublications { get; } =
         new(DeleteThumbnailStatus.HasPlatformPublications);
+
+    public static DeleteThumbnailResult Conflict { get; } =
+        new(DeleteThumbnailStatus.Conflict);
 }

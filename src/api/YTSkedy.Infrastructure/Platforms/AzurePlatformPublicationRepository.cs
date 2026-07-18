@@ -1,5 +1,6 @@
 using Azure;
 using Azure.Data.Tables;
+using YTSkedy.Infrastructure.Storage;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.Platforms;
@@ -29,8 +30,6 @@ public sealed class AzurePlatformPublicationRepository(
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(attempt);
-
-        await tableClient.CreateIfNotExistsAsync(cancellationToken);
 
         var entity = PlatformPublicationMapper.ToPublishingEntity(
             attempt,
@@ -439,7 +438,9 @@ public sealed class AzurePlatformPublicationRepository(
         var now = timeProvider.GetUtcNow();
         var orphaned = 0;
 
-        foreach (var entity in await QueryAsync(PublishedByPlatformFilter(platformId), cancellationToken))
+        foreach (var entity in await ListEntitiesAsync(
+                     PublishedByPlatformFilter(platformId),
+                     cancellationToken))
         {
             entity.PlatformDeletedUtc = now;
             entity.UpdatedUtc = now;
@@ -470,7 +471,9 @@ public sealed class AzurePlatformPublicationRepository(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
 
-        var entities = await QueryAsync(EventPartitionFilter(calendarEventId), cancellationToken);
+        var entities = await ListEntitiesAsync(
+            EventPartitionFilter(calendarEventId),
+            cancellationToken);
 
         return PlatformPublicationMapper.ToPublications(entities);
     }
@@ -481,21 +484,9 @@ public sealed class AzurePlatformPublicationRepository(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
 
-        try
-        {
-            await foreach (var _ in tableClient.QueryAsync<PlatformPublicationEntity>(
-                EventPartitionFilter(calendarEventId),
-                cancellationToken: cancellationToken))
-            {
-                return true;
-            }
-        }
-        catch (RequestFailedException exception) when (exception.Status == 404)
-        {
-            return false;
-        }
-
-        return false;
+        return await tableClient.AnyEntityAsync<PlatformPublicationEntity>(
+            EventPartitionFilter(calendarEventId),
+            cancellationToken);
     }
 
     public async Task<PlatformPublication?> GetAsync(
@@ -511,15 +502,15 @@ public sealed class AzurePlatformPublicationRepository(
         return entity is null ? null : PlatformPublicationMapper.ToPublication(entity);
     }
 
-    public async Task<IReadOnlyList<PlatformPublication>> ListPublishingByPlatformAsync(
+    public async Task<bool> HasPublishingByPlatformAsync(
         string platformId,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
 
-        var entities = await QueryAsync(PublishingByPlatformFilter(platformId), cancellationToken);
-
-        return PlatformPublicationMapper.ToPublications(entities);
+        return await tableClient.AnyEntityAsync<PlatformPublicationEntity>(
+            PublishingByPlatformFilter(platformId),
+            cancellationToken);
     }
 
     private async Task<PlatformPublicationEntity?> TryGetEntityAsync(
@@ -527,56 +518,31 @@ public sealed class AzurePlatformPublicationRepository(
         string platformId,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await tableClient.GetEntityIfExistsAsync<PlatformPublicationEntity>(
-                PlatformPublicationKey.PartitionKeyFor(calendarEventId),
-                PlatformPublicationKey.RowKeyFor(platformId),
-                cancellationToken: cancellationToken);
-
-            return response.HasValue ? response.Value : null;
-        }
-        catch (RequestFailedException exception) when (exception.Status == 404)
-        {
-            // The table does not exist yet, so there is no publication to return.
-            return null;
-        }
+        return await tableClient.GetEntityOrNullAsync<PlatformPublicationEntity>(
+            PlatformPublicationKey.PartitionKeyFor(calendarEventId),
+            PlatformPublicationKey.RowKeyFor(platformId),
+            cancellationToken);
     }
 
-    private async Task<List<PlatformPublicationEntity>> QueryAsync(
+    private Task<IReadOnlyList<PlatformPublicationEntity>> ListEntitiesAsync(
         string filter,
-        CancellationToken cancellationToken)
-    {
-        var entities = new List<PlatformPublicationEntity>();
-
-        try
-        {
-            await foreach (var entity in tableClient.QueryAsync<PlatformPublicationEntity>(
-                filter,
-                cancellationToken: cancellationToken))
-            {
-                entities.Add(entity);
-            }
-        }
-        catch (RequestFailedException exception) when (exception.Status == 404)
-        {
-            // The table does not exist yet, so there are no publications to return.
-        }
-
-        return entities;
-    }
+        CancellationToken cancellationToken) =>
+        tableClient.ListEntitiesAsync<PlatformPublicationEntity>(
+            filter,
+            select: null,
+            cancellationToken);
 
     private static string EventPartitionFilter(string calendarEventId) =>
-        $"PartitionKey eq '{PlatformPublicationKey.EscapeLiteral(
-            PlatformPublicationKey.PartitionKeyFor(calendarEventId))}'";
+        TableClient.CreateQueryFilter(
+            $"PartitionKey eq {PlatformPublicationKey.PartitionKeyFor(calendarEventId)}");
 
-    // Platform ids are server-generated hex GUIDs and the status values are
-    // controlled constants, so these filter literals carry no caller input.
+    // TableClient.CreateQueryFilter escapes the platform id even when it
+    // originated in a request. Status values remain controlled constants.
     private static string PublishingByPlatformFilter(string platformId) =>
-        $"PlatformId eq '{PlatformPublicationKey.EscapeLiteral(platformId)}' and " +
-        $"Status eq '{PublishStatus.Publishing}'";
+        TableClient.CreateQueryFilter(
+            $"PlatformId eq {platformId} and Status eq {PublishStatus.Publishing.ToString()}");
 
     private static string PublishedByPlatformFilter(string platformId) =>
-        $"PlatformId eq '{PlatformPublicationKey.EscapeLiteral(platformId)}' and " +
-        $"Status eq '{PublishStatus.Published}'";
+        TableClient.CreateQueryFilter(
+            $"PlatformId eq {platformId} and Status eq {PublishStatus.Published.ToString()}");
 }

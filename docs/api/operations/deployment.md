@@ -70,9 +70,11 @@ at the matching Function App scope. Do not grant the deployment identity
 Contributor at subscription or resource-group scope.
 
 Runtime settings required by the function app, including
-`AzureWebJobsStorage`, `DEPLOYMENT_STORAGE_CONNECTION_STRING`, and
-`AzureStorage:ConnectionString`, belong in Azure Function App configuration,
-not in the workflow file. The exact hosted setting contract and separate
+`AzureWebJobsStorage`, `DEPLOYMENT_STORAGE_CONNECTION_STRING`,
+`AzureStorage:TableServiceUri`, and `AzureStorage:BlobServiceUri`, belong in
+Azure Function App configuration, not in the workflow file. Application
+storage uses the Function App system-assigned identity; no application storage
+connection string is deployed. The exact hosted setting contract and separate
 Function host versus application data storage ownership are documented in
 [`../configuration.md`](../configuration.md).
 

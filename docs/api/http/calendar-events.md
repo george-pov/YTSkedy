@@ -417,6 +417,8 @@ Current behavior and error mapping:
 - Detected duplicate scheduled starts return `409 Conflict`. Duplicate
   detection is best-effort for normal sequential writes; concurrent duplicate
   writes are an accepted risk.
+- A concurrent update that loses the conditional ETag write returns
+  `409 Conflict` with a message to reload the event before retrying.
 - The `CalendarEventDetails` edit route
   (`/calendar-events/{calendarEventId}/edit`) consumes this endpoint on save,
   sending the event's scheduled start and text values.
@@ -424,7 +426,6 @@ Current behavior and error mapping:
 Current limitations:
 
 - Broader command validation does not return stable structured error bodies.
-- A concurrent edit that loses the ETag race surfaces as `500`.
 
 ## Delete Calendar Event
 

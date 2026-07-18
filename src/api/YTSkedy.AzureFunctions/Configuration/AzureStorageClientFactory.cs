@@ -1,49 +1,38 @@
 using Azure.Data.Tables;
+using Azure.Identity;
 using Azure.Storage.Blobs;
-using Microsoft.Extensions.Configuration;
 
 namespace YTSkedy.AzureFunctions.Configuration;
 
 internal static class AzureStorageClientFactory
 {
-    internal static TableClient CreateTableClient(
-        IConfiguration configuration,
-        string tableNameSetting,
-        string defaultTableName) =>
-        new(
-            GetConnectionString(configuration, "Azure Table Storage"),
-            GetConfiguredName(configuration, tableNameSetting, defaultTableName));
-
-    internal static BlobContainerClient CreateBlobContainerClient(
-        IConfiguration configuration,
-        string containerName) =>
-        new(GetConnectionString(configuration, "Azure Blob Storage"), containerName);
-
-    private static string GetConnectionString(
-        IConfiguration configuration,
-        string storageDescription)
+    internal static TableServiceClient CreateTableServiceClient(
+        AzureStorageOptions options)
     {
-        var connectionString =
-            configuration["AzureStorage:ConnectionString"] ??
-            configuration["AzureWebJobsStorage"];
+        ArgumentNullException.ThrowIfNull(options);
 
-        if (string.IsNullOrWhiteSpace(connectionString))
+        if (!string.IsNullOrWhiteSpace(options.ConnectionString))
         {
-            throw new InvalidOperationException(
-                $"{storageDescription} connection string is not configured.");
+            return new TableServiceClient(options.ConnectionString);
         }
 
-        return connectionString;
+        return new TableServiceClient(
+            new Uri(options.TableServiceUri!, UriKind.Absolute),
+            new DefaultAzureCredential());
     }
 
-    private static string GetConfiguredName(
-        IConfiguration configuration,
-        string settingName,
-        string defaultName)
+    internal static BlobServiceClient CreateBlobServiceClient(
+        AzureStorageOptions options)
     {
-        var configuredName = configuration[settingName];
-        return string.IsNullOrWhiteSpace(configuredName)
-            ? defaultName
-            : configuredName;
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (!string.IsNullOrWhiteSpace(options.ConnectionString))
+        {
+            return new BlobServiceClient(options.ConnectionString);
+        }
+
+        return new BlobServiceClient(
+            new Uri(options.BlobServiceUri!, UriKind.Absolute),
+            new DefaultAzureCredential());
     }
 }

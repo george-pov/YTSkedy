@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\YTSkedy.Infrastructure\YTSkedy.Infrastructure.csproj" />
+    <ProjectReference Include="..\YTSkedy.Scheduling.TestSupport\YTSkedy.Scheduling.TestSupport.csproj" />
+    <ProjectReference Include="..\YTSkedy.TestSupport\YTSkedy.TestSupport.csproj" />
+  </ItemGroup>
+
+</Project>

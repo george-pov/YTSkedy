@@ -65,8 +65,58 @@ resource applicationStorageAccount 'Microsoft.Storage/storageAccounts@2025-08-01
   }
   kind: 'StorageV2'
   properties: union(commonStorageProperties, {
-    allowSharedKeyAccess: true
+    allowSharedKeyAccess: false
   })
+}
+
+resource applicationTableService 'Microsoft.Storage/storageAccounts/tableServices@2025-08-01' = {
+  parent: applicationStorageAccount
+  name: 'default'
+  properties: {}
+}
+
+resource calendarEventsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2025-08-01' = {
+  parent: applicationTableService
+  name: 'CalendarEvents'
+  properties: {}
+}
+
+resource templatesTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2025-08-01' = {
+  parent: applicationTableService
+  name: 'Templates'
+  properties: {}
+}
+
+resource applicationSettingsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2025-08-01' = {
+  parent: applicationTableService
+  name: 'ApplicationSettings'
+  properties: {}
+}
+
+resource platformsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2025-08-01' = {
+  parent: applicationTableService
+  name: 'Platforms'
+  properties: {}
+}
+
+resource platformPublicationsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2025-08-01' = {
+  parent: applicationTableService
+  name: 'PlatformPublications'
+  properties: {}
+}
+
+resource applicationBlobService 'Microsoft.Storage/storageAccounts/blobServices@2025-08-01' = {
+  parent: applicationStorageAccount
+  name: 'default'
+  properties: {}
+}
+
+resource thumbnailsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-08-01' = {
+  parent: applicationBlobService
+  name: 'calendar-event-thumbnails'
+  properties: {
+    publicAccess: 'None'
+  }
 }
 
 resource uiStorageAccount 'Microsoft.Storage/storageAccounts@2025-08-01' = {

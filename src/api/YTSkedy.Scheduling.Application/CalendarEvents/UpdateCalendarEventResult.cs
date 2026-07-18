@@ -32,6 +32,9 @@ public sealed record UpdateCalendarEventResult
     public static UpdateCalendarEventResult HasPlatformPublications { get; } =
         new(UpdateCalendarEventStatus.HasPlatformPublications, null, null);
 
+    public static UpdateCalendarEventResult Conflict { get; } =
+        new(UpdateCalendarEventStatus.Conflict, null, null);
+
     public static UpdateCalendarEventResult Invalid(string validationError)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(validationError);

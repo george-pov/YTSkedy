@@ -18,4 +18,7 @@ public sealed record UploadThumbnailResult(
 
     public static UploadThumbnailResult HasPlatformPublications { get; } =
         new(UploadThumbnailStatus.HasPlatformPublications);
+
+    public static UploadThumbnailResult Conflict { get; } =
+        new(UploadThumbnailStatus.Conflict);
 }

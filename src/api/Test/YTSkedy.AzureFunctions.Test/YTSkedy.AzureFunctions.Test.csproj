@@ -10,4 +10,10 @@
     <ProjectReference Include="..\YTSkedy.TestSupport\YTSkedy.TestSupport.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\YTSkedy.AzureFunctions\local.settings.sample.json"
+          Link="local.settings.sample.json"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

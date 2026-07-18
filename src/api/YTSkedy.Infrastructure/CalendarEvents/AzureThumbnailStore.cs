@@ -30,7 +30,6 @@ public sealed class AzureThumbnailStore : IThumbnailStore
         ArgumentNullException.ThrowIfNull(content);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
 
-        await _container.CreateIfNotExistsAsync(cancellationToken);
         await _container.SaveAsync(blobName, content, contentType, cancellationToken);
     }
 
@@ -55,13 +54,6 @@ public sealed class AzureThumbnailStore : IThumbnailStore
     private sealed class AzureThumbnailBlobContainer(BlobContainerClient containerClient) :
         IThumbnailBlobContainer
     {
-        public async Task CreateIfNotExistsAsync(CancellationToken cancellationToken)
-        {
-            await containerClient.CreateIfNotExistsAsync(
-                PublicAccessType.None,
-                cancellationToken: cancellationToken);
-        }
-
         public async Task SaveAsync(
             string blobName,
             byte[] content,
@@ -122,8 +114,6 @@ public sealed class AzureThumbnailStore : IThumbnailStore
 
 internal interface IThumbnailBlobContainer
 {
-    Task CreateIfNotExistsAsync(CancellationToken cancellationToken);
-
     Task SaveAsync(
         string blobName,
         byte[] content,

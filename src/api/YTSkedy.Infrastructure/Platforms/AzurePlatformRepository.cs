@@ -1,5 +1,6 @@
 using Azure;
 using Azure.Data.Tables;
+using YTSkedy.Infrastructure.Storage;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Domain.Platforms;
 
@@ -31,12 +32,10 @@ public sealed class AzurePlatformRepository(
     {
         ArgumentNullException.ThrowIfNull(platform);
 
-        await tableClient.CreateIfNotExistsAsync(cancellationToken);
-
         // Check-then-write global name uniqueness against the single partition.
         // The small expected number of platforms is why this store does not use
         // a dedicated uniqueness index row.
-        var existing = await QueryPartitionAsync(cancellationToken);
+        var existing = await ListUniquenessEntitiesAsync(cancellationToken);
 
         if (existing.Any(entity => NameEquals(entity.Name, platform.Name)))
         {
@@ -87,12 +86,7 @@ public sealed class AzurePlatformRepository(
 
         var rowKey = RowKeyFor(platformId);
 
-        // One partition read serves both the locate and the rename uniqueness
-        // check; the target row and its siblings come from the same snapshot.
-        var partition = await QueryPartitionAsync(cancellationToken);
-
-        var entity = partition.FirstOrDefault(
-            candidate => string.Equals(candidate.RowKey, rowKey, StringComparison.Ordinal));
+        var entity = await GetEntityAsync(platformId, cancellationToken);
 
         if (entity is null)
         {
@@ -100,6 +94,7 @@ public sealed class AzurePlatformRepository(
         }
 
         var trimmedName = name.Trim();
+        var partition = await ListUniquenessEntitiesAsync(cancellationToken);
 
         if (partition.Any(other =>
                 !string.Equals(other.RowKey, rowKey, StringComparison.Ordinal) &&
@@ -169,7 +164,7 @@ public sealed class AzurePlatformRepository(
         PlatformType? type,
         CancellationToken cancellationToken)
     {
-        var entities = await QueryPartitionAsync(cancellationToken);
+        var entities = await ListFullEntitiesAsync(cancellationToken);
 
         var candidates = type is null
             ? entities
@@ -177,30 +172,20 @@ public sealed class AzurePlatformRepository(
                 .Where(entity => PlatformViewMapper.ParseType(entity.Type) == type.Value)
                 .ToList();
 
-            return PlatformViewMapper.ToViews(candidates);
+        return PlatformViewMapper.ToViews(candidates);
     }
 
     public async Task<IReadOnlySet<string>> ListIdsAsync(
         CancellationToken cancellationToken)
     {
-        var ids = new HashSet<string>(StringComparer.Ordinal);
+        var entities = await tableClient.ListEntitiesAsync<PlatformEntity>(
+            PartitionFilter(),
+            [nameof(PlatformEntity.PlatformId)],
+            cancellationToken);
 
-        try
-        {
-            await foreach (var entity in tableClient.QueryAsync<PlatformEntity>(
-                PartitionFilter(),
-                select: [nameof(PlatformEntity.PlatformId)],
-                cancellationToken: cancellationToken))
-            {
-                ids.Add(entity.PlatformId);
-            }
-        }
-        catch (RequestFailedException exception) when (exception.Status == 404)
-        {
-            // The table does not exist yet, so there are no active platform ids.
-        }
-
-        return ids;
+        return entities
+            .Select(entity => entity.PlatformId)
+            .ToHashSet(StringComparer.Ordinal);
     }
 
     public async Task<PlatformView?> GetAsync(
@@ -209,49 +194,39 @@ public sealed class AzurePlatformRepository(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
 
-        try
-        {
-            var response = await tableClient.GetEntityIfExistsAsync<PlatformEntity>(
-                PartitionKey,
-                RowKeyFor(platformId),
-                cancellationToken: cancellationToken);
+        var entity = await GetEntityAsync(platformId, cancellationToken);
 
-            return response.HasValue
-                ? PlatformViewMapper.ToView(response.Value!)
-                : null;
-        }
-        catch (RequestFailedException exception) when (exception.Status == 404)
-        {
-            // The table does not exist yet, so there is no platform to return.
-            return null;
-        }
+        return entity is null ? null : PlatformViewMapper.ToView(entity);
     }
 
-    private async Task<List<PlatformEntity>> QueryPartitionAsync(CancellationToken cancellationToken)
-    {
-        var entities = new List<PlatformEntity>();
+    private Task<PlatformEntity?> GetEntityAsync(
+        string platformId,
+        CancellationToken cancellationToken) =>
+        tableClient.GetEntityOrNullAsync<PlatformEntity>(
+            PartitionKey,
+            RowKeyFor(platformId),
+            cancellationToken);
 
-        try
-        {
-            await foreach (var entity in tableClient.QueryAsync<PlatformEntity>(
-                PartitionFilter(),
-                cancellationToken: cancellationToken))
-            {
-                entities.Add(entity);
-            }
-        }
-        catch (RequestFailedException exception) when (exception.Status == 404)
-        {
-            // The table does not exist yet, so there are no platforms to return.
-        }
+    private Task<IReadOnlyList<PlatformEntity>> ListFullEntitiesAsync(
+        CancellationToken cancellationToken) =>
+        tableClient.ListEntitiesAsync<PlatformEntity>(
+            PartitionFilter(),
+            select: null,
+            cancellationToken);
 
-        return entities;
-    }
+    private Task<IReadOnlyList<PlatformEntity>> ListUniquenessEntitiesAsync(
+        CancellationToken cancellationToken) =>
+        tableClient.ListEntitiesAsync<PlatformEntity>(
+            PartitionFilter(),
+            [
+                nameof(PlatformEntity.RowKey),
+                nameof(PlatformEntity.Name),
+                nameof(PlatformEntity.ReferenceKey)
+            ],
+            cancellationToken);
 
-    // The partition key is a controlled constant value, so it is safe to embed
-    // directly in the filter.
     private static string PartitionFilter() =>
-        $"PartitionKey eq '{PartitionKey}'";
+        TableClient.CreateQueryFilter($"PartitionKey eq {PartitionKey}");
 
     private static string RowKeyFor(string platformId) =>
         $"platform-{platformId}";

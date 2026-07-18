@@ -35,12 +35,10 @@ public interface IPlatformPublicationReader
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Reads the publication rows for one platform that are still
-    /// <see cref="PublishStatus.Publishing"/>, across all calendar events. The
-    /// platform delete guard uses this to block deleting a platform while a
-    /// publish is in progress.
+    /// Returns true when a publication row for one platform is still
+    /// <see cref="PublishStatus.Publishing"/> across any calendar event.
     /// </summary>
-    Task<IReadOnlyList<PlatformPublication>> ListPublishingByPlatformAsync(
+    Task<bool> HasPublishingByPlatformAsync(
         string platformId,
         CancellationToken cancellationToken);
 }

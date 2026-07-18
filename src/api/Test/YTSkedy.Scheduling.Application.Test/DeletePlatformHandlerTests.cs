@@ -47,7 +47,7 @@ public class DeletePlatformHandlerTests
             CancellationToken.None);
 
         Assert.Equal(DeletePlatformResult.Deleted, result);
-        publicationReader.Verify(candidate => candidate.ListPublishingByPlatformAsync(
+        publicationReader.Verify(candidate => candidate.HasPublishingByPlatformAsync(
             PlatformId,
             CancellationToken.None));
         _history.Verify(repository => repository.OrphanPublishedByPlatformAsync(
@@ -157,10 +157,11 @@ public class DeletePlatformHandlerTests
         IReadOnlyList<PlatformPublication> publications)
     {
         _publications
-            .Setup(candidate => candidate.ListPublishingByPlatformAsync(
+            .Setup(candidate => candidate.HasPublishingByPlatformAsync(
                 PlatformId,
                 CancellationToken.None))
-            .ReturnsAsync(publications);
+            .ReturnsAsync(publications.Any(
+                publication => publication.Status == PublishStatus.Publishing));
         return _publications;
     }
 

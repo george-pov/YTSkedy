@@ -128,6 +128,8 @@ public class AzurePlatformPublicationRepositoryTests
             CancellationToken.None);
 
         Assert.True(hasAny);
+        Assert.Equal(1, tableClient.LastQueryMaxPerPage);
+        Assert.Equal(["PartitionKey"], tableClient.LastQuerySelect);
     }
 
     [Fact]
@@ -372,7 +374,7 @@ public class AzurePlatformPublicationRepositoryTests
     }
 
     [Fact]
-    public async Task ListPublishingByPlatformAsync_FiltersPublishingRowsForRequestedPlatform()
+    public async Task HasPublishingByPlatformAsync_FiltersPublishingRowsForRequestedPlatform()
     {
         var tableClient = new PlatformPublicationTableClient();
         var repository = CreateRepository(tableClient);
@@ -389,14 +391,13 @@ public class AzurePlatformPublicationRepositoryTests
             calendarEventId: OtherCalendarEventId,
             platformId: "other-platform-id"));
 
-        var result = await repository.ListPublishingByPlatformAsync(
+        var result = await repository.HasPublishingByPlatformAsync(
             PlatformId,
             CancellationToken.None);
 
-        var publication = Assert.Single(result);
-        Assert.Equal(CalendarEventId, publication.CalendarEventId);
-        Assert.Equal(PlatformId, publication.PlatformId);
-        Assert.Equal(PublishStatus.Publishing, publication.Status);
+        Assert.True(result);
+        Assert.Equal(1, tableClient.LastQueryMaxPerPage);
+        Assert.Equal(["PartitionKey"], tableClient.LastQuerySelect);
     }
 
     [Fact]

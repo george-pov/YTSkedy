@@ -30,11 +30,11 @@ public sealed class DeletePlatformHandler(
             return DeletePlatformResult.NotFound;
         }
 
-        var publishing = await publications.ListPublishingByPlatformAsync(
+        var publishing = await publications.HasPublishingByPlatformAsync(
             command.PlatformId,
             cancellationToken);
 
-        if (publishing.Count > 0)
+        if (publishing)
         {
             return DeletePlatformResult.Conflict;
         }

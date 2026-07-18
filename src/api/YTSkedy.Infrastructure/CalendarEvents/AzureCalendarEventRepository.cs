@@ -1,6 +1,7 @@
 using Azure;
 using Azure.Data.Tables;
 using System.Globalization;
+using YTSkedy.Infrastructure.Storage;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.CalendarEvents.Thumbnails;
 using YTSkedy.Scheduling.Domain.CalendarEvents;
@@ -16,7 +17,7 @@ public sealed class AzureCalendarEventRepository(
     ICalendarEventThumbnailReader,
     ICalendarEventThumbnailModifier
 {
-    private const int PublicationIndexUpdateAttempts = 3;
+    private const int PublicationIndexConditionalWriteAttempts = 3;
 
     public async Task<string> CreateAsync(
         CalendarEvent calendarEvent,
@@ -24,8 +25,6 @@ public sealed class AzureCalendarEventRepository(
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(calendarEvent);
-
-        await tableClient.CreateIfNotExistsAsync(cancellationToken);
 
         if (await HasScheduledStartAsync(
                 scheduledStartUtc,
@@ -67,15 +66,20 @@ public sealed class AzureCalendarEventRepository(
     {
         ArgumentNullException.ThrowIfNull(criteria);
 
-        return CalendarEventViewMapper.ToListRecordsForMonth(
-            await ListEntitiesAsync(cancellationToken),
-            criteria);
+        return CalendarEventViewMapper.ToListRecords(
+            await tableClient.ListEntitiesAsync<CalendarEventEntity>(
+                MonthFilter(criteria),
+                select: null,
+                cancellationToken));
     }
 
     private async Task<IReadOnlyList<CalendarEventListRecord>> ListAllAsync(
         CancellationToken cancellationToken) =>
         CalendarEventViewMapper.ToListRecords(
-            await ListEntitiesAsync(cancellationToken));
+            await tableClient.ListEntitiesAsync<CalendarEventEntity>(
+                PartitionFilter(),
+                select: null,
+                cancellationToken));
 
     public async Task<CalendarEventView?> GetByIdAsync(
         string calendarEventId,
@@ -88,7 +92,7 @@ public sealed class AzureCalendarEventRepository(
         return entity is null ? null : CalendarEventViewMapper.ToView(entity);
     }
 
-    public async Task<bool> UpdateAsync(
+    public async Task<CalendarEventChangeResult> UpdateAsync(
         string calendarEventId,
         CalendarEvent calendarEvent,
         DateTimeOffset scheduledStartUtc,
@@ -101,7 +105,7 @@ public sealed class AzureCalendarEventRepository(
 
         if (entity is null)
         {
-            return false;
+            return CalendarEventChangeResult.NotFound;
         }
 
         if (await HasScheduledStartAsync(
@@ -129,10 +133,14 @@ public sealed class AzureCalendarEventRepository(
         }
         catch (RequestFailedException exception) when (exception.Status == 404)
         {
-            return false;
+            return CalendarEventChangeResult.NotFound;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 412)
+        {
+            return CalendarEventChangeResult.Conflict;
         }
 
-        return true;
+        return CalendarEventChangeResult.Applied;
     }
 
     public async Task<Thumbnail?> GetThumbnailAsync(
@@ -148,7 +156,7 @@ public sealed class AzureCalendarEventRepository(
             : ThumbnailJson.Deserialize(entity.ThumbnailJson, calendarEventId);
     }
 
-    public async Task<bool> SaveThumbnailAsync(
+    public async Task<CalendarEventChangeResult> SaveThumbnailAsync(
         string calendarEventId,
         Thumbnail thumbnail,
         CancellationToken cancellationToken)
@@ -159,7 +167,7 @@ public sealed class AzureCalendarEventRepository(
         var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
         if (entity is null)
         {
-            return false;
+            return CalendarEventChangeResult.NotFound;
         }
 
         entity.ThumbnailJson = ThumbnailJson.FromDomain(thumbnail).Serialize();
@@ -174,13 +182,17 @@ public sealed class AzureCalendarEventRepository(
         }
         catch (RequestFailedException exception) when (exception.Status == 404)
         {
-            return false;
+            return CalendarEventChangeResult.NotFound;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 412)
+        {
+            return CalendarEventChangeResult.Conflict;
         }
 
-        return true;
+        return CalendarEventChangeResult.Applied;
     }
 
-    public async Task<bool> DeleteThumbnailAsync(
+    public async Task<CalendarEventChangeResult> DeleteThumbnailAsync(
         string calendarEventId,
         CancellationToken cancellationToken)
     {
@@ -189,7 +201,7 @@ public sealed class AzureCalendarEventRepository(
         var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
         if (entity is null)
         {
-            return false;
+            return CalendarEventChangeResult.NotFound;
         }
 
         entity.ThumbnailJson = null;
@@ -204,10 +216,14 @@ public sealed class AzureCalendarEventRepository(
         }
         catch (RequestFailedException exception) when (exception.Status == 404)
         {
-            return false;
+            return CalendarEventChangeResult.NotFound;
+        }
+        catch (RequestFailedException exception) when (exception.Status == 412)
+        {
+            return CalendarEventChangeResult.Conflict;
         }
 
-        return true;
+        return CalendarEventChangeResult.Applied;
     }
 
     public Task<bool> AddPublishedPlatformAsync(
@@ -264,14 +280,9 @@ public sealed class AzureCalendarEventRepository(
         string? excludedCalendarEventId,
         CancellationToken cancellationToken)
     {
-        var entities = await ListEntitiesAsync(cancellationToken);
-
-        return entities.Any(entity =>
-            entity.ScheduledStartUtc == scheduledStartUtc &&
-            !string.Equals(
-                entity.CalendarEventId,
-                excludedCalendarEventId,
-                StringComparison.Ordinal));
+        return await tableClient.AnyEntityAsync<CalendarEventEntity>(
+            ScheduledStartFilter(scheduledStartUtc, excludedCalendarEventId),
+            cancellationToken);
     }
 
     private async Task<bool> UpdatePublishedPlatformIdsAsync(
@@ -283,7 +294,7 @@ public sealed class AzureCalendarEventRepository(
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
         ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
 
-        for (var attempt = 0; attempt < PublicationIndexUpdateAttempts; attempt++)
+        for (var attempt = 0; attempt < PublicationIndexConditionalWriteAttempts; attempt++)
         {
             var entity = await TryGetEntityAsync(calendarEventId, cancellationToken);
             if (entity is null)
@@ -331,28 +342,6 @@ public sealed class AzureCalendarEventRepository(
         return false;
     }
 
-    private async Task<IReadOnlyList<CalendarEventEntity>> ListEntitiesAsync(
-        CancellationToken cancellationToken)
-    {
-        var entities = new List<CalendarEventEntity>();
-
-        try
-        {
-            await foreach (var entity in tableClient.QueryAsync<CalendarEventEntity>(
-                CalendarEventStorageKey.PartitionFilter(),
-                cancellationToken: cancellationToken))
-            {
-                entities.Add(entity);
-            }
-        }
-        catch (RequestFailedException exception) when (exception.Status == 404)
-        {
-            return [];
-        }
-
-        return entities;
-    }
-
     private async Task<CalendarEventEntity?> TryGetEntityAsync(
         string calendarEventId,
         CancellationToken cancellationToken)
@@ -365,29 +354,61 @@ public sealed class AzureCalendarEventRepository(
             return null;
         }
 
-        try
-        {
-            var response = await tableClient.GetEntityIfExistsAsync<CalendarEventEntity>(
-                partitionKey,
-                rowKey,
-                cancellationToken: cancellationToken);
+        var entity = await tableClient.GetEntityOrNullAsync<CalendarEventEntity>(
+            partitionKey,
+            rowKey,
+            cancellationToken);
 
-            if (!response.HasValue || response.Value is not { } entity)
-            {
-                return null;
-            }
-
-            return string.Equals(
+        return entity is not null &&
+            string.Equals(
                 entity.CalendarEventId,
                 calendarEventId,
                 StringComparison.Ordinal)
-                    ? entity
-                    : null;
-        }
-        catch (RequestFailedException exception) when (exception.Status == 404)
+                ? entity
+                : null;
+    }
+
+    private static string PartitionFilter() =>
+        TableClient.CreateQueryFilter(
+            $"PartitionKey eq {CalendarEventStorageKey.PartitionKey}");
+
+    private static string MonthFilter(CalendarEventMonthCriteria criteria)
+    {
+        var monthStart = new DateTime(
+            criteria.Year,
+            criteria.Month,
+            1).ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
+        var nextMonthStart = new DateTime(
+            criteria.Year,
+            criteria.Month,
+            1).AddMonths(1).ToString(
+                "yyyy-MM-dd'T'HH:mm:ss",
+                CultureInfo.InvariantCulture);
+
+        FormattableString filter =
+            $"PartitionKey eq {CalendarEventStorageKey.PartitionKey} and LocalDateTime ge {monthStart} and LocalDateTime lt {nextMonthStart}";
+
+        return TableClient.CreateQueryFilter(filter);
+    }
+
+    private static string ScheduledStartFilter(
+        DateTimeOffset scheduledStartUtc,
+        string? excludedCalendarEventId) =>
+        TableClient.CreateQueryFilter(
+            ScheduledStartFilterFormattable(
+                scheduledStartUtc,
+                excludedCalendarEventId));
+
+    private static FormattableString ScheduledStartFilterFormattable(
+        DateTimeOffset scheduledStartUtc,
+        string? excludedCalendarEventId)
+    {
+        if (excludedCalendarEventId is null)
         {
-            return null;
+            return $"PartitionKey eq {CalendarEventStorageKey.PartitionKey} and ScheduledStartUtc eq {scheduledStartUtc}";
         }
+
+        return $"PartitionKey eq {CalendarEventStorageKey.PartitionKey} and ScheduledStartUtc eq {scheduledStartUtc} and RowKey ne {CalendarEventStorageKey.RowKeyFor(excludedCalendarEventId)}";
     }
 
     private static string FormatLocalDateTime(DateTime localDateTime) =>

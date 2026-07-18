@@ -2,6 +2,7 @@
   <Folder Name="/Test/">
     <Project Path="Test/YTSkedy.AzureFunctions.Test/YTSkedy.AzureFunctions.Test.csproj" />
     <Project Path="Test/YTSkedy.Infrastructure.Test/YTSkedy.Infrastructure.Test.csproj" />
+    <Project Path="Test/YTSkedy.Infrastructure.IntegrationTest/YTSkedy.Infrastructure.IntegrationTest.csproj" />
     <Project Path="Test/YTSkedy.Scheduling.Application.Test/YTSkedy.Scheduling.Application.Test.csproj" Id="3a8f9723-40ce-4601-a15f-263821b42beb" />
     <Project Path="Test/YTSkedy.Scheduling.Domain.Test/YTSkedy.Scheduling.Domain.Test.csproj" />
     <Project Path="Test/YTSkedy.Scheduling.TestSupport/YTSkedy.Scheduling.TestSupport.csproj" />

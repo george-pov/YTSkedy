@@ -1,4 +1,3 @@
-using Azure.Data.Tables;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
@@ -12,10 +11,6 @@ using YTSkedy.AzureFunctions.Auth;
 using YTSkedy.AzureFunctions.Configuration;
 using YTSkedy.AzureFunctions.Http;
 using YTSkedy.AzureFunctions.Platforms.Publications;
-using YTSkedy.Infrastructure.CalendarEvents;
-using YTSkedy.Infrastructure.Platforms;
-using YTSkedy.Infrastructure.Settings;
-using YTSkedy.Infrastructure.Templates;
 using YTSkedy.Infrastructure.WordPress;
 using YTSkedy.Infrastructure.YouTube;
 using YTSkedy.Scheduling.Application.CalendarEvents;
@@ -102,11 +97,8 @@ if (!string.IsNullOrWhiteSpace(configuredIssuer))
         });
 }
 
-builder.Services.AddSingleton(_ =>
-    AzureStorageClientFactory.CreateTableClient(
-        builder.Configuration,
-        "AzureStorage:CalendarEventsTableName",
-        "CalendarEvents"));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddYTSkedyStorage(builder.Configuration);
 
 builder.Services.AddScoped<CreateCalendarEventHandler>();
 builder.Services.AddScoped<ListEventsHandler>();
@@ -118,83 +110,15 @@ builder.Services.AddScoped<GetDefaultStartHandler>();
 builder.Services.AddScoped<UploadThumbnailHandler>();
 builder.Services.AddScoped<GetThumbnailHandler>();
 builder.Services.AddScoped<DeleteThumbnailHandler>();
-builder.Services.AddScoped<AzureCalendarEventRepository>();
-builder.Services.AddScoped<ICalendarEventModifier>(
-    serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
-builder.Services.AddScoped<ICalendarEventReader>(
-    serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
-builder.Services.AddScoped<IPublicationIndexWriter>(
-    serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
-builder.Services.AddScoped<ICalendarEventThumbnailModifier>(
-    serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
-builder.Services.AddScoped<ICalendarEventThumbnailReader>(
-    serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventRepository>());
-
-builder.Services.AddSingleton(_ =>
-    AzureStorageClientFactory.CreateBlobContainerClient(
-        builder.Configuration,
-        AzureStorageConfiguration.GetThumbnailsContainerName(builder.Configuration)));
-
-builder.Services.AddScoped<IThumbnailStore, AzureThumbnailStore>();
-
-builder.Services.AddSingleton(TimeProvider.System);
-
-// Templates persist in their own table bound through a keyed TableClient so the
-// calendar-event TableClient registration above is untouched.
-builder.Services.AddKeyedSingleton<TableClient>("templates", (_, _) =>
-    AzureStorageClientFactory.CreateTableClient(
-        builder.Configuration,
-        "AzureStorage:TemplatesTableName",
-        "Templates"));
 
 builder.Services.AddScoped<CreateTemplateHandler>();
 builder.Services.AddScoped<UpdateTemplateHandler>();
 builder.Services.AddScoped<DeleteTemplateHandler>();
 builder.Services.AddScoped<ListTemplatesHandler>();
 builder.Services.AddScoped<ListTemplateTokensHandler>();
-builder.Services.AddScoped(serviceProvider =>
-    new AzureTemplateRepository(
-        serviceProvider.GetRequiredKeyedService<TableClient>("templates"),
-        serviceProvider.GetRequiredService<TimeProvider>()));
-builder.Services.AddScoped<ITemplateModifier>(
-    serviceProvider => serviceProvider.GetRequiredService<AzureTemplateRepository>());
-builder.Services.AddScoped<ITemplateReader>(
-    serviceProvider => serviceProvider.GetRequiredService<AzureTemplateRepository>());
-
-// Application-owned settings persist in one generic settings table. Individual
-// settings are rows inside that table, so adding event text fields does not add
-// a dedicated EventTextFields table.
-builder.Services.AddKeyedSingleton<TableClient>("applicationSettings", (_, _) =>
-    AzureStorageClientFactory.CreateTableClient(
-        builder.Configuration,
-        "AzureStorage:ApplicationSettingsTableName",
-        "ApplicationSettings"));
 
 builder.Services.AddScoped<GetCalendarEventDefaultsHandler>();
 builder.Services.AddScoped<UpdateCalendarEventDefaultsHandler>();
-builder.Services.AddScoped(serviceProvider =>
-    new AzureEventTextFieldsRepository(
-        serviceProvider.GetRequiredKeyedService<TableClient>("applicationSettings")));
-builder.Services.AddScoped<IEventTextFieldsReader>(
-    serviceProvider => serviceProvider.GetRequiredService<AzureEventTextFieldsRepository>());
-builder.Services.AddScoped(serviceProvider =>
-    new AzureStartDefaultsRepository(
-        serviceProvider.GetRequiredKeyedService<TableClient>("applicationSettings")));
-builder.Services.AddScoped<IStartDefaultsReader>(
-    serviceProvider => serviceProvider.GetRequiredService<AzureStartDefaultsRepository>());
-builder.Services.AddScoped(serviceProvider =>
-    new AzureCalendarEventDefaultsRepository(
-        serviceProvider.GetRequiredKeyedService<TableClient>("applicationSettings")));
-builder.Services.AddScoped<ICalendarEventDefaultsModifier>(
-    serviceProvider => serviceProvider.GetRequiredService<AzureCalendarEventDefaultsRepository>());
-
-// Platforms persist in their own table bound through a keyed TableClient so the
-// calendar-event and templates TableClient registrations above are untouched.
-builder.Services.AddKeyedSingleton<TableClient>("platforms", (_, _) =>
-    AzureStorageClientFactory.CreateTableClient(
-        builder.Configuration,
-        "AzureStorage:PlatformsTableName",
-        "Platforms"));
 
 builder.Services.AddScoped<ListPlatformsHandler>();
 builder.Services.AddScoped<GetPlatformHandler>();
@@ -204,38 +128,6 @@ builder.Services.AddScoped<DeletePlatformHandler>();
 builder.Services.AddScoped<CategoryListHandler>();
 builder.Services.AddScoped<PublishingContentRenderer>();
 builder.Services.AddScoped<GetPublishingContentHandler>();
-builder.Services.AddScoped(serviceProvider =>
-    new AzurePlatformRepository(
-        serviceProvider.GetRequiredKeyedService<TableClient>("platforms"),
-        serviceProvider.GetRequiredService<TimeProvider>()));
-builder.Services.AddScoped<IPlatformModifier>(
-    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformRepository>());
-builder.Services.AddScoped<IPlatformReader>(
-    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformRepository>());
-
-// Platform publications persist in their own table bound through a keyed
-// TableClient so the calendar-event, templates, and platforms TableClient
-// registrations above are untouched.
-builder.Services.AddKeyedSingleton<TableClient>("platformPublications", (_, _) =>
-    AzureStorageClientFactory.CreateTableClient(
-        builder.Configuration,
-        "AzureStorage:PlatformPublicationsTableName",
-        "PlatformPublications"));
-
-builder.Services.AddScoped(serviceProvider =>
-    new AzurePlatformPublicationRepository(
-        serviceProvider.GetRequiredKeyedService<TableClient>("platformPublications"),
-        serviceProvider.GetRequiredService<TimeProvider>()));
-builder.Services.AddScoped<IPublicationAttemptWriter>(
-    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
-builder.Services.AddScoped<IPublicationThumbnailWriter>(
-    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
-builder.Services.AddScoped<IPublicationCleanupWriter>(
-    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
-builder.Services.AddScoped<IPublicationHistoryWriter>(
-    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
-builder.Services.AddScoped<IPlatformPublicationReader>(
-    serviceProvider => serviceProvider.GetRequiredService<AzurePlatformPublicationRepository>());
 
 // Platform provider adapters are selected by platform type and use settings
 // stored on the platform row.

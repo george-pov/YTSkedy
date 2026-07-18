@@ -89,6 +89,12 @@ Place functionality here when it is:
 This project should stay thin. Business rules belong in the scheduling
 projects, and external system details belong in `YTSkedy.Infrastructure`.
 
+Azure Storage composition is centralized in `AddYTSkedyStorage`. It binds and
+validates typed storage options, constructs service and resource clients,
+registers focused repository ports, and optionally runs the local-only startup
+initializer. Hosted resources are provisioned by Bicep, not by request-path
+repository calls.
+
 ## Adding API Behavior
 
 When adding a backend behavior, decide placement by walking inward from the

@@ -5,5 +5,6 @@ public enum DeleteThumbnailStatus
     Deleted,
     EventNotFound,
     ThumbnailNotFound,
-    HasPlatformPublications
+    HasPlatformPublications,
+    Conflict
 }

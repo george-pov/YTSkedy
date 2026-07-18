@@ -97,6 +97,9 @@ ownership rules live in
   work.
 - Deployment-specific values belong in environment configuration rather than
   source code.
+- Hosted application storage uses the Function App system-assigned identity and
+  data-plane roles. Hosted tables and containers are provisioned by Bicep;
+  request handling never creates storage resources.
 - Backup, migration, recovery, telemetry, rate-limit handling, and credential
   lifecycle behavior must be documented before relying on them operationally.
 

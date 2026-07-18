@@ -51,10 +51,10 @@ public sealed class UpdateCalendarEventHandler(
             return UpdateCalendarEventResult.Invalid(exception.Message);
         }
 
-        bool updated;
+        CalendarEventChangeResult changeResult;
         try
         {
-            updated = await calendarEvents.UpdateAsync(
+            changeResult = await calendarEvents.UpdateAsync(
                 command.CalendarEventId,
                 new CalendarEvent(command.Start, text),
                 conversion.ScheduledStartUtc,
@@ -66,10 +66,13 @@ public sealed class UpdateCalendarEventHandler(
                 exception.ScheduledStartUtc);
         }
 
-        // The row was read but vanished before the write. Treat the
-        // stale client as a missing event so the host returns 404.
-        return updated
-            ? UpdateCalendarEventResult.Updated
-            : UpdateCalendarEventResult.NotFound;
+        return changeResult switch
+        {
+            CalendarEventChangeResult.Applied => UpdateCalendarEventResult.Updated,
+            CalendarEventChangeResult.NotFound => UpdateCalendarEventResult.NotFound,
+            CalendarEventChangeResult.Conflict => UpdateCalendarEventResult.Conflict,
+            _ => throw new InvalidOperationException(
+                $"Unknown calendar event change result '{changeResult}'.")
+        };
     }
 }

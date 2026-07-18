@@ -47,7 +47,7 @@ public class UpdateCalendarEventHandlerTests
                     updatedCalendarEvent = calendarEvent;
                     updatedScheduledStartUtc = scheduledStartUtc;
                 })
-            .ReturnsAsync(true);
+            .Returns(Task.FromResult(CalendarEventChangeResult.Applied));
         var handler = CreateHandler(CreateCalendarEventView());
         var updatedStart = ValidUpdatedStart();
 
@@ -139,7 +139,7 @@ public class UpdateCalendarEventHandlerTests
                 It.IsAny<CalendarEvent>(),
                 It.IsAny<DateTimeOffset>(),
                 CancellationToken.None))
-            .ReturnsAsync(false);
+            .Returns(Task.FromResult(CalendarEventChangeResult.NotFound));
         var handler = CreateHandler(CreateCalendarEventView());
 
         var result = await handler.HandleAsync(
@@ -173,6 +173,25 @@ public class UpdateCalendarEventHandlerTests
 
         Assert.Equal(UpdateCalendarEventStatus.DuplicateScheduledStart, result.Status);
         Assert.Equal(scheduledStartUtc, result.ScheduledStartUtc);
+    }
+
+    [Fact]
+    public async Task HandleAsync_StaleEvent_ReturnsConflict()
+    {
+        _modifier
+            .Setup(candidate => candidate.UpdateAsync(
+                CalendarEventId,
+                It.IsAny<CalendarEvent>(),
+                It.IsAny<DateTimeOffset>(),
+                CancellationToken.None))
+            .Returns(Task.FromResult(CalendarEventChangeResult.Conflict));
+        var handler = CreateHandler(CreateCalendarEventView());
+
+        var result = await handler.HandleAsync(
+            new UpdateCalendarEventCommand(CalendarEventId, ValidUpdatedStart(), Texts),
+            CancellationToken.None);
+
+        Assert.Equal(UpdateCalendarEventStatus.Conflict, result.Status);
     }
 
     [Fact]

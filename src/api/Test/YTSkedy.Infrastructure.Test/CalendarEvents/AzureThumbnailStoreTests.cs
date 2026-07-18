@@ -7,7 +7,7 @@ namespace YTSkedy.Infrastructure.Test.CalendarEvents;
 public sealed class AzureThumbnailStoreTests
 {
     [Fact]
-    public async Task SaveAsync_Content_CreatesContainerAndSavesBlob()
+    public async Task SaveAsync_Content_SavesBlobWithoutProvisioningContainer()
     {
         var container = new FakeThumbnailBlobContainer();
         var store = new AzureThumbnailStore(container);
@@ -19,7 +19,6 @@ public sealed class AzureThumbnailStoreTests
             "image/png",
             CancellationToken.None);
 
-        Assert.Equal(1, container.CreateCallCount);
         Assert.Equal(1, container.SaveCallCount);
         Assert.Equal("calendar-events/event-1/thumbnail", container.SavedBlobName);
         Assert.Same(content, container.SavedContent);
@@ -60,8 +59,6 @@ public sealed class AzureThumbnailStoreTests
     {
         public ThumbnailContent? Content { get; init; }
 
-        public int CreateCallCount { get; private set; }
-
         public int SaveCallCount { get; private set; }
 
         public int DeleteCallCount { get; private set; }
@@ -73,13 +70,6 @@ public sealed class AzureThumbnailStoreTests
         public string? SavedContentType { get; private set; }
 
         public string? DeletedBlobName { get; private set; }
-
-        public Task CreateIfNotExistsAsync(CancellationToken cancellationToken)
-        {
-            CreateCallCount++;
-
-            return Task.CompletedTask;
-        }
 
         public Task SaveAsync(
             string blobName,

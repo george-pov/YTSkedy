@@ -6,5 +6,6 @@ public enum UpdateCalendarEventStatus
     NotFound,
     HasPlatformPublications,
     Invalid,
-    DuplicateScheduledStart
+    DuplicateScheduledStart,
+    Conflict
 }
