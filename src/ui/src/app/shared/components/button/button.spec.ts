@@ -68,7 +68,9 @@ describe('Button', () => {
     fixture.detectChanges();
 
     const icon = fixture.nativeElement.querySelector('app-icon');
-    expect(icon?.querySelector('svg')).not.toBeNull();
+    expect(icon?.querySelector('mat-icon')?.textContent?.trim()).toBe('save');
+    expect(icon?.classList).toContain('button-icon');
+    expect(getComputedStyle(icon).marginRight).toBe('0.25rem');
     expect(buttonEl(fixture).textContent).toContain('Save');
   });
 
@@ -80,8 +82,9 @@ describe('Button', () => {
 
     const button = buttonEl(fixture);
     expect(button.getAttribute('aria-label')).toBe('Edit');
-    expect(button.textContent?.trim()).toBe('');
-    expect(fixture.nativeElement.querySelector('app-icon svg')).not.toBeNull();
+    const icon = fixture.nativeElement.querySelector('app-icon');
+    expect(icon?.querySelector('mat-icon')?.textContent?.trim()).toBe('edit');
+    expect(icon?.classList).not.toContain('button-icon');
 
     button.click();
     expect(host.clickCount).toBe(1);

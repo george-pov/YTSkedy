@@ -1,8 +1,11 @@
 <section class="layout">
   <header class="header">
+    <a class="back-link" routerLink="/calendar-events">
+      <app-icon name="arrow_back" />
+      <span class="back-link-label">Back to calendar events</span>
+    </a>
     <h1>{{ state.pageTitle }}</h1>
     <p>{{ state.pageDescription }}</p>
-    <app-button-link route="/calendar-events">Back to events</app-button-link>
   </header>
 
   @if (state.showLoading()) {

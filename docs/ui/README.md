@@ -24,6 +24,7 @@ Durable documentation for the Angular frontend under `src/ui/`.
 - Naming conventions:
   [`development/naming-conventions.md`](development/naming-conventions.md)
 - Styling: [`development/styling.md`](development/styling.md)
+- Icons: [`development/icons.md`](development/icons.md)
 - Responsive layout:
   [`development/responsive-layout.md`](development/responsive-layout.md)
 - Build and test commands:

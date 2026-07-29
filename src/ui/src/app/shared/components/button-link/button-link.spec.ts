@@ -56,7 +56,7 @@ describe('ButtonLink', () => {
     const anchor = anchorEl(fixture);
     const icon = anchor.querySelector('app-icon');
 
-    expect(icon?.querySelector('svg')).not.toBeNull();
+    expect(icon?.querySelector('mat-icon')?.textContent?.trim()).toBe('edit');
     expect(anchor.textContent).toContain('Back to events');
   });
 });

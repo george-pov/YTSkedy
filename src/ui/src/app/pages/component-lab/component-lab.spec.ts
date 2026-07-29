@@ -28,11 +28,11 @@ describe('ComponentLab', () => {
     expect(labels).toEqual(componentLabItems.map((item) => item.label));
   });
 
-  it('renders the local menu icon', () => {
+  it('renders the Material menu icon', () => {
     const icon = fixture.nativeElement.querySelector('.lab-menu app-icon');
 
     expect(icon).not.toBeNull();
-    expect(icon.querySelector('svg')).not.toBeNull();
+    expect(icon.querySelector('mat-icon')?.textContent?.trim()).toBe('menu');
   });
 
   it('shows the first registered component by default', () => {

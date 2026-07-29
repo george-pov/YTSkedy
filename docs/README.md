@@ -110,6 +110,7 @@ architecture, API, UI, development, or operations guidance.
 - UI naming conventions:
   [`ui/development/naming-conventions.md`](ui/development/naming-conventions.md)
 - UI styling: [`ui/development/styling.md`](ui/development/styling.md)
+- UI icons: [`ui/development/icons.md`](ui/development/icons.md)
 - UI responsive layout:
   [`ui/development/responsive-layout.md`](ui/development/responsive-layout.md)
 - UI build and test commands:

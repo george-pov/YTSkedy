@@ -145,9 +145,11 @@ destroyed-component cancellation. Successful create, delete, and
 upload-after-create flows clear their mutation state before application-driven
 navigation.
 
-Calendar Event create and edit show an always-enabled, button-styled
-`Back to events` native link with an explicit `/calendar-events` destination.
-The link does not depend on browser history. Both routes use
+Calendar Event create and edit show an always-enabled
+`Back to calendar events` parent-navigation link above the page title. A
+decorative left arrow identifies the backward direction, and the link has an
+explicit `/calendar-events` destination rather than depending on browser
+history. Both routes use
 `pendingChangesGuard`: clean transitions proceed, pending changes use the
 page-owned discard confirmation, and active mutations block route deactivation.
 

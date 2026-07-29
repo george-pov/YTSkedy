@@ -19,7 +19,7 @@
     [attr.aria-label]="ariaLabel() || null"
   >
     @if (icon(); as iconName) {
-      <app-icon matButtonIcon [name]="iconName" />
+      <app-icon class="button-icon" matButtonIcon [name]="iconName" />
     }
     <ng-content />
   </button>

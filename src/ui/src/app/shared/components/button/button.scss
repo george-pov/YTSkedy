@@ -1,6 +1,10 @@
 @use '@angular/material' as mat;
 @use 'src/styles/variables' as *;
 
+.button-icon {
+  margin-right: $app-space-1;
+}
+
 // Explicit interaction opacities keep hover, focus, and pressed treatments
 // distinct. Disabled tokens remain Material-owned and unchanged.
 .danger {

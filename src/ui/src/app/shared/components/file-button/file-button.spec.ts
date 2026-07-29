@@ -72,7 +72,9 @@ describe('FileButton', () => {
 
   it('renders a Material button and hidden file input', () => {
     expect(buttonEl(fixture).textContent).toContain('Choose image');
-    expect(fixture.nativeElement.querySelector('app-icon svg')).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('app-icon mat-icon')?.textContent?.trim(),
+    ).toBe('upload');
     expect(inputEl(fixture).accept).toBe('image/png');
   });
 

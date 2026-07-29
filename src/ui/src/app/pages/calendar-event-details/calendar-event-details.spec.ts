@@ -118,9 +118,16 @@ describe('CalendarEventDetails', () => {
     expect(textContent(fixture.nativeElement)).toContain('Add Calendar Event');
     expect(eventTextControls()).toHaveLength(2);
     expect(deleteButtonHost()).toBeNull();
-    expect(textContent(backLink())).toBe('Back to events');
+    expect(textContent(backLink().querySelector('.back-link-label'))).toBe(
+      'Back to calendar events',
+    );
     expect(backLink().getAttribute('href')).toBe('/calendar-events');
-    expect(backLinkHost().querySelector('button')).toBeNull();
+    expect(textContent(backLink().querySelector('app-icon mat-icon'))).toBe('arrow_back');
+    expect(backLink().querySelector('app-icon')?.getAttribute('aria-hidden')).toBe('true');
+    expect(
+      backLink().compareDocumentPosition(fixture.nativeElement.querySelector('h1')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('reveals validation errors instead of creating an invalid event', async () => {
@@ -436,12 +443,8 @@ describe('CalendarEventDetails', () => {
     return Array.from(fixture.nativeElement.querySelectorAll('app-button'));
   }
 
-  function backLinkHost(): HTMLElement {
-    return fixture.nativeElement.querySelector('app-button-link');
-  }
-
   function backLink(): HTMLAnchorElement {
-    return backLinkHost().querySelector('a')!;
+    return fixture.nativeElement.querySelector('a.back-link');
   }
 
   function deleteButtonHost(): HTMLElement | null {
