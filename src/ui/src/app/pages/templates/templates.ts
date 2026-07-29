@@ -36,6 +36,7 @@ import {
   TemplateFormModel,
   toCreateTemplateRequest,
   toTemplateEditorRequest,
+  toTemplateFormModel,
   toUpdateTemplateRequest,
 } from './templates.form';
 
@@ -94,6 +95,13 @@ export class Templates implements OnInit, PendingChangesAware {
       this.editorMode() === 'none' ||
       !this.hasPendingTemplateChanges(),
   );
+  protected readonly cancelDisabled = computed(
+    () =>
+      this.isSaving() ||
+      this.isDeleting() ||
+      this.editorMode() === 'none' ||
+      !this.hasPendingTemplateChanges(),
+  );
 
   ngOnInit(): void {
     this.loadTemplates();
@@ -129,25 +137,39 @@ export class Templates implements OnInit, PendingChangesAware {
   }
 
   protected cancel(): void {
-    if (this.isSaving() || this.isDeleting() || this.editorMode() === 'none') {
+    if (this.cancelDisabled()) {
       return;
     }
 
-    this.discardTemplateChangesBefore(() => this.closeEditor());
+    this.confirmDiscardTemplateChanges().subscribe((discard) => {
+      if (discard) {
+        this.restoreEditorBaseline();
+      }
+    });
   }
 
   private openTemplate(template: Template): void {
-    const model: TemplateFormModel = {
-      type: template.type,
-      name: template.name,
-      content: template.content,
-    };
+    const model = toTemplateFormModel(template);
 
     this.errorMessage.set(null);
     this.selected.set(template);
     this.editorMode.set('edit');
     this.model.set(model);
     this.templateBaseline.set(toTemplateEditorRequest(model));
+  }
+
+  private restoreEditorBaseline(): void {
+    if (this.editorMode() === 'create') {
+      this.form().reset(createTemplateFormModel());
+      this.errorMessage.set(null);
+      return;
+    }
+
+    const current = this.selected();
+    if (this.editorMode() === 'edit' && current !== null) {
+      this.form().reset(toTemplateFormModel(current));
+      this.errorMessage.set(null);
+    }
   }
 
   private openNewTemplate(): void {
@@ -230,10 +252,15 @@ export class Templates implements OnInit, PendingChangesAware {
       .confirm<'keep-editing' | 'discard'>({
         kind: 'warning',
         title: 'Discard unsaved template changes?',
-        body: 'Template edits have not been saved.',
+        body: 'Unsaved template type, name, and content changes will be lost and cannot be recovered.',
         actions: [
           { id: 'keep-editing', label: 'Keep editing' },
-          { id: 'discard', label: 'Discard changes', primary: true },
+          {
+            id: 'discard',
+            label: 'Discard changes',
+            primary: true,
+            intent: 'danger',
+          },
         ],
       })
       .pipe(

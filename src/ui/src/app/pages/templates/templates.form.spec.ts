@@ -1,12 +1,37 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createTemplateFormModel,
   sameTemplateEditorRequest,
   toTemplateEditorRequest,
+  toTemplateFormModel,
   type TemplateFormModel,
 } from './templates.form';
 
 describe('templates form dirty-state mapping', () => {
+  it('creates the default YouTube form model', () => {
+    expect(createTemplateFormModel()).toEqual({
+      type: 'YouTube',
+      name: '',
+      content: '',
+    });
+  });
+
+  it('maps a stored template to the editable form model', () => {
+    expect(
+      toTemplateFormModel({
+        id: 'template-1',
+        type: 'WordPress',
+        name: 'New article',
+        content: 'Read {{ title }}',
+      }),
+    ).toEqual({
+      type: 'WordPress',
+      name: 'New article',
+      content: 'Read {{ title }}',
+    });
+  });
+
   it('normalizes trimmed name changes before comparison', () => {
     const saved = toTemplateEditorRequest(validModel({ name: 'Weeknight stream' }));
     const edited = toTemplateEditorRequest(validModel({ name: '  Weeknight stream  ' }));

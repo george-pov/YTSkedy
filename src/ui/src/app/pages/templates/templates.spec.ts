@@ -1,6 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { HarnessLoader } from '@angular/cdk/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatSelectHarness } from '@angular/material/select/testing';
 import { finalize, Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
@@ -27,6 +30,7 @@ import { Templates } from './templates';
 
 describe('Templates', () => {
   let fixture: ComponentFixture<Templates>;
+  let loader: HarnessLoader;
   let service: {
     list: Mock<() => Observable<TemplateListResponse>>;
     create: Mock<(request: CreateTemplateRequest) => Observable<CreateTemplateResponse>>;
@@ -117,6 +121,7 @@ describe('Templates', () => {
     }).compileComponents();
 
     fixture = TestBed.createComponent(Templates);
+    loader = TestbedHarnessEnvironment.loader(fixture);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -338,10 +343,13 @@ describe('Templates', () => {
     expect(buttonByText('Save changes')).not.toBeNull();
   });
 
-  it('disables save until a template editor has pending changes', async () => {
+  it('disables save and Cancel until a template editor has pending changes', async () => {
     service.list.mockReturnValue(of({ templates: [template()] }));
 
     await createComponent();
+
+    expect(buttonByText('Save changes').disabled).toBe(true);
+    expect(buttonByText('Cancel').disabled).toBe(true);
 
     buttonByText('Add Template').click();
     fixture.detectChanges();
@@ -349,22 +357,27 @@ describe('Templates', () => {
     fixture.detectChanges();
 
     expect(buttonByText('Save template').disabled).toBe(true);
+    expect(buttonByText('Cancel').disabled).toBe(true);
 
     await setValue(nameInput(), 'New template');
 
     expect(buttonByText('Save template').disabled).toBe(false);
+    expect(buttonByText('Cancel').disabled).toBe(false);
 
     await selectRow(0);
 
     expect(buttonByText('Save changes').disabled).toBe(true);
+    expect(buttonByText('Cancel').disabled).toBe(true);
 
     await setValue(nameInput(), '  Weeknight stream  ');
 
     expect(buttonByText('Save changes').disabled).toBe(true);
+    expect(buttonByText('Cancel').disabled).toBe(true);
 
     await setValue(contentTextarea(), 'Changed content');
 
     expect(buttonByText('Save changes').disabled).toBe(false);
+    expect(buttonByText('Cancel').disabled).toBe(false);
   });
 
   it('does not save a clean template editor submit', async () => {
@@ -399,9 +412,15 @@ describe('Templates', () => {
     expect(confirmation.confirm).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Discard unsaved template changes?',
+        body: 'Unsaved template type, name, and content changes will be lost and cannot be recovered.',
         actions: [
           { id: 'keep-editing', label: 'Keep editing' },
-          { id: 'discard', label: 'Discard changes', primary: true },
+          {
+            id: 'discard',
+            label: 'Discard changes',
+            primary: true,
+            intent: 'danger',
+          },
         ],
       }),
     );
@@ -442,9 +461,9 @@ describe('Templates', () => {
 
     expect(await canDeactivate()).toBe(false);
     deletion.error(new Error('delete failed'));
-    expect((fixture.componentInstance as unknown as { isDeleting: () => boolean }).isDeleting()).toBe(
-      false,
-    );
+    expect(
+      (fixture.componentInstance as unknown as { isDeleting: () => boolean }).isDeleting(),
+    ).toBe(false);
   });
 
   it('allows route exit while the initial template read is active', async () => {
@@ -505,13 +524,18 @@ describe('Templates', () => {
     expect(nameInput().value).toBe('');
   });
 
-  it('keeps editing when Cancel discard is rejected and closes when it is confirmed', async () => {
+  it('keeps dirty edit values and errors when Cancel discard is rejected', async () => {
     service.list.mockReturnValue(of({ templates: [template()] }));
+    service.update.mockReturnValue(throwError(() => new Error('save failed')));
     confirmation.confirm.mockReturnValue(of('keep-editing'));
 
     await createComponent();
     await selectRow(0);
     await setValue(contentTextarea(), 'Dirty content');
+    await submitEditor();
+
+    expect(fixture.nativeElement.textContent).toContain('could not be saved');
+    expect(service.update).toHaveBeenCalledTimes(1);
 
     buttonByText('Cancel').click();
     fixture.detectChanges();
@@ -519,15 +543,133 @@ describe('Templates', () => {
     fixture.detectChanges();
 
     expect(editor()).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-select')).toBeNull();
     expect(contentTextarea().value).toBe('Dirty content');
+    expect(rows()[0].getAttribute('aria-pressed')).toBe('true');
+    expect(fixture.nativeElement.textContent).toContain('could not be saved');
+    expect(buttonByText('Cancel').disabled).toBe(false);
+    expect(service.list).toHaveBeenCalledTimes(1);
+    expect(service.create).not.toHaveBeenCalled();
+    expect(service.update).toHaveBeenCalledTimes(1);
+    expect(service.delete).not.toHaveBeenCalled();
+  });
 
-    confirmation.confirm.mockReturnValue(of('discard'));
+  it('resets a dirty invalid create editor in place after confirmed Cancel', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+
+    await createComponent();
+
+    buttonByText('Add Template').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const typeSelect = await loader.getHarness(MatSelectHarness);
+    await typeSelect.open();
+    await typeSelect.clickOptions({ text: 'WordPress' });
+    await setValue(contentTextarea(), 'Draft content');
+    await submitEditor();
+
+    expect(await typeSelect.getValueText()).toBe('WordPress');
+    expect(fixture.nativeElement.textContent).toContain('Name is required.');
+    expect(service.create).not.toHaveBeenCalled();
+
     buttonByText('Cancel').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(editor()).toBeNull();
+    expect(editor()).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-select')).not.toBeNull();
+    expect(await typeSelect.getValueText()).toBe('YouTube');
+    expect(nameInput().value).toBe('');
+    expect(contentTextarea().value).toBe('');
+    expect(fixture.nativeElement.textContent).not.toContain('Name is required.');
+    expect(buttonByText('Cancel').disabled).toBe(true);
+    expect(buttonByText('Save template').disabled).toBe(true);
+    expect(rows()).toHaveLength(1);
+    expect(rows()[0].getAttribute('aria-pressed')).toBe('false');
+    expect(service.list).toHaveBeenCalledTimes(1);
+    expect(service.create).not.toHaveBeenCalled();
+    expect(service.update).not.toHaveBeenCalled();
+    expect(service.delete).not.toHaveBeenCalled();
+  });
+
+  it('resets dirty edit values and a superseded save error without changing selection', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+    service.update.mockReturnValue(throwError(() => new Error('save failed')));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(nameInput(), 'Changed name');
+    await setValue(contentTextarea(), 'Changed content');
+    await submitEditor();
+
+    expect(fixture.nativeElement.textContent).toContain('could not be saved');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
+    expect(service.update).toHaveBeenCalledTimes(1);
+
+    buttonByText('Cancel').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(confirmation.confirm).toHaveBeenCalledWith({
+      kind: 'warning',
+      title: 'Discard unsaved template changes?',
+      body: 'Unsaved template type, name, and content changes will be lost and cannot be recovered.',
+      actions: [
+        { id: 'keep-editing', label: 'Keep editing' },
+        {
+          id: 'discard',
+          label: 'Discard changes',
+          primary: true,
+          intent: 'danger',
+        },
+      ],
+    });
+    expect(editor()).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-select')).toBeNull();
+    expect(nameInput().value).toBe('Weeknight stream');
+    expect(contentTextarea().value).toBe('Live at {{ localizedTime }}');
+    expect(rows()[0].getAttribute('aria-pressed')).toBe('true');
+    expect(fixture.nativeElement.textContent).not.toContain('could not be saved');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+    expect(buttonByText('Cancel').disabled).toBe(true);
+    expect(buttonByText('Save changes').disabled).toBe(true);
+    expect(service.list).toHaveBeenCalledTimes(1);
+    expect(service.create).not.toHaveBeenCalled();
+    expect(service.update).toHaveBeenCalledTimes(1);
+    expect(service.delete).not.toHaveBeenCalled();
+  });
+
+  it('disables Cancel while template save and delete mutations are active', async () => {
+    const update = new Subject<UpdateTemplateResponse>();
+    service.list.mockReturnValue(of({ templates: [template()] }));
+    service.update.mockReturnValue(update.asObservable());
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(contentTextarea(), 'Changed content');
+    await submitEditor();
+
+    expect(buttonByText('Cancel').disabled).toBe(true);
+
+    update.error(new Error('save failed'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const deletion = new Subject<void>();
+    service.delete.mockReturnValue(deletion.asObservable());
+    buttonByText('Delete').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(buttonByText('Cancel').disabled).toBe(true);
+
+    deletion.error(new Error('delete failed'));
   });
 
   it('guards dirty editor delete until discard is confirmed', async () => {

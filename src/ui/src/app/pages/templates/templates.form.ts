@@ -2,6 +2,7 @@ import { maxLength, required, validate, type SchemaPathTree } from '@angular/for
 
 import {
   CreateTemplateRequest,
+  Template,
   TemplateType,
   UpdateTemplateRequest,
 } from 'src/app/shared/api/templates/templates-service';
@@ -23,6 +24,14 @@ export interface TemplateFormModel {
 // New templates default to YouTube so the type select starts on a valid option.
 export function createTemplateFormModel(): TemplateFormModel {
   return { type: defaultPlatformType, name: '', content: '' };
+}
+
+export function toTemplateFormModel(template: Template): TemplateFormModel {
+  return {
+    type: template.type,
+    name: template.name,
+    content: template.content,
+  };
 }
 
 // Signal Forms validation rules for the template editor. Type is required (the
