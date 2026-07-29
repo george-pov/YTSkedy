@@ -72,6 +72,7 @@ export class Platforms implements OnInit, PendingChangesAware {
   protected readonly selectedType = this.editor.selectedType;
   protected readonly hasPendingPlatformChanges = this.editor.hasPendingPlatformChanges;
   protected readonly saveDisabled = this.editor.saveDisabled;
+  protected readonly cancelDisabled = this.editor.cancelDisabled;
   protected readonly availableTemplates = signal<Template[]>([]);
   protected readonly templateLoadFailed = signal(false);
 
@@ -148,11 +149,15 @@ export class Platforms implements OnInit, PendingChangesAware {
   }
 
   protected cancel(): void {
-    if (this.editor.hasActiveMutation() || this.editorMode() === 'none') {
+    if (this.cancelDisabled()) {
       return;
     }
 
-    this.discardPlatformChangesBefore(() => this.closeEditor());
+    this.confirmDiscardPlatformChanges().subscribe((discard) => {
+      if (discard) {
+        this.editor.restoreEditorBaseline();
+      }
+    });
   }
 
   private openPlatform(platform: Platform): void {
@@ -226,10 +231,15 @@ export class Platforms implements OnInit, PendingChangesAware {
       .confirm<'keep-editing' | 'discard'>({
         kind: 'warning',
         title: 'Discard unsaved platform changes?',
-        body: 'Platform edits have not been saved.',
+        body: 'Unsaved platform type, name, templates, and provider settings will be lost and cannot be recovered.',
         actions: [
           { id: 'keep-editing', label: 'Keep editing' },
-          { id: 'discard', label: 'Discard changes', primary: true },
+          {
+            id: 'discard',
+            label: 'Discard changes',
+            primary: true,
+            intent: 'danger',
+          },
         ],
       })
       .pipe(
@@ -322,10 +332,6 @@ export class Platforms implements OnInit, PendingChangesAware {
           this.editor.setErrorMessage(describeSaveError(error));
         },
       });
-  }
-
-  private closeEditor(): void {
-    this.editor.closeEditor();
   }
 
   private loadTemplates(type: Platform['type']): void {

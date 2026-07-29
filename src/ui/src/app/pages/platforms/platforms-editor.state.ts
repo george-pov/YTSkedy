@@ -63,6 +63,12 @@ export class PlatformsEditorState {
       this._editorMode() === 'none' ||
       !this.hasPendingPlatformChanges(),
   );
+  readonly cancelDisabled = computed(
+    () =>
+      this.hasActiveMutation() ||
+      this._editorMode() === 'none' ||
+      !this.hasPendingPlatformChanges(),
+  );
 
   applyLoadedPlatforms(platforms: readonly Platform[]): void {
     const sorted = sortPlatforms(platforms);
@@ -97,6 +103,20 @@ export class PlatformsEditorState {
     this.model.set(model);
     this.createPlatformBaseline.set(toCreatePlatformRequest(model));
     this.updatePlatformBaseline.set(null);
+  }
+
+  restoreEditorBaseline(): void {
+    if (this._editorMode() === 'create') {
+      this.form().reset(createPlatformFormModel());
+      this._errorMessage.set(null);
+      return;
+    }
+
+    const current = this._selected();
+    if (this._editorMode() === 'edit' && current !== null) {
+      this.form().reset(toPlatformFormModel(current));
+      this._errorMessage.set(null);
+    }
   }
 
   closeEditor(): void {

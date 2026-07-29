@@ -108,7 +108,7 @@
               <app-button
                 type="button"
                 appearance="outlined"
-                [disabled]="isSaving() || isDeleting()"
+                [disabled]="cancelDisabled()"
                 (click)="cancel()"
               >
                 Cancel
