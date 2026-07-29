@@ -79,7 +79,7 @@
         <app-button
           type="button"
           appearance="outlined"
-          [disabled]="isSavingSettings()"
+          [disabled]="cancelDisabled()"
           (click)="cancel()"
         >
           Cancel

@@ -78,6 +78,9 @@ export class Settings implements OnInit, PendingChangesAware {
   protected readonly saveDisabled = computed(
     () => this.isLoadingSettings() || this.isSavingSettings() || !this.hasPendingSettingsChanges(),
   );
+  protected readonly cancelDisabled = computed(
+    () => this.isLoadingSettings() || this.isSavingSettings() || !this.hasPendingSettingsChanges(),
+  );
 
   protected readonly typeOptions: readonly SelectOption[] = [
     { value: 'ShortText', label: 'Short text' },
@@ -122,12 +125,7 @@ export class Settings implements OnInit, PendingChangesAware {
   }
 
   protected cancel(): void {
-    if (this.hasActiveMutation()) {
-      return;
-    }
-
-    if (!this.hasPendingSettingsChanges()) {
-      this.restoreSavedSettings();
+    if (this.cancelDisabled()) {
       return;
     }
 
@@ -187,8 +185,11 @@ export class Settings implements OnInit, PendingChangesAware {
   }
 
   private applySettings(response: CalendarEventDefaultsResponse): void {
-    this.fieldsModel.set(createSettingsModel(response.eventTextFields.fields));
-    this.startDefaultsModel.set(createStartDefaultsModel(response.startDefaults));
+    const fieldsModel = createSettingsModel(response.eventTextFields.fields);
+    const startDefaultsModel = createStartDefaultsModel(response.startDefaults);
+
+    this.fieldsForm().reset(fieldsModel);
+    this.startDefaultsForm().reset(startDefaultsModel);
     this.savedSettingsRequest.set(this.currentRequest());
     this.settingsSaveErrorMessage.set(null);
   }
@@ -196,8 +197,11 @@ export class Settings implements OnInit, PendingChangesAware {
   private restoreSavedSettings(): void {
     const saved = this.savedSettingsRequest();
     if (saved !== null) {
-      this.fieldsModel.set(createSettingsModel(saved.eventTextFields.fields));
-      this.startDefaultsModel.set(createStartDefaultsModel(saved.startDefaults));
+      const fieldsModel = createSettingsModel(saved.eventTextFields.fields);
+      const startDefaultsModel = createStartDefaultsModel(saved.startDefaults);
+
+      this.fieldsForm().reset(fieldsModel);
+      this.startDefaultsForm().reset(startDefaultsModel);
     }
     this.settingsSaveErrorMessage.set(null);
   }
@@ -214,10 +218,15 @@ export class Settings implements OnInit, PendingChangesAware {
       .confirm<'keep-editing' | 'discard'>({
         kind: 'warning',
         title: 'Discard unsaved settings changes?',
-        body: 'Event text field or new calendar event default changes have not been saved.',
+        body: 'Unsaved event text field and new calendar event default changes will be lost and cannot be recovered.',
         actions: [
           { id: 'keep-editing', label: 'Keep editing' },
-          { id: 'discard', label: 'Discard changes', primary: true },
+          {
+            id: 'discard',
+            label: 'Discard changes',
+            primary: true,
+            intent: 'danger',
+          },
         ],
       })
       .pipe(
