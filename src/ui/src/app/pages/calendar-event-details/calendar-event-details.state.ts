@@ -177,9 +177,16 @@ export class CalendarEventDetailsState {
           if (this.thumbnailEditor.hasPendingCreateThumbnail()) {
             this.thumbnailEditor.clearSelectedThumbnail();
           }
+          this.clearResolvedPlatformActionGuidance();
           this._saveErrorMessage.set(null);
         }
       });
+  }
+
+  clearResolvedPlatformActionGuidance(): void {
+    if (!this.hasPendingChanges()) {
+      this.platformsState.clearPlatformActionBlockedMessage();
+    }
   }
 
   deleteEvent(): void {
@@ -313,22 +320,23 @@ export class CalendarEventDetailsState {
   }
 
   private commitCreateState(): void {
-    this.draft.markSaved();
+    this.draft.clearPendingChangesForNavigation();
     this.thumbnailEditor.clearSelectedThumbnail();
   }
 
   private updateEvent(calendarEventId: string): void {
-    const request = this.draft.updateRequest();
+    const submission = this.draft.captureUpdateSubmission();
 
     this.options.calendarEvents
-      .update(calendarEventId, request)
+      .update(calendarEventId, submission.request)
       .pipe(
         finalize(() => this._isSubmitting.set(false)),
         takeUntilDestroyed(this.options.destroyRef),
       )
       .subscribe({
         next: () => {
-          this.draft.markSaved();
+          this.draft.commitUpdateSubmission(submission);
+          this.clearResolvedPlatformActionGuidance();
           this._saveErrorMessage.set(null);
           this.options.notifications.showSuccess('Calendar event updated.');
         },
@@ -353,7 +361,7 @@ export class CalendarEventDetailsState {
       .subscribe({
         next: () => {
           this._isDeleting.set(false);
-          this.draft.markSaved();
+          this.draft.clearPendingChangesForNavigation();
           this.options.notifications.showSuccess('Calendar event deleted.');
           this.options.router.navigateByUrl('/calendar-events');
         },
@@ -364,7 +372,7 @@ export class CalendarEventDetailsState {
   private applyDeleteError(error: unknown): void {
     if (error instanceof HttpErrorResponse && error.status === 404) {
       this._isDeleting.set(false);
-      this.draft.markSaved();
+      this.draft.clearPendingChangesForNavigation();
       this._deleteErrorMessage.set(null);
       this.options.notifications.showSuccess('Calendar event no longer exists.');
       this.options.router.navigateByUrl('/calendar-events');

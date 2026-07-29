@@ -166,26 +166,62 @@ describe('CalendarEventDraftState', () => {
     });
   });
 
-  it('tracks normalized edit changes and replaces the baseline after save', () => {
+  it('commits the captured update model without absorbing later normalized or nested edits', () => {
     const state = createState(true);
     state.applyEventDetails(testEvent());
+    state.model.update((model) => ({
+      start: { ...model.start, date: '2030-07-05' },
+      texts: model.texts.map((text) => ({
+        ...text,
+        label: text.fieldKey === 'text1' ? 'Submitted title label' : text.label,
+        value: text.fieldKey === 'text1' ? ' Submitted title ' : text.value,
+      })),
+    }));
 
-    state.form.texts[0].value().value.set(' English title ');
+    const submission = state.captureUpdateSubmission();
+
+    expect(submission.request).toEqual({
+      start: { localDateTime: '2030-07-05T09:30:00', timeZoneId: 'Europe/London' },
+      texts: [{ fieldKey: 'text1', value: 'Submitted title' }],
+    });
+    state.model.update((model) => ({
+      ...model,
+      texts: model.texts.map((text) => ({
+        ...text,
+        label: text.fieldKey === 'text1' ? 'Later label' : text.label,
+        value: text.fieldKey === 'text1' ? 'Submitted title' : text.value,
+      })),
+    }));
+
+    expect(submission.submittedModel.start.date).toBe('2030-07-05');
+    expect(submission.submittedModel.texts[0]).toMatchObject({
+      label: 'Submitted title label',
+      value: ' Submitted title ',
+    });
+
+    state.commitUpdateSubmission(submission);
 
     expect(state.hasPendingChanges()).toBe(false);
 
-    state.form.texts[0].value().value.set('Updated title');
+    state.model.update((model) => ({
+      start: { ...model.start, date: '2030-07-06' },
+      texts: model.texts.map((text) => ({
+        ...text,
+        value: text.fieldKey === 'text1' ? 'Changed while saving' : text.value,
+      })),
+    }));
+    submission.submittedModel.start.date = '2030-07-07';
+    submission.submittedModel.texts[0].label = 'Mutated submitted label';
+    submission.submittedModel.texts[0].value = 'Mutated submitted value';
 
     expect(state.hasPendingChanges()).toBe(true);
-
-    state.markSaved();
-
-    expect(state.hasPendingChanges()).toBe(false);
-
-    state.form.texts[0].value().value.set('Changed again');
     state.resetToBaseline();
 
-    expect(state.model().texts[0].value).toBe('Updated title');
+    expect(state.model().start.date).toBe('2030-07-05');
+    expect(state.model().texts[0]).toMatchObject({
+      label: 'Submitted title label',
+      value: ' Submitted title ',
+    });
     expect(state.hasPendingChanges()).toBe(false);
   });
 

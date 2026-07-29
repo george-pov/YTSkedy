@@ -96,9 +96,10 @@ event from the current settings.
 
 Backend-computed `canUpdate`, `canDelete`, and `canUpdateThumbnail` flags control
 event mutation actions. Save changes is disabled until the normalized scheduled
-start or text request differs from the saved baseline. A successful save updates
-that baseline, clears the save error, shows `Calendar event updated.`, and stays
-on the edit route.
+start or text request differs from the saved baseline. A successful save commits
+the exact submitted draft as the new baseline, clears the save error, shows
+`Calendar event updated.`, and stays on the edit route. Values entered while the
+request is in flight remain visible and pending against that submitted baseline.
 
 The page fetches protected thumbnail bytes through the API and renders an object
 URL. It never uses the protected API route directly as an image `src`.
@@ -114,6 +115,10 @@ response. Actions use the backend row flags documented by the
   values are used.
 - Publish and publication delete are blocked until pending event edits are saved
   or discarded.
+- Pending-change platform guidance clears whenever the normalized draft returns
+  to its saved baseline through Cancel, a successful save, or manual editing.
+  Publish, publication-delete, recovery, and preview errors retain their
+  operation-specific lifecycle.
 - Successful publish or publication delete refreshes details before applying
   root event action flags and clears an open preview for that platform.
 - If the provider mutation succeeds but the details refresh fails, the page
@@ -190,12 +195,13 @@ while content remains exact. Save and Cancel are disabled when that request
 matches the current baseline or a save/delete mutation is active. Dirty Cancel
 asks for confirmation and restores the current create or edit baseline in
 place without closing the editor, changing mode, or clearing the selected row.
-Route exit, row selection, Add Template, and dirty delete use the same
-page-owned discard decision but continue their target-changing action after
-confirmation. Delete then opens a separate warning before the template is
-permanently removed. Canceling or dismissing either required confirmation keeps
-the template and editor in place. Load, save, delete, and duplicate-name errors
-remain inline.
+Route exit, row selection, and Add Template use the same page-owned discard
+decision before continuing their target-changing action. Delete uses one
+warning before permanently removing the template. When the editor is dirty,
+that warning also names the unsaved template values that will be lost.
+Canceling or dismissing the warning preserves the edits. A failed delete also
+keeps the dirty editor available for retry or Save. Load, save, delete, and
+duplicate-name errors remain inline.
 
 ## Platforms
 
@@ -259,13 +265,14 @@ confirmation and restores the provider form baseline in place. Edit mode and
 the selected row remain unchanged; create mode remains open without selecting a
 row. Replacement secret fields remain blank, redacted display values stay
 display-only, and restored provider inputs may trigger only the existing
-read-only template or category refresh. Route exit, row selection, Add
-Platform, and dirty delete retain their target-changing behavior after the
-discard decision resolves. Delete then opens a separate warning that provider
-publications are not removed and cannot be deleted through YTSkedy after the
-platform is removed. Canceling or dismissing either required confirmation keeps
-the platform and editor in place. Load, save, delete, duplicate-name, and
-duplicate-reference-key errors remain inline.
+read-only template or category refresh. Route exit, row selection, and Add
+Platform retain their target-changing behavior after the discard decision
+resolves. Delete uses one warning that provider publications are not removed
+and cannot be deleted through YTSkedy after the platform is removed. When the
+editor is dirty, the same warning also names the unsaved platform values that
+will be lost. Canceling or dismissing the warning preserves those edits. A
+failed delete also keeps the dirty editor available for retry or Save. Load,
+save, delete, duplicate-name, and duplicate-reference-key errors remain inline.
 
 ## Settings
 

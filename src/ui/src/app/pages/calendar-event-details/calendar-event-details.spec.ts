@@ -223,6 +223,35 @@ describe('CalendarEventDetails', () => {
     expect(navigations).toEqual([]);
   });
 
+  it('clears blocked platform guidance when edits return to the saved baseline', () => {
+    service.getById.mockReturnValue(of(testCalendarEventDetails()));
+    createComponent(calendarEventId);
+    api().form.texts[0].value().value.set('Updated title');
+    fixture.detectChanges();
+
+    platformPublishButton().click();
+    fixture.detectChanges();
+
+    expect(textContent(fixture.nativeElement)).toContain(
+      'Save or discard event changes before publishing.',
+    );
+    expect(service.publishPlatform).not.toHaveBeenCalled();
+
+    api().form.texts[0].value().value.set('English title');
+    fixture.detectChanges();
+
+    expect(textContent(fixture.nativeElement)).not.toContain(
+      'Save or discard event changes before publishing.',
+    );
+
+    api().form.texts[0].value().value.set('Changed again');
+    fixture.detectChanges();
+
+    expect(textContent(fixture.nativeElement)).not.toContain(
+      'Save or discard event changes before publishing.',
+    );
+  });
+
   it('delegates pending route exit to the state confirmation', async () => {
     service.getById.mockReturnValue(of(testCalendarEventDetails()));
     confirmation.confirm.mockReturnValue(of('keep-editing'));

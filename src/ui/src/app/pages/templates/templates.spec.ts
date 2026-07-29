@@ -16,7 +16,10 @@ import {
   UpdateTemplateRequest,
   UpdateTemplateResponse,
 } from 'src/app/shared/api/templates/templates-service';
-import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
+import {
+  ConfirmationDialogService,
+  type DeletionConfirmationData,
+} from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import {
   buttonByText as findButtonByText,
@@ -50,7 +53,10 @@ describe('Templates', () => {
     >;
     delete: Mock<(type: Template['type'], id: string) => Observable<void>>;
   };
-  let confirmation: { confirm: Mock<(data: unknown) => Observable<string | undefined>> };
+  let confirmation: {
+    confirm: Mock<(data: unknown) => Observable<string | undefined>>;
+    confirmDeletion: Mock<(data: DeletionConfirmationData) => Observable<boolean>>;
+  };
   let notifications: { showSuccess: Mock<(message: string) => void> };
 
   beforeEach(() => {
@@ -62,8 +68,10 @@ describe('Templates', () => {
     };
     confirmation = {
       confirm: vi.fn<(data: unknown) => Observable<string | undefined>>(),
+      confirmDeletion: vi.fn<(data: DeletionConfirmationData) => Observable<boolean>>(),
     };
     confirmation.confirm.mockReturnValue(of('discard'));
+    confirmation.confirmDeletion.mockReturnValue(of(true));
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
   });
 
@@ -77,15 +85,18 @@ describe('Templates', () => {
     };
   }
 
-  function deleteTemplateConfirmation(name: string): unknown {
+  function deleteTemplateConfirmation(
+    name: string,
+    hasPendingChanges = false,
+  ): DeletionConfirmationData {
     return {
-      kind: 'warning',
       title: 'Delete template?',
-      body: `This permanently removes "${name}" from YTSkedy. It cannot be recovered after deletion.`,
-      actions: [
-        { id: 'cancel', label: 'Cancel' },
-        { id: 'delete', label: 'Delete template', primary: true },
-      ],
+      body:
+        `This permanently removes "${name}" from YTSkedy. It cannot be recovered after deletion.` +
+        (hasPendingChanges
+          ? ' Unsaved template type, name, and content changes will also be lost.'
+          : ''),
+      deleteLabel: 'Delete template',
     };
   }
 
@@ -312,8 +323,8 @@ describe('Templates', () => {
   it('deletes the selected template and closes the editor', async () => {
     service.list.mockReturnValue(of({ templates: [template({ id: 'id-1', type: 'YouTube' })] }));
     service.delete.mockReturnValue(of(undefined));
-    const deletionConfirmation = new Subject<string | undefined>();
-    confirmation.confirm.mockReturnValue(deletionConfirmation.asObservable());
+    const deletionConfirmation = new Subject<boolean>();
+    confirmation.confirmDeletion.mockReturnValue(deletionConfirmation.asObservable());
 
     await createComponent();
     await selectRow(0);
@@ -323,12 +334,12 @@ describe('Templates', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(confirmation.confirm).toHaveBeenCalledWith(
+    expect(confirmation.confirmDeletion).toHaveBeenCalledWith(
       deleteTemplateConfirmation('Weeknight stream'),
     );
     expect(service.delete).not.toHaveBeenCalled();
 
-    deletionConfirmation.next('delete');
+    deletionConfirmation.next(true);
     deletionConfirmation.complete();
     fixture.detectChanges();
     await fixture.whenStable();
@@ -340,12 +351,9 @@ describe('Templates', () => {
     expect(notifications.showSuccess).toHaveBeenCalledWith('Template deleted.');
   });
 
-  it.each([
-    ['Cancel', 'cancel'],
-    ['dialog dismissal', undefined],
-  ])('keeps the selected template when deletion ends with %s', async (_scenario, result) => {
+  it('keeps the selected template when deletion is not confirmed', async () => {
     service.list.mockReturnValue(of({ templates: [template()] }));
-    confirmation.confirm.mockReturnValue(of(result));
+    confirmation.confirmDeletion.mockReturnValue(of(false));
 
     await createComponent();
     await selectRow(0);
@@ -355,7 +363,7 @@ describe('Templates', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(confirmation.confirm).toHaveBeenCalledWith(
+    expect(confirmation.confirmDeletion).toHaveBeenCalledWith(
       deleteTemplateConfirmation('Weeknight stream'),
     );
     expect(service.delete).not.toHaveBeenCalled();
@@ -513,9 +521,7 @@ describe('Templates', () => {
     expect(await canDeactivate()).toBe(false);
     update.error(new Error('save failed'));
 
-    confirmation.confirm
-      .mockReturnValueOnce(of('discard'))
-      .mockReturnValueOnce(of('delete'));
+    confirmation.confirmDeletion.mockReturnValue(of(true));
     const deletion = new Subject<void>();
     service.delete.mockReturnValue(deletion.asObservable());
     (
@@ -737,9 +743,7 @@ describe('Templates', () => {
 
     const deletion = new Subject<void>();
     service.delete.mockReturnValue(deletion.asObservable());
-    confirmation.confirm
-      .mockReturnValueOnce(of('discard'))
-      .mockReturnValueOnce(of('delete'));
+    confirmation.confirmDeletion.mockReturnValue(of(true));
     buttonByText('Delete').click();
     fixture.detectChanges();
     await fixture.whenStable();
@@ -750,10 +754,10 @@ describe('Templates', () => {
     deletion.error(new Error('delete failed'));
   });
 
-  it('guards dirty editor delete until discard is confirmed', async () => {
+  it('uses one combined confirmation for a dirty editor and preserves edits when rejected', async () => {
     service.list.mockReturnValue(of({ templates: [template()] }));
     service.delete.mockReturnValue(of(undefined));
-    confirmation.confirm.mockReturnValue(of('keep-editing'));
+    confirmation.confirmDeletion.mockReturnValue(of(false));
 
     await createComponent();
     await selectRow(0);
@@ -766,11 +770,16 @@ describe('Templates', () => {
 
     expect(service.delete).not.toHaveBeenCalled();
     expect(editor()).not.toBeNull();
+    expect(contentTextarea().value).toBe('Dirty content');
+    expect(buttonByText('Cancel').disabled).toBe(false);
+    expect(confirmation.confirmDeletion).toHaveBeenCalledTimes(1);
+    expect(confirmation.confirmDeletion).toHaveBeenCalledWith(
+      deleteTemplateConfirmation('Weeknight stream', true),
+    );
+    expect(confirmation.confirm).not.toHaveBeenCalled();
 
-    confirmation.confirm.mockClear();
-    confirmation.confirm
-      .mockReturnValueOnce(of('discard'))
-      .mockReturnValueOnce(of('delete'));
+    confirmation.confirmDeletion.mockClear();
+    confirmation.confirmDeletion.mockReturnValue(of(true));
     buttonByText('Delete').click();
     fixture.detectChanges();
     await fixture.whenStable();
@@ -778,14 +787,60 @@ describe('Templates', () => {
 
     expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
     expect(editor()).toBeNull();
-    expect(confirmation.confirm).toHaveBeenNthCalledWith(2, {
-      kind: 'warning',
-      title: 'Delete template?',
-      body: 'This permanently removes "Weeknight stream" from YTSkedy. It cannot be recovered after deletion.',
-      actions: [
-        { id: 'cancel', label: 'Cancel' },
-        { id: 'delete', label: 'Delete template', primary: true },
-      ],
-    });
+    expect(confirmation.confirmDeletion).toHaveBeenCalledTimes(1);
+    expect(confirmation.confirmDeletion).toHaveBeenCalledWith(
+      deleteTemplateConfirmation('Weeknight stream', true),
+    );
+  });
+
+  it('keeps dirty values available when template deletion fails', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+    service.delete.mockReturnValue(throwError(() => new Error('delete failed')));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(nameInput(), 'Dirty name');
+    await setValue(contentTextarea(), 'Dirty content');
+
+    buttonByText('Delete').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(confirmation.confirmDeletion).toHaveBeenCalledTimes(1);
+    expect(confirmation.confirmDeletion).toHaveBeenCalledWith(
+      deleteTemplateConfirmation('Weeknight stream', true),
+    );
+    expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
+    expect(editor()).not.toBeNull();
+    expect(nameInput().value).toBe('Dirty name');
+    expect(contentTextarea().value).toBe('Dirty content');
+    expect(buttonByText('Cancel').disabled).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain('could not be deleted');
+  });
+
+  it('completes dirty template deletion when the template no longer exists', async () => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+    service.delete.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 404, statusText: 'Not Found' })),
+    );
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(contentTextarea(), 'Dirty content');
+
+    buttonByText('Delete').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(confirmation.confirmDeletion).toHaveBeenCalledWith(
+      deleteTemplateConfirmation('Weeknight stream', true),
+    );
+    expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
+    expect(rows()).toHaveLength(0);
+    expect(editor()).toBeNull();
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Template no longer exists.');
+    expect(fixture.nativeElement.textContent).not.toContain('could not be deleted');
   });
 });

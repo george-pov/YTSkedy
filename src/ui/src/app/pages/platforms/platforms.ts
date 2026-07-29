@@ -9,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize, map, Observable, of, switchMap } from 'rxjs';
+import { finalize, map, Observable } from 'rxjs';
 
 import {
   Platform,
@@ -202,31 +202,25 @@ export class Platforms implements OnInit, PendingChangesAware {
       return;
     }
 
-    const deleteConfirmed = this.hasPendingPlatformChanges()
-      ? this.confirmDiscardPlatformChanges().pipe(
-          switchMap((discard) => (discard ? this.confirmDeletePlatform(current) : of(false))),
-        )
-      : this.confirmDeletePlatform(current);
-
-    deleteConfirmed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((confirmed) => {
-      if (confirmed) {
-        this.deletePlatform(current);
-      }
-    });
+    this.confirmDeletePlatform(current)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((confirmed) => {
+        if (confirmed) {
+          this.deletePlatform(current);
+        }
+      });
   }
 
   private confirmDeletePlatform(platform: Platform): Observable<boolean> {
-    return this.confirmation
-      .confirm<'cancel' | 'delete'>({
-        kind: 'warning',
-        title: 'Delete platform?',
-        body: `This removes "${platform.name}" and its provider settings from YTSkedy. Existing provider publications are not removed and can no longer be deleted through YTSkedy after this action.`,
-        actions: [
-          { id: 'cancel', label: 'Cancel' },
-          { id: 'delete', label: 'Delete platform', primary: true },
-        ],
-      })
-      .pipe(map((result) => result === 'delete'));
+    const unsavedChangesWarning = this.hasPendingPlatformChanges()
+      ? ' Unsaved platform type, name, templates, and provider settings will also be lost.'
+      : '';
+
+    return this.confirmation.confirmDeletion({
+      title: 'Delete platform?',
+      body: `This removes "${platform.name}" and its provider settings from YTSkedy. Existing provider publications are not removed and can no longer be deleted through YTSkedy after this action.${unsavedChangesWarning}`,
+      deleteLabel: 'Delete platform',
+    });
   }
 
   private deletePlatform(platform: Platform): void {

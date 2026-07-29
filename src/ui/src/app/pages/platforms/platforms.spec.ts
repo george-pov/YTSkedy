@@ -21,7 +21,10 @@ import {
   TemplateListResponse,
   TemplatesService,
 } from 'src/app/shared/api/templates/templates-service';
-import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
+import {
+  ConfirmationDialogService,
+  type DeletionConfirmationData,
+} from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { Input } from 'src/app/shared/components/input/input';
 import { MaskedInput } from 'src/app/shared/components/masked-input/masked-input';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
@@ -59,7 +62,10 @@ describe('Platforms', () => {
   let templatesService: {
     list: Mock<(type?: Platform['type']) => Observable<TemplateListResponse>>;
   };
-  let confirmation: { confirm: Mock<(data: unknown) => Observable<string | undefined>> };
+  let confirmation: {
+    confirm: Mock<(data: unknown) => Observable<string | undefined>>;
+    confirmDeletion: Mock<(data: DeletionConfirmationData) => Observable<boolean>>;
+  };
   let notifications: { showSuccess: Mock<(message: string) => void> };
 
   beforeEach(() => {
@@ -79,8 +85,10 @@ describe('Platforms', () => {
     templatesService.list.mockReturnValue(of({ templates: [] }));
     confirmation = {
       confirm: vi.fn<(data: unknown) => Observable<string | undefined>>(),
+      confirmDeletion: vi.fn<(data: DeletionConfirmationData) => Observable<boolean>>(),
     };
     confirmation.confirm.mockReturnValue(of('discard'));
+    confirmation.confirmDeletion.mockReturnValue(of(true));
     notifications = { showSuccess: vi.fn<(message: string) => void>() };
   });
 
@@ -110,15 +118,18 @@ describe('Platforms', () => {
     };
   }
 
-  function deletePlatformConfirmation(name: string): unknown {
+  function deletePlatformConfirmation(
+    name: string,
+    hasPendingChanges = false,
+  ): DeletionConfirmationData {
+    const unsavedChangesWarning = hasPendingChanges
+      ? ' Unsaved platform type, name, templates, and provider settings will also be lost.'
+      : '';
+
     return {
-      kind: 'warning',
       title: 'Delete platform?',
-      body: `This removes "${name}" and its provider settings from YTSkedy. Existing provider publications are not removed and can no longer be deleted through YTSkedy after this action.`,
-      actions: [
-        { id: 'cancel', label: 'Cancel' },
-        { id: 'delete', label: 'Delete platform', primary: true },
-      ],
+      body: `This removes "${name}" and its provider settings from YTSkedy. Existing provider publications are not removed and can no longer be deleted through YTSkedy after this action.${unsavedChangesWarning}`,
+      deleteLabel: 'Delete platform',
     };
   }
 
@@ -1453,8 +1464,8 @@ describe('Platforms', () => {
   it('deletes the selected platform and removes its row', async () => {
     service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
     service.delete.mockReturnValue(of(undefined));
-    const deletionConfirmation = new Subject<string | undefined>();
-    confirmation.confirm.mockReturnValue(deletionConfirmation.asObservable());
+    const deletionConfirmation = new Subject<boolean>();
+    confirmation.confirmDeletion.mockReturnValue(deletionConfirmation.asObservable());
 
     await createComponent();
     await selectRow(0);
@@ -1464,12 +1475,13 @@ describe('Platforms', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(confirmation.confirm).toHaveBeenCalledWith(
+    expect(confirmation.confirmDeletion).toHaveBeenCalledWith(
       deletePlatformConfirmation('Main YouTube channel'),
     );
+    expect(confirmation.confirm).not.toHaveBeenCalled();
     expect(service.delete).not.toHaveBeenCalled();
 
-    deletionConfirmation.next('delete');
+    deletionConfirmation.next(true);
     deletionConfirmation.complete();
     fixture.detectChanges();
     await fixture.whenStable();
@@ -1480,12 +1492,9 @@ describe('Platforms', () => {
     expect(notifications.showSuccess).toHaveBeenCalledWith('Platform deleted.');
   });
 
-  it.each([
-    ['Cancel', 'cancel'],
-    ['dialog dismissal', undefined],
-  ])('keeps the selected platform when deletion ends with %s', async (_scenario, result) => {
+  it('keeps the selected platform when deletion is not confirmed', async () => {
     service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
-    confirmation.confirm.mockReturnValue(of(result));
+    confirmation.confirmDeletion.mockReturnValue(of(false));
 
     await createComponent();
     await selectRow(0);
@@ -1495,9 +1504,10 @@ describe('Platforms', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(confirmation.confirm).toHaveBeenCalledWith(
+    expect(confirmation.confirmDeletion).toHaveBeenCalledWith(
       deletePlatformConfirmation('Main YouTube channel'),
     );
+    expect(confirmation.confirm).not.toHaveBeenCalled();
     expect(service.delete).not.toHaveBeenCalled();
     expect(rows()).toHaveLength(1);
     expect(editor()).not.toBeNull();
@@ -1566,9 +1576,7 @@ describe('Platforms', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    confirmation.confirm
-      .mockReturnValueOnce(of('discard'))
-      .mockReturnValueOnce(of('delete'));
+    confirmation.confirmDeletion.mockReturnValue(of(true));
     const deletion = new Subject<void>();
     service.delete.mockReturnValue(deletion.asObservable());
     (
@@ -1836,10 +1844,9 @@ describe('Platforms', () => {
     });
   });
 
-  it('guards dirty editor delete until discard is confirmed', async () => {
+  it('deletes a dirty platform through one confirmation dialog', async () => {
     service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
     service.delete.mockReturnValue(of(undefined));
-    confirmation.confirm.mockReturnValue(of('keep-editing'));
 
     await createComponent();
     await selectRow(0);
@@ -1849,29 +1856,62 @@ describe('Platforms', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(service.delete).not.toHaveBeenCalled();
-    expect(editor()).not.toBeNull();
+    expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
+    expect(editor()).toBeNull();
+    expect(confirmation.confirmDeletion).toHaveBeenCalledTimes(1);
+    expect(confirmation.confirmDeletion).toHaveBeenCalledWith(
+      deletePlatformConfirmation('Main YouTube channel', true),
+    );
+    expect(confirmation.confirm).not.toHaveBeenCalled();
+  });
 
-    confirmation.confirm.mockClear();
-    confirmation.confirm
-      .mockReturnValueOnce(of('discard'))
-      .mockReturnValueOnce(of('delete'));
+  it('keeps dirty platform edits when deletion is not confirmed', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+    confirmation.confirmDeletion.mockReturnValue(of(false));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(nameInput(), 'Dirty channel');
+
     buttonByText('Delete').click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
 
+    expect(confirmation.confirmDeletion).toHaveBeenCalledTimes(1);
+    expect(confirmation.confirmDeletion).toHaveBeenCalledWith(
+      deletePlatformConfirmation('Main YouTube channel', true),
+    );
+    expect(confirmation.confirm).not.toHaveBeenCalled();
+    expect(service.delete).not.toHaveBeenCalled();
+    expect(rows()).toHaveLength(1);
+    expect(editor()).not.toBeNull();
+    expect(nameInput().value).toBe('Dirty channel');
+  });
+
+  it('keeps dirty platform edits when deletion fails', async () => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+    service.delete.mockReturnValue(throwError(() => new Error('delete failed')));
+
+    await createComponent();
+    await selectRow(0);
+    await setValue(nameInput(), 'Dirty channel');
+
+    buttonByText('Delete').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(confirmation.confirmDeletion).toHaveBeenCalledTimes(1);
+    expect(confirmation.confirmDeletion).toHaveBeenCalledWith(
+      deletePlatformConfirmation('Main YouTube channel', true),
+    );
+    expect(confirmation.confirm).not.toHaveBeenCalled();
     expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
-    expect(editor()).toBeNull();
-    expect(confirmation.confirm).toHaveBeenNthCalledWith(2, {
-      kind: 'warning',
-      title: 'Delete platform?',
-      body: 'This removes "Main YouTube channel" and its provider settings from YTSkedy. Existing provider publications are not removed and can no longer be deleted through YTSkedy after this action.',
-      actions: [
-        { id: 'cancel', label: 'Cancel' },
-        { id: 'delete', label: 'Delete platform', primary: true },
-      ],
-    });
+    expect(rows()).toHaveLength(1);
+    expect(editor()).not.toBeNull();
+    expect(nameInput().value).toBe('Dirty channel');
+    expect(fixture.nativeElement.textContent).toContain('could not be deleted');
   });
 
   it('keeps blank replacement secrets clean in edit mode', async () => {

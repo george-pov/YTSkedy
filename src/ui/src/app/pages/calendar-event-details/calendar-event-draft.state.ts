@@ -24,6 +24,11 @@ import {
   toUpdateCalendarEventRequest,
 } from './calendar-event-details.form';
 
+export interface CalendarEventUpdateSubmission {
+  readonly request: UpdateCalendarEventRequest;
+  readonly submittedModel: CalendarEventDetailsModel;
+}
+
 export class CalendarEventDraftState {
   private readonly _canUpdate = signal(true);
   private readonly baselineModel = signal<CalendarEventDetailsModel | null>(null);
@@ -154,7 +159,19 @@ export class CalendarEventDraftState {
     return toUpdateCalendarEventRequest(this.model());
   }
 
-  markSaved(): void {
+  captureUpdateSubmission(): CalendarEventUpdateSubmission {
+    const submittedModel = cloneCalendarEventDetailsModel(this.model());
+    return {
+      request: toUpdateCalendarEventRequest(submittedModel),
+      submittedModel,
+    };
+  }
+
+  commitUpdateSubmission(submission: CalendarEventUpdateSubmission): void {
+    this.baselineModel.set(cloneCalendarEventDetailsModel(submission.submittedModel));
+  }
+
+  clearPendingChangesForNavigation(): void {
     this.baselineModel.set(cloneCalendarEventDetailsModel(this.model()));
   }
 }

@@ -13,10 +13,7 @@ describe('ConfirmationDialogService', () => {
   function configure(result?: string): ConfirmationDialogService {
     open = vi.fn(() => ({ afterClosed: () => of(result) }));
     TestBed.configureTestingModule({
-      providers: [
-        provideZonelessChangeDetection(),
-        { provide: MatDialog, useValue: { open } },
-      ],
+      providers: [provideZonelessChangeDetection(), { provide: MatDialog, useValue: { open } }],
     });
     return TestBed.inject(ConfirmationDialogService);
   }
@@ -98,5 +95,50 @@ describe('ConfirmationDialogService', () => {
       .subscribe((value) => (result = value));
 
     expect(result).toBeUndefined();
+  });
+
+  it('opens deletion confirmations with the safe action first and a danger primary action', () => {
+    configure()
+      .confirmDeletion({
+        title: 'Delete template?',
+        body: 'This cannot be undone.',
+        deleteLabel: 'Delete template',
+      })
+      .subscribe();
+
+    expect(lastConfig().data).toEqual(
+      expect.objectContaining({
+        kind: 'warning',
+        title: 'Delete template?',
+        body: 'This cannot be undone.',
+        actions: [
+          { id: 'cancel', label: 'Cancel' },
+          {
+            id: 'delete',
+            label: 'Delete template',
+            primary: true,
+            intent: 'danger',
+          },
+        ],
+      }),
+    );
+  });
+
+  it.each([
+    ['delete', true],
+    ['cancel', false],
+    [undefined, false],
+  ] as const)('maps deletion confirmation result %s to %s', (dialogResult, expected) => {
+    let result: boolean | undefined;
+
+    configure(dialogResult)
+      .confirmDeletion({
+        title: 'Delete template?',
+        body: 'This cannot be undone.',
+        deleteLabel: 'Delete template',
+      })
+      .subscribe((value) => (result = value));
+
+    expect(result).toBe(expected);
   });
 });

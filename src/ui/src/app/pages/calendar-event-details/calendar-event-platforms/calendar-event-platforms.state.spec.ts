@@ -187,6 +187,7 @@ describe('CalendarEventPlatformsState', () => {
     expect(state.hasActiveMutation()).toBe(false);
     expect(state.publishErrorMessage()).toBeNull();
     expect(state.deletePublicationErrorMessage()).toBeNull();
+    expect(state.platformActionBlockedMessage()).toBeNull();
     expect(state.previewedPublishingContent()).toBeNull();
   });
 
@@ -251,6 +252,42 @@ describe('CalendarEventPlatformsState', () => {
     expect(state.platformActionBlockedMessage()).toBe(
       'Save or discard event changes before publishing.',
     );
+  });
+
+  it('clears only pending-change guidance and preserves platform operation errors', () => {
+    service.getPublishingContent.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 409 })),
+    );
+    service.recoverPlatformPublication.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 409 })),
+    );
+    service.deletePlatformPublication.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 502 })),
+    );
+    service.publishPlatform.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 502 })),
+    );
+
+    state.previewPublishingContent(draftPlatform());
+    confirmation.confirm.mockReturnValue(of('recover'));
+    state.recoverPlatformPublication(recoverablePlatform());
+    confirmation.confirm.mockReturnValue(of('delete'));
+    state.deletePlatformPublication(publishedPlatform());
+    state.publishPlatform(draftPlatform());
+    pendingEventChanges.set(true);
+    state.recoverPlatformPublication(recoverablePlatform());
+
+    expect(state.platformActionBlockedMessage()).toBe(
+      'Save or discard event changes before recovering a publication.',
+    );
+
+    state.clearPlatformActionBlockedMessage();
+
+    expect(state.platformActionBlockedMessage()).toBeNull();
+    expect(state.publishErrorMessage()).not.toBeNull();
+    expect(state.deletePublicationErrorMessage()).not.toBeNull();
+    expect(state.recoverPublicationErrorMessage()).not.toBeNull();
+    expect(state.previewErrorMessage()).not.toBeNull();
   });
 
   it('refreshes full event details after publish and clears that platform preview', () => {
@@ -446,9 +483,7 @@ describe('CalendarEventPlatformsState', () => {
     expect(service.getById).toHaveBeenCalledWith(calendarEventId);
     expect(appliedEvents).toHaveLength(1);
     expect(state.platforms()).toEqual([failedPlatform()]);
-    expect(notifications.showSuccess).toHaveBeenCalledWith(
-      'Publication attempt marked as failed.',
-    );
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Publication attempt marked as failed.');
     expect(state.hasActiveMutation()).toBe(false);
   });
 

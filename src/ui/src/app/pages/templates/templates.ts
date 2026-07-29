@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { form } from '@angular/forms/signals';
-import { finalize, map, Observable, of, switchMap } from 'rxjs';
+import { finalize, map, Observable } from 'rxjs';
 
 import {
   CreateTemplateRequest,
@@ -214,31 +214,25 @@ export class Templates implements OnInit, PendingChangesAware {
       return;
     }
 
-    const deleteConfirmed = this.hasPendingTemplateChanges()
-      ? this.confirmDiscardTemplateChanges().pipe(
-          switchMap((discard) => (discard ? this.confirmDeleteTemplate(current) : of(false))),
-        )
-      : this.confirmDeleteTemplate(current);
-
-    deleteConfirmed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((confirmed) => {
-      if (confirmed) {
-        this.deleteTemplate(current);
-      }
-    });
+    this.confirmDeleteTemplate(current)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((confirmed) => {
+        if (confirmed) {
+          this.deleteTemplate(current);
+        }
+      });
   }
 
   private confirmDeleteTemplate(template: Template): Observable<boolean> {
-    return this.confirmation
-      .confirm<'cancel' | 'delete'>({
-        kind: 'warning',
-        title: 'Delete template?',
-        body: `This permanently removes "${template.name}" from YTSkedy. It cannot be recovered after deletion.`,
-        actions: [
-          { id: 'cancel', label: 'Cancel' },
-          { id: 'delete', label: 'Delete template', primary: true },
-        ],
-      })
-      .pipe(map((result) => result === 'delete'));
+    const dirtyChangesWarning = this.hasPendingTemplateChanges()
+      ? ' Unsaved template type, name, and content changes will also be lost.'
+      : '';
+
+    return this.confirmation.confirmDeletion({
+      title: 'Delete template?',
+      body: `This permanently removes "${template.name}" from YTSkedy. It cannot be recovered after deletion.${dirtyChangesWarning}`,
+      deleteLabel: 'Delete template',
+    });
   }
 
   private deleteTemplate(template: Template): void {

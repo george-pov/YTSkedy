@@ -75,6 +75,8 @@ export class CalendarEventDetails implements OnInit, OnDestroy, PendingChangesAw
   });
 
   constructor() {
+    effect(() => this.state.clearResolvedPlatformActionGuidance());
+
     effect(() => {
       if (this.state.saveErrorMessage() !== null && this.saveErrorRegion()) {
         this.saveErrorRegion()!.nativeElement.focus();

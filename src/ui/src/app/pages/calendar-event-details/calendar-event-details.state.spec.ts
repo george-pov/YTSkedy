@@ -216,6 +216,9 @@ describe('CalendarEventDetailsState', () => {
     const state = createState('event-1');
     state.initialize();
     state.draft.form.texts[0].value().value.set('Updated title');
+    state.platformsState.publishPlatform(state.platformsState.platforms()[0]);
+
+    expect(state.platformsState.platformActionBlockedMessage()).not.toBeNull();
 
     state.submit();
 
@@ -226,23 +229,96 @@ describe('CalendarEventDetailsState', () => {
       }),
     );
     expect(state.draft.hasPendingChanges()).toBe(false);
+    expect(state.platformsState.platformActionBlockedMessage()).toBeNull();
     expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event updated.');
   });
 
-  it('maps update conflicts to the reload message', () => {
+  it('preserves the submitted baseline and later edits when an update completes', async () => {
+    const firstUpdate = new Subject<{ calendarEventId: string }>();
+    const secondUpdate = new Subject<{ calendarEventId: string }>();
+    calendarEvents['getById'].mockReturnValue(of(testEvent()));
+    calendarEvents['update']
+      .mockReturnValueOnce(firstUpdate.asObservable())
+      .mockReturnValueOnce(secondUpdate.asObservable());
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+    const state = createState('event-1');
+    state.initialize();
+    state.draft.form.texts[0].value().value.set('Submitted title');
+    state.platformsState.publishPlatform(state.platformsState.platforms()[0]);
+
+    state.submit();
+    expect(state.draft.form.texts[0].value().disabled()).toBe(false);
+    state.draft.form.texts[0].value().value.set('Changed while saving');
+    firstUpdate.next({ calendarEventId: 'event-1' });
+    firstUpdate.complete();
+
+    expect(calendarEvents['update']).toHaveBeenCalledWith(
+      'event-1',
+      expect.objectContaining({
+        texts: expect.arrayContaining([{ fieldKey: 'text1', value: 'Submitted title' }]),
+      }),
+    );
+    expect(state.draft.model().texts[0].value).toBe('Changed while saving');
+    expect(state.draft.hasPendingChanges()).toBe(true);
+    expect(state.platformsState.platformActionBlockedMessage()).not.toBeNull();
+    expect(state.saveDisabled()).toBe(false);
+    expect(state.cancelDisabled()).toBe(false);
+
+    const decision = state.canDeactivateWithPendingChanges();
+    expect(typeof decision).not.toBe('boolean');
+    expect(await firstValueFrom(decision as Observable<boolean>)).toBe(false);
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    state.cancel();
+
+    expect(state.draft.model().texts[0].value).toBe('Submitted title');
+    expect(state.draft.hasPendingChanges()).toBe(false);
+    expect(state.platformsState.platformActionBlockedMessage()).toBeNull();
+
+    state.draft.form.texts[0].value().value.set('Changed while saving');
+    state.submit();
+    secondUpdate.next({ calendarEventId: 'event-1' });
+    secondUpdate.complete();
+
+    expect(calendarEvents['update']).toHaveBeenNthCalledWith(
+      2,
+      'event-1',
+      expect.objectContaining({
+        texts: expect.arrayContaining([{ fieldKey: 'text1', value: 'Changed while saving' }]),
+      }),
+    );
+    expect(state.draft.hasPendingChanges()).toBe(false);
+  });
+
+  it('maps update conflicts without changing the baseline or blocked guidance', () => {
     calendarEvents['getById'].mockReturnValue(of(testEvent()));
     calendarEvents['update'].mockReturnValue(
       throwError(() => new HttpErrorResponse({ status: 409 })),
     );
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
     const state = createState('event-1');
     state.initialize();
     state.draft.form.texts[0].value().value.set('Updated title');
+    state.platformsState.publishPlatform(state.platformsState.platforms()[0]);
 
     state.submit();
 
     expect(state.saveErrorMessage()).toBe(
       'The event can no longer be updated. Reload the page and try again.',
     );
+    expect(state.platformsState.platformActionBlockedMessage()).not.toBeNull();
+
+    state.cancel();
+
+    expect(state.draft.model().texts[0].value).toBe('Updated title');
+    expect(state.draft.hasPendingChanges()).toBe(true);
+    expect(state.platformsState.platformActionBlockedMessage()).not.toBeNull();
+
+    confirmation.confirm.mockReturnValue(of('discard'));
+    state.cancel();
+
+    expect(state.draft.model().texts[0].value).toBe('English title');
+    expect(state.draft.hasPendingChanges()).toBe(false);
   });
 
   it('blocks other actions while create is active', () => {
@@ -281,6 +357,9 @@ describe('CalendarEventDetailsState', () => {
     state.initialize();
     state.draft.form.texts[0].value().value.set('Updated title');
     state.draft.form.texts[0].value().markAsTouched();
+    state.platformsState.publishPlatform(state.platformsState.platforms()[0]);
+
+    expect(state.platformsState.platformActionBlockedMessage()).not.toBeNull();
 
     state.cancel();
 
@@ -302,6 +381,7 @@ describe('CalendarEventDetailsState', () => {
     expect(state.draft.model().texts[0].value).toBe('English title');
     expect(state.draft.form.texts[0].value().touched()).toBe(false);
     expect(state.hasPendingChanges()).toBe(false);
+    expect(state.platformsState.platformActionBlockedMessage()).toBeNull();
     expect(state.cancelDisabled()).toBe(true);
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
@@ -444,22 +524,33 @@ describe('CalendarEventDetailsState', () => {
     expect(state.canDeactivateWithPendingChanges()).toBe(true);
   });
 
-  it('deletes after confirmation and treats a missing event as success', () => {
+  it.each([
+    {
+      scenario: 'successful delete',
+      result: of(undefined),
+      notification: 'Calendar event deleted.',
+    },
+    {
+      scenario: 'missing event',
+      result: throwError(() => new HttpErrorResponse({ status: 404 })),
+      notification: 'Calendar event no longer exists.',
+    },
+  ])('clears pending changes before navigation after $scenario', ({ result, notification }) => {
     calendarEvents['getById'].mockReturnValue(of(testEvent()));
-    calendarEvents['delete'].mockReturnValue(
-      throwError(() => new HttpErrorResponse({ status: 404 })),
-    );
+    calendarEvents['delete'].mockReturnValue(result);
+    confirmation.confirm.mockReturnValueOnce(of('discard')).mockReturnValueOnce(of('delete'));
     const state = createState('event-1');
     router.navigateByUrl.mockImplementation(() => {
       expect(state.canDeactivateWithPendingChanges()).toBe(true);
       return Promise.resolve(true);
     });
     state.initialize();
+    state.draft.form.texts[0].value().value.set('Unsaved title');
 
     state.deleteEvent();
 
     expect(calendarEvents['delete']).toHaveBeenCalledWith('event-1');
-    expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event no longer exists.');
+    expect(notifications.showSuccess).toHaveBeenCalledWith(notification);
     expect(router.navigateByUrl).toHaveBeenCalledWith('/calendar-events');
   });
 

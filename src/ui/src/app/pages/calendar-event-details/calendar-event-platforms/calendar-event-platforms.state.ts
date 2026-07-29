@@ -306,6 +306,10 @@ export class CalendarEventPlatformsState {
     }
   }
 
+  clearPlatformActionBlockedMessage(): void {
+    this._platformActionBlockedMessage.set(null);
+  }
+
   private blockPlatformActionWhenEventChangesPending(action: PlatformMutationAction): boolean {
     if (!this.hasPendingEventChanges()) {
       return false;
