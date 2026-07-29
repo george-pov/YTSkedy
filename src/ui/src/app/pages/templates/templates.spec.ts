@@ -28,6 +28,13 @@ import {
 } from 'src/app/testing/dom-test-helpers';
 import { Templates } from './templates';
 
+interface FormInteractionState {
+  touched: () => boolean;
+  dirty: () => boolean;
+  markAsTouched: () => void;
+  markAsDirty: () => void;
+}
+
 describe('Templates', () => {
   let fixture: ComponentFixture<Templates>;
   let loader: HarnessLoader;
@@ -70,12 +77,32 @@ describe('Templates', () => {
     };
   }
 
+  function deleteTemplateConfirmation(name: string): unknown {
+    return {
+      kind: 'warning',
+      title: 'Delete template?',
+      body: `This permanently removes "${name}" from YTSkedy. It cannot be recovered after deletion.`,
+      actions: [
+        { id: 'cancel', label: 'Cancel' },
+        { id: 'delete', label: 'Delete template', primary: true },
+      ],
+    };
+  }
+
   function rows(): HTMLElement[] {
     return dataRows(fixture.nativeElement);
   }
 
   function editor(): HTMLElement | null {
     return fixture.nativeElement.querySelector('form.editor');
+  }
+
+  function editorFormState(): FormInteractionState {
+    return (
+      fixture.componentInstance as unknown as {
+        form: () => FormInteractionState;
+      }
+    ).form();
   }
 
   function nameInput(): HTMLInputElement {
@@ -285,6 +312,8 @@ describe('Templates', () => {
   it('deletes the selected template and closes the editor', async () => {
     service.list.mockReturnValue(of({ templates: [template({ id: 'id-1', type: 'YouTube' })] }));
     service.delete.mockReturnValue(of(undefined));
+    const deletionConfirmation = new Subject<string | undefined>();
+    confirmation.confirm.mockReturnValue(deletionConfirmation.asObservable());
 
     await createComponent();
     await selectRow(0);
@@ -294,10 +323,44 @@ describe('Templates', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
+    expect(confirmation.confirm).toHaveBeenCalledWith(
+      deleteTemplateConfirmation('Weeknight stream'),
+    );
+    expect(service.delete).not.toHaveBeenCalled();
+
+    deletionConfirmation.next('delete');
+    deletionConfirmation.complete();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
     expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
     expect(rows()).toHaveLength(0);
     expect(editor()).toBeNull();
     expect(notifications.showSuccess).toHaveBeenCalledWith('Template deleted.');
+  });
+
+  it.each([
+    ['Cancel', 'cancel'],
+    ['dialog dismissal', undefined],
+  ])('keeps the selected template when deletion ends with %s', async (_scenario, result) => {
+    service.list.mockReturnValue(of({ templates: [template()] }));
+    confirmation.confirm.mockReturnValue(of(result));
+
+    await createComponent();
+    await selectRow(0);
+
+    buttonByText('Delete').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(confirmation.confirm).toHaveBeenCalledWith(
+      deleteTemplateConfirmation('Weeknight stream'),
+    );
+    expect(service.delete).not.toHaveBeenCalled();
+    expect(rows()).toHaveLength(1);
+    expect(editor()).not.toBeNull();
   });
 
   it('shows a duplicate-name message when create returns 409', async () => {
@@ -450,7 +513,9 @@ describe('Templates', () => {
     expect(await canDeactivate()).toBe(false);
     update.error(new Error('save failed'));
 
-    confirmation.confirm.mockReturnValue(of('discard'));
+    confirmation.confirm
+      .mockReturnValueOnce(of('discard'))
+      .mockReturnValueOnce(of('delete'));
     const deletion = new Subject<void>();
     service.delete.mockReturnValue(deletion.asObservable());
     (
@@ -572,6 +637,8 @@ describe('Templates', () => {
 
     expect(await typeSelect.getValueText()).toBe('WordPress');
     expect(fixture.nativeElement.textContent).toContain('Name is required.');
+    expect(editorFormState().touched()).toBe(true);
+    expect(editorFormState().dirty()).toBe(true);
     expect(service.create).not.toHaveBeenCalled();
 
     buttonByText('Cancel').click();
@@ -584,6 +651,8 @@ describe('Templates', () => {
     expect(await typeSelect.getValueText()).toBe('YouTube');
     expect(nameInput().value).toBe('');
     expect(contentTextarea().value).toBe('');
+    expect(editorFormState().touched()).toBe(false);
+    expect(editorFormState().dirty()).toBe(false);
     expect(fixture.nativeElement.textContent).not.toContain('Name is required.');
     expect(buttonByText('Cancel').disabled).toBe(true);
     expect(buttonByText('Save template').disabled).toBe(true);
@@ -608,6 +677,10 @@ describe('Templates', () => {
     expect(fixture.nativeElement.textContent).toContain('could not be saved');
     expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
     expect(service.update).toHaveBeenCalledTimes(1);
+    editorFormState().markAsTouched();
+    editorFormState().markAsDirty();
+    expect(editorFormState().touched()).toBe(true);
+    expect(editorFormState().dirty()).toBe(true);
 
     buttonByText('Cancel').click();
     fixture.detectChanges();
@@ -632,6 +705,8 @@ describe('Templates', () => {
     expect(fixture.nativeElement.querySelector('app-select')).toBeNull();
     expect(nameInput().value).toBe('Weeknight stream');
     expect(contentTextarea().value).toBe('Live at {{ localizedTime }}');
+    expect(editorFormState().touched()).toBe(false);
+    expect(editorFormState().dirty()).toBe(false);
     expect(rows()[0].getAttribute('aria-pressed')).toBe('true');
     expect(fixture.nativeElement.textContent).not.toContain('could not be saved');
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
@@ -662,6 +737,9 @@ describe('Templates', () => {
 
     const deletion = new Subject<void>();
     service.delete.mockReturnValue(deletion.asObservable());
+    confirmation.confirm
+      .mockReturnValueOnce(of('discard'))
+      .mockReturnValueOnce(of('delete'));
     buttonByText('Delete').click();
     fixture.detectChanges();
     await fixture.whenStable();
@@ -689,7 +767,10 @@ describe('Templates', () => {
     expect(service.delete).not.toHaveBeenCalled();
     expect(editor()).not.toBeNull();
 
-    confirmation.confirm.mockReturnValue(of('discard'));
+    confirmation.confirm.mockClear();
+    confirmation.confirm
+      .mockReturnValueOnce(of('discard'))
+      .mockReturnValueOnce(of('delete'));
     buttonByText('Delete').click();
     fixture.detectChanges();
     await fixture.whenStable();
@@ -697,5 +778,14 @@ describe('Templates', () => {
 
     expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
     expect(editor()).toBeNull();
+    expect(confirmation.confirm).toHaveBeenNthCalledWith(2, {
+      kind: 'warning',
+      title: 'Delete template?',
+      body: 'This permanently removes "Weeknight stream" from YTSkedy. It cannot be recovered after deletion.',
+      actions: [
+        { id: 'cancel', label: 'Cancel' },
+        { id: 'delete', label: 'Delete template', primary: true },
+      ],
+    });
   });
 });

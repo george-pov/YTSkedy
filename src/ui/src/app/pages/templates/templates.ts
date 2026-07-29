@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { form } from '@angular/forms/signals';
-import { finalize, map, Observable } from 'rxjs';
+import { finalize, map, Observable, of, switchMap } from 'rxjs';
 
 import {
   CreateTemplateRequest,
@@ -209,12 +209,40 @@ export class Templates implements OnInit, PendingChangesAware {
       return;
     }
 
-    this.discardTemplateChangesBefore(() => this.deleteSelectedAfterDiscard());
+    const current = this.selected();
+    if (current === null) {
+      return;
+    }
+
+    const deleteConfirmed = this.hasPendingTemplateChanges()
+      ? this.confirmDiscardTemplateChanges().pipe(
+          switchMap((discard) => (discard ? this.confirmDeleteTemplate(current) : of(false))),
+        )
+      : this.confirmDeleteTemplate(current);
+
+    deleteConfirmed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((confirmed) => {
+      if (confirmed) {
+        this.deleteTemplate(current);
+      }
+    });
   }
 
-  private deleteSelectedAfterDiscard(): void {
-    const current = this.selected();
-    if (current === null || this.isSaving() || this.isDeleting()) {
+  private confirmDeleteTemplate(template: Template): Observable<boolean> {
+    return this.confirmation
+      .confirm<'cancel' | 'delete'>({
+        kind: 'warning',
+        title: 'Delete template?',
+        body: `This permanently removes "${template.name}" from YTSkedy. It cannot be recovered after deletion.`,
+        actions: [
+          { id: 'cancel', label: 'Cancel' },
+          { id: 'delete', label: 'Delete template', primary: true },
+        ],
+      })
+      .pipe(map((result) => result === 'delete'));
+  }
+
+  private deleteTemplate(template: Template): void {
+    if (this.isSaving() || this.isDeleting()) {
       return;
     }
 
@@ -222,14 +250,14 @@ export class Templates implements OnInit, PendingChangesAware {
     this.isDeleting.set(true);
 
     this.templatesService
-      .delete(current.type, current.id)
+      .delete(template.type, template.id)
       .pipe(
         finalize(() => this.isDeleting.set(false)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
         next: () => {
-          this.removeFromList(current.id);
+          this.removeFromList(template.id);
           this.notifications.showSuccess('Template deleted.');
         },
         error: (error: unknown) => {
@@ -237,7 +265,7 @@ export class Templates implements OnInit, PendingChangesAware {
           // cleanup and close the editor. Anything else keeps the operator here
           // with an explanation.
           if (error instanceof HttpErrorResponse && error.status === 404) {
-            this.removeFromList(current.id);
+            this.removeFromList(template.id);
             this.notifications.showSuccess('Template no longer exists.');
             return;
           }

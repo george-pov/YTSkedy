@@ -9,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize, map, Observable } from 'rxjs';
+import { finalize, map, Observable, of, switchMap } from 'rxjs';
 
 import {
   Platform,
@@ -197,12 +197,40 @@ export class Platforms implements OnInit, PendingChangesAware {
       return;
     }
 
-    this.discardPlatformChangesBefore(() => this.deleteSelectedAfterDiscard());
+    const current = this.selected();
+    if (current === null) {
+      return;
+    }
+
+    const deleteConfirmed = this.hasPendingPlatformChanges()
+      ? this.confirmDiscardPlatformChanges().pipe(
+          switchMap((discard) => (discard ? this.confirmDeletePlatform(current) : of(false))),
+        )
+      : this.confirmDeletePlatform(current);
+
+    deleteConfirmed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((confirmed) => {
+      if (confirmed) {
+        this.deletePlatform(current);
+      }
+    });
   }
 
-  private deleteSelectedAfterDiscard(): void {
-    const current = this.selected();
-    if (current === null || this.editor.hasActiveMutation()) {
+  private confirmDeletePlatform(platform: Platform): Observable<boolean> {
+    return this.confirmation
+      .confirm<'cancel' | 'delete'>({
+        kind: 'warning',
+        title: 'Delete platform?',
+        body: `This removes "${platform.name}" and its provider settings from YTSkedy. Existing provider publications are not removed and can no longer be deleted through YTSkedy after this action.`,
+        actions: [
+          { id: 'cancel', label: 'Cancel' },
+          { id: 'delete', label: 'Delete platform', primary: true },
+        ],
+      })
+      .pipe(map((result) => result === 'delete'));
+  }
+
+  private deletePlatform(platform: Platform): void {
+    if (this.editor.hasActiveMutation()) {
       return;
     }
 
@@ -210,14 +238,14 @@ export class Platforms implements OnInit, PendingChangesAware {
     this.editor.setDeleting(true);
 
     this.platformsService
-      .delete(current.type, current.id)
+      .delete(platform.type, platform.id)
       .pipe(
         finalize(() => this.editor.setDeleting(false)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
         next: () => {
-          this.editor.removeDeletedPlatform(current.id);
+          this.editor.removeDeletedPlatform(platform.id);
           this.notifications.showSuccess('Platform deleted.');
         },
         error: () => {

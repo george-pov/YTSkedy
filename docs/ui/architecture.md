@@ -74,9 +74,12 @@ paging modes, configurable columns, custom cell templates, sorting, paging,
 empty states, optional row hover, row activation, and selected-row behavior.
 Pages own API sort-field mapping and server refetch behavior.
 
-Shared controls own accessible rendering and generic interaction mechanics.
-They do not own route navigation, API calls, domain validation, or page-specific
-status copy.
+Shared controls own accessible rendering, generic interaction mechanics, and
+semantic visual intent. Native anchor controls perform navigation through a
+route supplied by their consumer; button controls perform local actions.
+Routed pages choose destinations and own confirmation copy. Shared controls do
+not choose destinations, call APIs, perform domain validation, or own
+page-specific status copy.
 
 ## Responsibilities
 

@@ -110,6 +110,18 @@ describe('Platforms', () => {
     };
   }
 
+  function deletePlatformConfirmation(name: string): unknown {
+    return {
+      kind: 'warning',
+      title: 'Delete platform?',
+      body: `This removes "${name}" and its provider settings from YTSkedy. Existing provider publications are not removed and can no longer be deleted through YTSkedy after this action.`,
+      actions: [
+        { id: 'cancel', label: 'Cancel' },
+        { id: 'delete', label: 'Delete platform', primary: true },
+      ],
+    };
+  }
+
   function wordPressPlatform(overrides: Partial<Platform> = {}): Platform {
     return {
       id: 'id-2',
@@ -1441,6 +1453,8 @@ describe('Platforms', () => {
   it('deletes the selected platform and removes its row', async () => {
     service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
     service.delete.mockReturnValue(of(undefined));
+    const deletionConfirmation = new Subject<string | undefined>();
+    confirmation.confirm.mockReturnValue(deletionConfirmation.asObservable());
 
     await createComponent();
     await selectRow(0);
@@ -1450,9 +1464,43 @@ describe('Platforms', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
+    expect(confirmation.confirm).toHaveBeenCalledWith(
+      deletePlatformConfirmation('Main YouTube channel'),
+    );
+    expect(service.delete).not.toHaveBeenCalled();
+
+    deletionConfirmation.next('delete');
+    deletionConfirmation.complete();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
     expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
     expect(rows()).toHaveLength(0);
     expect(notifications.showSuccess).toHaveBeenCalledWith('Platform deleted.');
+  });
+
+  it.each([
+    ['Cancel', 'cancel'],
+    ['dialog dismissal', undefined],
+  ])('keeps the selected platform when deletion ends with %s', async (_scenario, result) => {
+    service.list.mockReturnValue(of({ platforms: [youTubePlatform()] }));
+    confirmation.confirm.mockReturnValue(of(result));
+
+    await createComponent();
+    await selectRow(0);
+
+    buttonByText('Delete').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(confirmation.confirm).toHaveBeenCalledWith(
+      deletePlatformConfirmation('Main YouTube channel'),
+    );
+    expect(service.delete).not.toHaveBeenCalled();
+    expect(rows()).toHaveLength(1);
+    expect(editor()).not.toBeNull();
   });
 
   it('allows clean route exit without prompting', async () => {
@@ -1518,7 +1566,9 @@ describe('Platforms', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    confirmation.confirm.mockReturnValue(of('discard'));
+    confirmation.confirm
+      .mockReturnValueOnce(of('discard'))
+      .mockReturnValueOnce(of('delete'));
     const deletion = new Subject<void>();
     service.delete.mockReturnValue(deletion.asObservable());
     (
@@ -1802,7 +1852,10 @@ describe('Platforms', () => {
     expect(service.delete).not.toHaveBeenCalled();
     expect(editor()).not.toBeNull();
 
-    confirmation.confirm.mockReturnValue(of('discard'));
+    confirmation.confirm.mockClear();
+    confirmation.confirm
+      .mockReturnValueOnce(of('discard'))
+      .mockReturnValueOnce(of('delete'));
     buttonByText('Delete').click();
     fixture.detectChanges();
     await fixture.whenStable();
@@ -1810,6 +1863,15 @@ describe('Platforms', () => {
 
     expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
     expect(editor()).toBeNull();
+    expect(confirmation.confirm).toHaveBeenNthCalledWith(2, {
+      kind: 'warning',
+      title: 'Delete platform?',
+      body: 'This removes "Main YouTube channel" and its provider settings from YTSkedy. Existing provider publications are not removed and can no longer be deleted through YTSkedy after this action.',
+      actions: [
+        { id: 'cancel', label: 'Cancel' },
+        { id: 'delete', label: 'Delete platform', primary: true },
+      ],
+    });
   });
 
   it('keeps blank replacement secrets clean in edit mode', async () => {

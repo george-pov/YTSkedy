@@ -83,8 +83,10 @@ nonfatal guidance near Scheduled start and leaves manual entry available.
 The page may select, preview, and clear one JPEG or PNG thumbnail before create.
 After the event is created, it uploads the selected file through the
 [thumbnail contract](../api/http/calendar-event-thumbnails.md). A failed upload
-does not discard the created event; the page keeps the event and shows a
-thumbnail-specific error. Successful create returns to `/calendar-events`.
+does not discard the created event; the browser opens its edit route with a
+thumbnail-specific error. Otherwise, successful create returns to
+`/calendar-events`. Pending create state is cleared before either guarded
+navigation.
 
 ## Calendar Event Edit
 
@@ -143,6 +145,19 @@ destroyed-component cancellation. Successful create, delete, and
 upload-after-create flows clear their mutation state before application-driven
 navigation.
 
+Calendar Event create and edit show an always-enabled, button-styled
+`Back to events` native link with an explicit `/calendar-events` destination.
+The link does not depend on browser history. Both routes use
+`pendingChangesGuard`: clean transitions proceed, pending changes use the
+page-owned discard confirmation, and active mutations block route deactivation.
+
+Cancel is disabled while the normalized form is clean or a conflicting
+mutation is active. When changes are pending, confirmed Cancel restores the
+initialized or last-saved form baseline in place and does not navigate. A
+thumbnail selected before create participates in pending state and is cleared
+by confirmed Cancel. A thumbnail upload or delete completed for an existing
+event remains committed and is not rolled back.
+
 Delete is available only in edit mode and follows backend `canDelete`. Pending
 form changes are resolved before the delete confirmation opens. Successful
 delete shows `Calendar event deleted.` and returns to the list. An already
@@ -150,10 +165,10 @@ missing event shows `Calendar event no longer exists.` and also returns to the
 list. Publication conflicts keep the page open and direct the user to remove
 platform publications first.
 
-Cancel returns to the list when there are no pending edits. Pending edits use
-the page-owned `Discard unsaved event changes?` confirmation. The route also
-uses `pendingChangesGuard` so other route exits apply the same page-owned dirty
-state and copy.
+Back and other route exits continue to their requested destination only after
+route protection allows them. Cancel is a local reset action. Delete retains
+its separate confirmation and navigation flow after pending edits are
+resolved.
 
 Save, delete, cancel, preview, publish, publication delete, and thumbnail
 actions are mutually disabled while conflicting mutations are active.
@@ -169,10 +184,16 @@ Selecting a row opens edit mode. Create actions are Cancel and Save template;
 edit actions are Delete, Cancel, and Save changes.
 
 Pending changes compare the normalized save request: name normalization applies
-while content remains exact. Save is disabled when that request matches the
-saved baseline. Route exit, row selection, Add Template, Cancel, and dirty
-delete ask before discarding edits. Load, save, delete, and duplicate-name
-errors remain inline.
+while content remains exact. Save and Cancel are disabled when that request
+matches the current baseline or a save/delete mutation is active. Dirty Cancel
+asks for confirmation and restores the current create or edit baseline in
+place without closing the editor, changing mode, or clearing the selected row.
+Route exit, row selection, Add Template, and dirty delete use the same
+page-owned discard decision but continue their target-changing action after
+confirmation. Delete then opens a separate warning before the template is
+permanently removed. Canceling or dismissing either required confirmation keeps
+the template and editor in place. Load, save, delete, and duplicate-name errors
+remain inline.
 
 ## Platforms
 
@@ -230,10 +251,19 @@ ordered ID array through the same normalized request baseline as other platform
 settings. Category lookup never receives the WordPress username or Application
 Password from browser code.
 
-Save is disabled when the normalized request matches the saved baseline. Route
-exit, row selection, Add Platform, Cancel, and dirty delete ask before
-discarding edits. Load, save, delete, duplicate-name, and duplicate-reference-key
-errors remain inline.
+Save and Cancel are disabled when the normalized request matches the current
+baseline or a save/delete mutation is active. Dirty Cancel asks for
+confirmation and restores the provider form baseline in place. Edit mode and
+the selected row remain unchanged; create mode remains open without selecting a
+row. Replacement secret fields remain blank, redacted display values stay
+display-only, and restored provider inputs may trigger only the existing
+read-only template or category refresh. Route exit, row selection, Add
+Platform, and dirty delete retain their target-changing behavior after the
+discard decision resolves. Delete then opens a separate warning that provider
+publications are not removed and cannot be deleted through YTSkedy after the
+platform is removed. Canceling or dismissing either required confirmation keeps
+the platform and editor in place. Load, save, delete, duplicate-name, and
+duplicate-reference-key errors remain inline.
 
 ## Settings
 
@@ -250,10 +280,12 @@ type, max-length, weekday, local-time, and time-zone edits do. One `Save changes
 action writes both sections atomically and replaces local state and the baseline
 with the complete backend-normalized response.
 
-One page-level Cancel asks before discarding pending edits in either section,
-restores both last loaded or saved values after confirmation, and clears the
-save error. Route exit uses the combined page-owned dirty state through
-`pendingChangesGuard`.
+Cancel is disabled while Settings is loading, saving, or normalized-clean. When
+either section has pending changes, Cancel asks before discarding them, restores
+both last-loaded or last-saved sections together, clears superseded validation
+interaction and save errors, and remains on `/settings`. Route exit uses the
+same combined page-owned dirty state through `pendingChangesGuard` but
+continues to the requested destination only after confirmation.
 
 ## Component Lab
 
@@ -267,11 +299,16 @@ presentation, controlled generic string-valued items, and accessible selection
 and removal interactions. Provider lookup, paging, loading, errors, and numeric
 category-ID mapping remain outside the shared component.
 
+Pending-change confirmations explain which unsaved values will be lost.
+`Keep editing` is ordered first and receives initial focus. `Discard changes`
+uses the filled danger treatment. Escape and backdrop dismissal keep the edits
+and restore focus to the action that opened the dialog.
+
 ## Route Protection And Ownership
 
 `/calendar-events`, `/templates`, `/platforms`, and `/settings` use
-`authenticatedGuard`. The calendar event edit, Templates, Platforms, and
-Settings routes also use `pendingChangesGuard`.
+`authenticatedGuard`. Both Calendar Event create and edit routes, Templates,
+Platforms, and Settings also use `pendingChangesGuard`.
 
 Route configuration belongs in `app.routes.ts`. Route-level page components
 belong under `pages/`. Reusable presentation and form components belong under
