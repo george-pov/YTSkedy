@@ -82,9 +82,9 @@ describe('CalendarEventDetails', () => {
     service = {
       create: vi.fn(),
       getById: vi.fn(),
-      getDefaultStart: vi.fn().mockReturnValue(
-        of({ localDate: null, localTime: null, timeZoneId: null }),
-      ),
+      getDefaultStart: vi
+        .fn()
+        .mockReturnValue(of({ localDate: null, localTime: null, timeZoneId: null })),
       update: vi.fn(),
       delete: vi.fn(),
       publishPlatform: vi.fn(),
@@ -118,6 +118,9 @@ describe('CalendarEventDetails', () => {
     expect(textContent(fixture.nativeElement)).toContain('Add Calendar Event');
     expect(eventTextControls()).toHaveLength(2);
     expect(deleteButtonHost()).toBeNull();
+    expect(textContent(backLink())).toBe('Back to events');
+    expect(backLink().getAttribute('href')).toBe('/calendar-events');
+    expect(backLinkHost().querySelector('button')).toBeNull();
   });
 
   it('reveals validation errors instead of creating an invalid event', async () => {
@@ -147,12 +150,14 @@ describe('CalendarEventDetails', () => {
     expect(navigations).toEqual(['/calendar-events']);
   });
 
-  it('navigates to the list when clean create mode is cancelled', () => {
+  it('keeps clean create-mode Cancel disabled and on the current route', () => {
     createComponent();
 
+    expect(cancelButton().disabled).toBe(true);
     cancelButton().click();
 
-    expect(navigations).toEqual(['/calendar-events']);
+    expect(confirmation.confirm).not.toHaveBeenCalled();
+    expect(navigations).toEqual([]);
   });
 
   it('renders a live UTC preview from the create draft', () => {
@@ -172,6 +177,7 @@ describe('CalendarEventDetails', () => {
     expect(textContent(fixture.nativeElement)).toContain('Edit Calendar Event');
     expect(textContent(fixture.nativeElement)).toContain('Main YouTube channel');
     expect(eventTextControls()[0].value).toBe('English title');
+    expect(backLink().getAttribute('href')).toBe('/calendar-events');
   });
 
   it('updates changed edit values and remains on the route', async () => {
@@ -191,6 +197,23 @@ describe('CalendarEventDetails', () => {
     expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event updated.');
     expect(navigations).toEqual([]);
     expect(saveButton().disabled).toBe(true);
+  });
+
+  it('resets dirty edit values in place after confirmed Cancel', () => {
+    service.getById.mockReturnValue(of(testCalendarEventDetails()));
+    confirmation.confirm.mockReturnValue(of('discard'));
+    createComponent(calendarEventId);
+    api().form.texts[0].value().value.set('Updated title');
+    fixture.detectChanges();
+
+    expect(cancelButton().disabled).toBe(false);
+
+    cancelButton().click();
+    fixture.detectChanges();
+
+    expect(eventTextControls()[0].value).toBe('English title');
+    expect(cancelButton().disabled).toBe(true);
+    expect(navigations).toEqual([]);
   });
 
   it('delegates pending route exit to the state confirmation', async () => {
@@ -277,9 +300,7 @@ describe('CalendarEventDetails', () => {
 
     expect(service.recoverPlatformPublication).toHaveBeenCalledWith(calendarEventId, 'platform-1');
     expect(service.getById).toHaveBeenCalledTimes(2);
-    expect(notifications.showSuccess).toHaveBeenCalledWith(
-      'Publication attempt marked as failed.',
-    );
+    expect(notifications.showSuccess).toHaveBeenCalledWith('Publication attempt marked as failed.');
   });
 
   it('renders load failures without the form', () => {
@@ -288,6 +309,7 @@ describe('CalendarEventDetails', () => {
 
     expect(textContent(fixture.nativeElement)).toContain('The calendar event could not be loaded.');
     expect(fixture.nativeElement.querySelector('form')).toBeNull();
+    expect(backLink().getAttribute('href')).toBe('/calendar-events');
   });
 
   it('focuses save errors', async () => {
@@ -412,6 +434,14 @@ describe('CalendarEventDetails', () => {
 
   function appButtonHosts(): HTMLElement[] {
     return Array.from(fixture.nativeElement.querySelectorAll('app-button'));
+  }
+
+  function backLinkHost(): HTMLElement {
+    return fixture.nativeElement.querySelector('app-button-link');
+  }
+
+  function backLink(): HTMLAnchorElement {
+    return backLinkHost().querySelector('a')!;
   }
 
   function deleteButtonHost(): HTMLElement | null {

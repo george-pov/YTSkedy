@@ -9,6 +9,7 @@
   @for (action of data.actions; track action.id) {
     <app-button
       [appearance]="appearanceFor(action)"
+      [intent]="action.intent ?? 'default'"
       (click)="select(action.id)"
     >
       {{ action.label }}

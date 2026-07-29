@@ -72,6 +72,11 @@ class StubShell {}
 
 const guardedEditorRouteCases = [
   {
+    label: 'calendar event create',
+    url: '/calendar-events/new',
+    component: StubCalendarEventDetails,
+  },
+  {
     label: 'calendar event edit',
     url: '/calendar-events/event-1/edit',
     component: StubCalendarEventDetails,
@@ -95,6 +100,12 @@ function configure(fake: FakeAuthFacade) {
           path: 'calendar-events',
           component: StubCalendarEvents,
           canActivate: [authenticatedGuard],
+        },
+        {
+          path: 'calendar-events/new',
+          component: StubCalendarEventDetails,
+          canActivate: [authenticatedGuard],
+          canDeactivate: [pendingChangesGuard],
         },
         {
           path: 'calendar-events/:calendarEventId/edit',
@@ -212,5 +223,4 @@ describe('protected editor routes', () => {
       expect(router.url).toBe('/calendar-events');
     },
   );
-
 });

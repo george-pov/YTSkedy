@@ -66,6 +66,7 @@ export class CalendarEventDetailsState {
   readonly defaultStartErrorMessage = this._defaultStartErrorMessage.asReadonly();
   readonly showLockedEventAlert: Signal<boolean>;
   readonly hasActiveMutation: Signal<boolean>;
+  readonly hasPendingChanges: Signal<boolean>;
   readonly deleteDisabled: Signal<boolean>;
   readonly cancelDisabled: Signal<boolean>;
   readonly saveDisabled: Signal<boolean>;
@@ -90,6 +91,9 @@ export class CalendarEventDetailsState {
       options.destroyRef,
       (): boolean => this.hasActiveMutation(),
     );
+    this.hasPendingChanges = computed(
+      () => this.draft.hasPendingChanges() || this.thumbnailEditor.hasPendingCreateThumbnail(),
+    );
     this.platformsState = new CalendarEventPlatformsState(
       options.calendarEvents,
       options.confirmation,
@@ -97,7 +101,7 @@ export class CalendarEventDetailsState {
       options.calendarEventId,
       options.destroyRef,
       (): boolean => this.hasActivePageMutation(),
-      (): boolean => this.draft.hasPendingChanges(),
+      (): boolean => this.hasPendingChanges(),
       (event): void => this.applyEventDetails(event),
     );
     this.hasActivePageMutation = computed(
@@ -114,7 +118,7 @@ export class CalendarEventDetailsState {
       () => this.isEditMode && (!this.draft.canUpdate() || !this._canDelete()),
     );
     this.deleteDisabled = computed(() => !this._canDelete() || this.hasActiveMutation());
-    this.cancelDisabled = computed(() => this.hasActiveMutation());
+    this.cancelDisabled = computed(() => this.hasActiveMutation() || !this.hasPendingChanges());
     this.saveDisabled = computed(
       () =>
         this.hasActiveMutation() ||
@@ -161,12 +165,7 @@ export class CalendarEventDetailsState {
   }
 
   cancel(): void {
-    if (this.hasActiveMutation()) {
-      return;
-    }
-
-    if (!this.draft.hasPendingChanges()) {
-      this.options.router.navigateByUrl('/calendar-events');
+    if (this.cancelDisabled()) {
       return;
     }
 
@@ -174,7 +173,11 @@ export class CalendarEventDetailsState {
       .pipe(takeUntilDestroyed(this.options.destroyRef))
       .subscribe((discard) => {
         if (discard) {
-          this.options.router.navigateByUrl('/calendar-events');
+          this.draft.resetToBaseline();
+          if (this.thumbnailEditor.hasPendingCreateThumbnail()) {
+            this.thumbnailEditor.clearSelectedThumbnail();
+          }
+          this._saveErrorMessage.set(null);
         }
       });
   }
@@ -184,7 +187,7 @@ export class CalendarEventDetailsState {
       return;
     }
 
-    const deleteConfirmed = this.draft.hasPendingChanges()
+    const deleteConfirmed = this.hasPendingChanges()
       ? this.confirmDiscardEventChanges().pipe(
           switchMap((discard) => (discard ? this.confirmDeleteEvent() : of(false))),
         )
@@ -202,7 +205,7 @@ export class CalendarEventDetailsState {
       return false;
     }
 
-    if (!this.draft.hasPendingChanges()) {
+    if (!this.hasPendingChanges()) {
       return true;
     }
 
@@ -291,8 +294,8 @@ export class CalendarEventDetailsState {
       )
       .subscribe({
         next: (result) => {
+          this.commitCreateState();
           this._isSubmitting.set(false);
-          this.draft.markSaved(this.draft.updateRequest());
           this.options.notifications.showSuccess('Calendar event created.');
           if (result.thumbnailErrorMessage !== null) {
             this.options.router.navigateByUrl(calendarEventEditPath(result.calendarEventId), {
@@ -309,6 +312,11 @@ export class CalendarEventDetailsState {
       });
   }
 
+  private commitCreateState(): void {
+    this.draft.markSaved();
+    this.thumbnailEditor.clearSelectedThumbnail();
+  }
+
   private updateEvent(calendarEventId: string): void {
     const request = this.draft.updateRequest();
 
@@ -320,7 +328,7 @@ export class CalendarEventDetailsState {
       )
       .subscribe({
         next: () => {
-          this.draft.markSaved(request);
+          this.draft.markSaved();
           this._saveErrorMessage.set(null);
           this.options.notifications.showSuccess('Calendar event updated.');
         },
@@ -345,7 +353,7 @@ export class CalendarEventDetailsState {
       .subscribe({
         next: () => {
           this._isDeleting.set(false);
-          this.draft.markSaved(this.draft.updateRequest());
+          this.draft.markSaved();
           this.options.notifications.showSuccess('Calendar event deleted.');
           this.options.router.navigateByUrl('/calendar-events');
         },
@@ -356,7 +364,7 @@ export class CalendarEventDetailsState {
   private applyDeleteError(error: unknown): void {
     if (error instanceof HttpErrorResponse && error.status === 404) {
       this._isDeleting.set(false);
-      this.draft.markSaved(this.draft.updateRequest());
+      this.draft.markSaved();
       this._deleteErrorMessage.set(null);
       this.options.notifications.showSuccess('Calendar event no longer exists.');
       this.options.router.navigateByUrl('/calendar-events');
@@ -378,10 +386,15 @@ export class CalendarEventDetailsState {
       .confirm<'keep-editing' | 'discard'>({
         kind: 'warning',
         title: 'Discard unsaved event changes?',
-        body: 'Scheduled start and event text changes have not been saved.',
+        body: 'Unsaved scheduled start and event text changes, plus any thumbnail selected for a new event, will be lost and cannot be recovered.',
         actions: [
           { id: 'keep-editing', label: 'Keep editing' },
-          { id: 'discard', label: 'Discard changes', primary: true },
+          {
+            id: 'discard',
+            label: 'Discard changes',
+            primary: true,
+            intent: 'danger',
+          },
         ],
       })
       .pipe(map((result) => result === 'discard'));

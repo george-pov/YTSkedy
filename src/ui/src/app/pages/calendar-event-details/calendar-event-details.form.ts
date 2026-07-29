@@ -68,7 +68,9 @@ export function sameCalendarEventStartModel(
   left: CalendarEventStartModel,
   right: CalendarEventStartModel,
 ): boolean {
-  return left.date === right.date && left.time === right.time && left.timeZoneId === right.timeZoneId;
+  return (
+    left.date === right.date && left.time === right.time && left.timeZoneId === right.timeZoneId
+  );
 }
 
 // Signal Forms validation rules. Defined as a function so the page can close
@@ -223,6 +225,13 @@ export function toUpdateCalendarEventRequest(
     },
     texts: toEventTextValues(model),
   };
+}
+
+export function sameCreateCalendarEventRequest(
+  left: CreateCalendarEventRequest,
+  right: CreateCalendarEventRequest,
+): boolean {
+  return sameRequest(left, right);
 }
 
 export function sameUpdateCalendarEventRequest(

@@ -38,6 +38,7 @@ export class ThumbnailEditorState {
   readonly canUpdate = this._canUpdate.asReadonly();
   readonly isUploading = this._isUploading.asReadonly();
   readonly isDeleting = this._isDeleting.asReadonly();
+  readonly hasPendingCreateThumbnail: Signal<boolean>;
   readonly canMutate: Signal<boolean>;
 
   constructor(
@@ -49,6 +50,9 @@ export class ThumbnailEditorState {
     private readonly hasActiveMutation: () => boolean,
   ) {
     this._canUpdate.set(!isEditMode);
+    this.hasPendingCreateThumbnail = computed(
+      () => !this.isEditMode && this._selectedFile() !== null,
+    );
     this.canMutate = computed(
       () => !this.hasActiveMutation() && (!this.isEditMode || this._canUpdate()),
     );
@@ -111,11 +115,7 @@ export class ThumbnailEditorState {
   }
 
   uploadThumbnail(file: File): void {
-    if (
-      this.calendarEventId === null ||
-      this._thumbnail() !== null ||
-      !this.canMutate()
-    ) {
+    if (this.calendarEventId === null || this._thumbnail() !== null || !this.canMutate()) {
       return;
     }
 
@@ -147,11 +147,7 @@ export class ThumbnailEditorState {
   }
 
   deleteThumbnail(): void {
-    if (
-      this.calendarEventId === null ||
-      this._thumbnail() === null ||
-      !this.canMutate()
-    ) {
+    if (this.calendarEventId === null || this._thumbnail() === null || !this.canMutate()) {
       return;
     }
 

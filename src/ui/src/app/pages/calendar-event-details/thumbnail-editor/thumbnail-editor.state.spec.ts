@@ -1,6 +1,6 @@
 import { type DestroyRef } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Observable, of, Subject } from 'rxjs';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import {
@@ -190,6 +190,47 @@ describe('ThumbnailEditorState', () => {
 
     expect(service.uploadThumbnail).not.toHaveBeenCalled();
     expect(state.selectedFile()).toBeNull();
+  });
+
+  it('treats only a valid create-mode selection as pending and revokes it when cleared', () => {
+    const state = createState(null, false);
+
+    state.selectThumbnail(imageFile());
+
+    expect(state.hasPendingCreateThumbnail()).toBe(true);
+    expect(state.selectedFile()).not.toBeNull();
+
+    state.clearSelectedThumbnail();
+
+    expect(state.hasPendingCreateThumbnail()).toBe(false);
+    expect(state.selectedFile()).toBeNull();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:thumbnail-1');
+  });
+
+  it('keeps an invalid create-mode selection outside pending state', () => {
+    const state = createState(null, false);
+
+    state.selectThumbnail(imageFile('stream.gif', 'image/gif'));
+
+    expect(state.hasPendingCreateThumbnail()).toBe(false);
+    expect(state.selectedFile()).toBeNull();
+    expect(state.errorMessage()).toContain('JPEG or PNG');
+  });
+
+  it('keeps an edit upload failure outside main-form pending state', () => {
+    const file = imageFile();
+    service.uploadThumbnail.mockReturnValue(throwError(() => new Error('network')));
+    const state = createState();
+    state.applyEventDetails({
+      thumbnail: null,
+      canUpdateThumbnail: true,
+    });
+
+    state.uploadThumbnail(file);
+
+    expect(state.selectedFile()).toBe(file);
+    expect(state.hasPendingCreateThumbnail()).toBe(false);
+    expect(state.errorMessage()).toContain('Check your connection');
   });
 
   it('clears upload-after-create mutation state before emitting success', () => {

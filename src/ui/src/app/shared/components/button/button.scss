@@ -1,0 +1,23 @@
+@use '@angular/material' as mat;
+@use 'src/styles/variables' as *;
+
+// Explicit interaction opacities keep hover, focus, and pressed treatments
+// distinct. Disabled tokens remain Material-owned and unchanged.
+.danger {
+  @include mat.button-overrides(
+    (
+      filled-container-color: $app-color-action-accent,
+      filled-label-text-color: $app-color-white,
+      filled-state-layer-color: $app-color-white,
+      filled-ripple-color: $app-color-white,
+      filled-hover-state-layer-opacity: 0.08,
+      filled-focus-state-layer-opacity: 0.12,
+      filled-pressed-state-layer-opacity: 0.14,
+    )
+  );
+
+  &.mat-mdc-unelevated-button:focus-visible {
+    outline: 2px solid $app-color-white;
+    outline-offset: -4px;
+  }
+}

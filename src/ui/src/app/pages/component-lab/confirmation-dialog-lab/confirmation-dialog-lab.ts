@@ -49,18 +49,21 @@ export class ConfirmationDialogLab {
       .confirm({
         kind: 'warning',
         title: 'Discard unsaved changes?',
-        body: 'Your edits to this event have not been saved. Leaving now discards them.',
+        body: 'Your unsaved changes will be lost and cannot be recovered.',
         actions: [
           { id: 'stay', label: 'Keep editing' },
-          { id: 'discard', label: 'Discard changes', primary: true },
+          {
+            id: 'discard',
+            label: 'Discard changes',
+            primary: true,
+            intent: 'danger',
+          },
         ],
       })
       .subscribe((result) => this.report(result));
   }
 
   private report(result: string | undefined): void {
-    this.lastResult.set(
-      result === undefined ? 'Dismissed' : `Selected: ${result}`,
-    );
+    this.lastResult.set(result === undefined ? 'Dismissed' : `Selected: ${result}`);
   }
 }

@@ -4,6 +4,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { Button } from 'src/app/shared/components/button/button';
 import { Icon } from 'src/app/shared/components/icon/icon';
 import { ConfirmationDialog, ConfirmationDialogContent } from './confirmation-dialog';
 
@@ -42,6 +43,12 @@ describe('ConfirmationDialog', () => {
 
   function actionButtons(fixture: ComponentFixture<ConfirmationDialog>): HTMLButtonElement[] {
     return Array.from(fixture.nativeElement.querySelectorAll('app-button button'));
+  }
+
+  function actionButtonComponents(fixture: ComponentFixture<ConfirmationDialog>): Button[] {
+    return fixture.debugElement
+      .queryAll(By.directive(Button))
+      .map((button) => button.componentInstance as Button);
   }
 
   it('renders the title and body', () => {
@@ -85,12 +92,39 @@ describe('ConfirmationDialog', () => {
     expect(labels).toEqual(['Cancel', 'Delete']);
   });
 
-  it('closes with the selected action id', () => {
+  it('passes default and danger intents without changing action order', () => {
+    const fixture = setup(
+      content({
+        actions: [
+          { id: 'stay', label: 'Keep editing' },
+          {
+            id: 'discard',
+            label: 'Discard changes',
+            primary: true,
+            intent: 'danger',
+          },
+        ],
+      }),
+    );
+    const buttons = actionButtonComponents(fixture);
+
+    expect(actionButtons(fixture).map((button) => button.textContent?.trim())).toEqual([
+      'Keep editing',
+      'Discard changes',
+    ]);
+    expect(buttons.map((button) => button.appearance())).toEqual(['text', 'filled']);
+    expect(buttons.map((button) => button.intent())).toEqual(['default', 'danger']);
+  });
+
+  it.each([
+    [0, 'cancel'],
+    [1, 'delete'],
+  ] as const)('closes with action %s selected as %s', (actionIndex, actionId) => {
     const fixture = setup();
 
-    actionButtons(fixture)[1].click();
+    actionButtons(fixture)[actionIndex].click();
 
-    expect(close).toHaveBeenCalledWith('delete');
+    expect(close).toHaveBeenCalledWith(actionId);
   });
 
   it('does not close until an action is chosen', () => {

@@ -1,32 +1,22 @@
-import {
-  booleanAttribute,
-  ChangeDetectionStrategy,
-  Component,
-  input,
-} from '@angular/core';
+import { booleanAttribute, ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 
-import {
-  Icon,
-  type IconName,
-} from 'src/app/shared/components/icon/icon';
+import { Icon, type IconName } from 'src/app/shared/components/icon/icon';
 
-export type ButtonAppearance =
-  | 'text'
-  | 'filled'
-  | 'elevated'
-  | 'outlined'
-  | 'tonal';
+export type ButtonAppearance = 'text' | 'filled' | 'elevated' | 'outlined' | 'tonal';
+export type ButtonIntent = 'default' | 'danger';
 type ButtonType = 'button' | 'submit' | 'reset';
 
 @Component({
   selector: 'app-button',
   imports: [MatButtonModule, Icon],
   templateUrl: './button.html',
+  styleUrl: './button.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Button {
   readonly appearance = input<ButtonAppearance>('filled');
+  readonly intent = input<ButtonIntent>('default');
   readonly disabled = input(false, { transform: booleanAttribute });
   readonly type = input<ButtonType>('button');
 

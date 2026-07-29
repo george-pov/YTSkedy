@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { type IconName } from 'src/app/shared/components/icon/icon';
-import { Button } from './button';
+import { Button, type ButtonIntent } from './button';
 
 @Component({
   selector: 'app-button-host',
@@ -14,6 +14,7 @@ import { Button } from './button';
       [iconButton]="iconButton()"
       [ariaLabel]="ariaLabel()"
       [disabled]="disabled()"
+      [intent]="intent()"
       (click)="clickCount = clickCount + 1"
     >
       {{ label() }}
@@ -25,6 +26,7 @@ class ButtonHost {
   readonly iconButton = signal(false);
   readonly ariaLabel = signal<string | undefined>(undefined);
   readonly disabled = signal(false);
+  readonly intent = signal<ButtonIntent>('default');
   readonly label = signal('Save');
   clickCount = 0;
 }
@@ -47,8 +49,18 @@ describe('Button', () => {
   });
 
   it('renders a text button with no icon by default', () => {
-    expect(buttonEl(fixture).textContent).toContain('Save');
+    const button = buttonEl(fixture);
+
+    expect(button.textContent).toContain('Save');
+    expect(button.classList).not.toContain('danger');
     expect(fixture.nativeElement.querySelector('app-icon')).toBeNull();
+  });
+
+  it('applies danger intent to the native button', () => {
+    host.intent.set('danger');
+    fixture.detectChanges();
+
+    expect(buttonEl(fixture).classList).toContain('danger');
   });
 
   it('renders a leading icon alongside the label when icon is set', () => {
@@ -86,8 +98,12 @@ describe('Button', () => {
 
   it('reflects the disabled state on the native button', () => {
     host.disabled.set(true);
+    host.intent.set('danger');
     fixture.detectChanges();
 
-    expect(buttonEl(fixture).disabled).toBe(true);
+    const button = buttonEl(fixture);
+
+    expect(button.classList).toContain('danger');
+    expect(button.disabled).toBe(true);
   });
 });

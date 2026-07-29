@@ -2,6 +2,7 @@
   <header class="header">
     <h1>{{ state.pageTitle }}</h1>
     <p>{{ state.pageDescription }}</p>
+    <app-button-link route="/calendar-events">Back to events</app-button-link>
   </header>
 
   @if (state.showLoading()) {

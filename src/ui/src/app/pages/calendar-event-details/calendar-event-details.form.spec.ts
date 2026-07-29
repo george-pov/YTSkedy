@@ -11,6 +11,7 @@ import {
   createCalendarEventDetailsModel,
   eventTextFieldsToModel,
   patchCalendarEventDetailsModel,
+  sameCreateCalendarEventRequest,
   sameUpdateCalendarEventRequest,
   sameCalendarEventStartModel,
   toCreateCalendarEventRequest,
@@ -69,6 +70,20 @@ describe('calendar event details form mapping', () => {
         },
       ],
     });
+  });
+
+  it('compares normalized create requests', () => {
+    const request = toCreateCalendarEventRequest(model());
+
+    expect(sameCreateCalendarEventRequest(request, toCreateCalendarEventRequest(model()))).toBe(
+      true,
+    );
+    expect(
+      sameCreateCalendarEventRequest(request, {
+        ...request,
+        texts: [{ ...request.texts[0], value: 'Updated English title' }, request.texts[1]],
+      }),
+    ).toBe(false);
   });
 
   it('patches edit model values from the stored event text snapshot', () => {
@@ -197,7 +212,11 @@ describe('calendar event details form mapping', () => {
   it('enables start controls in edit mode when canUpdate returns true', () => {
     const detailsForm = TestBed.runInInjectionContext(() =>
       form(signal(model()), (path) =>
-        applyCalendarEventDetailsRules(path, () => true, () => true),
+        applyCalendarEventDetailsRules(
+          path,
+          () => true,
+          () => true,
+        ),
       ),
     );
 
@@ -210,7 +229,11 @@ describe('calendar event details form mapping', () => {
   it('disables start controls in edit mode when canUpdate returns false', () => {
     const detailsForm = TestBed.runInInjectionContext(() =>
       form(signal(model()), (path) =>
-        applyCalendarEventDetailsRules(path, () => true, () => false),
+        applyCalendarEventDetailsRules(
+          path,
+          () => true,
+          () => false,
+        ),
       ),
     );
 

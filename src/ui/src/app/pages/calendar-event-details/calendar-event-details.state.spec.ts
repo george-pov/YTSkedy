@@ -125,12 +125,20 @@ describe('CalendarEventDetailsState', () => {
 
   it('validates and creates an event before navigating to the list', () => {
     const state = createState();
+    calendarEvents['uploadThumbnail'].mockReturnValue(of({}));
     router.navigateByUrl.mockImplementation(() => {
+      expect(state.hasPendingChanges()).toBe(false);
+      expect(state.thumbnailEditor.selectedFile()).toBeNull();
       expect(state.canDeactivateWithPendingChanges()).toBe(true);
       return Promise.resolve(true);
     });
     state.initialize();
     fillValidDraft(state);
+    state.thumbnailEditor.selectThumbnail(
+      new File(['thumbnail'], 'stream.png', {
+        type: 'image/png',
+      }),
+    );
 
     state.submit();
 
@@ -140,6 +148,7 @@ describe('CalendarEventDetailsState', () => {
     });
     expect(notifications.showSuccess).toHaveBeenCalledWith('Calendar event created.');
     expect(router.navigateByUrl).toHaveBeenCalledWith('/calendar-events');
+    expect(state.cancelDisabled()).toBe(true);
   });
 
   it('does not create when the draft is invalid', () => {
@@ -162,6 +171,12 @@ describe('CalendarEventDetailsState', () => {
         type: 'image/png',
       }),
     );
+    router.navigateByUrl.mockImplementation(() => {
+      expect(state.hasPendingChanges()).toBe(false);
+      expect(state.thumbnailEditor.selectedFile()).toBeNull();
+      expect(state.canDeactivateWithPendingChanges()).toBe(true);
+      return Promise.resolve(true);
+    });
 
     state.submit();
 
@@ -176,6 +191,24 @@ describe('CalendarEventDetailsState', () => {
           'The thumbnail could not be changed. Check your connection and try again.',
       },
     });
+  });
+
+  it('preserves the selected create thumbnail when event creation fails', () => {
+    calendarEvents['create'].mockReturnValue(throwError(() => new Error('network')));
+    const state = createState();
+    state.initialize();
+    fillValidDraft(state);
+    const file = new File(['thumbnail'], 'stream.png', {
+      type: 'image/png',
+    });
+    state.thumbnailEditor.selectThumbnail(file);
+
+    state.submit();
+
+    expect(state.thumbnailEditor.selectedFile()).toBe(file);
+    expect(state.hasPendingChanges()).toBe(true);
+    expect(state.saveErrorMessage()).toContain('Check your connection');
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 
   it('updates an edited event and replaces the pending-change baseline', () => {
@@ -229,19 +262,122 @@ describe('CalendarEventDetailsState', () => {
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 
-  it('confirms pending changes before cancel navigation', () => {
+  it('keeps clean Cancel disabled and inert', () => {
+    const state = createState();
+    state.initialize();
+
+    state.cancel();
+
+    expect(state.hasPendingChanges()).toBe(false);
+    expect(state.cancelDisabled()).toBe(true);
+    expect(confirmation.confirm).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('confirms and resets edit changes in place', () => {
     calendarEvents['getById'].mockReturnValue(of(testEvent()));
     confirmation.confirm.mockReturnValue(of('discard'));
     const state = createState('event-1');
     state.initialize();
     state.draft.form.texts[0].value().value.set('Updated title');
+    state.draft.form.texts[0].value().markAsTouched();
 
     state.cancel();
 
     expect(confirmation.confirm).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Discard unsaved event changes?' }),
+      expect.objectContaining({
+        title: 'Discard unsaved event changes?',
+        body: expect.stringContaining('thumbnail selected for a new event'),
+        actions: [
+          { id: 'keep-editing', label: 'Keep editing' },
+          {
+            id: 'discard',
+            label: 'Discard changes',
+            primary: true,
+            intent: 'danger',
+          },
+        ],
+      }),
     );
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/calendar-events');
+    expect(state.draft.model().texts[0].value).toBe('English title');
+    expect(state.draft.form.texts[0].value().touched()).toBe(false);
+    expect(state.hasPendingChanges()).toBe(false);
+    expect(state.cancelDisabled()).toBe(true);
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('resets create changes, validation state, save error, and local thumbnail in place', () => {
+    calendarEvents['create'].mockReturnValue(throwError(() => new Error('network')));
+    confirmation.confirm.mockReturnValue(of('discard'));
+    const state = createState();
+    state.initialize();
+    const baseline = state.draft.model();
+    fillValidDraft(state);
+    state.draft.form.start.date().markAsTouched();
+    state.thumbnailEditor.selectThumbnail(
+      new File(['thumbnail'], 'stream.png', {
+        type: 'image/png',
+      }),
+    );
+    state.submit();
+
+    expect(state.saveErrorMessage()).not.toBeNull();
+    expect(state.hasPendingChanges()).toBe(true);
+
+    state.cancel();
+
+    expect(state.draft.model()).toMatchObject(baseline);
+    expect(state.draft.form.start.date().touched()).toBe(false);
+    expect(state.thumbnailEditor.selectedFile()).toBeNull();
+    expect(state.saveErrorMessage()).toBeNull();
+    expect(state.hasPendingChanges()).toBe(false);
+    expect(state.cancelDisabled()).toBe(true);
+    expect(calendarEvents['uploadThumbnail']).not.toHaveBeenCalled();
+    expect(calendarEvents['deleteThumbnail']).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('resets a thumbnail-only create change without calling thumbnail APIs', () => {
+    confirmation.confirm.mockReturnValue(of('discard'));
+    const state = createState();
+    state.initialize();
+    state.thumbnailEditor.selectThumbnail(
+      new File(['thumbnail'], 'stream.png', {
+        type: 'image/png',
+      }),
+    );
+
+    expect(state.draft.hasPendingChanges()).toBe(false);
+    expect(state.hasPendingChanges()).toBe(true);
+    expect(state.cancelDisabled()).toBe(false);
+
+    state.cancel();
+
+    expect(state.thumbnailEditor.selectedFile()).toBeNull();
+    expect(state.hasPendingChanges()).toBe(false);
+    expect(calendarEvents['uploadThumbnail']).not.toHaveBeenCalled();
+    expect(calendarEvents['deleteThumbnail']).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('preserves create values, validation state, and thumbnail when discard is rejected', () => {
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+    const state = createState();
+    state.initialize();
+    fillValidDraft(state);
+    state.draft.form.start.date().markAsTouched();
+    const file = new File(['thumbnail'], 'stream.png', {
+      type: 'image/png',
+    });
+    state.thumbnailEditor.selectThumbnail(file);
+
+    state.cancel();
+
+    expect(state.draft.model().texts[0].value).toBe('English title');
+    expect(state.draft.form.start.date().touched()).toBe(true);
+    expect(state.thumbnailEditor.selectedFile()).toBe(file);
+    expect(state.hasPendingChanges()).toBe(true);
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 
   it('delegates pending route exit to the discard confirmation', async () => {
@@ -250,6 +386,22 @@ describe('CalendarEventDetailsState', () => {
     const state = createState('event-1');
     state.initialize();
     state.draft.form.texts[0].value().value.set('Updated title');
+
+    const decision = state.canDeactivateWithPendingChanges();
+
+    expect(typeof decision).not.toBe('boolean');
+    expect(await firstValueFrom(decision as Observable<boolean>)).toBe(false);
+  });
+
+  it('delegates thumbnail-only create route exit to the discard confirmation', async () => {
+    confirmation.confirm.mockReturnValue(of('keep-editing'));
+    const state = createState();
+    state.initialize();
+    state.thumbnailEditor.selectThumbnail(
+      new File(['thumbnail'], 'stream.png', {
+        type: 'image/png',
+      }),
+    );
 
     const decision = state.canDeactivateWithPendingChanges();
 

@@ -16,6 +16,10 @@ import { pendingChangesGuard } from './shared/routing/pending-changes-guard';
 
 const guardedEditorRouteCases = [
   {
+    path: 'calendar-events/new',
+    component: CalendarEventDetails,
+  },
+  {
     path: 'calendar-events/:calendarEventId/edit',
     component: CalendarEventDetails,
   },
@@ -51,16 +55,6 @@ describe('routes', () => {
     expect(layoutRoute?.children).toContainEqual({
       path: 'calendar-events',
       component: CalendarEvents,
-      canActivate: [authenticatedGuard],
-    });
-  });
-
-  it('keeps calendar event create available without pending-change route protection', () => {
-    const layoutRoute = routes.find(({ path }) => path === '');
-
-    expect(layoutRoute?.children).toContainEqual({
-      path: 'calendar-events/new',
-      component: CalendarEventDetails,
       canActivate: [authenticatedGuard],
     });
   });

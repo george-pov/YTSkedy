@@ -11,10 +11,12 @@ import { type EventTextField } from 'src/app/shared/api/settings/event-text-fiel
 import {
   applyCalendarEventDetailsRules,
   applyCalendarEventDefaultStart,
+  type CalendarEventDetailsModel,
   createCalendarEventDetailsModel,
   eventTextFieldsToModel,
   formatScheduledStartUtcIso,
   patchCalendarEventDetailsModel,
+  sameCreateCalendarEventRequest,
   sameUpdateCalendarEventRequest,
   sameCalendarEventStartModel,
   scheduledStartUtcPreview,
@@ -24,7 +26,7 @@ import {
 
 export class CalendarEventDraftState {
   private readonly _canUpdate = signal(true);
-  private readonly savedRequest = signal<UpdateCalendarEventRequest | null>(null);
+  private readonly baselineModel = signal<CalendarEventDetailsModel | null>(null);
   private readonly loadedScheduledStartUtc = signal<string | null>(null);
   private readonly initialCreateStart;
 
@@ -38,13 +40,21 @@ export class CalendarEventDraftState {
     ),
   );
   readonly hasPendingChanges = computed(() => {
-    const saved = this.savedRequest();
-    return (
-      this.isEditMode &&
-      this._canUpdate() &&
-      saved !== null &&
-      !sameUpdateCalendarEventRequest(this.updateRequest(), saved)
-    );
+    const baseline = this.baselineModel();
+    if (baseline === null) {
+      return false;
+    }
+
+    return this.isEditMode
+      ? this._canUpdate() &&
+          !sameUpdateCalendarEventRequest(
+            this.updateRequest(),
+            toUpdateCalendarEventRequest(baseline),
+          )
+      : !sameCreateCalendarEventRequest(
+          this.createRequest(),
+          toCreateCalendarEventRequest(baseline),
+        );
   });
   readonly scheduledStartUtcDisplay = computed(() => {
     if (!this.isEditMode || this._canUpdate()) {
@@ -63,14 +73,24 @@ export class CalendarEventDraftState {
   constructor(readonly isEditMode: boolean) {
     this._canUpdate.set(!isEditMode);
     this.initialCreateStart = { ...this.model().start };
+    if (!isEditMode) {
+      this.baselineModel.set(cloneCalendarEventDetailsModel(this.model()));
+    }
   }
 
   applyCurrentFields(fields: readonly EventTextField[]): void {
     this.model.update((model) => ({
       ...model,
-      start: { ...model.start },
       texts: eventTextFieldsToModel(fields),
     }));
+    this.baselineModel.update((baseline) =>
+      baseline === null
+        ? null
+        : {
+            ...baseline,
+            texts: eventTextFieldsToModel(fields),
+          },
+    );
   }
 
   applyDefaultStart(defaultStart: CalendarEventDefaultStart): void {
@@ -85,19 +105,36 @@ export class CalendarEventDraftState {
       ...model,
       start: applyCalendarEventDefaultStart(model.start, defaultStart),
     }));
+    this.baselineModel.update((baseline) =>
+      baseline === null
+        ? null
+        : {
+            ...baseline,
+            start: applyCalendarEventDefaultStart(baseline.start, defaultStart),
+          },
+    );
   }
 
   applyEventDetails(event: CalendarEventDetailsResponse): void {
     patchCalendarEventDetailsModel(this.model, event);
-    this.savedRequest.set(this.updateRequest());
+    this.baselineModel.set(cloneCalendarEventDetailsModel(this.model()));
     this.loadedScheduledStartUtc.set(event.scheduledStartUtc);
     this._canUpdate.set(event.canUpdate);
   }
 
   resetAfterLoadFailure(): void {
     this._canUpdate.set(false);
-    this.savedRequest.set(null);
+    this.baselineModel.set(null);
     this.loadedScheduledStartUtc.set(null);
+  }
+
+  resetToBaseline(): void {
+    const baseline = this.baselineModel();
+    if (baseline === null) {
+      return;
+    }
+
+    this.form().reset(cloneCalendarEventDetailsModel(baseline));
   }
 
   validate(): boolean {
@@ -117,7 +154,22 @@ export class CalendarEventDraftState {
     return toUpdateCalendarEventRequest(this.model());
   }
 
-  markSaved(request: UpdateCalendarEventRequest): void {
-    this.savedRequest.set(request);
+  markSaved(): void {
+    this.baselineModel.set(cloneCalendarEventDetailsModel(this.model()));
   }
+}
+
+function cloneCalendarEventDetailsModel(
+  model: CalendarEventDetailsModel,
+): CalendarEventDetailsModel {
+  return {
+    start: { ...model.start },
+    texts: model.texts.map((text) => ({
+      fieldKey: text.fieldKey,
+      label: text.label,
+      type: text.type,
+      maxLength: text.maxLength,
+      value: text.value,
+    })),
+  };
 }

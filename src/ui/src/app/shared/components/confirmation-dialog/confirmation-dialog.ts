@@ -1,18 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import {
-  MAT_DIALOG_DATA,
-  MatDialogModule,
-  MatDialogRef,
-} from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 
 import {
   Button,
-  ButtonAppearance,
+  type ButtonAppearance,
+  type ButtonIntent,
 } from 'src/app/shared/components/button/button';
-import {
-  Icon,
-  type IconName,
-} from 'src/app/shared/components/icon/icon';
+import { Icon, type IconName } from 'src/app/shared/components/icon/icon';
 
 /**
  * Visual treatment for a confirmation. Mirrors the alert variants so a delete,
@@ -39,6 +33,8 @@ export interface ConfirmationAction<TId extends string = string> {
    * `text` for the rest.
    */
   readonly appearance?: ButtonAppearance;
+  /** Semantic risk communicated independently from button appearance. */
+  readonly intent?: ButtonIntent;
   /** Marks the confirming action. It renders `filled` unless overridden. */
   readonly primary?: boolean;
 }
@@ -86,8 +82,7 @@ export interface ConfirmationDialogContent extends ConfirmationDialogData {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConfirmationDialog {
-  private readonly dialogRef =
-    inject<MatDialogRef<ConfirmationDialog, string>>(MatDialogRef);
+  private readonly dialogRef = inject<MatDialogRef<ConfirmationDialog, string>>(MatDialogRef);
 
   protected readonly data = inject<ConfirmationDialogContent>(MAT_DIALOG_DATA);
 

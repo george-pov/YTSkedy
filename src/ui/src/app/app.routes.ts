@@ -33,6 +33,7 @@ export const routes: Routes = [
         path: 'calendar-events/new',
         component: CalendarEventDetails,
         canActivate: [authenticatedGuard],
+        canDeactivate: [pendingChangesGuard],
       },
       {
         path: 'calendar-events/:calendarEventId/edit',
