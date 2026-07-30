@@ -7,7 +7,7 @@
 
 // Explicit interaction opacities keep hover, focus, and pressed treatments
 // distinct. Disabled tokens remain Material-owned and unchanged.
-.danger {
+.is-danger {
   @include mat.button-overrides(
     (
       filled-container-color: $app-color-action-accent,
@@ -20,7 +20,7 @@
     )
   );
 
-  &.mat-mdc-unelevated-button:focus-visible {
+  &:focus-visible {
     outline: 2px solid $app-color-white;
     outline-offset: -4px;
   }

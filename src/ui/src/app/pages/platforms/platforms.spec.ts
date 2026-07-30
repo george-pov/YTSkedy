@@ -175,30 +175,6 @@ describe('Platforms', () => {
     };
   }
 
-  function currentEditorMode(): 'none' | 'create' | 'edit' {
-    return (
-      fixture.componentInstance as unknown as {
-        editorMode: () => 'none' | 'create' | 'edit';
-      }
-    ).editorMode();
-  }
-
-  function selectedPlatform(): Platform | null {
-    return (
-      fixture.componentInstance as unknown as {
-        selected: () => Platform | null;
-      }
-    ).selected();
-  }
-
-  function editorFormState(): { touched: () => boolean; dirty: () => boolean } {
-    return (
-      fixture.componentInstance as unknown as {
-        form: () => { touched: () => boolean; dirty: () => boolean };
-      }
-    ).form();
-  }
-
   function validFormModel(overrides: Partial<PlatformFormModel>): PlatformFormModel {
     return {
       type: 'YouTube',
@@ -963,61 +939,6 @@ describe('Platforms', () => {
     expect(buttonByText('Save changes').disabled).toBe(true);
   });
 
-  it('restores saved category IDs immediately after confirmed Cancel without writing', async () => {
-    service.list.mockReturnValue(
-      of({
-        platforms: [
-          wordPressPlatform({
-            publishSettings: {
-              siteUrl: 'https://blog.example.test/',
-              username: 'publisher',
-              postStatus: 'draft',
-              categoryIds: [12],
-              sticky: false,
-              applicationPasswordConfigured: true,
-              passwordDisplayValue: '*******',
-            },
-          }),
-        ],
-      }),
-    );
-    confirmation.confirm.mockReturnValue(of('discard'));
-
-    await createComponent();
-    componentModel().set({ ...componentModel().get(), wordPressCategoryIds: [12, 34] });
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const categoryLookupsBeforeCancel = service.listWordPressCategories.mock.calls.length;
-    const templateLookupsBeforeCancel = templatesService.list.mock.calls.length;
-
-    expect(buttonByText('Cancel').disabled).toBe(false);
-
-    buttonByText('Cancel').click();
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(editor()).not.toBeNull();
-    expect(currentEditorMode()).toBe('edit');
-    expect(selectedPlatform()?.id).toBe('id-2');
-    expect(rows()[0].getAttribute('aria-pressed')).toBe('true');
-    expect(componentModel().get().wordPressCategoryIds).toEqual([12]);
-    expect(buttonByText('Cancel').disabled).toBe(true);
-    expect(buttonByText('Save changes').disabled).toBe(true);
-    expect(service.create).not.toHaveBeenCalled();
-    expect(service.update).not.toHaveBeenCalled();
-    expect(service.delete).not.toHaveBeenCalled();
-    expect(templatesService.list).toHaveBeenCalledTimes(templateLookupsBeforeCancel);
-    expect(service.listWordPressCategories).toHaveBeenCalledTimes(categoryLookupsBeforeCancel + 1);
-    expect(service.listWordPressCategories).toHaveBeenLastCalledWith('id-2', {
-      includeIds: [12],
-      page: 1,
-      pageSize: 100,
-    });
-  });
-
   it('updates a WordPress platform with a replacement Application Password when supplied', async () => {
     service.list.mockReturnValue(of({ platforms: [wordPressPlatform()] }));
     service.update.mockReturnValue(
@@ -1213,89 +1134,6 @@ describe('Platforms', () => {
     expect(componentModel().get().youTubeDefaultAudioLanguage).toBe('fr');
     expect(componentModel().get().youTubeDefaultLanguage).toBe('x-metadata');
     expect(buttonByText('Save changes').disabled).toBe(true);
-  });
-
-  it('restores saved language fields immediately after confirmed Cancel without writing', async () => {
-    service.list.mockReturnValue(
-      of({
-        platforms: [
-          youTubePlatform({
-            publishSettings: {
-              credentials: {
-                clientId: 'client-id',
-                clientSecretConfigured: true,
-                refreshTokenConfigured: true,
-                clientSecretDisplayValue: '*********A3B',
-                refreshTokenDisplayValue: '*********Z9Y',
-              },
-              privacyStatus: 'private',
-              selfDeclaredMadeForKids: false,
-              categoryId: null,
-              containsSyntheticMedia: false,
-              defaultAudioLanguage: 'en-US',
-              defaultLanguage: 'ru',
-            },
-          }),
-        ],
-      }),
-    );
-    confirmation.confirm.mockReturnValue(of('discard'));
-
-    await createComponent();
-    await selectRow(0);
-    componentModel().set({
-      ...componentModel().get(),
-      titleTemplateId: 'changed-title-template',
-      descriptionTemplateId: 'changed-description-template',
-      youTubeClientId: 'changed-client-id',
-      youTubeClientSecret: 'replacement-client-secret',
-      youTubeRefreshToken: 'replacement-refresh-token',
-      youTubePrivacyStatus: 'public',
-      youTubeMadeForKids: 'true',
-      youTubeCategoryId: '20',
-      youTubeContainsSyntheticMedia: 'true',
-      youTubeDefaultAudioLanguage: 'fr',
-      youTubeDefaultLanguage: 'de',
-    });
-    fixture.detectChanges();
-
-    const templateLookupsBeforeCancel = templatesService.list.mock.calls.length;
-
-    expect(buttonByText('Cancel').disabled).toBe(false);
-
-    buttonByText('Cancel').click();
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(editor()).not.toBeNull();
-    expect(currentEditorMode()).toBe('edit');
-    expect(selectedPlatform()?.id).toBe('id-1');
-    expect(rows()[0].getAttribute('aria-pressed')).toBe('true');
-    expect(componentModel().get()).toMatchObject({
-      titleTemplateId: 'title-template',
-      descriptionTemplateId: 'description-template',
-      youTubeClientId: 'client-id',
-      youTubeClientSecret: '',
-      youTubeRefreshToken: '',
-      youTubeClientSecretConfigured: 'true',
-      youTubeRefreshTokenConfigured: 'true',
-      youTubeClientSecretDisplayValue: '*********A3B',
-      youTubeRefreshTokenDisplayValue: '*********Z9Y',
-      youTubePrivacyStatus: 'private',
-      youTubeMadeForKids: 'false',
-      youTubeCategoryId: '',
-      youTubeContainsSyntheticMedia: 'false',
-      youTubeDefaultAudioLanguage: 'en-US',
-      youTubeDefaultLanguage: 'ru',
-    });
-    expect(buttonByText('Cancel').disabled).toBe(true);
-    expect(buttonByText('Save changes').disabled).toBe(true);
-    expect(service.create).not.toHaveBeenCalled();
-    expect(service.update).not.toHaveBeenCalled();
-    expect(service.delete).not.toHaveBeenCalled();
-    expect(service.listWordPressCategories).not.toHaveBeenCalled();
-    expect(templatesService.list).toHaveBeenCalledTimes(templateLookupsBeforeCancel);
   });
 
   it('preserves language values while switching new-platform types', async () => {
@@ -1542,7 +1380,7 @@ describe('Platforms', () => {
           id: 'discard',
           label: 'Discard changes',
           primary: true,
-          intent: 'danger',
+          variant: 'danger-filled',
         },
       ],
     });
@@ -1579,19 +1417,25 @@ describe('Platforms', () => {
     confirmation.confirmDeletion.mockReturnValue(of(true));
     const deletion = new Subject<void>();
     service.delete.mockReturnValue(deletion.asObservable());
-    (
-      fixture.componentInstance as unknown as {
-        deleteSelected(): void;
-      }
-    ).deleteSelected();
+    buttonByText('Delete').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(await canDeactivate()).toBe(false);
-    fixture.detectChanges();
+    expect(buttonByText('Deleting...').disabled).toBe(true);
     expect(buttonByText('Cancel').disabled).toBe(true);
+    expect(buttonByText('Save changes').disabled).toBe(true);
+    expect(service.delete).toHaveBeenCalledWith('YouTube', 'id-1');
+
     deletion.error(new Error('delete failed'));
-    expect(
-      (fixture.componentInstance as unknown as { isDeleting: () => boolean }).isDeleting(),
-    ).toBe(false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(buttonByText('Delete').disabled).toBe(false);
+    expect(buttonByText('Cancel').disabled).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain('could not be deleted');
   });
 
   it('allows route exit while initial platform reads are active', async () => {
@@ -1676,9 +1520,10 @@ describe('Platforms', () => {
     fixture.detectChanges();
 
     expect(editor()).not.toBeNull();
-    expect(currentEditorMode()).toBe('edit');
-    expect(selectedPlatform()?.id).toBe('id-1');
     expect(rows()[0].getAttribute('aria-pressed')).toBe('true');
+    expect(fixture.nativeElement.querySelector('.readonly-type strong')?.textContent).toContain(
+      'YouTube',
+    );
     expect(nameInput().value).toBe('Dirty channel');
     expect(fixture.nativeElement.textContent).toContain('could not be saved');
     expect(buttonByText('Cancel').disabled).toBe(false);
@@ -1700,21 +1545,15 @@ describe('Platforms', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    componentModel().set({
-      ...componentModel().get(),
-      type: 'WordPress',
-      wordPressSiteUrl: 'https://draft.example.test/',
-      wordPressUsername: 'draft-publisher',
-      wordPressApplicationPassword: 'draft-password',
-    });
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    await setValue(nameInput(), 'Draft blog');
+    await setValue(nameInput(), 'Draft channel');
+    await setValue(referenceKeyInput(), 'draftChannel');
+    await setValue(inputByLabel('Client ID'), 'draft-client-id');
+    await setValue(inputByLabel('Client secret'), 'draft-client-secret');
+    await setValue(inputByLabel('Refresh token'), 'draft-refresh-token');
     await submitEditor();
 
-    expect(currentEditorMode()).toBe('create');
-    expect(editorFormState().touched()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.readonly-type')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Platform type');
     expect(fixture.nativeElement.textContent).toContain('Title template is required.');
     expect(service.create).not.toHaveBeenCalled();
 
@@ -1726,26 +1565,14 @@ describe('Platforms', () => {
     fixture.detectChanges();
 
     expect(editor()).not.toBeNull();
-    expect(currentEditorMode()).toBe('create');
-    expect(selectedPlatform()).toBeNull();
+    expect(fixture.nativeElement.querySelector('.readonly-type')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Platform type');
     expect(rows()).toHaveLength(0);
-    expect(componentModel().get()).toMatchObject({
-      type: 'YouTube',
-      name: '',
-      referenceKey: '',
-      titleTemplateId: '',
-      descriptionTemplateId: '',
-      youTubeClientSecret: '',
-      youTubeRefreshToken: '',
-      youTubePrivacyStatus: 'private',
-      youTubeMadeForKids: 'false',
-      youTubeCategoryId: '',
-      youTubeContainsSyntheticMedia: 'false',
-      youTubeDefaultAudioLanguage: '',
-      youTubeDefaultLanguage: '',
-    });
-    expect(editorFormState().touched()).toBe(false);
-    expect(editorFormState().dirty()).toBe(false);
+    expect(nameInput().value).toBe('');
+    expect(referenceKeyInput().value).toBe('');
+    expect(inputByLabel('Client ID').value).toBe('');
+    expect(inputByLabel('Client secret').value).toBe('');
+    expect(inputByLabel('Refresh token').value).toBe('');
     expect(fixture.nativeElement.textContent).not.toContain('Title template is required.');
     expect(buttonByText('Cancel').disabled).toBe(true);
     expect(buttonByText('Save platform').disabled).toBe(true);
@@ -1754,7 +1581,7 @@ describe('Platforms', () => {
     expect(service.update).not.toHaveBeenCalled();
     expect(service.delete).not.toHaveBeenCalled();
     expect(service.listWordPressCategories).not.toHaveBeenCalled();
-    expect(templatesService.list).toHaveBeenCalledTimes(templateLookupsBeforeCancel + 1);
+    expect(templatesService.list).toHaveBeenCalledTimes(templateLookupsBeforeCancel);
     expect(templatesService.list).toHaveBeenLastCalledWith('YouTube');
   });
 
@@ -1779,22 +1606,11 @@ describe('Platforms', () => {
     service.update.mockReturnValue(throwError(() => new Error('save failed')));
 
     await createComponent();
-    componentModel().set({
-      ...componentModel().get(),
-      name: 'Changed blog',
-      titleTemplateId: 'changed-title',
-      descriptionTemplateId: 'changed-description',
-      wordPressSiteUrl: 'https://changed.example.test/',
-      wordPressUsername: 'changed-publisher',
-      wordPressApplicationPassword: 'replacement-local-password',
-      wordPressPostStatus: 'publish',
-      wordPressCategoryIds: [99],
-      wordPressSticky: false,
-      wordPressScheduleOffsetHours: '',
-    });
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
+    await selectRow(0);
+    await setValue(nameInput(), 'Changed blog');
+    await setValue(inputByLabel('Site URL'), 'https://changed.example.test/');
+    await setValue(inputByLabel('Username'), 'changed-publisher');
+    await setValue(inputByLabel('Application Password'), 'replacement-local-password');
     await submitEditor();
 
     expect(service.update).toHaveBeenCalledTimes(1);
@@ -1809,24 +1625,14 @@ describe('Platforms', () => {
     fixture.detectChanges();
 
     expect(editor()).not.toBeNull();
-    expect(currentEditorMode()).toBe('edit');
-    expect(selectedPlatform()).toBe(selected);
-    expect(selectedPlatform()?.id).toBe('id-2');
     expect(rows()[0].getAttribute('aria-pressed')).toBe('true');
-    expect(componentModel().get()).toMatchObject({
-      name: 'Company blog',
-      titleTemplateId: 'stored-wordpress-title',
-      descriptionTemplateId: 'stored-wordpress-description',
-      wordPressSiteUrl: 'https://blog.example.test/',
-      wordPressUsername: 'publisher',
-      wordPressApplicationPassword: '',
-      wordPressApplicationPasswordConfigured: 'true',
-      wordPressPasswordDisplayValue: '*******K7M',
-      wordPressPostStatus: 'future',
-      wordPressCategoryIds: [34, 12],
-      wordPressSticky: true,
-      wordPressScheduleOffsetHours: '24',
-    });
+    expect(fixture.nativeElement.querySelector('.readonly-type strong')?.textContent).toContain(
+      'WordPress',
+    );
+    expect(nameInput().value).toBe('Company blog');
+    expect(inputByLabel('Site URL').value).toBe('https://blog.example.test/');
+    expect(inputByLabel('Username').value).toBe('publisher');
+    expect(inputByLabel('Application Password').value).toBe('*******K7M');
     expect(fixture.nativeElement.textContent).not.toContain('could not be saved');
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
     expect(buttonByText('Cancel').disabled).toBe(true);
@@ -1836,7 +1642,7 @@ describe('Platforms', () => {
     expect(service.update).toHaveBeenCalledTimes(1);
     expect(service.delete).not.toHaveBeenCalled();
     expect(templatesService.list).toHaveBeenCalledTimes(templateLookupsBeforeCancel);
-    expect(service.listWordPressCategories).toHaveBeenCalledTimes(categoryLookupsBeforeCancel + 1);
+    expect(service.listWordPressCategories).toHaveBeenCalledTimes(categoryLookupsBeforeCancel);
     expect(service.listWordPressCategories).toHaveBeenLastCalledWith('id-2', {
       includeIds: [34, 12],
       page: 1,

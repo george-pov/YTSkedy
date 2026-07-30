@@ -117,7 +117,7 @@ describe('ConfirmationDialogService', () => {
             id: 'delete',
             label: 'Delete template',
             primary: true,
-            intent: 'danger',
+            variant: 'danger-filled',
           },
         ],
       }),

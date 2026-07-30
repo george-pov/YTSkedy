@@ -51,7 +51,7 @@ export class ConfirmationDialogService {
           id: 'delete',
           label: data.deleteLabel,
           primary: true,
-          intent: 'danger',
+          variant: 'danger-filled',
         },
       ],
     }).pipe(map((result) => result === 'delete'));

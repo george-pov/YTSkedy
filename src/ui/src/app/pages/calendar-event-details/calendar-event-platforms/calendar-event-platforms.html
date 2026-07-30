@@ -21,7 +21,7 @@
       @if (platform.canPreviewPublishingContent) {
         <app-button
           class="platform-preview-button"
-          iconButton
+          variant="icon"
           icon="visibility"
           [ariaLabel]="'Preview publishing content for ' + platform.platformName"
           [disabled]="platformState.actionsDisabled()"
@@ -31,7 +31,7 @@
       @if (platform.canPublish) {
         <app-button
           class="platform-publish-button"
-          iconButton
+          variant="icon"
           icon="publish"
           [ariaLabel]="'Publish ' + platform.platformName"
           [disabled]="platformState.actionsDisabled()"
@@ -41,7 +41,7 @@
       @if (platform.canDeletePublication) {
         <app-button
           class="platform-delete-publication-button"
-          iconButton
+          variant="icon"
           icon="delete"
           [ariaLabel]="'Delete publication for ' + platform.platformName"
           [disabled]="platformState.actionsDisabled()"
@@ -51,7 +51,7 @@
       @if (platform.canRecoverPublication) {
         <app-button
           class="platform-recover-publication-button"
-          iconButton
+          variant="icon"
           icon="error"
           [ariaLabel]="'Mark publication attempt as failed for ' + platform.platformName"
           [disabled]="platformState.actionsDisabled()"

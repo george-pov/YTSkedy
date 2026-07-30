@@ -42,7 +42,7 @@
               <app-button
                 class="delete-field-button"
                 type="button"
-                iconButton
+                variant="icon"
                 icon="delete"
                 [ariaLabel]="'Delete ' + field.fieldKey"
                 [disabled]="fieldsModel().fields.length <= 1 || isSavingSettings()"
@@ -78,7 +78,7 @@
       <div class="app-actions app-actions-end">
         <app-button
           type="button"
-          appearance="outlined"
+          variant="outlined"
           [disabled]="cancelDisabled()"
           (click)="cancel()"
         >

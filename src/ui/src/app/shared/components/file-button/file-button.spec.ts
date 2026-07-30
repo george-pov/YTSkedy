@@ -1,8 +1,9 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type ButtonAppearance } from 'src/app/shared/components/button/button';
+import { Button, type ButtonAppearance } from 'src/app/shared/components/button/button';
 import { type IconName } from 'src/app/shared/components/icon/icon';
 import { FileButton } from './file-button';
 
@@ -41,10 +42,7 @@ function buttonEl(fixture: ComponentFixture<FileButtonHost>): HTMLButtonElement 
   return fixture.nativeElement.querySelector('button') as HTMLButtonElement;
 }
 
-function chooseFile(
-  fixture: ComponentFixture<FileButtonHost>,
-  file: File | null,
-): void {
+function chooseFile(fixture: ComponentFixture<FileButtonHost>, file: File | null): void {
   Object.defineProperty(inputEl(fixture), 'files', {
     configurable: true,
     value: {
@@ -72,16 +70,23 @@ describe('FileButton', () => {
 
   it('renders a Material button and hidden file input', () => {
     expect(buttonEl(fixture).textContent).toContain('Choose image');
-    expect(
-      fixture.nativeElement.querySelector('app-icon mat-icon')?.textContent?.trim(),
-    ).toBe('upload');
+    expect(fixture.nativeElement.querySelector('app-icon mat-icon')?.textContent?.trim()).toBe(
+      'upload',
+    );
     expect(inputEl(fixture).accept).toBe('image/png');
   });
 
+  it('maps its appearance input to the shared button variant', () => {
+    host.appearance.set('outlined');
+    fixture.detectChanges();
+
+    const button = fixture.debugElement.query(By.directive(Button)).componentInstance as Button;
+
+    expect(button.variant()).toBe('outlined');
+  });
+
   it('opens the hidden file input from the visible button', () => {
-    const clickInput = vi
-      .spyOn(inputEl(fixture), 'click')
-      .mockImplementation(() => undefined);
+    const clickInput = vi.spyOn(inputEl(fixture), 'click').mockImplementation(() => undefined);
 
     buttonEl(fixture).click();
 
@@ -106,9 +111,7 @@ describe('FileButton', () => {
   it('disables the visible button and hidden input together', () => {
     host.disabled.set(true);
     fixture.detectChanges();
-    const clickInput = vi
-      .spyOn(inputEl(fixture), 'click')
-      .mockImplementation(() => undefined);
+    const clickInput = vi.spyOn(inputEl(fixture), 'click').mockImplementation(() => undefined);
 
     buttonEl(fixture).click();
 

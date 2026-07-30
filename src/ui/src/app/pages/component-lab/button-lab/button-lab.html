@@ -1,24 +1,36 @@
 <app-lab-page titleId="button-lab-title" title="Button">
   <app-lab-example titleId="button-outlined-example-title" title="Outlined" itemsLayout="inline">
-    <app-button appearance="outlined">Save</app-button>
-    <app-button appearance="outlined">Cancel</app-button>
+    <app-button variant="outlined">Save</app-button>
+    <app-button variant="outlined">Cancel</app-button>
   </app-lab-example>
   <app-lab-example titleId="button-filled-example-title" title="Filled" itemsLayout="inline">
-    <app-button appearance="filled">Save</app-button>
-    <app-button appearance="filled">Cancel</app-button>
+    <app-button variant="filled">Save</app-button>
+    <app-button variant="filled">Cancel</app-button>
+  </app-lab-example>
+  <app-lab-example
+    titleId="button-danger-filled-example-title"
+    title="Danger filled"
+    itemsLayout="inline"
+  >
+    <app-button variant="danger-filled">Delete event</app-button>
+    <app-button variant="danger-filled" [disabled]="true">Delete disabled</app-button>
   </app-lab-example>
   <app-lab-example titleId="button-disabled-example-title" title="Disabled" itemsLayout="inline">
     <app-button [disabled]="true">Schedule stream</app-button>
-    <app-button [disabled]="true" appearance="outlined">Cancel</app-button>
+    <app-button [disabled]="true" variant="outlined">Cancel</app-button>
     <app-button [disabled]="true">Disabled</app-button>
   </app-lab-example>
-  <app-lab-example titleId="button-icon-text-example-title" title="Icon and text" itemsLayout="inline">
+  <app-lab-example
+    titleId="button-icon-text-example-title"
+    title="Icon and text"
+    itemsLayout="inline"
+  >
     <app-button icon="add">Add new event</app-button>
-    <app-button appearance="outlined" icon="save">Save</app-button>
+    <app-button variant="outlined" icon="save">Save</app-button>
   </app-lab-example>
   <app-lab-example titleId="button-icon-only-example-title" title="Icon only" itemsLayout="inline">
-    <app-button iconButton icon="edit" ariaLabel="Edit" />
-    <app-button iconButton icon="publish" ariaLabel="Publish" />
-    <app-button iconButton icon="delete" ariaLabel="Delete" [disabled]="true" />
+    <app-button variant="icon" icon="edit" ariaLabel="Edit" />
+    <app-button variant="icon" icon="publish" ariaLabel="Publish" />
+    <app-button variant="icon" icon="delete" ariaLabel="Delete" [disabled]="true" />
   </app-lab-example>
 </app-lab-page>

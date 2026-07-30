@@ -112,7 +112,7 @@
             @if (state.isEditMode) {
               <app-button
                 type="button"
-                appearance="outlined"
+                variant="outlined"
                 icon="delete"
                 [disabled]="state.deleteDisabled()"
                 (click)="state.deleteEvent()"
@@ -122,7 +122,7 @@
             }
             <app-button
               type="button"
-              appearance="outlined"
+              variant="outlined"
               [disabled]="state.cancelDisabled()"
               (click)="state.cancel()"
             >

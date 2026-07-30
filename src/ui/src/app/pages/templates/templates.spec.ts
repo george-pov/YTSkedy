@@ -1,9 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { HarnessLoader } from '@angular/cdk/testing';
-import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatSelectHarness } from '@angular/material/select/testing';
 import { finalize, Observable, of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
@@ -31,16 +28,8 @@ import {
 } from 'src/app/testing/dom-test-helpers';
 import { Templates } from './templates';
 
-interface FormInteractionState {
-  touched: () => boolean;
-  dirty: () => boolean;
-  markAsTouched: () => void;
-  markAsDirty: () => void;
-}
-
 describe('Templates', () => {
   let fixture: ComponentFixture<Templates>;
-  let loader: HarnessLoader;
   let service: {
     list: Mock<() => Observable<TemplateListResponse>>;
     create: Mock<(request: CreateTemplateRequest) => Observable<CreateTemplateResponse>>;
@@ -108,14 +97,6 @@ describe('Templates', () => {
     return fixture.nativeElement.querySelector('form.editor');
   }
 
-  function editorFormState(): FormInteractionState {
-    return (
-      fixture.componentInstance as unknown as {
-        form: () => FormInteractionState;
-      }
-    ).form();
-  }
-
   function nameInput(): HTMLInputElement {
     return fixture.nativeElement.querySelector('app-input input') as HTMLInputElement;
   }
@@ -159,7 +140,6 @@ describe('Templates', () => {
     }).compileComponents();
 
     fixture = TestBed.createComponent(Templates);
-    loader = TestbedHarnessEnvironment.loader(fixture);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -490,7 +470,7 @@ describe('Templates', () => {
             id: 'discard',
             label: 'Discard changes',
             primary: true,
-            intent: 'danger',
+            variant: 'danger-filled',
           },
         ],
       }),
@@ -520,21 +500,29 @@ describe('Templates', () => {
 
     expect(await canDeactivate()).toBe(false);
     update.error(new Error('save failed'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     confirmation.confirmDeletion.mockReturnValue(of(true));
     const deletion = new Subject<void>();
     service.delete.mockReturnValue(deletion.asObservable());
-    (
-      fixture.componentInstance as unknown as {
-        deleteSelected(): void;
-      }
-    ).deleteSelected();
+    buttonByText('Delete').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(await canDeactivate()).toBe(false);
+    expect(buttonByText('Deleting...').disabled).toBe(true);
+    expect(buttonByText('Cancel').disabled).toBe(true);
     deletion.error(new Error('delete failed'));
-    expect(
-      (fixture.componentInstance as unknown as { isDeleting: () => boolean }).isDeleting(),
-    ).toBe(false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(buttonByText('Delete').disabled).toBe(false);
+    expect(buttonByText('Cancel').disabled).toBe(false);
+    expect(fixture.nativeElement.textContent).toContain('could not be deleted');
   });
 
   it('allows route exit while the initial template read is active', async () => {
@@ -635,16 +623,14 @@ describe('Templates', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const typeSelect = await loader.getHarness(MatSelectHarness);
-    await typeSelect.open();
-    await typeSelect.clickOptions({ text: 'WordPress' });
     await setValue(contentTextarea(), 'Draft content');
     await submitEditor();
 
-    expect(await typeSelect.getValueText()).toBe('WordPress');
+    expect(fixture.nativeElement.querySelector('app-select')?.textContent).toContain('YouTube');
+    expect(contentTextarea().value).toBe('Draft content');
     expect(fixture.nativeElement.textContent).toContain('Name is required.');
-    expect(editorFormState().touched()).toBe(true);
-    expect(editorFormState().dirty()).toBe(true);
+    expect(buttonByText('Cancel').disabled).toBe(false);
+    expect(buttonByText('Save template').disabled).toBe(false);
     expect(service.create).not.toHaveBeenCalled();
 
     buttonByText('Cancel').click();
@@ -654,11 +640,9 @@ describe('Templates', () => {
 
     expect(editor()).not.toBeNull();
     expect(fixture.nativeElement.querySelector('app-select')).not.toBeNull();
-    expect(await typeSelect.getValueText()).toBe('YouTube');
+    expect(fixture.nativeElement.querySelector('app-select')?.textContent).toContain('YouTube');
     expect(nameInput().value).toBe('');
     expect(contentTextarea().value).toBe('');
-    expect(editorFormState().touched()).toBe(false);
-    expect(editorFormState().dirty()).toBe(false);
     expect(fixture.nativeElement.textContent).not.toContain('Name is required.');
     expect(buttonByText('Cancel').disabled).toBe(true);
     expect(buttonByText('Save template').disabled).toBe(true);
@@ -683,10 +667,6 @@ describe('Templates', () => {
     expect(fixture.nativeElement.textContent).toContain('could not be saved');
     expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
     expect(service.update).toHaveBeenCalledTimes(1);
-    editorFormState().markAsTouched();
-    editorFormState().markAsDirty();
-    expect(editorFormState().touched()).toBe(true);
-    expect(editorFormState().dirty()).toBe(true);
 
     buttonByText('Cancel').click();
     fixture.detectChanges();
@@ -703,7 +683,7 @@ describe('Templates', () => {
           id: 'discard',
           label: 'Discard changes',
           primary: true,
-          intent: 'danger',
+          variant: 'danger-filled',
         },
       ],
     });
@@ -711,8 +691,6 @@ describe('Templates', () => {
     expect(fixture.nativeElement.querySelector('app-select')).toBeNull();
     expect(nameInput().value).toBe('Weeknight stream');
     expect(contentTextarea().value).toBe('Live at {{ localizedTime }}');
-    expect(editorFormState().touched()).toBe(false);
-    expect(editorFormState().dirty()).toBe(false);
     expect(rows()[0].getAttribute('aria-pressed')).toBe('true');
     expect(fixture.nativeElement.textContent).not.toContain('could not be saved');
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();

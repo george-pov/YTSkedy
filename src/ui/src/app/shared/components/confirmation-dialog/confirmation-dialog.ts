@@ -1,11 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 
-import {
-  Button,
-  type ButtonAppearance,
-  type ButtonIntent,
-} from 'src/app/shared/components/button/button';
+import { Button, type LabeledButtonVariant } from 'src/app/shared/components/button/button';
 import { Icon, type IconName } from 'src/app/shared/components/icon/icon';
 
 /**
@@ -29,12 +25,10 @@ export interface ConfirmationAction<TId extends string = string> {
   /** Visible button label. */
   readonly label: string;
   /**
-   * Button appearance. Defaults to `filled` for the {@link primary} action and
-   * `text` for the rest.
+   * App-owned labeled button variant. Defaults to `filled` for the
+   * {@link primary} action and `text` for the rest.
    */
-  readonly appearance?: ButtonAppearance;
-  /** Semantic risk communicated independently from button appearance. */
-  readonly intent?: ButtonIntent;
+  readonly variant?: LabeledButtonVariant;
   /** Marks the confirming action. It renders `filled` unless overridden. */
   readonly primary?: boolean;
 }
@@ -89,8 +83,8 @@ export class ConfirmationDialog {
   protected readonly kind: ConfirmationKind = this.data.kind ?? 'info';
   protected readonly icon = kindIcons[this.kind];
 
-  protected appearanceFor(action: ConfirmationAction): ButtonAppearance {
-    return action.appearance ?? (action.primary ? 'filled' : 'text');
+  protected variantFor(action: ConfirmationAction): LabeledButtonVariant {
+    return action.variant ?? (action.primary ? 'filled' : 'text');
   }
 
   protected select(actionId: string): void {

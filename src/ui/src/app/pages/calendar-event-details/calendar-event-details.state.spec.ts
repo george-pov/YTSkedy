@@ -373,7 +373,7 @@ describe('CalendarEventDetailsState', () => {
             id: 'discard',
             label: 'Discard changes',
             primary: true,
-            intent: 'danger',
+            variant: 'danger-filled',
           },
         ],
       }),

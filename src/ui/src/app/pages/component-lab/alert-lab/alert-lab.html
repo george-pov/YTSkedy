@@ -8,9 +8,7 @@
   </app-lab-example>
 
   <app-lab-example titleId="alert-info-example-title" title="Info">
-    <app-alert variant="info">
-      Publishing creates a scheduled YouTube broadcast.
-    </app-alert>
+    <app-alert variant="info"> Publishing creates a scheduled YouTube broadcast. </app-alert>
   </app-lab-example>
 
   <app-lab-example titleId="alert-warning-example-title" title="Warning">
@@ -21,9 +19,7 @@
 
   <app-lab-example titleId="alert-dismissible-example-title" title="Dismissible">
     @if (dismissed()) {
-      <app-button appearance="outlined" (click)="reset()">
-        Reset example
-      </app-button>
+      <app-button variant="outlined" (click)="reset()"> Reset example </app-button>
     } @else {
       <app-alert variant="info" dismissible (dismissed)="onDismiss()">
         Dismiss this banner to hide it.

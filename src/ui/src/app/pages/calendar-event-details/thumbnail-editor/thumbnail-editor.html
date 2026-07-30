@@ -12,11 +12,7 @@
   @if (currentThumbnail(); as currentThumbnail) {
     <div class="app-grid app-gap-4">
       @if (editor.previewUrl(); as previewUrl) {
-        <img
-          class="thumbnail-preview app-col-md-4"
-          [src]="previewUrl"
-          alt="Thumbnail preview"
-        />
+        <img class="thumbnail-preview app-col-md-4" [src]="previewUrl" alt="Thumbnail preview" />
       } @else {
         <div class="thumbnail-preview thumbnail-preview-placeholder app-col-md-4">
           Thumbnail preview loading...
@@ -42,7 +38,7 @@
         <div class="app-actions app-actions-end">
           <app-button
             type="button"
-            appearance="outlined"
+            variant="outlined"
             icon="delete"
             [disabled]="!editor.canMutate()"
             (click)="editor.deleteThumbnail()"
@@ -58,9 +54,7 @@
     <div class="thumbnail-picker" [class.thumbnail-control-disabled]="!editor.canMutate()">
       <div class="thumbnail-picker-content">
         <strong>No thumbnail selected.</strong>
-        <span class="thumbnail-picker-help">
-          Choose one JPEG or PNG image up to 2 MB.
-        </span>
+        <span class="thumbnail-picker-help"> Choose one JPEG or PNG image up to 2 MB. </span>
         <app-file-button
           class="thumbnail-select-input"
           [label]="pickerLabel()"
@@ -74,11 +68,7 @@
   }
 
   @if (editor.selectedPreviewUrl(); as selectedPreviewUrl) {
-    <div
-      class="app-grid app-gap-4"
-      [class.thumbnail-pending]="isEditMode()"
-      aria-live="polite"
-    >
+    <div class="app-grid app-gap-4" [class.thumbnail-pending]="isEditMode()" aria-live="polite">
       <img
         class="thumbnail-preview app-col-md-4"
         [src]="selectedPreviewUrl"
@@ -103,7 +93,7 @@
             <app-button
               class="thumbnail-clear-button"
               type="button"
-              appearance="outlined"
+              variant="outlined"
               icon="close"
               [disabled]="!editor.canMutate()"
               (click)="editor.clearSelectedThumbnail()"

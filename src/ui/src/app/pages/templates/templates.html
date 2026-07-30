@@ -46,7 +46,7 @@
               @if (editorMode() === 'edit') {
                 <app-button
                   type="button"
-                  appearance="outlined"
+                  variant="outlined"
                   [disabled]="isSaving() || isDeleting()"
                   (click)="deleteSelected()"
                 >
@@ -55,7 +55,7 @@
               }
               <app-button
                 type="button"
-                appearance="outlined"
+                variant="outlined"
                 [disabled]="cancelDisabled()"
                 (click)="cancel()"
               >

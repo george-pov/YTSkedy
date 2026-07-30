@@ -86,13 +86,18 @@ describe('ConfirmationDialog', () => {
     expect(iconComponent.name()).toBe('info');
   });
 
-  it('renders one button per action in order', () => {
-    const labels = actionButtons(setup()).map((button) => button.textContent?.trim());
+  it('renders one button per action in safe-first order with default variants', () => {
+    const fixture = setup();
+    const labels = actionButtons(fixture).map((button) => button.textContent?.trim());
 
     expect(labels).toEqual(['Cancel', 'Delete']);
+    expect(actionButtonComponents(fixture).map((button) => button.variant())).toEqual([
+      'text',
+      'filled',
+    ]);
   });
 
-  it('passes default and danger intents without changing action order', () => {
+  it('passes default and danger variants without changing action order', () => {
     const fixture = setup(
       content({
         actions: [
@@ -101,7 +106,7 @@ describe('ConfirmationDialog', () => {
             id: 'discard',
             label: 'Discard changes',
             primary: true,
-            intent: 'danger',
+            variant: 'danger-filled',
           },
         ],
       }),
@@ -112,8 +117,8 @@ describe('ConfirmationDialog', () => {
       'Keep editing',
       'Discard changes',
     ]);
-    expect(buttons.map((button) => button.appearance())).toEqual(['text', 'filled']);
-    expect(buttons.map((button) => button.intent())).toEqual(['default', 'danger']);
+    expect(buttons.map((button) => button.variant())).toEqual(['text', 'danger-filled']);
+    expect(actionButtons(fixture)[1].classList).toContain('is-danger');
   });
 
   it.each([

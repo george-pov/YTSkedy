@@ -7,11 +7,7 @@
 
 <mat-dialog-actions class="actions" align="end">
   @for (action of data.actions; track action.id) {
-    <app-button
-      [appearance]="appearanceFor(action)"
-      [intent]="action.intent ?? 'default'"
-      (click)="select(action.id)"
-    >
+    <app-button [variant]="variantFor(action)" (click)="select(action.id)">
       {{ action.label }}
     </app-button>
   }

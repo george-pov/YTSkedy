@@ -1,27 +1,18 @@
 <app-lab-page titleId="progress-bar-lab-title" title="Progress bar">
-  <app-lab-example
-    titleId="progress-bar-indeterminate-example-title"
-    title="Indeterminate"
-  >
+  <app-lab-example titleId="progress-bar-indeterminate-example-title" title="Indeterminate">
     <app-progress-bar label="Loading" />
   </app-lab-example>
 
-  <app-lab-example
-    titleId="progress-bar-determinate-example-title"
-    title="Determinate"
-  >
+  <app-lab-example titleId="progress-bar-determinate-example-title" title="Determinate">
     <app-progress-bar mode="determinate" [value]="60" label="Upload progress" />
   </app-lab-example>
 
-  <app-lab-example
-    titleId="progress-bar-page-load-example-title"
-    title="Page data load"
-  >
+  <app-lab-example titleId="progress-bar-page-load-example-title" title="Page data load">
     @if (loading()) {
       <app-progress-bar label="Loading calendar events" />
     } @else if (loaded()) {
       <p>Loaded 3 calendar events.</p>
-      <app-button appearance="outlined" (click)="load()">Reload</app-button>
+      <app-button variant="outlined" (click)="load()">Reload</app-button>
     } @else {
       <app-button (click)="load()">Load data</app-button>
     }

@@ -1,4 +1,4 @@
-import { provideZonelessChangeDetection, type WritableSignal } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideLuxonDateAdapter } from '@angular/material-luxon-adapter';
 import { finalize, firstValueFrom, Observable, of, Subject, throwError } from 'rxjs';
@@ -12,14 +12,6 @@ import {
 import { ConfirmationDialogService } from 'src/app/shared/components/confirmation-dialog/confirmation-dialog-service';
 import { NotificationService } from 'src/app/shared/notifications/notification-service';
 import { Settings } from './settings';
-import { type StartDefaultsModel } from './start-defaults.form';
-
-interface FormInteractionState {
-  touched: () => boolean;
-  dirty: () => boolean;
-  markAsTouched: () => void;
-  markAsDirty: () => void;
-}
 
 describe('Settings', () => {
   let fixture: ComponentFixture<Settings>;
@@ -112,20 +104,24 @@ describe('Settings', () => {
     ) as HTMLElement[];
   }
 
-  function state(): {
-    startDefaultsModel: WritableSignal<StartDefaultsModel>;
-    fieldsForm: () => FormInteractionState;
-    startDefaultsForm: () => FormInteractionState;
-    cancelDisabled: () => boolean;
-    cancel: () => void;
-  } {
-    return fixture.componentInstance as unknown as {
-      startDefaultsModel: WritableSignal<StartDefaultsModel>;
-      fieldsForm: () => FormInteractionState;
-      startDefaultsForm: () => FormInteractionState;
-      cancelDisabled: () => boolean;
-      cancel: () => void;
-    };
+  function timeInput(): HTMLInputElement {
+    const input = fixture.nativeElement.querySelector('app-time input') as HTMLInputElement | null;
+    if (input === null) {
+      throw new Error('Default time input was not found.');
+    }
+
+    return input;
+  }
+
+  function startDefaultsSection(): HTMLElement {
+    const section = fixture.nativeElement.querySelector(
+      '[aria-labelledby="start-defaults-heading"]',
+    ) as HTMLElement | null;
+    if (section === null) {
+      throw new Error('New calendar event defaults section was not found.');
+    }
+
+    return section;
   }
 
   async function setValue(element: HTMLInputElement, value: string): Promise<void> {
@@ -163,11 +159,9 @@ describe('Settings', () => {
     expect(text()).toContain('text1');
     expect(text()).toContain('text2');
     expect(inputs().map((input) => input.value)).toEqual(['Title', '50', 'Description', '2500']);
-    expect(state().startDefaultsModel()).toEqual({
-      dayOfWeek: 'Friday',
-      localTime: '09:05',
-      timeZoneId: 'UTC',
-    });
+    expect(startDefaultsSection().textContent).toContain('Friday');
+    expect(timeInput().value).toContain('9:05');
+    expect(startDefaultsSection().textContent).toContain('UTC');
   });
 
   it('shows one Save changes and one Cancel action', async () => {
@@ -197,8 +191,7 @@ describe('Settings', () => {
     expect(buttonByText('Save changes').disabled).toBe(true);
     expect(buttonByText('Cancel').disabled).toBe(true);
 
-    state().startDefaultsModel.set({ dayOfWeek: 'Sunday', localTime: '', timeZoneId: '' });
-    fixture.detectChanges();
+    await setValue(timeInput(), '10:00');
     expect(buttonByText('Save changes').disabled).toBe(false);
     expect(buttonByText('Cancel').disabled).toBe(false);
   });
@@ -209,7 +202,9 @@ describe('Settings', () => {
 
     expect(buttonByText('Cancel').disabled).toBe(true);
 
-    state().cancel();
+    buttonByText('Cancel').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
     fixture.detectChanges();
 
     expect(confirmation.confirm).not.toHaveBeenCalled();
@@ -229,12 +224,7 @@ describe('Settings', () => {
     await createComponent();
     await setValue(inputAt(0), ' Stream title ');
     await setValue(inputAt(1), '80');
-    state().startDefaultsModel.set({
-      dayOfWeek: 'Sunday',
-      localTime: '10:00',
-      timeZoneId: 'America/Vancouver',
-    });
-    fixture.detectChanges();
+    await setValue(timeInput(), '10:00');
 
     await submit();
 
@@ -257,9 +247,9 @@ describe('Settings', () => {
         ],
       },
       startDefaults: {
-        dayOfWeek: 'Sunday',
+        dayOfWeek: null,
         localTime: '10:00',
-        timeZoneId: 'America/Vancouver',
+        timeZoneId: null,
       },
     });
     expect(notifications.showSuccess).toHaveBeenCalledWith('Settings saved.');
@@ -331,23 +321,14 @@ describe('Settings', () => {
     );
     await createComponent();
     await setValue(inputAt(0), 'Draft title');
-    state().fieldsForm().markAsTouched();
-    state().fieldsForm().markAsDirty();
-    state().startDefaultsForm().markAsTouched();
-    state().startDefaultsForm().markAsDirty();
+    await setValue(timeInput(), '08:15');
 
     await submit();
 
     expect(inputs().map((input) => input.value)).toEqual(['Normalized title', '90']);
-    expect(state().startDefaultsModel()).toEqual({
-      dayOfWeek: 'Monday',
-      localTime: '11:30',
-      timeZoneId: 'UTC',
-    });
-    expect(state().fieldsForm().touched()).toBe(false);
-    expect(state().fieldsForm().dirty()).toBe(false);
-    expect(state().startDefaultsForm().touched()).toBe(false);
-    expect(state().startDefaultsForm().dirty()).toBe(false);
+    expect(startDefaultsSection().textContent).toContain('Monday');
+    expect(timeInput().value).toContain('11:30');
+    expect(startDefaultsSection().textContent).toContain('UTC');
     expect(buttonByText('Cancel').disabled).toBe(true);
     expect(buttonByText('Save changes').disabled).toBe(true);
     expect(await canDeactivate()).toBe(true);
@@ -357,33 +338,26 @@ describe('Settings', () => {
     service.update.mockReturnValue(throwError(() => new Error('Request failed')));
     await createComponent();
     await setValue(inputAt(0), 'Stream title');
-    state().startDefaultsModel.set({ dayOfWeek: 'Sunday', localTime: '', timeZoneId: '' });
-    fixture.detectChanges();
+    await setValue(timeInput(), '10:00');
 
     await submit();
 
     expect(text()).toContain('Settings could not be saved.');
     expect(inputAt(0).value).toBe('Stream title');
-    expect(state().startDefaultsModel().dayOfWeek).toBe('Sunday');
+    expect(timeInput().value).toContain('10:00');
     expect(buttonByText('Save changes').disabled).toBe(false);
   });
 
   it('resets invalid dirty settings and validation interaction state after confirmed Cancel', async () => {
     await createComponent();
     await setValue(inputAt(1), '0');
-    state().startDefaultsModel.set({
-      dayOfWeek: 'Sunday',
-      localTime: '10:00',
-      timeZoneId: 'UTC',
-    });
-    fixture.detectChanges();
+    await setValue(timeInput(), '10:00');
 
     await submit();
 
     expect(service.update).not.toHaveBeenCalled();
     expect(text()).toContain('Max length must be a positive whole number.');
-    expect(state().fieldsForm().touched()).toBe(true);
-    expect(state().startDefaultsForm().touched()).toBe(true);
+    expect(timeInput().value).toContain('10:00');
     expect(buttonByText('Cancel').disabled).toBe(false);
 
     buttonByText('Cancel').click();
@@ -392,11 +366,7 @@ describe('Settings', () => {
     fixture.detectChanges();
 
     expect(inputs().map((input) => input.value)).toEqual(['Title', '50', 'Description', '2500']);
-    expect(state().startDefaultsModel()).toEqual({ dayOfWeek: '', localTime: '', timeZoneId: '' });
-    expect(state().fieldsForm().touched()).toBe(false);
-    expect(state().fieldsForm().dirty()).toBe(false);
-    expect(state().startDefaultsForm().touched()).toBe(false);
-    expect(state().startDefaultsForm().dirty()).toBe(false);
+    expect(timeInput().value).toBe('');
     expect(text()).not.toContain('Max length must be a positive whole number.');
     expect(buttonByText('Cancel').disabled).toBe(true);
     expect(buttonByText('Save changes').disabled).toBe(true);
@@ -406,8 +376,7 @@ describe('Settings', () => {
   it('prompts before route exit when either section has pending changes', async () => {
     confirmation.confirm.mockReturnValue(of('keep-editing'));
     await createComponent();
-    state().startDefaultsModel.set({ dayOfWeek: 'Sunday', localTime: '', timeZoneId: '' });
-    fixture.detectChanges();
+    await setValue(timeInput(), '10:00');
 
     expect(await canDeactivate()).toBe(false);
     expect(confirmation.confirm).toHaveBeenCalledWith(
@@ -420,7 +389,7 @@ describe('Settings', () => {
             id: 'discard',
             label: 'Discard changes',
             primary: true,
-            intent: 'danger',
+            variant: 'danger-filled',
           },
         ],
       }),
@@ -436,22 +405,22 @@ describe('Settings', () => {
     await submit();
 
     expect(await canDeactivate()).toBe(false);
-    expect(state().cancelDisabled()).toBe(true);
+    expect(buttonByText('Saving...').disabled).toBe(true);
     expect(buttonByText('Cancel').disabled).toBe(true);
 
-    state().cancel();
+    buttonByText('Cancel').click();
     fixture.detectChanges();
 
     expect(confirmation.confirm).not.toHaveBeenCalled();
     expect(inputAt(0).value).toBe('Changed title');
     update.error(new Error('save failed'));
     fixture.detectChanges();
-    expect(
-      (
-        fixture.componentInstance as unknown as { isSavingSettings: () => boolean }
-      ).isSavingSettings(),
-    ).toBe(false);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(buttonByText('Save changes').disabled).toBe(false);
     expect(buttonByText('Cancel').disabled).toBe(false);
+    expect(text()).toContain('Settings could not be saved.');
   });
 
   it('allows route exit while the initial settings read is active', async () => {
@@ -460,20 +429,23 @@ describe('Settings', () => {
     await createComponent();
 
     expect(await canDeactivate()).toBe(true);
-    expect(state().cancelDisabled()).toBe(true);
-
-    state().cancel();
-
+    expect(buttonByText('Cancel').disabled).toBe(true);
+    expect(buttonByText('Save changes').disabled).toBe(true);
+    expect(service.update).not.toHaveBeenCalled();
     expect(confirmation.confirm).not.toHaveBeenCalled();
   });
 
-  it('Cancel restores both settings sections after confirmation', async () => {
+  it('Cancel restores both settings sections and clears a superseded save error', async () => {
+    service.update.mockReturnValue(throwError(() => new Error('Request failed')));
     confirmation.confirm.mockReturnValue(of('discard'));
     await createComponent();
     await setValue(inputAt(0), 'Stream title');
-    state().startDefaultsModel.set({ dayOfWeek: 'Sunday', localTime: '10:00', timeZoneId: 'UTC' });
-    fixture.detectChanges();
+    await setValue(timeInput(), '10:00');
+    await submit();
 
+    expect(text()).toContain('Settings could not be saved.');
+    expect(inputAt(0).value).toBe('Stream title');
+    expect(timeInput().value).toContain('10:00');
     expect(buttonByText('Cancel').disabled).toBe(false);
     const originalUrl = window.location.href;
     window.history.replaceState({}, '', '/settings');
@@ -485,19 +457,12 @@ describe('Settings', () => {
       fixture.detectChanges();
 
       expect(inputs().map((input) => input.value)).toEqual(['Title', '50', 'Description', '2500']);
-      expect(state().startDefaultsModel()).toEqual({
-        dayOfWeek: '',
-        localTime: '',
-        timeZoneId: '',
-      });
-      expect(state().fieldsForm().touched()).toBe(false);
-      expect(state().fieldsForm().dirty()).toBe(false);
-      expect(state().startDefaultsForm().touched()).toBe(false);
-      expect(state().startDefaultsForm().dirty()).toBe(false);
+      expect(timeInput().value).toBe('');
+      expect(text()).not.toContain('Settings could not be saved.');
       expect(buttonByText('Cancel').disabled).toBe(true);
       expect(buttonByText('Save changes').disabled).toBe(true);
       expect(window.location.pathname).toBe('/settings');
-      expect(service.update).not.toHaveBeenCalled();
+      expect(service.update).toHaveBeenCalledTimes(1);
     } finally {
       window.history.replaceState({}, '', originalUrl);
     }
@@ -507,8 +472,7 @@ describe('Settings', () => {
     confirmation.confirm.mockReturnValue(of('keep-editing'));
     await createComponent();
     await setValue(inputAt(0), 'Stream title');
-    state().startDefaultsModel.set({ dayOfWeek: 'Sunday', localTime: '', timeZoneId: '' });
-    fixture.detectChanges();
+    await setValue(timeInput(), '10:00');
 
     buttonByText('Cancel').click();
     fixture.detectChanges();
@@ -516,33 +480,10 @@ describe('Settings', () => {
     fixture.detectChanges();
 
     expect(inputAt(0).value).toBe('Stream title');
-    expect(state().startDefaultsModel().dayOfWeek).toBe('Sunday');
+    expect(timeInput().value).toContain('10:00');
     expect(buttonByText('Cancel').disabled).toBe(false);
     expect(buttonByText('Save changes').disabled).toBe(false);
     expect(service.update).not.toHaveBeenCalled();
-  });
-
-  it('clears the combined save error when Cancel discards changes', async () => {
-    service.update.mockReturnValue(throwError(() => new Error('Request failed')));
-    confirmation.confirm.mockReturnValue(of('discard'));
-    await createComponent();
-    await setValue(inputAt(0), 'Stream title');
-    state().startDefaultsModel.set({ dayOfWeek: 'Sunday', localTime: '', timeZoneId: '' });
-    fixture.detectChanges();
-    await submit();
-    expect(text()).toContain('Settings could not be saved.');
-
-    buttonByText('Cancel').click();
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(text()).not.toContain('Settings could not be saved.');
-    expect(inputAt(0).value).toBe('Title');
-    expect(state().startDefaultsModel()).toEqual({ dayOfWeek: '', localTime: '', timeZoneId: '' });
-    expect(buttonByText('Cancel').disabled).toBe(true);
-    expect(buttonByText('Save changes').disabled).toBe(true);
-    expect(service.update).toHaveBeenCalledTimes(1);
   });
 
   it('unsubscribes from a pending combined load when destroyed', async () => {

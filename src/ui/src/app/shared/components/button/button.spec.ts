@@ -1,9 +1,11 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatButton } from '@angular/material/button';
+import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { type IconName } from 'src/app/shared/components/icon/icon';
-import { Button, type ButtonIntent } from './button';
+import { Button, type ButtonAppearance, type ButtonVariant } from './button';
 
 @Component({
   selector: 'app-button-host',
@@ -11,10 +13,9 @@ import { Button, type ButtonIntent } from './button';
   template: `
     <app-button
       [icon]="icon()"
-      [iconButton]="iconButton()"
+      [variant]="variant()"
       [ariaLabel]="ariaLabel()"
       [disabled]="disabled()"
-      [intent]="intent()"
       (click)="clickCount = clickCount + 1"
     >
       {{ label() }}
@@ -23,16 +24,23 @@ import { Button, type ButtonIntent } from './button';
 })
 class ButtonHost {
   readonly icon = signal<IconName | undefined>(undefined);
-  readonly iconButton = signal(false);
+  readonly variant = signal<ButtonVariant>('filled');
   readonly ariaLabel = signal<string | undefined>(undefined);
   readonly disabled = signal(false);
-  readonly intent = signal<ButtonIntent>('default');
   readonly label = signal('Save');
   clickCount = 0;
 }
 
 function buttonEl(fixture: ComponentFixture<ButtonHost>): HTMLButtonElement {
   return fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+}
+
+function buttonComponent(fixture: ComponentFixture<ButtonHost>): Button {
+  return fixture.debugElement.query(By.directive(Button)).componentInstance as Button;
+}
+
+function materialButton(fixture: ComponentFixture<ButtonHost>): MatButton {
+  return fixture.debugElement.query(By.directive(MatButton)).injector.get(MatButton);
 }
 
 describe('Button', () => {
@@ -48,20 +56,36 @@ describe('Button', () => {
     fixture.detectChanges();
   });
 
-  it('renders a text button with no icon by default', () => {
+  it('renders a filled button with no icon by default', () => {
     const button = buttonEl(fixture);
 
     expect(button.textContent).toContain('Save');
-    expect(button.classList).not.toContain('danger');
+    expect(buttonComponent(fixture).variant()).toBe('filled');
+    expect(button.classList).not.toContain('is-danger');
     expect(fixture.nativeElement.querySelector('app-icon')).toBeNull();
   });
 
-  it('applies danger intent to the native button', () => {
-    host.intent.set('danger');
-    fixture.detectChanges();
+  it.each([
+    { variant: 'text', materialAppearance: 'text', danger: false },
+    { variant: 'filled', materialAppearance: 'filled', danger: false },
+    { variant: 'elevated', materialAppearance: 'elevated', danger: false },
+    { variant: 'outlined', materialAppearance: 'outlined', danger: false },
+    { variant: 'tonal', materialAppearance: 'tonal', danger: false },
+    { variant: 'danger-filled', materialAppearance: 'filled', danger: true },
+  ] satisfies readonly {
+    variant: ButtonVariant;
+    materialAppearance: ButtonAppearance;
+    danger: boolean;
+  }[])(
+    'maps $variant to Material $materialAppearance with danger styling: $danger',
+    ({ variant, materialAppearance, danger }) => {
+      host.variant.set(variant);
+      fixture.detectChanges();
 
-    expect(buttonEl(fixture).classList).toContain('danger');
-  });
+      expect(materialButton(fixture).appearance).toBe(materialAppearance);
+      expect(buttonEl(fixture).classList.contains('is-danger')).toBe(danger);
+    },
+  );
 
   it('renders a leading icon alongside the label when icon is set', () => {
     host.icon.set('save');
@@ -75,7 +99,7 @@ describe('Button', () => {
   });
 
   it('renders a compact icon-only button named by the aria label', () => {
-    host.iconButton.set(true);
+    host.variant.set('icon');
     host.icon.set('edit');
     host.ariaLabel.set('Edit');
     fixture.detectChanges();
@@ -101,12 +125,12 @@ describe('Button', () => {
 
   it('reflects the disabled state on the native button', () => {
     host.disabled.set(true);
-    host.intent.set('danger');
+    host.variant.set('danger-filled');
     fixture.detectChanges();
 
     const button = buttonEl(fixture);
 
-    expect(button.classList).toContain('danger');
+    expect(button.classList).toContain('is-danger');
     expect(button.disabled).toBe(true);
   });
 });

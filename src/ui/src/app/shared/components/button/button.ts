@@ -1,10 +1,17 @@
-import { booleanAttribute, ChangeDetectionStrategy, Component, input } from '@angular/core';
+import {
+  booleanAttribute,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 
 import { Icon, type IconName } from 'src/app/shared/components/icon/icon';
 
 export type ButtonAppearance = 'text' | 'filled' | 'elevated' | 'outlined' | 'tonal';
-export type ButtonIntent = 'default' | 'danger';
+export type ButtonVariant = ButtonAppearance | 'icon' | 'danger-filled';
+export type LabeledButtonVariant = Exclude<ButtonVariant, 'icon'>;
 type ButtonType = 'button' | 'submit' | 'reset';
 
 @Component({
@@ -15,8 +22,7 @@ type ButtonType = 'button' | 'submit' | 'reset';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Button {
-  readonly appearance = input<ButtonAppearance>('filled');
-  readonly intent = input<ButtonIntent>('default');
+  readonly variant = input<ButtonVariant>('filled');
   readonly disabled = input(false, { transform: booleanAttribute });
   readonly type = input<ButtonType>('button');
 
@@ -24,15 +30,15 @@ export class Button {
   readonly icon = input<IconName>();
 
   /**
-   * Renders a compact, icon-only button (no projected label). Requires
-   * {@link icon} for the glyph and {@link ariaLabel} for the accessible name,
-   * since there is no visible text to name the control.
-   */
-  readonly iconButton = input(false, { transform: booleanAttribute });
-
-  /**
-   * Accessible name for the button. Required when {@link iconButton} is set and
-   * otherwise optional; applied as `aria-label` when provided.
+   * Accessible name for the button. Required when {@link variant} is `icon`
+   * and otherwise optional; applied as `aria-label` when provided.
    */
   readonly ariaLabel = input<string>();
+
+  protected readonly isIconButton = computed(() => this.variant() === 'icon');
+  protected readonly isDanger = computed(() => this.variant() === 'danger-filled');
+  protected readonly appearance = computed<ButtonAppearance>(() => {
+    const variant = this.variant();
+    return variant === 'danger-filled' || variant === 'icon' ? 'filled' : variant;
+  });
 }

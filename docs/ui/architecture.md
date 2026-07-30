@@ -81,6 +81,14 @@ Routed pages choose destinations and own confirmation copy. Shared controls do
 not choose destinations, call APIs, perform domain validation, or own
 page-specific status copy.
 
+`app-button` exposes one closed `ButtonVariant` contract for standard labeled
+appearances, icon-only rendering, and the `danger-filled` variant. Danger is
+filled-only and cannot be combined independently with text, elevated, outlined,
+tonal, or icon rendering. `ButtonLink` and `FileButton` retain the narrower
+`ButtonAppearance` contract because they do not support destructive variants.
+Danger styling uses app-owned classes and tokens; generated Material classes are
+not part of the app styling contract.
+
 ## Responsibilities
 
 The UI workspace owns:

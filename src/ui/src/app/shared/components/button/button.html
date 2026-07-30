@@ -1,11 +1,5 @@
-@if (iconButton()) {
-  <button
-    matIconButton
-    [class.danger]="intent() === 'danger'"
-    [disabled]="disabled()"
-    [type]="type()"
-    [attr.aria-label]="ariaLabel()"
-  >
+@if (isIconButton()) {
+  <button matIconButton [disabled]="disabled()" [type]="type()" [attr.aria-label]="ariaLabel()">
     @if (icon(); as iconName) {
       <app-icon matButtonIcon [name]="iconName" />
     }
@@ -13,7 +7,7 @@
 } @else {
   <button
     [matButton]="appearance()"
-    [class.danger]="intent() === 'danger'"
+    [class.is-danger]="isDanger()"
     [disabled]="disabled()"
     [type]="type()"
     [attr.aria-label]="ariaLabel() || null"
