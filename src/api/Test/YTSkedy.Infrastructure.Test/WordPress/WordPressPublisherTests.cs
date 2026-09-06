@@ -82,6 +82,20 @@ public class WordPressPublisherTests
     }
 
     [Fact]
+    public async Task PublishAsync_RepeatedSite_ReusesEndpointDiscovery()
+    {
+        var handler = PrettyRoot(_ => JsonResponse("""{"id":74}"""));
+        var publisher = CreatePublisher(handler);
+
+        await publisher.PublishAsync(Request(), CancellationToken.None);
+        await publisher.PublishAsync(Request(), CancellationToken.None);
+
+        Assert.Equal(
+            [HttpMethod.Head, HttpMethod.Get, HttpMethod.Post, HttpMethod.Post],
+            handler.Requests.Select(request => request.Method));
+    }
+
+    [Fact]
     public async Task PublishAsync_SelectedCategoryIds_SerializesInSubmittedOrder()
     {
         var settings = new WordPressSettings(

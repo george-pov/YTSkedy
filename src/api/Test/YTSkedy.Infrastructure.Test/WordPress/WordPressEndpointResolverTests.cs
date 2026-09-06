@@ -40,6 +40,41 @@ public class WordPressEndpointResolverTests
     }
 
     [Fact]
+    public async Task ResolveAsync_RepeatedSite_DiscoversOnce()
+    {
+        var handler = new FakeHttpMessageHandler(request =>
+            request.Method == HttpMethod.Head
+                ? LinkResponse("<https://example.com/wp-json/>; rel=\"https://api.w.org/\"")
+                : JsonIndexResponse());
+        var resolver = CreateResolver(handler);
+
+        var first = await resolver.ResolveAsync(Settings(), CancellationToken.None);
+        var second = await resolver.ResolveAsync(Settings(), CancellationToken.None);
+
+        Assert.Equal(first, second);
+        Assert.Equal(2, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ExpiredCache_DiscoversAgain()
+    {
+        var now = new DateTimeOffset(2026, 9, 6, 8, 0, 0, TimeSpan.Zero);
+        var clock = new Mock<TimeProvider>();
+        clock.Setup(provider => provider.GetUtcNow()).Returns(() => now);
+        var handler = new FakeHttpMessageHandler(request =>
+            request.Method == HttpMethod.Head
+                ? LinkResponse("<https://example.com/wp-json/>; rel=\"https://api.w.org/\"")
+                : JsonIndexResponse());
+        var resolver = CreateResolver(handler, clock.Object);
+
+        await resolver.ResolveAsync(Settings(), CancellationToken.None);
+        now += TimeSpan.FromMinutes(5);
+        await resolver.ResolveAsync(Settings(), CancellationToken.None);
+
+        Assert.Equal(4, handler.CallCount);
+    }
+
+    [Fact]
     public async Task ResolveAsync_LinkHeaderRouteRoot_ReturnsRoot()
     {
         var handler = new FakeHttpMessageHandler(request =>
@@ -277,8 +312,10 @@ public class WordPressEndpointResolverTests
         Assert.Equal("https://example.com/wp-json/", root.RootUri.ToString());
     }
 
-    private WordPressEndpointResolver CreateResolver(FakeHttpMessageHandler handler) =>
-        new(new HttpClient(handler), _logger.Object);
+    private WordPressEndpointResolver CreateResolver(
+        FakeHttpMessageHandler handler,
+        TimeProvider? timeProvider = null) =>
+        new(new HttpClient(handler), _logger.Object, timeProvider);
 
     private static WordPressSettings Settings(string siteUrl = "https://example.com") =>
         new(siteUrl, "editor", ApplicationPassword, "publish", []);
