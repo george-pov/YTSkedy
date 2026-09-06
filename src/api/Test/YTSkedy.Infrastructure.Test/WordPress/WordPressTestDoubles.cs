@@ -19,7 +19,8 @@ internal sealed class FakeHttpMessageHandler(
         Requests.Add(new RequestSnapshot(
             request.Method,
             request.RequestUri!,
-            request.Headers.Authorization));
+            request.Headers.Authorization,
+            request.Headers.UserAgent.ToString()));
 
         return Task.FromResult(handler(request));
     }
@@ -28,7 +29,8 @@ internal sealed class FakeHttpMessageHandler(
 internal sealed record RequestSnapshot(
     HttpMethod Method,
     Uri RequestUri,
-    AuthenticationHeaderValue? Authorization);
+    AuthenticationHeaderValue? Authorization,
+    string UserAgent);
 
 internal static class WordPressTestResponses
 {

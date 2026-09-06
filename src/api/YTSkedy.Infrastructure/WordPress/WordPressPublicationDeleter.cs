@@ -69,6 +69,7 @@ public sealed class WordPressPublicationDeleter : IPlatformPublicationDeleter
                 $"/wp/v2/posts/{postId.ToString(CultureInfo.InvariantCulture)}",
                 new Dictionary<string, string> { ["force"] = "true" });
             using var httpRequest = new HttpRequestMessage(HttpMethod.Delete, endpoint);
+            WordPressRequestHeaders.AddClientIdentification(httpRequest);
             httpRequest.Headers.Authorization =
                 WordPressRequestSecurity.CreateAuthorizationHeader(settings);
 

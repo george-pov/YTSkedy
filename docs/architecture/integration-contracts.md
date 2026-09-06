@@ -244,6 +244,9 @@ HTTP routes.
 - WordPress category lookup uses an application reader port and infrastructure
   adapter. It reuses backend-owned endpoint discovery and Basic Auth, and it
   performs provider reads only.
+- Every WordPress HTTP request identifies the client as `YTSkedy/1.0`. This
+  identification applies to endpoint discovery and authenticated operations;
+  it does not replace WordPress authentication or authorization.
 - Provider-specific request mapping, cleanup behavior, and recovery notes are
   documented in
   [`../api/http/platform-publications.md`](../api/http/platform-publications.md)

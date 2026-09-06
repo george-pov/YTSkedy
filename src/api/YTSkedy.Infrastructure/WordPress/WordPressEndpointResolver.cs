@@ -49,6 +49,7 @@ public sealed class WordPressEndpointResolver(
         CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Head, siteUri);
+        WordPressRequestHeaders.AddClientIdentification(request);
 
         try
         {
@@ -119,6 +120,7 @@ public sealed class WordPressEndpointResolver(
         CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, rootUri);
+        WordPressRequestHeaders.AddClientIdentification(request);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         try

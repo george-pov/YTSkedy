@@ -76,6 +76,9 @@ public class WordPressPublisherTests
         Assert.False(root.TryGetProperty("categories", out _));
 
         AssertDiscoveryRequestsAreAnonymous(handler);
+        Assert.All(
+            handler.Requests,
+            request => Assert.Equal("YTSkedy/1.0", request.UserAgent));
     }
 
     [Fact]

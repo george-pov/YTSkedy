@@ -64,6 +64,7 @@ public sealed class WordPressPublisher : IPlatformPublisher
                     postRequest,
                     options: JsonOptions)
             };
+            WordPressRequestHeaders.AddClientIdentification(httpRequest);
             httpRequest.Headers.Authorization =
                 WordPressRequestSecurity.CreateAuthorizationHeader(settings);
 

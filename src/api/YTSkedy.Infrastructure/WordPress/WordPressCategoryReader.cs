@@ -35,6 +35,7 @@ public sealed class WordPressCategoryReader(
                 BuildQuery(query));
 
             using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            WordPressRequestHeaders.AddClientIdentification(request);
             request.Headers.Authorization =
                 WordPressRequestSecurity.CreateAuthorizationHeader(settings);
 
