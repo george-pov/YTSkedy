@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using YTSkedy.AzureFunctions.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms;
 using YTSkedy.Scheduling.Application.Platforms.EventPlatforms;
+using YTSkedy.Scheduling.Application.Platforms.Providers;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
 using YTSkedy.Scheduling.Domain.Platforms;
 using YTSkedy.Scheduling.TestSupport;
@@ -106,10 +107,45 @@ public sealed class PublishEventPlatformApiTests
 
         var body = Assert.IsType<ObjectResult>(actionResult);
         Assert.Equal(StatusCodes.Status502BadGateway, body.StatusCode);
+        var error = Assert.IsType<PublicationActionErrorResponse>(body.Value);
+        Assert.Equal("publishing_failed", error.Code);
         Assert.Equal(
             "Publishing failed. Verify the event on the publishing platform and delete it if " +
             "necessary before retrying.",
-            body.Value);
+            error.Message);
+        Assert.True(error.VerificationRequired);
+    }
+
+    [Fact]
+    public void ToResult_WordPressRateLimit_Returns429WithDiagnostics()
+    {
+        var retryAfterUtc = new DateTimeOffset(2026, 6, 22, 12, 1, 0, TimeSpan.Zero);
+        var failure = new PublicationFailure(
+            PlatformPublishFailureCodes.WordPressRateLimited,
+            "WordPress limited publishing requests.",
+            "create_post",
+            429,
+            "imunify_rate_limited",
+            retryAfterUtc,
+            new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
+            "attempt-id",
+            VerificationRequired: true);
+
+        var actionResult = PublishEventPlatformApi.ToResult(
+            PublishResult.Failed(failure),
+            CalendarEventId,
+            PlatformId);
+
+        var body = Assert.IsType<ObjectResult>(actionResult);
+        Assert.Equal(StatusCodes.Status429TooManyRequests, body.StatusCode);
+        var error = Assert.IsType<PublicationActionErrorResponse>(body.Value);
+        Assert.Equal(PlatformPublishFailureCodes.WordPressRateLimited, error.Code);
+        Assert.Equal("create_post", error.Stage);
+        Assert.Equal(429, error.ProviderStatus);
+        Assert.Equal("imunify_rate_limited", error.ProviderErrorCode);
+        Assert.Equal(retryAfterUtc, error.RetryAfterUtc);
+        Assert.Equal("attempt-id", error.AttemptId);
+        Assert.True(error.VerificationRequired);
     }
 
     [Fact]

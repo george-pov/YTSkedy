@@ -158,7 +158,20 @@ public sealed class AzurePlatformPublicationRepository(
         }
 
         entity.Status = PublishStatus.Failed.ToString();
-        entity.UpdatedUtc = timeProvider.GetUtcNow();
+        var now = timeProvider.GetUtcNow();
+        entity.UpdatedUtc = now;
+        ApplyFailure(
+            entity,
+            new PublicationFailure(
+                "stale_attempt_recovered",
+                "The stale publication attempt was marked as failed by an operator.",
+                "recover_stale_attempt",
+                ProviderStatus: null,
+                ProviderErrorCode: null,
+                RetryAfterUtc: null,
+                FailedUtc: now,
+                AttemptId: entity.AttemptId,
+                VerificationRequired: true));
 
         try
         {
@@ -259,10 +272,12 @@ public sealed class AzurePlatformPublicationRepository(
         string calendarEventId,
         string platformId,
         string? externalResourceId,
+        PublicationFailure failure,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
         ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
+        ArgumentNullException.ThrowIfNull(failure);
 
         var entity = await TryGetEntityAsync(calendarEventId, platformId, cancellationToken);
         if (entity is null)
@@ -287,6 +302,7 @@ public sealed class AzurePlatformPublicationRepository(
         entity.ExternalResourceId = checkpointedExternalResourceId ?? failureExternalResourceId;
         entity.PublishedUtc = null;
         entity.UpdatedUtc = now;
+        ApplyFailure(entity, failure);
 
         try
         {
@@ -306,6 +322,21 @@ public sealed class AzurePlatformPublicationRepository(
         {
             return MarkFailedResult.Changed;
         }
+    }
+
+    private static void ApplyFailure(
+        PlatformPublicationEntity entity,
+        PublicationFailure failure)
+    {
+        entity.FailureCode = failure.Code;
+        entity.FailureMessage = failure.Message;
+        entity.FailureStage = failure.Stage;
+        entity.FailureProviderStatus = failure.ProviderStatus;
+        entity.FailureProviderErrorCode = failure.ProviderErrorCode;
+        entity.FailureRetryAfterUtc = failure.RetryAfterUtc;
+        entity.FailedUtc = failure.FailedUtc;
+        entity.FailureAttemptId = failure.AttemptId;
+        entity.FailureVerificationRequired = failure.VerificationRequired;
     }
 
     public Task<bool> MarkThumbnailAppliedAsync(

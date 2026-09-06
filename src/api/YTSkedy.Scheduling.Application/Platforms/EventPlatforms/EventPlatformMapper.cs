@@ -176,7 +176,8 @@ public static class EventPlatformMapper
                 isFuture,
                 publication.UpdatedUtc,
                 now,
-                staleAfter));
+                staleAfter),
+            publication.LastFailure);
     }
 
     private static EventPlatformView MapOrphan(
@@ -217,6 +218,7 @@ public static class EventPlatformMapper
                 isFuture,
                 publication.UpdatedUtc,
                 now,
-                staleAfter));
+                staleAfter),
+            publication.LastFailure);
     }
 }

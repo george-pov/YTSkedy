@@ -20,7 +20,10 @@ internal sealed class FakeHttpMessageHandler(
             request.Method,
             request.RequestUri!,
             request.Headers.Authorization,
-            request.Headers.UserAgent.ToString()));
+            request.Headers.UserAgent.ToString(),
+            request.Headers.TryGetValues("X-YTSkedy-Request-Id", out var requestIds)
+                ? requestIds.Single()
+                : null));
 
         return Task.FromResult(handler(request));
     }
@@ -30,7 +33,8 @@ internal sealed record RequestSnapshot(
     HttpMethod Method,
     Uri RequestUri,
     AuthenticationHeaderValue? Authorization,
-    string UserAgent);
+    string UserAgent,
+    string? RequestId);
 
 internal static class WordPressTestResponses
 {

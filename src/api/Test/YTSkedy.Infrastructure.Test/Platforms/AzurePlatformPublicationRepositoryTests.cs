@@ -169,6 +169,7 @@ public class AzurePlatformPublicationRepositoryTests
             CalendarEventId,
             PlatformId,
             " created-broadcast-id ",
+            Failure(),
             CancellationToken.None);
         var publication = await repository.GetAsync(
             CalendarEventId,
@@ -180,6 +181,7 @@ public class AzurePlatformPublicationRepositoryTests
         Assert.Equal("created-broadcast-id", publication.ExternalResourceId);
         Assert.Null(publication.PublishedUtc);
         Assert.Equal("Rendered title", publication.ContentSnapshot!.Title);
+        Assert.Equal(Failure(), publication.LastFailure);
     }
 
     [Fact]
@@ -191,6 +193,7 @@ public class AzurePlatformPublicationRepositoryTests
             CalendarEventId,
             PlatformId,
             externalResourceId: null,
+            Failure(),
             CancellationToken.None);
 
         Assert.Equal(MarkFailedResult.NotFound, result);
@@ -207,6 +210,7 @@ public class AzurePlatformPublicationRepositoryTests
             CalendarEventId,
             PlatformId,
             "other-id",
+            Failure(),
             CancellationToken.None);
 
         Assert.Equal(MarkFailedResult.Changed, result);
@@ -228,6 +232,7 @@ public class AzurePlatformPublicationRepositoryTests
             CalendarEventId,
             PlatformId,
             externalResourceId: null,
+            Failure(),
             CancellationToken.None);
 
         Assert.Equal(MarkFailedResult.Changed, result);
@@ -251,6 +256,36 @@ public class AzurePlatformPublicationRepositoryTests
         Assert.Equal(StartPublicationResult.Conflict, second);
         Assert.Equal(PublishStatus.Publishing, publication!.Status);
         Assert.Null(publication.ExternalResourceId);
+    }
+
+    [Fact]
+    public async Task StartPublishingAsync_FailedRow_ClearsPreviousFailureDiagnostics()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var entity = PublicationEntity(PublishStatus.Failed, externalResourceId: null);
+        entity.FailureCode = Failure().Code;
+        entity.FailureMessage = Failure().Message;
+        entity.FailureStage = Failure().Stage;
+        entity.FailedUtc = Failure().FailedUtc;
+        entity.FailureAttemptId = Failure().AttemptId;
+        entity.FailureVerificationRequired = true;
+        tableClient.Seed(entity);
+        var repository = CreateRepository(tableClient);
+
+        var result = await repository.StartPublishingAsync(
+            Attempt() with { AttemptId = "retry-attempt-id" },
+            CancellationToken.None);
+        var publication = await repository.GetAsync(
+            CalendarEventId,
+            PlatformId,
+            CancellationToken.None);
+
+        Assert.Equal(StartPublicationResult.Started, result);
+        Assert.Equal(PublishStatus.Publishing, publication!.Status);
+        Assert.Null(publication.LastFailure);
+        Assert.Equal(
+            "retry-attempt-id",
+            Assert.Single(tableClient.Entities).Value.AttemptId);
     }
 
     [Fact]
@@ -624,6 +659,7 @@ public class AzurePlatformPublicationRepositoryTests
             CalendarEventId,
             PlatformId,
             failureId,
+            Failure(),
             CancellationToken.None);
 
         Assert.Equal(MarkFailedResult.Marked, result);
@@ -741,6 +777,18 @@ public class AzurePlatformPublicationRepositoryTests
             PlatformType.YouTube,
             SchedulingSamples.YouTubeSettings(),
             new ContentSnapshot("Rendered title", "Rendered description"));
+
+    private static PublicationFailure Failure() =>
+        new(
+            "provider_failure",
+            "The provider failed.",
+            "provider",
+            ProviderStatus: null,
+            ProviderErrorCode: null,
+            RetryAfterUtc: null,
+            FailedUtc: new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero),
+            AttemptId: "attempt-id",
+            VerificationRequired: true);
 
     private static PlatformPublicationEntity PublishedEntity(string externalResourceId) =>
         PublicationEntity(PublishStatus.Published, externalResourceId: externalResourceId);

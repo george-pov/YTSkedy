@@ -30,6 +30,33 @@ public sealed class HttpDtoJsonTests
     }
 
     [Fact]
+    public void PublicationActionErrorResponse_SerializesPublishDiagnostics()
+    {
+        var retryAfterUtc = new DateTimeOffset(2026, 9, 6, 8, 1, 0, TimeSpan.Zero);
+        var response = new PublicationActionErrorResponse(
+            "wordpress_rate_limited",
+            "WordPress limited publishing requests.",
+            "create_post",
+            429,
+            "imunify_rate_limited",
+            retryAfterUtc,
+            "attempt-id",
+            VerificationRequired: true);
+
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+
+        Assert.Equal("wordpress_rate_limited", root.GetProperty("code").GetString());
+        Assert.Equal("create_post", root.GetProperty("stage").GetString());
+        Assert.Equal(429, root.GetProperty("providerStatus").GetInt32());
+        Assert.Equal("imunify_rate_limited", root.GetProperty("providerErrorCode").GetString());
+        Assert.Equal(retryAfterUtc, root.GetProperty("retryAfterUtc").GetDateTimeOffset());
+        Assert.Equal("attempt-id", root.GetProperty("attemptId").GetString());
+        Assert.True(root.GetProperty("verificationRequired").GetBoolean());
+    }
+
+    [Fact]
     public void EventPlatformResponse_SerializesRecoveryFieldsAdditively()
     {
         var updatedUtc = new DateTimeOffset(2026, 7, 15, 20, 0, 0, TimeSpan.Zero);

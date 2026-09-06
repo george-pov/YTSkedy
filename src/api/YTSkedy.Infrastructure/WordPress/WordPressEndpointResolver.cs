@@ -23,7 +23,8 @@ public sealed class WordPressEndpointResolver(
 
     internal async Task<WordPressRoot> ResolveAsync(
         WordPressSettings settings,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? requestId = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         cancellationToken.ThrowIfCancellationRequested();
@@ -32,7 +33,11 @@ public sealed class WordPressEndpointResolver(
         var cacheKey = siteUri.AbsoluteUri;
         if (TryGetCachedRoot(cacheKey, out var cachedRoot))
         {
-            return cachedRoot;
+            return cachedRoot with
+            {
+                DiscoveryCacheHit = true,
+                DiscoveryRequestCount = 0
+            };
         }
 
         var discoveryLock = _discoveryLocks.GetOrAdd(
@@ -43,10 +48,14 @@ public sealed class WordPressEndpointResolver(
         {
             if (TryGetCachedRoot(cacheKey, out cachedRoot))
             {
-                return cachedRoot;
+                return cachedRoot with
+                {
+                    DiscoveryCacheHit = true,
+                    DiscoveryRequestCount = 0
+                };
             }
 
-            var root = await DiscoverAsync(siteUri, cancellationToken);
+            var root = await DiscoverAsync(siteUri, cancellationToken, requestId);
             _cachedRoots[cacheKey] = new CachedRoot(
                 root,
                 _clock.GetUtcNow() + CacheDuration);
@@ -60,21 +69,27 @@ public sealed class WordPressEndpointResolver(
 
     private async Task<WordPressRoot> DiscoverAsync(
         Uri siteUri,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? requestId)
     {
         var candidates = new List<Uri>();
+        var requestCount = 1;
 
-        var linkedRoot = await TryGetRootFromSiteAsync(siteUri, cancellationToken);
+        var linkedRoot = await TryGetRootFromSiteAsync(
+            siteUri,
+            cancellationToken,
+            requestId);
         AddCandidate(candidates, linkedRoot);
         AddCandidate(candidates, BuildPrettyRoot(siteUri));
         AddCandidate(candidates, BuildRouteRoot(siteUri));
 
         foreach (var candidate in candidates)
         {
-            var root = await ProbeRootAsync(candidate, cancellationToken);
+            requestCount++;
+            var root = await ProbeRootAsync(candidate, cancellationToken, requestId);
             if (root is not null)
             {
-                return root;
+                return root with { DiscoveryRequestCount = requestCount };
             }
         }
 
@@ -101,10 +116,11 @@ public sealed class WordPressEndpointResolver(
 
     private async Task<Uri?> TryGetRootFromSiteAsync(
         Uri siteUri,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? requestId)
     {
         using var request = new HttpRequestMessage(HttpMethod.Head, siteUri);
-        WordPressRequestHeaders.AddClientIdentification(request);
+        WordPressRequestHeaders.AddClientIdentification(request, requestId);
 
         try
         {
@@ -172,10 +188,11 @@ public sealed class WordPressEndpointResolver(
 
     private async Task<WordPressRoot?> ProbeRootAsync(
         Uri rootUri,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? requestId)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, rootUri);
-        WordPressRequestHeaders.AddClientIdentification(request);
+        WordPressRequestHeaders.AddClientIdentification(request, requestId);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         try
@@ -341,8 +358,16 @@ public sealed class WordPressEndpointResolver(
         DateTimeOffset ExpiresAtUtc);
 }
 
-internal sealed record WordPressRoot(Uri RootUri)
+internal sealed record WordPressRoot(
+    Uri RootUri,
+    bool DiscoveryCacheHit = false,
+    int DiscoveryRequestCount = 0)
 {
+    internal string EndpointStyle =>
+        RootUri.Query.Contains("rest_route=", StringComparison.OrdinalIgnoreCase)
+            ? "route_query"
+            : "pretty_permalink";
+
     public Uri BuildRoute(
         string route,
         IReadOnlyDictionary<string, string>? query = null)

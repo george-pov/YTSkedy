@@ -51,7 +51,11 @@ public class WordPressEndpointResolverTests
         var first = await resolver.ResolveAsync(Settings(), CancellationToken.None);
         var second = await resolver.ResolveAsync(Settings(), CancellationToken.None);
 
-        Assert.Equal(first, second);
+        Assert.Equal(first.RootUri, second.RootUri);
+        Assert.False(first.DiscoveryCacheHit);
+        Assert.Equal(2, first.DiscoveryRequestCount);
+        Assert.True(second.DiscoveryCacheHit);
+        Assert.Equal(0, second.DiscoveryRequestCount);
         Assert.Equal(2, handler.CallCount);
     }
 

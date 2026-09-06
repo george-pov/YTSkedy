@@ -25,4 +25,5 @@ public sealed record EventPlatformView(
     bool CanPreviewPublishingContent,
     ThumbnailPublishStatus? ThumbnailStatus = null,
     DateTimeOffset? PublicationUpdatedUtc = null,
-    bool CanRecoverPublication = false);
+    bool CanRecoverPublication = false,
+    PublicationFailure? LastFailure = null);

@@ -13,6 +13,9 @@
       @if (thumbnailStatusText(platform); as thumbnailMessage) {
         <p>{{ thumbnailMessage }}</p>
       }
+      @if (publicationFailureText(platform); as failureMessage) {
+        <p>{{ failureMessage }}</p>
+      }
     </div>
   </ng-template>
 

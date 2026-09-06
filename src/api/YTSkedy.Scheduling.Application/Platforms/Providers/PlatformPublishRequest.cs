@@ -15,4 +15,5 @@ public sealed record PlatformPublishRequest(
     PublishSettings PublishSettings,
     string Title,
     string? Description,
-    DateTimeOffset ScheduledStartUtc);
+    DateTimeOffset ScheduledStartUtc,
+    string AttemptId = "");

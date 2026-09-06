@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Identity.Web.Resource;
 using YTSkedy.Scheduling.Application.Platforms;
+using YTSkedy.Scheduling.Application.Platforms.Providers;
 using YTSkedy.Scheduling.Application.Platforms.Publications;
+using YTSkedy.Scheduling.Domain.Platforms;
 
 namespace YTSkedy.AzureFunctions.CalendarEvents;
 
@@ -40,8 +42,8 @@ public sealed class PublishEventPlatformApi(PublishHandler publishHandler)
     /// publish body; not-found is 404; past start is 400; invalid publishing
     /// content, invalid provider publish settings, already-published,
     /// publish-in-progress, and platform-deleted are 409; an unsupported
-    /// provider is 501; a provider failure is 502; and a finalize failure is
-    /// 500.
+    /// provider is 501; a provider failure uses its structured diagnostic to
+    /// select 409, 429, 502, or 504; and a finalize failure is 500.
     /// </summary>
     internal static IActionResult ToResult(
         PublishResult result,
@@ -84,10 +86,9 @@ public sealed class PublishEventPlatformApi(PublishHandler publishHandler)
                 },
             PublishResultStatus.Failed =>
                 new ObjectResult(
-                    "Publishing failed. Verify the event on the publishing platform and delete " +
-                    "it if necessary before retrying.")
+                    ToFailureResponse(result.Failure))
                 {
-                    StatusCode = StatusCodes.Status502BadGateway
+                    StatusCode = ToFailureStatusCode(result.Failure)
                 },
             PublishResultStatus.FinalizeFailed =>
                 new ObjectResult(
@@ -99,5 +100,40 @@ public sealed class PublishEventPlatformApi(PublishHandler publishHandler)
             _ => new StatusCodeResult(StatusCodes.Status500InternalServerError)
         };
     }
+
+    private static PublicationActionErrorResponse ToFailureResponse(
+        PublicationFailure? failure)
+    {
+        if (failure is null)
+        {
+            return new PublicationActionErrorResponse(
+                "publishing_failed",
+                "Publishing failed. Verify the event on the publishing platform and delete " +
+                "it if necessary before retrying.",
+                VerificationRequired: true);
+        }
+
+        return new PublicationActionErrorResponse(
+            failure.Code,
+            failure.Message,
+            failure.Stage,
+            failure.ProviderStatus,
+            failure.ProviderErrorCode,
+            failure.RetryAfterUtc,
+            failure.AttemptId,
+            failure.VerificationRequired);
+    }
+
+    private static int ToFailureStatusCode(PublicationFailure? failure) =>
+        failure?.Code switch
+        {
+            PlatformPublishFailureCodes.WordPressRateLimited =>
+                StatusCodes.Status429TooManyRequests,
+            PlatformPublishFailureCodes.ProviderValidationFailed =>
+                StatusCodes.Status409Conflict,
+            PlatformPublishFailureCodes.ProviderTimeout =>
+                StatusCodes.Status504GatewayTimeout,
+            _ => StatusCodes.Status502BadGateway
+        };
 
 }

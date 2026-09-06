@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using YTSkedy.Scheduling.Application.CalendarEvents;
 using YTSkedy.Scheduling.Application.Platforms.Content;
 using YTSkedy.Scheduling.Application.Platforms.EventPlatforms;
@@ -85,13 +86,17 @@ public sealed class PublishHandler(
         }
 
         var renderedContent = renderResult.Content!;
+        var attemptId = Guid.NewGuid().ToString("N");
+        Activity.Current?.SetTag("ytskedy.publish.attempt_id", attemptId);
+        Activity.Current?.SetTag("ytskedy.publish.provider", platform.Type.ToString());
         var attempt = new PlatformPublicationAttempt(
             command.CalendarEventId,
             command.PlatformId,
             platform.Name,
             platform.Type,
             platform.PublishSettings,
-            new ContentSnapshot(renderedContent.Title, renderedContent.Description));
+            new ContentSnapshot(renderedContent.Title, renderedContent.Description),
+            attemptId);
 
         // Point of no request cancellation. All started-attempt work below is
         // owned by the bounded execution scope, never by the HTTP request.
@@ -115,7 +120,16 @@ public sealed class PublishHandler(
         catch (OperationCanceledException exception)
         {
             LogExecutionCancellation(exception, execution, command, "loading thumbnail content");
-            return await RecordFailedAsync(execution, command, externalResourceId: null);
+            return await RecordFailedAsync(
+                execution,
+                command,
+                attemptId,
+                externalResourceId: null,
+                new PlatformPublishFailure(
+                    PlatformPublishFailureCodes.ProviderCanceled,
+                    "Publication was canceled while loading thumbnail content.",
+                    "load_thumbnail",
+                    VerificationRequired: false));
         }
         catch (Exception exception)
         {
@@ -125,7 +139,16 @@ public sealed class PublishHandler(
                 "publishing platform {PlatformId}.",
                 command.CalendarEventId,
                 command.PlatformId);
-            return await RecordFailedAsync(execution, command, externalResourceId: null);
+            return await RecordFailedAsync(
+                execution,
+                command,
+                attemptId,
+                externalResourceId: null,
+                new PlatformPublishFailure(
+                    PlatformPublishFailureCodes.ThumbnailLoadFailed,
+                    "YTSkedy could not load the thumbnail before publishing.",
+                    "load_thumbnail",
+                    VerificationRequired: false));
         }
 
         PlatformPublishResult publishResult;
@@ -142,7 +165,8 @@ public sealed class PublishHandler(
                     platform.PublishSettings,
                     renderedContent.Title,
                     renderedContent.Description,
-                    calendarEvent.ScheduledStartUtc),
+                    calendarEvent.ScheduledStartUtc,
+                    attemptId),
                 checkpoint,
                 execution.OperationToken);
         }
@@ -154,20 +178,45 @@ public sealed class PublishHandler(
                 "failed provider-specific validation.",
                 command.CalendarEventId,
                 command.PlatformId);
-            return await RecordFailedAsync(execution, command, externalResourceId: null);
-        }
-        catch (PlatformPublishException exception)
-        {
-            LogProviderFailure(exception, command);
             return await RecordFailedAsync(
                 execution,
                 command,
-                exception.ExternalResourceId ?? checkpoint.ExternalResourceId);
+                attemptId,
+                externalResourceId: null,
+                new PlatformPublishFailure(
+                    PlatformPublishFailureCodes.ProviderValidationFailed,
+                    exception.Message,
+                    "validate_request",
+                    VerificationRequired: false));
+        }
+        catch (PlatformPublishException exception)
+        {
+            LogProviderFailure(exception, command, attemptId);
+            return await RecordFailedAsync(
+                execution,
+                command,
+                attemptId,
+                exception.ExternalResourceId ?? checkpoint.ExternalResourceId,
+                exception.Failure);
         }
         catch (OperationCanceledException exception)
         {
             LogExecutionCancellation(exception, execution, command, "calling the provider");
-            return await RecordFailedAsync(execution, command, checkpoint.ExternalResourceId);
+            var source = execution.ClassifyCancellation();
+            return await RecordFailedAsync(
+                execution,
+                command,
+                attemptId,
+                checkpoint.ExternalResourceId,
+                new PlatformPublishFailure(
+                    source == PublishCancellationSource.OperationTimeout
+                        ? PlatformPublishFailureCodes.ProviderTimeout
+                        : PlatformPublishFailureCodes.ProviderCanceled,
+                    source == PublishCancellationSource.OperationTimeout
+                        ? "The publishing provider timed out."
+                        : "The publishing provider call was canceled.",
+                    "provider",
+                    VerificationRequired: true));
         }
         catch (Exception exception)
         {
@@ -178,7 +227,16 @@ public sealed class PublishHandler(
                 command.CalendarEventId,
                 command.PlatformId,
                 exception.GetType().FullName);
-            return await RecordFailedAsync(execution, command, checkpoint.ExternalResourceId);
+            return await RecordFailedAsync(
+                execution,
+                command,
+                attemptId,
+                checkpoint.ExternalResourceId,
+                new PlatformPublishFailure(
+                    PlatformPublishFailureCodes.ProviderFailure,
+                    "The publishing provider failed unexpectedly.",
+                    "provider",
+                    VerificationRequired: true));
         }
 
         DateTimeOffset? publishedUtc;
@@ -203,7 +261,13 @@ public sealed class PublishHandler(
             return await RecordFailedAsync(
                 execution,
                 command,
-                publishResult.ExternalResourceId);
+                attemptId,
+                publishResult.ExternalResourceId,
+                new PlatformPublishFailure(
+                    PlatformPublishFailureCodes.ProviderFailure,
+                    "The provider resource was created, but YTSkedy could not finalize publication state.",
+                    "finalize_publication",
+                    VerificationRequired: true));
         }
 
         if (publishedUtc is null)
@@ -217,7 +281,13 @@ public sealed class PublishHandler(
             return await RecordFailedAsync(
                 execution,
                 command,
-                publishResult.ExternalResourceId);
+                attemptId,
+                publishResult.ExternalResourceId,
+                new PlatformPublishFailure(
+                    PlatformPublishFailureCodes.ProviderFailure,
+                    "The provider resource was created, but YTSkedy could not finalize publication state.",
+                    "finalize_publication",
+                    VerificationRequired: true));
         }
 
         await RunPublishedFollowUpAsync(
@@ -307,27 +377,40 @@ public sealed class PublishHandler(
 
     private void LogProviderFailure(
         PlatformPublishException exception,
-        PublishCommand command)
+        PublishCommand command,
+        string attemptId)
     {
         if (exception.FailureKind == PlatformPublishFailureKind.Timeout)
         {
             logger.LogWarning(
                 exception,
                 "Publishing calendar event {CalendarEventId} to platform {PlatformId} failed. " +
-                "Provider failure kind: {FailureKind}.",
+                "Provider failure kind: {FailureKind}. Failure code: {FailureCode}. " +
+                "Failure stage: {FailureStage}. Provider status: {ProviderStatus}. " +
+                "Publish attempt: {PublishAttemptId}.",
                 command.CalendarEventId,
                 command.PlatformId,
-                exception.FailureKind);
+                exception.FailureKind,
+                exception.Failure.Code,
+                exception.Failure.Stage,
+                exception.Failure.ProviderStatus,
+                attemptId);
             return;
         }
 
         logger.LogError(
             exception,
             "Publishing calendar event {CalendarEventId} to platform {PlatformId} failed. " +
-            "Provider failure kind: {FailureKind}.",
+            "Provider failure kind: {FailureKind}. Failure code: {FailureCode}. " +
+            "Failure stage: {FailureStage}. Provider status: {ProviderStatus}. " +
+            "Publish attempt: {PublishAttemptId}.",
             command.CalendarEventId,
             command.PlatformId,
-            exception.FailureKind);
+            exception.FailureKind,
+            exception.Failure.Code,
+            exception.Failure.Stage,
+            exception.Failure.ProviderStatus,
+            attemptId);
     }
 
     private void LogExecutionCancellation(
@@ -383,8 +466,25 @@ public sealed class PublishHandler(
     private async Task<PublishResult> RecordFailedAsync(
         IPublishExecutionScope execution,
         PublishCommand command,
-        string? externalResourceId)
+        string attemptId,
+        string? externalResourceId,
+        PlatformPublishFailure failure)
     {
+        var persistedFailure = new PublicationFailure(
+            failure.Code,
+            failure.Message,
+            failure.Stage,
+            failure.ProviderStatus,
+            failure.ProviderErrorCode,
+            failure.RetryAfterUtc,
+            timeProvider.GetUtcNow(),
+            attemptId,
+            failure.VerificationRequired);
+
+        Activity.Current?.SetTag("ytskedy.publish.failure_code", failure.Code);
+        Activity.Current?.SetTag("ytskedy.publish.failure_stage", failure.Stage);
+        Activity.Current?.SetTag("ytskedy.publish.provider_status", failure.ProviderStatus);
+
         MarkFailedResult result;
         try
         {
@@ -393,6 +493,7 @@ public sealed class PublishHandler(
                     command.CalendarEventId,
                     command.PlatformId,
                     externalResourceId,
+                    persistedFailure,
                     token));
         }
         catch (Exception exception)
@@ -409,7 +510,7 @@ public sealed class PublishHandler(
 
         if (result == MarkFailedResult.Marked)
         {
-            return PublishResult.ForStatus(PublishResultStatus.Failed);
+            return PublishResult.Failed(persistedFailure);
         }
 
         logger.LogCritical(

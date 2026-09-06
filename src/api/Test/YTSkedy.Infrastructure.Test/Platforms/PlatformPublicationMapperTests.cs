@@ -42,7 +42,47 @@ public class PlatformPublicationMapperTests
         Assert.NotNull(publication.ContentSnapshot);
         Assert.Equal("Rendered title", publication.ContentSnapshot!.Title);
         Assert.Equal("Rendered description", publication.ContentSnapshot.Description);
+        Assert.Null(publication.LastFailure);
         Assert.False(publication.IsOrphaned);
+    }
+
+    [Fact]
+    public void ToPublication_FailedEntity_MapsSafeFailureDetails()
+    {
+        var failedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 5, TimeSpan.Zero);
+        var entity = CreateEntity(PublishStatus.Failed);
+        entity.FailureCode = "wordpress_rate_limited";
+        entity.FailureMessage = "WordPress limited publishing requests.";
+        entity.FailureStage = "create_post";
+        entity.FailureProviderStatus = 429;
+        entity.FailureProviderErrorCode = "rate_limited";
+        entity.FailureRetryAfterUtc = failedUtc.AddMinutes(1);
+        entity.FailedUtc = failedUtc;
+        entity.FailureAttemptId = "attempt-id";
+        entity.FailureVerificationRequired = true;
+
+        var publication = PlatformPublicationMapper.ToPublication(entity);
+
+        Assert.NotNull(publication.LastFailure);
+        Assert.Equal("wordpress_rate_limited", publication.LastFailure!.Code);
+        Assert.Equal("WordPress limited publishing requests.", publication.LastFailure.Message);
+        Assert.Equal("create_post", publication.LastFailure.Stage);
+        Assert.Equal(429, publication.LastFailure.ProviderStatus);
+        Assert.Equal("rate_limited", publication.LastFailure.ProviderErrorCode);
+        Assert.Equal(failedUtc.AddMinutes(1), publication.LastFailure.RetryAfterUtc);
+        Assert.Equal(failedUtc, publication.LastFailure.FailedUtc);
+        Assert.Equal("attempt-id", publication.LastFailure.AttemptId);
+        Assert.True(publication.LastFailure.VerificationRequired);
+    }
+
+    [Fact]
+    public void ToPublication_LegacyFailedEntity_HasNoFailureDetails()
+    {
+        var publication = PlatformPublicationMapper.ToPublication(
+            CreateEntity(PublishStatus.Failed));
+
+        Assert.Equal(PublishStatus.Failed, publication.Status);
+        Assert.Null(publication.LastFailure);
     }
 
     [Fact]
@@ -93,7 +133,8 @@ public class PlatformPublicationMapperTests
             "Main YouTube channel",
             PlatformType.YouTube,
             new YouTubeSettings(Credentials(), "private", false),
-            new ContentSnapshot("Rendered title", "Rendered description"));
+            new ContentSnapshot("Rendered title", "Rendered description"),
+            "attempt-id");
 
         var entity = PlatformPublicationMapper.ToPublishingEntity(attempt, now);
 
@@ -108,6 +149,8 @@ public class PlatformPublicationMapperTests
         Assert.Equal("NotConfigured", entity.ThumbnailStatus);
         Assert.Equal("Rendered title", entity.ContentSnapshotTitle);
         Assert.Equal("Rendered description", entity.ContentSnapshotDescription);
+        Assert.Equal("attempt-id", entity.AttemptId);
+        Assert.Null(entity.FailureCode);
         Assert.Null(entity.PublishedUtc);
         Assert.Null(entity.PlatformDeletedUtc);
         Assert.Equal(now, entity.CreatedUtc);

@@ -35,7 +35,8 @@ internal static class PlatformPublicationMapper
                 platformType,
                 entity.PublishSettingsJson),
             ToContentSnapshot(entity),
-            ParseThumbnailStatus(entity.ThumbnailStatus));
+            ParseThumbnailStatus(entity.ThumbnailStatus),
+            ToFailure(entity));
     }
 
     internal static IReadOnlyList<PlatformPublication> ToPublications(
@@ -75,6 +76,7 @@ internal static class PlatformPublicationMapper
                 .ToString(),
             ContentSnapshotTitle = attempt.ContentSnapshot.Title,
             ContentSnapshotDescription = attempt.ContentSnapshot.Description,
+            AttemptId = Normalize(attempt.AttemptId),
             PublishSettingsJson = PublishSettingsSerializer.SerializeSnapshot(
                 attempt.PlatformType,
                 attempt.PublishSettings),
@@ -111,6 +113,32 @@ internal static class PlatformPublicationMapper
             : new ContentSnapshot(
                 entity.ContentSnapshotTitle,
                 entity.ContentSnapshotDescription);
+
+    private static PublicationFailure? ToFailure(PlatformPublicationEntity entity)
+    {
+        if (ParseStatus(entity.Status) != PublishStatus.Failed ||
+            string.IsNullOrWhiteSpace(entity.FailureCode) ||
+            string.IsNullOrWhiteSpace(entity.FailureMessage) ||
+            string.IsNullOrWhiteSpace(entity.FailureStage) ||
+            entity.FailedUtc is null)
+        {
+            return null;
+        }
+
+        return new PublicationFailure(
+            entity.FailureCode.Trim(),
+            entity.FailureMessage.Trim(),
+            entity.FailureStage.Trim(),
+            entity.FailureProviderStatus,
+            Normalize(entity.FailureProviderErrorCode),
+            entity.FailureRetryAfterUtc,
+            entity.FailedUtc.Value,
+            Normalize(entity.FailureAttemptId),
+            entity.FailureVerificationRequired ?? true);
+    }
+
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static InvalidOperationException InvalidStoredValue(string fieldName, string? value) =>
         new($"Stored {fieldName} value '{value ?? "<null>"}' is invalid.");

@@ -85,6 +85,8 @@ architecture, API, UI, development, or operations guidance.
   [`api/operations/youtube-publish-setup.md`](api/operations/youtube-publish-setup.md)
 - Platform publication cleanup:
   [`api/operations/platform-publication-cleanup.md`](api/operations/platform-publication-cleanup.md)
+- WordPress publish troubleshooting:
+  [`api/operations/wordpress-publish-troubleshooting.md`](api/operations/wordpress-publish-troubleshooting.md)
 
 ## UI
 

@@ -44,7 +44,8 @@ suitable for external contributors and real deployments.
 - Per-platform publication records track provider work and external resource
   identifiers independently from the calendar event. Caught publish failures
   are operator-visible, retryable records that may retain an external resource
-  id for provider verification.
+  id and a secret-safe failure summary for provider verification and log
+  correlation.
 - Reads and publish preflight remain request-cancelable. After a publication
   attempt starts, a server-owned deadline bounds provider work and a separate
   short deadline bounds final-state persistence. Known provider ids are

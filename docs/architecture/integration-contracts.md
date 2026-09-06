@@ -250,6 +250,15 @@ HTTP routes.
 - Every WordPress HTTP request identifies the client as `YTSkedy/1.0`. This
   identification applies to endpoint discovery and authenticated operations;
   it does not replace WordPress authentication or authorization.
+- Each publish attempt has a generated reference id. WordPress requests also
+  carry it as `X-YTSkedy-Request-Id`, and structured logs correlate it with the
+  request stage, status, duration, endpoint style, discovery cache use, and
+  provider request count.
+- A handled failure stores a secret-safe diagnostic summary on the failed
+  publication row and returns the same summary through the publish error
+  contract. WordPress error codes and `Retry-After` may be retained; raw
+  response bodies, provider messages, authorization headers, credentials, and
+  publishing content are excluded.
 - Provider-specific request mapping, cleanup behavior, and recovery notes are
   documented in
   [`../api/http/platform-publications.md`](../api/http/platform-publications.md)

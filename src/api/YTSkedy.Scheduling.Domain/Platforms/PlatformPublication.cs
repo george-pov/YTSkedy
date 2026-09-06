@@ -22,7 +22,8 @@ public sealed record PlatformPublication(
     DateTimeOffset UpdatedUtc,
     PublicationTargetSnapshot? TargetSnapshot = null,
     ContentSnapshot? ContentSnapshot = null,
-    ThumbnailPublishStatus? ThumbnailStatus = null)
+    ThumbnailPublishStatus? ThumbnailStatus = null,
+    PublicationFailure? LastFailure = null)
 {
     /// <summary>
     /// True when the platform this publication targeted has been deleted, so the
