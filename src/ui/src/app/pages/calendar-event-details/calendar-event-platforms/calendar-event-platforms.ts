@@ -13,6 +13,19 @@ import {
   thumbnailStatusText,
 } from './calendar-event-platforms.state';
 
+export function youtubePublicationUrl(platform: CalendarEventPlatform): string | null {
+  const externalResourceId = platform.externalResourceId?.trim();
+  if (
+    platform.platformType !== 'YouTube' ||
+    platform.status !== 'Published' ||
+    !externalResourceId
+  ) {
+    return null;
+  }
+
+  return `https://www.youtube.com/watch?v=${encodeURIComponent(externalResourceId)}`;
+}
+
 @Component({
   selector: 'app-calendar-event-platforms',
   imports: [Alert, Button, DataTable, DataTableCell],
@@ -32,4 +45,5 @@ export class CalendarEventPlatforms {
   protected readonly thumbnailStatusText = thumbnailStatusText;
   protected readonly publicationFailureText = publicationFailureText;
   protected readonly platformStatusText = platformStatusText;
+  protected readonly youtubePublicationUrl = youtubePublicationUrl;
 }
