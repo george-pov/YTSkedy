@@ -20,7 +20,7 @@
   </ng-template>
 
   <ng-template appDataTableCell="actions" let-platform>
-    <div class="app-actions">
+    <div class="app-actions">      
       @if (platform.canPreviewPublishingContent) {
         <app-button
           class="platform-preview-button"
@@ -60,6 +60,21 @@
           [disabled]="platformState.actionsDisabled()"
           (click)="platformState.recoverPlatformPublication(platform)"
         />
+      }
+      @if (youtubePublicationUrl(platform); as publicationUrl) {
+        <a
+          class="platform-view-link"
+          [href]="publicationUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          [attr.aria-label]="
+            'View published stream for ' +
+            platform.platformName +
+            ' on YouTube (opens in a new tab)'
+          "
+        >
+          View
+        </a>
       }
     </div>
   </ng-template>

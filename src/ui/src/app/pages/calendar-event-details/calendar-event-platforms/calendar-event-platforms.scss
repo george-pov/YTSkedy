@@ -18,6 +18,26 @@
   }
 }
 
+.platform-view-link {
+  color: $app-color-action-primary;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: rgba($app-color-action-primary, 0.55);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+
+  &:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  &:focus-visible {
+    border-radius: $app-radius-sm;
+    outline: 3px solid $app-color-action-primary;
+    outline-offset: 3px;
+    text-decoration-thickness: 2px;
+  }
+}
+
 .publishing-content-preview {
   @include app.panel($app-space-4, $app-color-surface);
   @include app.stack($app-space-3);

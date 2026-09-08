@@ -17,7 +17,7 @@ import {
   testCalendarEventPlatform,
 } from '../testing/calendar-event-details.fixture';
 import { CalendarEventPlatformsState } from './calendar-event-platforms.state';
-import { CalendarEventPlatforms } from './calendar-event-platforms';
+import { CalendarEventPlatforms, youtubePublicationUrl } from './calendar-event-platforms';
 
 describe('CalendarEventPlatforms', () => {
   const calendarEventId = 'event-1';
@@ -44,6 +44,34 @@ describe('CalendarEventPlatforms', () => {
   let activePageMutation = signal(false);
   let pendingEventChanges = signal(false);
   let state: CalendarEventPlatformsState;
+
+  it('builds an encoded YouTube watch URL from a trimmed published resource id', () => {
+    const platform = testCalendarEventPlatform({
+      externalResourceId: ' broadcast/id?part=one&next=two ',
+      platformDeletedUtc: '2030-07-05T08:45:00+00:00',
+      canPublish: true,
+      canDeletePublication: false,
+    });
+
+    expect(youtubePublicationUrl(platform)).toBe(
+      'https://www.youtube.com/watch?v=broadcast%2Fid%3Fpart%3Done%26next%3Dtwo',
+    );
+  });
+
+  it('rejects ineligible provider, publication status, and resource id values', () => {
+    expect(
+      youtubePublicationUrl(testCalendarEventPlatform({ platformType: 'WordPress' })),
+    ).toBeNull();
+    expect(youtubePublicationUrl(testCalendarEventPlatform({ status: 'NotPublished' }))).toBeNull();
+    expect(youtubePublicationUrl(testCalendarEventPlatform({ status: 'Publishing' }))).toBeNull();
+    expect(youtubePublicationUrl(testCalendarEventPlatform({ status: 'Failed' }))).toBeNull();
+    expect(
+      youtubePublicationUrl(testCalendarEventPlatform({ externalResourceId: null })),
+    ).toBeNull();
+    expect(
+      youtubePublicationUrl(testCalendarEventPlatform({ externalResourceId: '   ' })),
+    ).toBeNull();
+  });
 
   beforeEach(() => {
     service = {
@@ -113,6 +141,87 @@ describe('CalendarEventPlatforms', () => {
     expect(platformPublishHosts()).toHaveLength(1);
     expect(platformPreviewHosts()).toHaveLength(2);
     expect(platformDeletePublicationHosts()).toHaveLength(1);
+  });
+
+  it('renders a native View link for a published YouTube platform', async () => {
+    state.applyEventDetails(
+      sampleEvent({
+        platforms: [publishedPlatform({ externalResourceId: 'broadcast/id?part=one&next=two' })],
+      }),
+    );
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const links = platformViewLinks();
+    expect(links).toHaveLength(1);
+    expect(links[0].getAttribute('href')).toBe(
+      'https://www.youtube.com/watch?v=broadcast%2Fid%3Fpart%3Done%26next%3Dtwo',
+    );
+    expect(links[0].getAttribute('target')).toBe('_blank');
+    expect(links[0].getAttribute('rel')).toBe('noopener noreferrer');
+    expect(links[0].textContent?.trim()).toBe('View');
+    expect(links[0].getAttribute('aria-label')).toBe(
+      'View published stream for Main YouTube channel on YouTube (opens in a new tab)',
+    );
+  });
+
+  it('renders the View link for orphaned published YouTube history', async () => {
+    state.applyEventDetails(
+      sampleEvent({
+        platforms: [
+          publishedPlatform({
+            platformDeletedUtc: '2030-07-05T08:45:00+00:00',
+            canDeletePublication: false,
+          }),
+        ],
+      }),
+    );
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(platformViewLinks()).toHaveLength(1);
+  });
+
+  it('does not render View links for WordPress or failed YouTube publications', async () => {
+    state.applyEventDetails(
+      sampleEvent({
+        platforms: [
+          publishedPlatform({ platformType: 'WordPress' }),
+          publishedPlatform({
+            platformId: 'platform-2',
+            status: 'Failed',
+            externalResourceId: 'checkpointed-broadcast-id',
+          }),
+        ],
+      }),
+    );
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(platformViewLinks()).toHaveLength(0);
+  });
+
+  it('keeps the View link available during pending edits and an active page mutation', async () => {
+    pendingEventChanges.set(true);
+    state.applyEventDetails(sampleEvent({ platforms: [publishedPlatform()] }));
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(platformViewLinks()).toHaveLength(1);
+
+    activePageMutation.set(true);
+    fixture.detectChanges();
+
+    expect(state.actionsDisabled()).toBe(true);
+    expect(platformViewLinks()).toHaveLength(1);
   });
 
   it('renders Failed with the backend-enabled publish retry action', async () => {
@@ -394,6 +503,12 @@ describe('CalendarEventPlatforms', () => {
 
   function platformRecoverPublicationButton(): HTMLButtonElement | null {
     return platformRecoverPublicationHosts()[0]?.querySelector('button') ?? null;
+  }
+
+  function platformViewLinks(): HTMLAnchorElement[] {
+    return Array.from(
+      fixture.nativeElement.querySelectorAll('.platform-view-link'),
+    ) as HTMLAnchorElement[];
   }
 
   function draftPlatform(overrides: Partial<CalendarEventPlatform> = {}): CalendarEventPlatform {
