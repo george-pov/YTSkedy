@@ -101,6 +101,7 @@ internal sealed class PublishHandlerScenario
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
+                It.IsAny<PublicationFailure>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(MarkFailedResult.Marked);
 

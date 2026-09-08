@@ -435,7 +435,19 @@ public sealed class CalendarEventsApi(
             view.CanPublish,
             view.CanDeletePublication,
             view.CanPreviewPublishingContent,
-            view.CanRecoverPublication);
+            view.CanRecoverPublication,
+            view.LastFailure is null
+                ? null
+                : new PublicationFailureResponse(
+                    view.LastFailure.Code,
+                    view.LastFailure.Message,
+                    view.LastFailure.Stage,
+                    view.LastFailure.ProviderStatus,
+                    view.LastFailure.ProviderErrorCode,
+                    view.LastFailure.RetryAfterUtc,
+                    view.LastFailure.FailedUtc,
+                    view.LastFailure.AttemptId,
+                    view.LastFailure.VerificationRequired));
     }
 
     private static string ToSortString(CalendarEventSortField sort) =>

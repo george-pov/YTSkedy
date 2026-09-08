@@ -23,6 +23,7 @@ import {
   describePublishError,
   describeRecoverPublicationError,
   platformStatusText,
+  publicationFailureText,
   thumbnailStatusText,
 } from './calendar-event-platforms.state';
 
@@ -112,6 +113,34 @@ describe('CalendarEventPlatformsState', () => {
     expect(describePublishError(new HttpErrorResponse({ status: 502 }))).toContain(
       'Verify the event on the publishing platform',
     );
+    expect(
+      describePublishError(
+        new HttpErrorResponse({
+          status: 429,
+          error: {
+            code: 'wordpress_rate_limited',
+            message: 'WordPress limited publishing requests.',
+            stage: 'create_post',
+            providerStatus: 429,
+            providerErrorCode: 'imunify_rate_limited',
+            retryAfterUtc: '2026-09-06T08:01:00Z',
+            attemptId: 'attempt-id',
+            verificationRequired: true,
+          },
+        }),
+      ),
+    ).toContain('Reference: attempt-id');
+    expect(
+      describePublishError(
+        new HttpErrorResponse({
+          status: 502,
+          error: {
+            code: 'wordpress_authentication_failed',
+            message: 'WordPress rejected the credentials.',
+          },
+        }),
+      ),
+    ).toContain('Application Password');
     expect(describePublishError(new Error('network'))).toContain('Check your connection');
 
     expect(describeDeletePublicationError(new HttpErrorResponse({ status: 409 }))).toContain(
@@ -174,6 +203,30 @@ describe('CalendarEventPlatformsState', () => {
         }),
       ),
     ).toBeNull();
+  });
+
+  it('shows persisted publication failure diagnostics for a failed row', () => {
+    const message = publicationFailureText(
+      failedPlatform({
+        lastFailure: {
+          code: 'wordpress_permission_denied',
+          message: 'WordPress denied permission to create the post.',
+          stage: 'create_post',
+          providerStatus: 403,
+          providerErrorCode: 'rest_cannot_create',
+          retryAfterUtc: null,
+          failedUtc: '2026-09-06T08:00:00Z',
+          attemptId: 'attempt-id',
+          verificationRequired: true,
+        },
+      }),
+    );
+
+    expect(message).toContain('security plugin rules');
+    expect(message).toContain('HTTP 403');
+    expect(message).toContain('rest_cannot_create');
+    expect(message).toContain('Reference: attempt-id');
+    expect(publicationFailureText(draftPlatform())).toBeNull();
   });
 
   it('applies and resets platform details', () => {

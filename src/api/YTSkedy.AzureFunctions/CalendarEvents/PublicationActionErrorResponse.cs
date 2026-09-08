@@ -6,4 +6,10 @@ namespace YTSkedy.AzureFunctions.CalendarEvents;
 /// </summary>
 internal sealed record PublicationActionErrorResponse(
     string Code,
-    string Message);
+    string Message,
+    string? Stage = null,
+    int? ProviderStatus = null,
+    string? ProviderErrorCode = null,
+    DateTimeOffset? RetryAfterUtc = null,
+    string? AttemptId = null,
+    bool VerificationRequired = false);

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -8,31 +9,87 @@ namespace YTSkedy.Infrastructure.WordPress;
 
 public sealed class WordPressEndpointResolver(
     HttpClient httpClient,
-    ILogger<WordPressEndpointResolver> logger)
+    ILogger<WordPressEndpointResolver> logger,
+    TimeProvider? timeProvider = null)
 {
     private const string ApiRel = "https://api.w.org/";
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly ConcurrentDictionary<string, CachedRoot> _cachedRoots =
+        new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _discoveryLocks =
+        new(StringComparer.Ordinal);
+    private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
     internal async Task<WordPressRoot> ResolveAsync(
         WordPressSettings settings,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? requestId = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var siteUri = CreateSiteUri(settings);
-        var candidates = new List<Uri>();
+        var cacheKey = siteUri.AbsoluteUri;
+        if (TryGetCachedRoot(cacheKey, out var cachedRoot))
+        {
+            return cachedRoot with
+            {
+                DiscoveryCacheHit = true,
+                DiscoveryRequestCount = 0
+            };
+        }
 
-        var linkedRoot = await TryGetRootFromSiteAsync(siteUri, cancellationToken);
+        var discoveryLock = _discoveryLocks.GetOrAdd(
+            cacheKey,
+            static _ => new SemaphoreSlim(1, 1));
+        await discoveryLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (TryGetCachedRoot(cacheKey, out cachedRoot))
+            {
+                return cachedRoot with
+                {
+                    DiscoveryCacheHit = true,
+                    DiscoveryRequestCount = 0
+                };
+            }
+
+            var root = await DiscoverAsync(siteUri, cancellationToken, requestId);
+            _cachedRoots[cacheKey] = new CachedRoot(
+                root,
+                _clock.GetUtcNow() + CacheDuration);
+            return root;
+        }
+        finally
+        {
+            discoveryLock.Release();
+        }
+    }
+
+    private async Task<WordPressRoot> DiscoverAsync(
+        Uri siteUri,
+        CancellationToken cancellationToken,
+        string? requestId)
+    {
+        var candidates = new List<Uri>();
+        var requestCount = 1;
+
+        var linkedRoot = await TryGetRootFromSiteAsync(
+            siteUri,
+            cancellationToken,
+            requestId);
         AddCandidate(candidates, linkedRoot);
         AddCandidate(candidates, BuildPrettyRoot(siteUri));
         AddCandidate(candidates, BuildRouteRoot(siteUri));
 
         foreach (var candidate in candidates)
         {
-            var root = await ProbeRootAsync(candidate, cancellationToken);
+            requestCount++;
+            var root = await ProbeRootAsync(candidate, cancellationToken, requestId);
             if (root is not null)
             {
-                return root;
+                return root with { DiscoveryRequestCount = requestCount };
             }
         }
 
@@ -44,12 +101,26 @@ public sealed class WordPressEndpointResolver(
             $"WordPress REST API discovery failed for host '{siteUri.Host}'.");
     }
 
+    private bool TryGetCachedRoot(string cacheKey, out WordPressRoot root)
+    {
+        if (_cachedRoots.TryGetValue(cacheKey, out var cachedRoot) &&
+            cachedRoot.ExpiresAtUtc > _clock.GetUtcNow())
+        {
+            root = cachedRoot.Root;
+            return true;
+        }
+
+        root = null!;
+        return false;
+    }
+
     private async Task<Uri?> TryGetRootFromSiteAsync(
         Uri siteUri,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? requestId)
     {
         using var request = new HttpRequestMessage(HttpMethod.Head, siteUri);
-        WordPressRequestHeaders.AddClientIdentification(request);
+        WordPressRequestHeaders.AddClientIdentification(request, requestId);
 
         try
         {
@@ -117,10 +188,11 @@ public sealed class WordPressEndpointResolver(
 
     private async Task<WordPressRoot?> ProbeRootAsync(
         Uri rootUri,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? requestId)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, rootUri);
-        WordPressRequestHeaders.AddClientIdentification(request);
+        WordPressRequestHeaders.AddClientIdentification(request, requestId);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         try
@@ -280,10 +352,22 @@ public sealed class WordPressEndpointResolver(
     private sealed record WordPressIndex(
         string[]? Namespaces,
         Dictionary<string, JsonElement>? Routes);
+
+    private sealed record CachedRoot(
+        WordPressRoot Root,
+        DateTimeOffset ExpiresAtUtc);
 }
 
-internal sealed record WordPressRoot(Uri RootUri)
+internal sealed record WordPressRoot(
+    Uri RootUri,
+    bool DiscoveryCacheHit = false,
+    int DiscoveryRequestCount = 0)
 {
+    internal string EndpointStyle =>
+        RootUri.Query.Contains("rest_route=", StringComparison.OrdinalIgnoreCase)
+            ? "route_query"
+            : "pretty_permalink";
+
     public Uri BuildRoute(
         string route,
         IReadOnlyDictionary<string, string>? query = null)

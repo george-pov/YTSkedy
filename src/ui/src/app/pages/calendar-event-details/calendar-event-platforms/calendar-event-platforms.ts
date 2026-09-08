@@ -9,6 +9,7 @@ import { type CalendarEventPlatform } from 'src/app/shared/api/calendar-events/c
 import {
   CalendarEventPlatformsState,
   platformStatusText,
+  publicationFailureText,
   thumbnailStatusText,
 } from './calendar-event-platforms.state';
 
@@ -29,5 +30,6 @@ export class CalendarEventPlatforms {
     { key: 'actions', header: 'Actions' },
   ];
   protected readonly thumbnailStatusText = thumbnailStatusText;
+  protected readonly publicationFailureText = publicationFailureText;
   protected readonly platformStatusText = platformStatusText;
 }

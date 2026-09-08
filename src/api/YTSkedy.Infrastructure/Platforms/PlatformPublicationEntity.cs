@@ -40,6 +40,26 @@ internal sealed class PlatformPublicationEntity : ITableEntity
 
     public string? ContentSnapshotDescription { get; set; }
 
+    public string? AttemptId { get; set; }
+
+    public string? FailureCode { get; set; }
+
+    public string? FailureMessage { get; set; }
+
+    public string? FailureStage { get; set; }
+
+    public int? FailureProviderStatus { get; set; }
+
+    public string? FailureProviderErrorCode { get; set; }
+
+    public DateTimeOffset? FailureRetryAfterUtc { get; set; }
+
+    public DateTimeOffset? FailedUtc { get; set; }
+
+    public string? FailureAttemptId { get; set; }
+
+    public bool? FailureVerificationRequired { get; set; }
+
     public string PublishSettingsJson { get; set; } = string.Empty;
 
     public DateTimeOffset? PublishedUtc { get; set; }

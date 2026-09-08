@@ -79,6 +79,23 @@ public class WordPressPublisherTests
         Assert.All(
             handler.Requests,
             request => Assert.Equal("YTSkedy/1.0", request.UserAgent));
+        Assert.All(
+            handler.Requests,
+            request => Assert.Equal("attempt-id", request.RequestId));
+    }
+
+    [Fact]
+    public async Task PublishAsync_RepeatedSite_ReusesEndpointDiscovery()
+    {
+        var handler = PrettyRoot(_ => JsonResponse("""{"id":74}"""));
+        var publisher = CreatePublisher(handler);
+
+        await publisher.PublishAsync(Request(), CancellationToken.None);
+        await publisher.PublishAsync(Request(), CancellationToken.None);
+
+        Assert.Equal(
+            [HttpMethod.Head, HttpMethod.Get, HttpMethod.Post, HttpMethod.Post],
+            handler.Requests.Select(request => request.Method));
     }
 
     [Fact]
@@ -264,7 +281,10 @@ public class WordPressPublisherTests
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
 
-        Assert.Contains("Failed to publish", exception.Message);
+        Assert.Equal(
+            PlatformPublishFailureCodes.WordPressDiscoveryFailed,
+            exception.Failure.Code);
+        Assert.Equal("discovery", exception.Failure.Stage);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
         Assert.DoesNotContain(ApplicationPassword, _logger.GetLogText());
         Assert.Equal(3, handler.CallCount);
@@ -284,7 +304,8 @@ public class WordPressPublisherTests
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
 
-        Assert.Contains(((int)statusCode).ToString(), exception.Message);
+        Assert.Equal((int)statusCode, exception.Failure.ProviderStatus);
+        Assert.Equal("create_post", exception.Failure.Stage);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
 
         var entry = Assert.Single(_logger.GetLogEntries());
@@ -298,6 +319,42 @@ public class WordPressPublisherTests
     }
 
     [Fact]
+    public async Task PublishAsync_RateLimited_ParsesSafeDiagnosticsAndRetryAfter()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+        {
+            Content = new StringContent(
+                """{"code":"imunify_rate_limited","message":"request blocked"}""",
+                Encoding.UTF8,
+                "application/json")
+        };
+        response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(
+            TimeSpan.FromSeconds(60));
+        var publisher = CreatePublisher(PrettyRoot(_ => response));
+
+        var exception = await Assert.ThrowsAsync<PlatformPublishException>(
+            () => publisher.PublishAsync(Request(), CancellationToken.None));
+
+        Assert.Equal(
+            PlatformPublishFailureCodes.WordPressRateLimited,
+            exception.Failure.Code);
+        Assert.Equal(429, exception.Failure.ProviderStatus);
+        Assert.Equal("imunify_rate_limited", exception.Failure.ProviderErrorCode);
+        Assert.Equal(SchedulingSampleTimes.Now.AddMinutes(1), exception.Failure.RetryAfterUtc);
+        Assert.Equal("create_post", exception.Failure.Stage);
+        Assert.True(exception.Failure.VerificationRequired);
+
+        var logText = _logger.GetLogText();
+        Assert.Contains("attempt-id", logText);
+        Assert.Contains("imunify_rate_limited", logText);
+        Assert.Contains("Discovery cache hit: False", logText);
+        Assert.Contains("Provider request count: 3", logText);
+        Assert.Contains("Endpoint style: pretty_permalink", logText);
+        Assert.DoesNotContain("request blocked", logText);
+        Assert.DoesNotContain(ApplicationPassword, logText);
+    }
+
+    [Fact]
     public async Task PublishAsync_MalformedJson_ThrowsPlatformPublishException()
     {
         var handler = PrettyRoot(_ => JsonResponse("{not-json"));
@@ -306,7 +363,9 @@ public class WordPressPublisherTests
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
 
-        Assert.Contains("malformed JSON", exception.Message);
+        Assert.Equal(
+            PlatformPublishFailureCodes.WordPressInvalidResponse,
+            exception.Failure.Code);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
         Assert.Contains("malformed JSON", Assert.Single(_logger.GetLogEntries()).Message);
     }
@@ -338,7 +397,10 @@ public class WordPressPublisherTests
         var exception = await Assert.ThrowsAsync<PlatformPublishException>(
             () => publisher.PublishAsync(Request(), CancellationToken.None));
 
-        Assert.Contains("Failed to publish", exception.Message);
+        Assert.Equal(
+            PlatformPublishFailureCodes.WordPressProviderError,
+            exception.Failure.Code);
+        Assert.Equal("create_post", exception.Failure.Stage);
         Assert.DoesNotContain(ApplicationPassword, exception.Message);
         Assert.Contains("example.com", Assert.Single(_logger.GetLogEntries()).Message);
     }
@@ -477,7 +539,8 @@ public class WordPressPublisherTests
                 []),
             "English title",
             description,
-            scheduledStartUtc ?? new DateTimeOffset(2026, 6, 25, 17, 0, 0, TimeSpan.Zero));
+            scheduledStartUtc ?? new DateTimeOffset(2026, 6, 25, 17, 0, 0, TimeSpan.Zero),
+            "attempt-id");
 
     private sealed record PublishedPostJson(
         PlatformPublishResult Result,

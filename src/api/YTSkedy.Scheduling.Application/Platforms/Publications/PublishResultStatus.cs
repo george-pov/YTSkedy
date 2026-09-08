@@ -7,7 +7,8 @@ namespace YTSkedy.Scheduling.Application.Platforms.Publications;
 /// <c>InvalidPublishingContent</c>, <c>InvalidProviderPublishSettings</c>,
 /// <c>AlreadyPublished</c>, <c>PublishInProgress</c>, and
 /// <c>PlatformDeleted</c> to 409; <c>ProviderNotSupported</c> to 501;
-/// <c>Failed</c> to 502; and <c>FinalizeFailed</c> to 500.
+/// <c>Failed</c> according to its structured failure details; and
+/// <c>FinalizeFailed</c> to 500.
 /// </summary>
 public enum PublishResultStatus
 {

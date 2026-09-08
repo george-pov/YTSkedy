@@ -19,4 +19,5 @@ internal sealed record EventPlatformResponse(
     bool CanPublish,
     bool CanDeletePublication,
     bool CanPreviewPublishingContent,
-    bool CanRecoverPublication);
+    bool CanRecoverPublication,
+    PublicationFailureResponse? LastFailure = null);

@@ -344,6 +344,11 @@ export function describePublishError(error: unknown): string {
     return 'You do not have permission to publish calendar events.';
   }
 
+  const publicationError = getPublicationActionError(error);
+  if (publicationError) {
+    return describePublicationFailure(publicationError);
+  }
+
   if (error instanceof HttpErrorResponse && error.status === 409) {
     return 'The platform can no longer publish this event. Reload the page and try again.';
   }
@@ -353,6 +358,95 @@ export function describePublishError(error: unknown): string {
   }
 
   return 'The platform could not publish this event. Check your connection and try again.';
+}
+
+type PublicationFailureDetails = {
+  code: string;
+  message: string;
+  stage?: string | null;
+  providerStatus?: number | null;
+  providerErrorCode?: string | null;
+  retryAfterUtc?: string | null;
+  attemptId?: string | null;
+  verificationRequired?: boolean;
+};
+
+function getPublicationActionError(error: unknown): PublicationFailureDetails | null {
+  if (
+    !(error instanceof HttpErrorResponse) ||
+    typeof error.error !== 'object' ||
+    error.error === null ||
+    !('code' in error.error) ||
+    typeof error.error.code !== 'string' ||
+    !('message' in error.error) ||
+    typeof error.error.message !== 'string'
+  ) {
+    return null;
+  }
+
+  return error.error as PublicationFailureDetails;
+}
+
+function describePublicationFailure(failure: PublicationFailureDetails): string {
+  const details: string[] = [];
+
+  switch (failure.code) {
+    case 'wordpress_rate_limited':
+      details.push('WordPress limited publishing requests.');
+      details.push(
+        failure.retryAfterUtc
+          ? `Try again after ${formatRetryAfter(failure.retryAfterUtc)}.`
+          : 'Wait before trying again.',
+      );
+      break;
+    case 'wordpress_authentication_failed':
+      details.push(
+        'WordPress rejected the configured username or Application Password. Check the WordPress platform settings.',
+      );
+      break;
+    case 'wordpress_permission_denied':
+      details.push(
+        'WordPress denied permission to create the post. Check the WordPress user role and security plugin rules.',
+      );
+      break;
+    case 'wordpress_discovery_failed':
+      details.push(
+        'YTSkedy could not discover the WordPress REST API. Check the site URL, REST API availability, and security plugin rules.',
+      );
+      break;
+    case 'provider_validation_failed':
+      details.push(failure.message);
+      break;
+    case 'provider_timeout':
+      details.push('The publishing provider timed out.');
+      break;
+    default:
+      details.push(failure.message);
+      break;
+  }
+
+  if (failure.providerStatus) {
+    details.push(`Provider response: HTTP ${failure.providerStatus}.`);
+  }
+
+  if (failure.providerErrorCode) {
+    details.push(`Provider code: ${failure.providerErrorCode}.`);
+  }
+
+  if (failure.verificationRequired) {
+    details.push('Check the publishing platform before retrying.');
+  }
+
+  if (failure.attemptId) {
+    details.push(`Reference: ${failure.attemptId}.`);
+  }
+
+  return details.join(' ');
+}
+
+function formatRetryAfter(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
 }
 
 export function describeDeletePublicationError(error: unknown): string {
@@ -392,15 +486,7 @@ export function describeRecoverPublicationError(error: unknown): string {
 }
 
 function hasPublicationActionError(error: unknown, code: string): boolean {
-  if (
-    !(error instanceof HttpErrorResponse) ||
-    typeof error.error !== 'object' ||
-    error.error === null
-  ) {
-    return false;
-  }
-
-  return 'code' in error.error && error.error.code === code;
+  return getPublicationActionError(error)?.code === code;
 }
 
 export function describePreviewError(error: unknown): string {
@@ -418,6 +504,12 @@ export function describePreviewError(error: unknown): string {
 export function thumbnailStatusText(platform: CalendarEventPlatform): string | null {
   return platform.thumbnailStatus === 'Failed'
     ? 'YouTube broadcast was created, but the thumbnail was not applied. Update it in YouTube Studio.'
+    : null;
+}
+
+export function publicationFailureText(platform: CalendarEventPlatform): string | null {
+  return platform.status === 'Failed' && platform.lastFailure
+    ? describePublicationFailure(platform.lastFailure)
     : null;
 }
 

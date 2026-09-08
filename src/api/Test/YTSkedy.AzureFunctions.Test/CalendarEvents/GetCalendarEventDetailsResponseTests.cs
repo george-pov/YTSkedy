@@ -226,6 +226,45 @@ public sealed class GetCalendarEventDetailsResponseTests
         Assert.True(response.CanPreviewPublishingContent);
     }
 
+    [Fact]
+    public void ToEventPlatformResponse_FailedView_MapsLastFailure()
+    {
+        var failedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
+        var view = new EventPlatformView(
+            PlatformId,
+            "Company blog",
+            PlatformType.WordPress,
+            PublishStatus.Failed,
+            ExternalResourceId: null,
+            PublishedUtc: null,
+            PlatformDeletedUtc: null,
+            CanPublish: true,
+            CanDeletePublication: false,
+            CanPreviewPublishingContent: true,
+            LastFailure: new PublicationFailure(
+                "wordpress_rate_limited",
+                "WordPress limited publishing requests.",
+                "create_post",
+                429,
+                "imunify_rate_limited",
+                failedUtc.AddMinutes(1),
+                failedUtc,
+                "attempt-id",
+                VerificationRequired: true));
+
+        var response = CalendarEventsApi.ToEventPlatformResponse(view);
+
+        Assert.NotNull(response.LastFailure);
+        Assert.Equal("wordpress_rate_limited", response.LastFailure!.Code);
+        Assert.Equal("create_post", response.LastFailure.Stage);
+        Assert.Equal(429, response.LastFailure.ProviderStatus);
+        Assert.Equal("imunify_rate_limited", response.LastFailure.ProviderErrorCode);
+        Assert.Equal(failedUtc.AddMinutes(1), response.LastFailure.RetryAfterUtc);
+        Assert.Equal(failedUtc, response.LastFailure.FailedUtc);
+        Assert.Equal("attempt-id", response.LastFailure.AttemptId);
+        Assert.True(response.LastFailure.VerificationRequired);
+    }
+
     private static CalendarEventView CreateEvent() =>
         SchedulingSamples.CalendarEvent(
             calendarEventId: CalendarEventId,

@@ -190,7 +190,8 @@ YouTube success response (`200 OK`):
   "canPublish": false,
   "canDeletePublication": true,
   "canPreviewPublishingContent": true,
-  "canRecoverPublication": false
+  "canRecoverPublication": false,
+  "lastFailure": null
 }
 ```
 
@@ -210,7 +211,8 @@ WordPress success response (`200 OK`):
   "canPublish": false,
   "canDeletePublication": true,
   "canPreviewPublishingContent": true,
-  "canRecoverPublication": false
+  "canRecoverPublication": false,
+  "lastFailure": null
 }
 ```
 
@@ -220,23 +222,37 @@ as:
 ```json
 {
   "platformId": "4fb4a32f3f344de1a7c3a9f4a2f94918",
-  "platformName": "Main YouTube channel",
-  "platformType": "YouTube",
+  "platformName": "Company blog",
+  "platformType": "WordPress",
   "status": "Failed",
-  "externalResourceId": "abc123youtubeid",
-  "thumbnailStatus": "NotConfigured",
+  "externalResourceId": null,
+  "thumbnailStatus": null,
   "publishedUtc": null,
   "publicationUpdatedUtc": "2026-06-22T12:00:05+00:00",
   "platformDeletedUtc": null,
   "canPublish": true,
   "canDeletePublication": false,
   "canPreviewPublishingContent": true,
-  "canRecoverPublication": false
+  "canRecoverPublication": false,
+  "lastFailure": {
+    "code": "wordpress_rate_limited",
+    "message": "WordPress limited publishing requests.",
+    "stage": "create_post",
+    "providerStatus": 429,
+    "providerErrorCode": "imunify_rate_limited",
+    "retryAfterUtc": "2026-06-22T12:01:05+00:00",
+    "failedUtc": "2026-06-22T12:00:05+00:00",
+    "attemptId": "a89dcd8ea7804f68b59596f93f0bc11e",
+    "verificationRequired": true
+  }
 }
 ```
 
 `externalResourceId` is null when the provider failed before returning an id.
 It is retained when a later required step failed after resource creation.
+`lastFailure` is null for legacy rows and rows without a retained diagnostic
+summary. It never contains provider credentials, authorization headers, publish
+content, or a raw provider response body.
 
 Status codes:
 
@@ -258,16 +274,42 @@ Status codes:
 - `409 Conflict` when the publication is orphaned because the platform was
   deleted; orphan history is read-only.
 - `409 Conflict` when a scheduled WordPress post's computed `date_gmt` is not
-  still in the future at publish time.
+  still in the future at publish time. A structured error body identifies
+  `provider_validation_failed` and the `validate_request` stage.
 - `501 Not Implemented` when no provider adapter serves the platform type.
-- `502 Bad Gateway` when a handled started failure is recorded
-  as `Failed`. The response body is the fixed secret-safe message `Publishing
-  failed. Verify the event on the publishing platform and delete it if
-  necessary before retrying.`
+- `429 Too Many Requests` when WordPress limits the create-post request. The
+  response includes a `wordpress_rate_limited` code and includes
+  `retryAfterUtc` when WordPress supplied `Retry-After`.
+- `504 Gateway Timeout` when provider work reaches the configured operation
+  timeout.
+- `502 Bad Gateway` for other handled provider failures recorded as `Failed`.
+  WordPress failures distinguish authentication, permission, request rejection,
+  discovery, invalid response, and general provider errors without returning an
+  upstream WordPress `401` to the browser.
 - `500 Internal Server Error` when neither `Published` nor fallback `Failed`
   can be recorded. High-severity telemetry includes the known external id when
   available. The finalization path does not delete provider resources, so the
   operator must reconcile the provider directly.
+
+Handled publish failures return a secret-safe JSON body:
+
+```json
+{
+  "code": "wordpress_rate_limited",
+  "message": "WordPress limited publishing requests.",
+  "stage": "create_post",
+  "providerStatus": 429,
+  "providerErrorCode": "imunify_rate_limited",
+  "retryAfterUtc": "2026-06-22T12:01:05+00:00",
+  "attemptId": "a89dcd8ea7804f68b59596f93f0bc11e",
+  "verificationRequired": true
+}
+```
+
+The attempt id is also sent to WordPress as `X-YTSkedy-Request-Id` and appears
+in structured application logs. WordPress REST error codes are accepted only as
+a short restricted identifier. Raw WordPress messages and bodies are not logged
+or persisted.
 
 State conflicts are evaluated before content validation, so an
 already-published or in-progress publication returns `409` even when the start

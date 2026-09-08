@@ -1,3 +1,5 @@
+using YTSkedy.Scheduling.Domain.Platforms;
+
 namespace YTSkedy.Scheduling.Application.Platforms.Publications;
 
 public interface IPublicationAttemptWriter
@@ -55,12 +57,13 @@ public interface IPublicationAttemptWriter
     /// <summary>
     /// Conditionally marks only the current <c>Publishing</c> row as
     /// <see cref="Domain.Platforms.PublishStatus.Failed"/> and retains the
-    /// provider id when one is known. Another writer's state is never
-    /// overwritten.
+    /// provider id when one is known. The secret-safe failure summary is stored
+    /// for operator troubleshooting. Another writer's state is never overwritten.
     /// </summary>
     Task<MarkFailedResult> MarkFailedAsync(
         string calendarEventId,
         string platformId,
         string? externalResourceId,
+        PublicationFailure failure,
         CancellationToken cancellationToken);
 }

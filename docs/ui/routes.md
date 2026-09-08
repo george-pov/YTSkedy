@@ -136,7 +136,11 @@ response. Actions use the backend row flags documented by the
   verification and states that only the local attempt becomes `Failed`; it does
   not claim the provider resource is absent or delete it. Success refreshes the
   details. `404` and `409` responses direct the operator to reload.
-- Publish `502` errors show the same operator verification guidance. A
+- Publish errors use the structured provider failure when available. WordPress
+  rate limits show retry timing, authentication and permission failures identify
+  the settings to check, and every retained diagnostic shows the publish attempt
+  reference for log correlation. Failed rows keep this guidance after reload.
+  Unknown `502` errors show the existing operator verification guidance. A
   publication-delete response with code `publication_target_mismatch` shows
   `YTSkedy cannot delete this publication because the platform settings no
   longer match the target used to create it. Restore the original platform

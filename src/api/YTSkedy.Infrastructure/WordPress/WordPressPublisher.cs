@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Globalization;
-using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -52,32 +52,48 @@ public sealed class WordPressPublisher : IPlatformPublisher
         }
 
         Uri? endpoint = null;
+        WordPressRoot? resolvedRoot = null;
+        var stage = "discovery";
         var postRequest = CreatePostRequest(request, settings);
 
         try
         {
-            var root = await endpointResolver.ResolveAsync(settings, cancellationToken);
-            endpoint = root.BuildRoute("/wp/v2/posts");
+            resolvedRoot = await endpointResolver.ResolveAsync(
+                settings,
+                cancellationToken,
+                request.AttemptId);
+            endpoint = resolvedRoot.BuildRoute("/wp/v2/posts");
+            stage = "create_post";
             using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
                 Content = JsonContent.Create(
                     postRequest,
                     options: JsonOptions)
             };
-            WordPressRequestHeaders.AddClientIdentification(httpRequest);
+            WordPressRequestHeaders.AddClientIdentification(httpRequest, request.AttemptId);
             httpRequest.Headers.Authorization =
                 WordPressRequestSecurity.CreateAuthorizationHeader(settings);
 
+            var requestStarted = timeProvider.GetTimestamp();
             using var response = await httpClient.SendAsync(httpRequest, cancellationToken);
+            var duration = timeProvider.GetElapsedTime(requestStarted);
             if (!response.IsSuccessStatusCode)
             {
+                var failure = await WordPressPublishFailureReader.ReadAsync(
+                    response,
+                    timeProvider,
+                    cancellationToken);
                 LogProviderFailure(
                     request,
                     endpoint.Host,
-                    response.StatusCode);
+                    resolvedRoot,
+                    failure,
+                    duration,
+                    response.Content.Headers.ContentType?.MediaType,
+                    response.Content.Headers.ContentLength);
+                SetFailureActivityTags(failure, resolvedRoot, duration);
 
-                throw new PlatformPublishException(
-                    $"WordPress returned HTTP {(int)response.StatusCode} while publishing calendar event '{request.CalendarEventId}'.");
+                throw new PlatformPublishException(failure);
             }
 
             var body = await response.Content.ReadFromJsonAsync<WordPressPostResponse>(
@@ -87,13 +103,19 @@ public sealed class WordPressPublisher : IPlatformPublisher
             {
                 logger.LogError(
                     "WordPress returned an invalid post id for calendar event {CalendarEventId} " +
-                    "and platform {PlatformId} at host {WordPressHost}.",
+                    "and platform {PlatformId} at host {WordPressHost}. Publish attempt: " +
+                    "{PublishAttemptId}. Request stage: {RequestStage}.",
                     request.CalendarEventId,
                     request.PlatformId,
-                    endpoint.Host);
+                    endpoint.Host,
+                    request.AttemptId,
+                    stage);
 
                 throw new PlatformPublishException(
-                    $"WordPress returned an invalid post id while publishing calendar event '{request.CalendarEventId}'.");
+                    new PlatformPublishFailure(
+                        PlatformPublishFailureCodes.WordPressInvalidResponse,
+                        "WordPress returned an invalid post identifier.",
+                        stage));
             }
 
             var externalResourceId = body.Id.Value.ToString(CultureInfo.InvariantCulture);
@@ -118,11 +140,20 @@ public sealed class WordPressPublisher : IPlatformPublisher
 
             logger.LogInformation(
                 "Created WordPress post {PostId} for calendar event {CalendarEventId} " +
-                "and platform {PlatformId} at host {WordPressHost}.",
+                "and platform {PlatformId} at host {WordPressHost}. Publish attempt: " +
+                "{PublishAttemptId}. Request stage: {RequestStage}. Duration: {DurationMs} ms. " +
+                "Discovery cache hit: {DiscoveryCacheHit}. Provider request count: " +
+                "{ProviderRequestCount}. Endpoint style: {EndpointStyle}.",
                 body.Id.Value,
                 request.CalendarEventId,
                 request.PlatformId,
-                endpoint.Host);
+                endpoint.Host,
+                request.AttemptId,
+                stage,
+                duration.TotalMilliseconds,
+                resolvedRoot.DiscoveryCacheHit,
+                resolvedRoot.DiscoveryRequestCount + 1,
+                resolvedRoot.EndpointStyle);
 
             return new PlatformPublishResult(externalResourceId);
         }
@@ -143,14 +174,20 @@ public sealed class WordPressPublisher : IPlatformPublisher
             logger.LogError(
                 exception,
                 "WordPress returned malformed JSON for calendar event {CalendarEventId} " +
-                "and platform {PlatformId} at host {WordPressHost}.",
+                "and platform {PlatformId} at host {WordPressHost}. Publish attempt: " +
+                "{PublishAttemptId}. Request stage: {RequestStage}.",
                 request.CalendarEventId,
                 request.PlatformId,
-                WordPressRequestSecurity.GetLogHost(settings, endpoint));
+                WordPressRequestSecurity.GetLogHost(settings, endpoint),
+                request.AttemptId,
+                stage);
 
             throw new PlatformPublishException(
-                $"WordPress returned malformed JSON while publishing calendar event '{request.CalendarEventId}'.",
-                exception);
+                new PlatformPublishFailure(
+                    PlatformPublishFailureCodes.WordPressInvalidResponse,
+                    "WordPress returned an invalid JSON response.",
+                    stage),
+                innerException: exception);
         }
         catch (PlatformPublishException)
         {
@@ -161,29 +198,78 @@ public sealed class WordPressPublisher : IPlatformPublisher
             logger.LogError(
                 exception,
                 "WordPress request failed for calendar event {CalendarEventId} " +
-                "and platform {PlatformId} at host {WordPressHost}.",
+                "and platform {PlatformId} at host {WordPressHost}. Publish attempt: " +
+                "{PublishAttemptId}. Request stage: {RequestStage}.",
                 request.CalendarEventId,
                 request.PlatformId,
-                WordPressRequestSecurity.GetLogHost(settings, endpoint));
+                WordPressRequestSecurity.GetLogHost(settings, endpoint),
+                request.AttemptId,
+                stage);
 
             throw new PlatformPublishException(
-                $"Failed to publish calendar event '{request.CalendarEventId}' to WordPress.",
-                exception);
+                new PlatformPublishFailure(
+                    stage == "discovery"
+                        ? PlatformPublishFailureCodes.WordPressDiscoveryFailed
+                        : PlatformPublishFailureCodes.WordPressProviderError,
+                    stage == "discovery"
+                        ? "YTSkedy could not discover the WordPress REST API."
+                        : "YTSkedy could not reach WordPress while creating the post.",
+                    stage,
+                    VerificationRequired: stage != "discovery"),
+                innerException: exception);
         }
     }
 
     private void LogProviderFailure(
         PlatformPublishRequest request,
         string host,
-        HttpStatusCode statusCode)
+        WordPressRoot root,
+        PlatformPublishFailure failure,
+        TimeSpan duration,
+        string? contentType,
+        long? contentLength)
     {
         logger.LogError(
-            "WordPress returned HTTP {StatusCode} for calendar event {CalendarEventId} " +
-            "and platform {PlatformId} at host {WordPressHost}.",
-            (int)statusCode,
+            "WordPress publish failed for calendar event {CalendarEventId} and platform " +
+            "{PlatformId} at host {WordPressHost}. Publish attempt: {PublishAttemptId}. " +
+            "Failure code: {FailureCode}. Request stage: {RequestStage}. HTTP status: " +
+            "{StatusCode}. Provider error code: {ProviderErrorCode}. Retry after: " +
+            "{RetryAfterUtc}. Duration: {DurationMs} ms. " +
+            "Discovery cache hit: {DiscoveryCacheHit}. Provider request count: " +
+            "{ProviderRequestCount}. Endpoint style: {EndpointStyle}. Response content type: " +
+            "{ResponseContentType}. Response content length: {ResponseContentLength}.",
             request.CalendarEventId,
             request.PlatformId,
-            host);
+            host,
+            request.AttemptId,
+            failure.Code,
+            failure.Stage,
+            failure.ProviderStatus,
+            failure.ProviderErrorCode,
+            failure.RetryAfterUtc,
+            duration.TotalMilliseconds,
+            root.DiscoveryCacheHit,
+            root.DiscoveryRequestCount + 1,
+            root.EndpointStyle,
+            contentType,
+            contentLength);
+    }
+
+    private static void SetFailureActivityTags(
+        PlatformPublishFailure failure,
+        WordPressRoot root,
+        TimeSpan duration)
+    {
+        Activity.Current?.SetTag("ytskedy.wordpress.stage", failure.Stage);
+        Activity.Current?.SetTag("ytskedy.wordpress.status_code", failure.ProviderStatus);
+        Activity.Current?.SetTag("ytskedy.wordpress.error_code", failure.ProviderErrorCode);
+        Activity.Current?.SetTag("ytskedy.wordpress.retry_after_utc", failure.RetryAfterUtc);
+        Activity.Current?.SetTag("ytskedy.wordpress.duration_ms", duration.TotalMilliseconds);
+        Activity.Current?.SetTag("ytskedy.wordpress.discovery_cache_hit", root.DiscoveryCacheHit);
+        Activity.Current?.SetTag(
+            "ytskedy.wordpress.provider_request_count",
+            root.DiscoveryRequestCount + 1);
+        Activity.Current?.SetTag("ytskedy.wordpress.endpoint_style", root.EndpointStyle);
     }
 
     private WordPressPostRequest CreatePostRequest(
@@ -251,4 +337,5 @@ public sealed class WordPressPublisher : IPlatformPublisher
         IReadOnlyList<long>? Categories);
 
     private sealed record WordPressPostResponse(long? Id, string? Link);
+
 }

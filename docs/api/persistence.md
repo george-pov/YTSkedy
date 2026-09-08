@@ -279,7 +279,8 @@ one platform.
   `ReleasePublishingAsync` as failure cleanup.
 - `RecoverStalePublishingAsync` re-reads the exact row observed by the handler,
   requires non-orphan `Publishing` and the same `UpdatedUtc`, then changes only
-  `Status` to `Failed` and `UpdatedUtc` through the observed ETag. A missing,
+  `Status` to `Failed`, updates `UpdatedUtc`, and records a recovery failure
+  summary through the observed ETag. A missing,
   newer, completed, orphaned, or concurrently changed row is not overwritten.
 - After `MarkPublishedAsync` succeeds, the publish handler adds the platform id
   to the calendar-event derived index before thumbnail follow-up. A false index
@@ -290,6 +291,12 @@ one platform.
   support thumbnail application. YouTube rows use `NotConfigured`, `Applied`,
   or `Failed`; providers without thumbnail support store no thumbnail status.
   Thumbnail status updates are conditional on the row still being `Published`.
+- `AttemptId` identifies the current started attempt. A handled failure stores a
+  secret-safe summary in the additive `Failure*` columns: stable code, controlled
+  message, stage, optional provider status and error code, optional retry time,
+  failure time, attempt id, and provider-verification flag. Legacy rows without
+  these columns remain readable with no failure summary. Starting a retry
+  replaces the failed row and clears the previous summary.
 - `DeletePublishedAsync` removes a completed publication row after provider
   cleanup succeeds. The delete is conditional on the row still being non-orphan
   `Published` with the same `ExternalResourceId`; otherwise the caller receives

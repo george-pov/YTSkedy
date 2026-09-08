@@ -43,6 +43,52 @@ public class PublishHandlerLifecycleTests
     }
 
     [Fact]
+    public async Task HandleAsync_WordPressRateLimit_PreservesFailureAndAttemptId()
+    {
+        var scenario = _scenario;
+        var retryAfterUtc = Now.AddMinutes(1);
+        SetPublisherException(
+            new PlatformPublishException(
+                new PlatformPublishFailure(
+                    PlatformPublishFailureCodes.WordPressRateLimited,
+                    "WordPress limited publishing requests.",
+                    "create_post",
+                    429,
+                    "imunify_rate_limited",
+                    retryAfterUtc,
+                    VerificationRequired: true)));
+
+        var result = await scenario.HandleAsync();
+
+        Assert.Equal(PublishResultStatus.Failed, result.Status);
+        Assert.NotNull(result.Failure);
+        Assert.Equal(PlatformPublishFailureCodes.WordPressRateLimited, result.Failure!.Code);
+        Assert.Equal(429, result.Failure.ProviderStatus);
+        Assert.Equal("imunify_rate_limited", result.Failure.ProviderErrorCode);
+        Assert.Equal(retryAfterUtc, result.Failure.RetryAfterUtc);
+        Assert.Equal(Now, result.Failure.FailedUtc);
+        Assert.NotNull(result.Failure.AttemptId);
+        Assert.Equal(32, result.Failure.AttemptId.Length);
+        scenario.PublicationAttempts.Verify(candidate => candidate.MarkFailedAsync(
+            CalendarEventId,
+            PlatformId,
+            null,
+            It.Is<PublicationFailure>(failure =>
+                failure.Code == PlatformPublishFailureCodes.WordPressRateLimited &&
+                failure.AttemptId == result.Failure.AttemptId),
+            It.IsAny<CancellationToken>()));
+        scenario.PublicationAttempts.Verify(candidate => candidate.StartPublishingAsync(
+            It.Is<PlatformPublicationAttempt>(attempt =>
+                attempt.AttemptId == result.Failure.AttemptId),
+            It.IsAny<CancellationToken>()));
+        scenario.Publisher.Verify(candidate => candidate.PublishAsync(
+            It.Is<PlatformPublishRequest>(request =>
+                request.AttemptId == result.Failure.AttemptId),
+            It.IsAny<IPlatformPublishCheckpoint>(),
+            It.IsAny<CancellationToken>()));
+    }
+
+    [Fact]
     public async Task HandleAsync_ProviderFailureWithExternalId_MarksFailedWithExternalId()
     {
         var scenario = _scenario;
@@ -109,6 +155,7 @@ public class PublishHandlerLifecycleTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
+                It.IsAny<PublicationFailure>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(MarkFailedResult.Changed);
 
@@ -146,6 +193,7 @@ public class PublishHandlerLifecycleTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
+                It.IsAny<PublicationFailure>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("storage unavailable"));
 
@@ -253,6 +301,7 @@ public class PublishHandlerLifecycleTests
             CalendarEventId,
             PlatformId,
             null,
+            It.IsAny<PublicationFailure>(),
             finalization.Token));
     }
 
@@ -337,6 +386,7 @@ public class PublishHandlerLifecycleTests
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<string?>(),
+            It.IsAny<PublicationFailure>(),
             It.IsAny<CancellationToken>()), Times.Never());
     }
 
@@ -494,6 +544,7 @@ public class PublishHandlerLifecycleTests
             CalendarEventId,
             PlatformId,
             externalResourceId,
+            It.IsAny<PublicationFailure>(),
             It.IsAny<CancellationToken>()));
 
     private void VerifyNoRelease() =>

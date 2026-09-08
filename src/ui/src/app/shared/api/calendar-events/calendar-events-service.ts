@@ -67,6 +67,19 @@ export interface CalendarEventPlatform {
   canDeletePublication: boolean;
   canPreviewPublishingContent: boolean;
   canRecoverPublication: boolean;
+  lastFailure?: PublicationFailure | null;
+}
+
+export interface PublicationFailure {
+  code: string;
+  message: string;
+  stage: string;
+  providerStatus: number | null;
+  providerErrorCode: string | null;
+  retryAfterUtc: string | null;
+  failedUtc: string;
+  attemptId: string | null;
+  verificationRequired: boolean;
 }
 
 export interface EventPlatformPublishingContent {
@@ -229,10 +242,7 @@ export class CalendarEventsService {
     );
   }
 
-  recoverPlatformPublication(
-    calendarEventId: string,
-    platformId: string,
-  ): Observable<void> {
+  recoverPlatformPublication(calendarEventId: string, platformId: string): Observable<void> {
     return this.http.post<void>(
       recoverPlatformPublicationUrl(this.appConfig.api, calendarEventId, platformId),
       {},

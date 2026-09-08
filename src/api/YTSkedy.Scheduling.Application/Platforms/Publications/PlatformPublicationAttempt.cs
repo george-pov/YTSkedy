@@ -16,4 +16,5 @@ public sealed record PlatformPublicationAttempt(
     string PlatformName,
     PlatformType PlatformType,
     PublishSettings PublishSettings,
-    ContentSnapshot ContentSnapshot);
+    ContentSnapshot ContentSnapshot,
+    string AttemptId = "");
