@@ -23,7 +23,7 @@ export function youtubePublicationUrl(platform: CalendarEventPlatform): string |
     return null;
   }
 
-  return `https://www.youtube.com/watch?v=${encodeURIComponent(externalResourceId)}`;
+  return `https://studio.youtube.com/video/${encodeURIComponent(externalResourceId)}`;
 }
 
 const maxPublicationUrlLength = 2048;
@@ -79,7 +79,7 @@ export function publicationLink(platform: CalendarEventPlatform): PublicationLin
   if (youtubeUrl) {
     return {
       href: youtubeUrl,
-      ariaLabel: `View published stream for ${platform.platformName} on YouTube (opens in a new tab)`,
+      ariaLabel: `View published stream for ${platform.platformName} in YouTube Studio (opens in a new tab)`,
     };
   }
 

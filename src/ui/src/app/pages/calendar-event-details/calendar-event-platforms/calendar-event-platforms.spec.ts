@@ -50,7 +50,7 @@ describe('CalendarEventPlatforms', () => {
   let pendingEventChanges = signal(false);
   let state: CalendarEventPlatformsState;
 
-  it('builds an encoded YouTube watch URL from a trimmed published resource id', () => {
+  it('builds an encoded YouTube Studio URL from a trimmed published resource id', () => {
     const platform = testCalendarEventPlatform({
       externalResourceId: ' broadcast/id?part=one&next=two ',
       platformDeletedUtc: '2030-07-05T08:45:00+00:00',
@@ -59,7 +59,7 @@ describe('CalendarEventPlatforms', () => {
     });
 
     expect(youtubePublicationUrl(platform)).toBe(
-      'https://www.youtube.com/watch?v=broadcast%2Fid%3Fpart%3Done%26next%3Dtwo',
+      'https://studio.youtube.com/video/broadcast%2Fid%3Fpart%3Done%26next%3Dtwo',
     );
   });
 
@@ -254,13 +254,13 @@ describe('CalendarEventPlatforms', () => {
     const links = platformViewLinks();
     expect(links).toHaveLength(1);
     expect(links[0].getAttribute('href')).toBe(
-      'https://www.youtube.com/watch?v=broadcast%2Fid%3Fpart%3Done%26next%3Dtwo',
+      'https://studio.youtube.com/video/broadcast%2Fid%3Fpart%3Done%26next%3Dtwo',
     );
     expect(links[0].getAttribute('target')).toBe('_blank');
     expect(links[0].getAttribute('rel')).toBe('noopener noreferrer');
     expect(links[0].textContent?.trim()).toBe('View');
     expect(links[0].getAttribute('aria-label')).toBe(
-      'View published stream for Main YouTube channel on YouTube (opens in a new tab)',
+      'View published stream for Main YouTube channel in YouTube Studio (opens in a new tab)',
     );
   });
 
