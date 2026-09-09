@@ -445,6 +445,7 @@ internal sealed class PlatformPublicationTableClient
             PlatformType = entity.PlatformType,
             Status = entity.Status,
             ExternalResourceId = entity.ExternalResourceId,
+            ExternalResourceUrl = entity.ExternalResourceUrl,
             ThumbnailStatus = entity.ThumbnailStatus,
             ContentSnapshotTitle = entity.ContentSnapshotTitle,
             ContentSnapshotDescription = entity.ContentSnapshotDescription,

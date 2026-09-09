@@ -54,7 +54,8 @@ public sealed class PublishEventPlatformApiTests
             "Company blog",
             PlatformType.WordPress,
             "123",
-            publishedUtc);
+            publishedUtc,
+            "https://example.com/posts/123");
 
         var actionResult = PublishEventPlatformApi.ToResult(result, CalendarEventId, PlatformId);
 
@@ -64,6 +65,7 @@ public sealed class PublishEventPlatformApiTests
         Assert.Equal("WordPress", body.PlatformType);
         Assert.Equal("Published", body.Status);
         Assert.Equal("123", body.ExternalResourceId);
+        Assert.Equal("https://example.com/posts/123", body.ExternalResourceUrl);
         Assert.Null(body.ThumbnailStatus);
         Assert.Equal(publishedUtc, body.PublishedUtc);
         Assert.Equal(publishedUtc, body.PublicationUpdatedUtc);
@@ -182,7 +184,8 @@ public sealed class PublishEventPlatformApiTests
         string platformName,
         PlatformType platformType,
         string externalResourceId,
-        DateTimeOffset publishedUtc) =>
+        DateTimeOffset publishedUtc,
+        string? externalResourceUrl = null) =>
         PublishResult.Published(
             new EventPlatformView(
                 PlatformId,
@@ -199,5 +202,6 @@ public sealed class PublishEventPlatformApiTests
                 ? ThumbnailPublishStatus.Applied
                 : null,
             PublicationUpdatedUtc: publishedUtc,
-            CanRecoverPublication: false));
+            CanRecoverPublication: false,
+            ExternalResourceUrl: externalResourceUrl));
 }

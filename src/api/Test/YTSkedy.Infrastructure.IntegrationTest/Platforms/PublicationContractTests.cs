@@ -52,10 +52,16 @@ public sealed class PublicationContractTests(AzuriteTableFixture fixture)
             SchedulingSampleIds.CalendarEventId,
             SchedulingSampleIds.PlatformId,
             SchedulingSampleIds.YouTubeBroadcastId,
+            "https://example.com/posts/74",
             CancellationToken.None));
         Assert.False(await repository.HasPublishingByPlatformAsync(
             SchedulingSampleIds.PlatformId,
             CancellationToken.None));
+        var published = await repository.GetAsync(
+            SchedulingSampleIds.CalendarEventId,
+            SchedulingSampleIds.PlatformId,
+            CancellationToken.None);
+        Assert.Equal("https://example.com/posts/74", published!.ExternalResourceUrl);
     }
 
     [AzuriteFact]

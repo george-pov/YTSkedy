@@ -26,6 +26,61 @@ export function youtubePublicationUrl(platform: CalendarEventPlatform): string |
   return `https://www.youtube.com/watch?v=${encodeURIComponent(externalResourceId)}`;
 }
 
+const maxPublicationUrlLength = 2048;
+
+export interface PublicationLink {
+  href: string;
+  ariaLabel: string;
+}
+
+export function wordpressPublicationUrl(platform: CalendarEventPlatform): string | null {
+  const externalResourceUrl = platform.externalResourceUrl?.trim();
+  if (
+    platform.platformType !== 'WordPress' ||
+    platform.status !== 'Published' ||
+    !externalResourceUrl ||
+    externalResourceUrl.length > maxPublicationUrlLength
+  ) {
+    return null;
+  }
+
+  let url: URL;
+  try {
+    url = new URL(externalResourceUrl);
+  } catch {
+    return null;
+  }
+
+  if (url.username || url.password || (url.protocol !== 'http:' && url.protocol !== 'https:')) {
+    return null;
+  }
+
+  const isLocalHost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  if (url.protocol === 'http:' && !isLocalHost) {
+    return null;
+  }
+
+  return externalResourceUrl;
+}
+
+export function publicationLink(platform: CalendarEventPlatform): PublicationLink | null {
+  const youtubeUrl = youtubePublicationUrl(platform);
+  if (youtubeUrl) {
+    return {
+      href: youtubeUrl,
+      ariaLabel: `View published stream for ${platform.platformName} on YouTube (opens in a new tab)`,
+    };
+  }
+
+  const wordpressUrl = wordpressPublicationUrl(platform);
+  return wordpressUrl
+    ? {
+        href: wordpressUrl,
+        ariaLabel: `View WordPress post for ${platform.platformName} (opens in a new tab)`,
+      }
+    : null;
+}
+
 @Component({
   selector: 'app-calendar-event-platforms',
   imports: [Alert, Button, DataTable, DataTableCell],
@@ -45,5 +100,5 @@ export class CalendarEventPlatforms {
   protected readonly thumbnailStatusText = thumbnailStatusText;
   protected readonly publicationFailureText = publicationFailureText;
   protected readonly platformStatusText = platformStatusText;
-  protected readonly youtubePublicationUrl = youtubePublicationUrl;
+  protected readonly publicationLink = publicationLink;
 }

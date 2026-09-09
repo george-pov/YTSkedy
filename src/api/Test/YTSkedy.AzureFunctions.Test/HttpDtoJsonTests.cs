@@ -73,7 +73,8 @@ public sealed class HttpDtoJsonTests
             CanPublish: false,
             CanDeletePublication: false,
             CanPreviewPublishingContent: true,
-            CanRecoverPublication: true);
+            CanRecoverPublication: true,
+            ExternalResourceUrl: "https://example.com/posts/74");
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
         using var document = JsonDocument.Parse(json);
@@ -82,7 +83,18 @@ public sealed class HttpDtoJsonTests
             updatedUtc,
             document.RootElement.GetProperty("publicationUpdatedUtc").GetDateTimeOffset());
         Assert.True(document.RootElement.GetProperty("canRecoverPublication").GetBoolean());
+        Assert.Equal(
+            "https://example.com/posts/74",
+            document.RootElement.GetProperty("externalResourceUrl").GetString());
         Assert.Equal("Publishing", document.RootElement.GetProperty("status").GetString());
+
+        var nullUrlJson = JsonSerializer.Serialize(
+            response with { ExternalResourceUrl = null },
+            JsonOptions);
+        using var nullUrlDocument = JsonDocument.Parse(nullUrlJson);
+        Assert.Equal(
+            JsonValueKind.Null,
+            nullUrlDocument.RootElement.GetProperty("externalResourceUrl").ValueKind);
     }
 
     [Fact]

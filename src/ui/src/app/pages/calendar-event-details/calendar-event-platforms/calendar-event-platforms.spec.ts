@@ -17,7 +17,12 @@ import {
   testCalendarEventPlatform,
 } from '../testing/calendar-event-details.fixture';
 import { CalendarEventPlatformsState } from './calendar-event-platforms.state';
-import { CalendarEventPlatforms, youtubePublicationUrl } from './calendar-event-platforms';
+import {
+  CalendarEventPlatforms,
+  publicationLink,
+  wordpressPublicationUrl,
+  youtubePublicationUrl,
+} from './calendar-event-platforms';
 
 describe('CalendarEventPlatforms', () => {
   const calendarEventId = 'event-1';
@@ -71,6 +76,71 @@ describe('CalendarEventPlatforms', () => {
     expect(
       youtubePublicationUrl(testCalendarEventPlatform({ externalResourceId: '   ' })),
     ).toBeNull();
+  });
+
+  it.each([
+    ['https://example.com/posts/74', 'https://example.com/posts/74'],
+    [' http://localhost:8080/posts/74 ', 'http://localhost:8080/posts/74'],
+    ['http://127.0.0.1/posts/74', 'http://127.0.0.1/posts/74'],
+  ])('accepts a safe backend-provided WordPress URL', (externalResourceUrl, expected) => {
+    expect(
+      wordpressPublicationUrl(
+        testCalendarEventPlatform({ platformType: 'WordPress', externalResourceUrl }),
+      ),
+    ).toBe(expected);
+  });
+
+  it.each([
+    [undefined],
+    [null],
+    [''],
+    ['/posts/74'],
+    ['https://user:password@example.com/posts/74'],
+    ['http://example.com/posts/74'],
+    ['ftp://example.com/posts/74'],
+    [`https://example.com/${'a'.repeat(2048)}`],
+  ])('rejects an unsafe or missing WordPress URL', (externalResourceUrl) => {
+    expect(
+      wordpressPublicationUrl(
+        testCalendarEventPlatform({ platformType: 'WordPress', externalResourceUrl }),
+      ),
+    ).toBeNull();
+  });
+
+  it('does not derive WordPress links from the resource id or wrong status', () => {
+    expect(
+      wordpressPublicationUrl(
+        testCalendarEventPlatform({
+          platformType: 'WordPress',
+          externalResourceId: '74',
+          externalResourceUrl: undefined,
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      wordpressPublicationUrl(
+        testCalendarEventPlatform({
+          platformType: 'WordPress',
+          status: 'Failed',
+          externalResourceUrl: 'https://example.com/posts/74',
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it('maps provider-specific publication links and labels', () => {
+    expect(
+      publicationLink(
+        testCalendarEventPlatform({
+          platformName: 'Company blog',
+          platformType: 'WordPress',
+          externalResourceUrl: 'https://example.com/posts/74',
+        }),
+      ),
+    ).toEqual({
+      href: 'https://example.com/posts/74',
+      ariaLabel: 'View WordPress post for Company blog (opens in a new tab)',
+    });
   });
 
   beforeEach(() => {
@@ -186,15 +256,54 @@ describe('CalendarEventPlatforms', () => {
     expect(platformViewLinks()).toHaveLength(1);
   });
 
-  it('does not render View links for WordPress or failed YouTube publications', async () => {
+  it('renders a native View link for orphaned published WordPress history', async () => {
     state.applyEventDetails(
       sampleEvent({
         platforms: [
-          publishedPlatform({ platformType: 'WordPress' }),
+          publishedPlatform({
+            platformName: 'Company blog',
+            platformType: 'WordPress',
+            externalResourceId: '74',
+            externalResourceUrl: 'https://example.com/posts/74',
+            platformDeletedUtc: '2030-07-05T08:45:00+00:00',
+            canDeletePublication: false,
+          }),
+        ],
+      }),
+    );
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const links = platformViewLinks();
+    expect(links).toHaveLength(1);
+    const link = links[0];
+    expect(link.getAttribute('href')).toBe('https://example.com/posts/74');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(link.textContent?.trim()).toBe('View');
+    expect(link.getAttribute('aria-label')).toBe(
+      'View WordPress post for Company blog (opens in a new tab)',
+    );
+  });
+
+  it('does not render View links for failed, missing, or unsafe WordPress publications', async () => {
+    state.applyEventDetails(
+      sampleEvent({
+        platforms: [
+          publishedPlatform({ platformType: 'WordPress', externalResourceUrl: undefined }),
           publishedPlatform({
             platformId: 'platform-2',
             status: 'Failed',
-            externalResourceId: 'checkpointed-broadcast-id',
+            platformType: 'WordPress',
+            externalResourceId: '74',
+            externalResourceUrl: 'https://example.com/posts/74',
+          }),
+          publishedPlatform({
+            platformId: 'platform-3',
+            platformType: 'WordPress',
+            externalResourceUrl: 'http://example.com/posts/74',
           }),
         ],
       }),

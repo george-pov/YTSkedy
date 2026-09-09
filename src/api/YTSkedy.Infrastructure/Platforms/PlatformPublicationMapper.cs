@@ -36,7 +36,8 @@ internal static class PlatformPublicationMapper
                 entity.PublishSettingsJson),
             ToContentSnapshot(entity),
             ParseThumbnailStatus(entity.ThumbnailStatus),
-            ToFailure(entity));
+            ToFailure(entity),
+            Normalize(entity.ExternalResourceUrl));
     }
 
     internal static IReadOnlyList<PlatformPublication> ToPublications(
@@ -71,6 +72,7 @@ internal static class PlatformPublicationMapper
             PlatformType = attempt.PlatformType.ToString(),
             Status = PublishStatus.Publishing.ToString(),
             ExternalResourceId = null,
+            ExternalResourceUrl = null,
             ThumbnailStatus = ThumbnailPublicationPolicy
                 .InitialStatusFor(attempt.PlatformType)?
                 .ToString(),

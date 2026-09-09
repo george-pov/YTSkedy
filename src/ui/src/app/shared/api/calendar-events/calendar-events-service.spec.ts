@@ -254,6 +254,7 @@ describe('CalendarEventsService', () => {
     request.flush(apiResponse);
 
     expect(actual).toEqual(apiResponse);
+    expect(actual?.platforms[0].externalResourceUrl).toBeUndefined();
   });
 
   it('uploads a thumbnail with the expected multipart part name', () => {
@@ -369,6 +370,7 @@ describe('CalendarEventsService', () => {
       platformType: 'YouTube',
       status: 'Published',
       externalResourceId: 'broadcast-123',
+      externalResourceUrl: 'https://example.com/posts/74',
       thumbnailStatus: 'Applied',
       publishedUtc: '2026-06-15T17:30:00+00:00',
       publicationUpdatedUtc: '2026-06-15T17:30:00+00:00',

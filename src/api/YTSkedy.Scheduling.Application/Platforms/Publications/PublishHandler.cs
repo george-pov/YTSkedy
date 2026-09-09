@@ -247,6 +247,7 @@ public sealed class PublishHandler(
                     command.CalendarEventId,
                     command.PlatformId,
                     publishResult.ExternalResourceId,
+                    publishResult.ExternalResourceUrl,
                     token));
         }
         catch (Exception exception)
@@ -325,6 +326,7 @@ public sealed class PublishHandler(
                 calendarEvent,
                 platform,
                 publishResult.ExternalResourceId,
+                publishResult.ExternalResourceUrl,
                 publishedUtc.Value,
                 timeProvider.GetUtcNow(),
                 thumbnailStatus));

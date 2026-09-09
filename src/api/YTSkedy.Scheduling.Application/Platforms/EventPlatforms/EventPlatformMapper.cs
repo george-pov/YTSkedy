@@ -67,6 +67,7 @@ public static class EventPlatformMapper
         Domain.CalendarEvents.CalendarEventView calendarEvent,
         PlatformView platform,
         string externalResourceId,
+        string? externalResourceUrl,
         DateTimeOffset publishedUtc,
         DateTimeOffset now,
         ThumbnailPublishStatus? thumbnailStatus)
@@ -77,6 +78,12 @@ public static class EventPlatformMapper
 
         var isFuture = calendarEvent.ScheduledStartUtc > now;
         const PublishStatus status = PublishStatus.Published;
+        var targetSnapshot = platform.PublishSettings is WordPressSettings wordpressSettings
+            ? new PublicationTargetSnapshot(
+                PlatformType.WordPress,
+                wordpressSettings.SiteUrl,
+                YouTubeClientId: null)
+            : null;
 
         return new EventPlatformView(
             platform.PlatformId,
@@ -98,7 +105,13 @@ public static class EventPlatformMapper
                 hasContentSnapshot: true),
             thumbnailStatus,
             publishedUtc,
-            CanRecoverPublication: false);
+            CanRecoverPublication: false,
+            ExternalResourceUrl: ResolveExternalResourceUrl(
+                platform.Type,
+                status,
+                externalResourceUrl,
+                externalResourceId,
+                targetSnapshot));
     }
 
     public static EventPlatformView MapNotPublished(
@@ -177,7 +190,13 @@ public static class EventPlatformMapper
                 publication.UpdatedUtc,
                 now,
                 staleAfter),
-            publication.LastFailure);
+            publication.LastFailure,
+            ResolveExternalResourceUrl(
+                publication.PlatformType,
+                publication.Status,
+                publication.ExternalResourceUrl,
+                publication.ExternalResourceId,
+                publication.TargetSnapshot));
     }
 
     private static EventPlatformView MapOrphan(
@@ -219,6 +238,34 @@ public static class EventPlatformMapper
                 publication.UpdatedUtc,
                 now,
                 staleAfter),
-            publication.LastFailure);
+            publication.LastFailure,
+            ResolveExternalResourceUrl(
+                publication.PlatformType,
+                publication.Status,
+                publication.ExternalResourceUrl,
+                publication.ExternalResourceId,
+                publication.TargetSnapshot));
+    }
+
+    private static string? ResolveExternalResourceUrl(
+        PlatformType platformType,
+        PublishStatus status,
+        string? externalResourceUrl,
+        string? externalResourceId,
+        PublicationTargetSnapshot? targetSnapshot)
+    {
+        if (platformType != PlatformType.WordPress || status != PublishStatus.Published)
+        {
+            return null;
+        }
+
+        var wordpressSiteUrl = targetSnapshot?.PlatformType == PlatformType.WordPress
+            ? targetSnapshot.WordPressSiteUrl
+            : null;
+
+        return WordPressPublicationUrlPolicy.Resolve(
+            externalResourceUrl,
+            wordpressSiteUrl,
+            externalResourceId);
     }
 }

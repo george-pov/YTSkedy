@@ -59,6 +59,7 @@ export interface CalendarEventPlatform {
   platformType: string;
   status: CalendarEventPlatformStatus;
   externalResourceId: string | null;
+  externalResourceUrl?: string | null;
   thumbnailStatus: ThumbnailPublishStatus | null;
   publishedUtc: string | null;
   publicationUpdatedUtc: string | null;

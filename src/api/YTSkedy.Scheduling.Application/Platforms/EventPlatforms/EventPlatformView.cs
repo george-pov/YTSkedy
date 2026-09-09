@@ -26,4 +26,5 @@ public sealed record EventPlatformView(
     ThumbnailPublishStatus? ThumbnailStatus = null,
     DateTimeOffset? PublicationUpdatedUtc = null,
     bool CanRecoverPublication = false,
-    PublicationFailure? LastFailure = null);
+    PublicationFailure? LastFailure = null,
+    string? ExternalResourceUrl = null);

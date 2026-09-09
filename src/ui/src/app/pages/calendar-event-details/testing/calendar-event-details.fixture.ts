@@ -15,6 +15,7 @@ export function testCalendarEventPlatform(
     platformType: 'YouTube',
     status: 'Published',
     externalResourceId: 'broadcast-123',
+    externalResourceUrl: null,
     thumbnailStatus: 'Applied',
     publishedUtc: '2030-07-04T08:45:00+00:00',
     publicationUpdatedUtc: '2030-07-04T08:45:00+00:00',

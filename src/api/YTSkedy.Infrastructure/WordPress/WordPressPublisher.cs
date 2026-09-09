@@ -155,7 +155,9 @@ public sealed class WordPressPublisher : IPlatformPublisher
                 resolvedRoot.DiscoveryRequestCount + 1,
                 resolvedRoot.EndpointStyle);
 
-            return new PlatformPublishResult(externalResourceId);
+            return new PlatformPublishResult(
+                externalResourceId,
+                WordPressPublicationUrlPolicy.NormalizeCanonical(body.Link, settings.SiteUrl));
         }
         catch (OperationCanceledException exception) when (
             !PublishCancellationClassifier.IsCallerCancellation(exception, cancellationToken))

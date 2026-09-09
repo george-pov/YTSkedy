@@ -94,6 +94,7 @@ internal sealed class PublishHandlerScenario
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(DefaultPublishedUtc);
         PublicationAttempts
