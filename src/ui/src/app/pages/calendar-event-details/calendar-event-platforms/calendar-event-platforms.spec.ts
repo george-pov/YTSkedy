@@ -79,13 +79,26 @@ describe('CalendarEventPlatforms', () => {
   });
 
   it.each([
-    ['https://example.com/posts/74', 'https://example.com/posts/74'],
-    [' http://localhost:8080/posts/74 ', 'http://localhost:8080/posts/74'],
-    ['http://127.0.0.1/posts/74', 'http://127.0.0.1/posts/74'],
-  ])('accepts a safe backend-provided WordPress URL', (externalResourceUrl, expected) => {
+    [
+      'https://example.com/wp-admin/post.php?post=74&action=edit',
+      'https://example.com/wp-admin/post.php?post=74&action=edit',
+    ],
+    [
+      ' http://localhost:8080/blog/wp-admin/post.php?post=74&action=edit ',
+      'http://localhost:8080/blog/wp-admin/post.php?post=74&action=edit',
+    ],
+    [
+      'http://127.0.0.1/wp-admin/post.php?post=74&action=edit',
+      'http://127.0.0.1/wp-admin/post.php?post=74&action=edit',
+    ],
+  ])('accepts a safe backend-provided WordPress editor URL', (externalResourceUrl, expected) => {
     expect(
       wordpressPublicationUrl(
-        testCalendarEventPlatform({ platformType: 'WordPress', externalResourceUrl }),
+        testCalendarEventPlatform({
+          platformType: 'WordPress',
+          externalResourceId: '74',
+          externalResourceUrl,
+        }),
       ),
     ).toBe(expected);
   });
@@ -94,18 +107,30 @@ describe('CalendarEventPlatforms', () => {
     [undefined],
     [null],
     [''],
-    ['/posts/74'],
-    ['https://user:password@example.com/posts/74'],
-    ['http://example.com/posts/74'],
-    ['ftp://example.com/posts/74'],
+    ['/wp-admin/post.php?post=74&action=edit'],
+    ['https://example.com/posts/74'],
+    ['https://user:password@example.com/wp-admin/post.php?post=74&action=edit'],
+    ['http://example.com/wp-admin/post.php?post=74&action=edit'],
+    ['ftp://example.com/wp-admin/post.php?post=74&action=edit'],
+    ['https://example.com/wp-admin/post.php?post=75&action=edit'],
+    ['https://example.com/wp-admin/post.php?action=edit&post=74'],
+    ['https://example.com/wp-admin/post.php?post=74&action=edit&extra=1'],
+    ['https://example.com/wp-admin/post.php?post=74&action=edit#section'],
     [`https://example.com/${'a'.repeat(2048)}`],
-  ])('rejects an unsafe or missing WordPress URL', (externalResourceUrl) => {
-    expect(
-      wordpressPublicationUrl(
-        testCalendarEventPlatform({ platformType: 'WordPress', externalResourceUrl }),
-      ),
-    ).toBeNull();
-  });
+  ])(
+    'rejects an unsafe, non-editor, mismatched, or missing WordPress URL',
+    (externalResourceUrl) => {
+      expect(
+        wordpressPublicationUrl(
+          testCalendarEventPlatform({
+            platformType: 'WordPress',
+            externalResourceId: '74',
+            externalResourceUrl,
+          }),
+        ),
+      ).toBeNull();
+    },
+  );
 
   it('does not derive WordPress links from the resource id or wrong status', () => {
     expect(
@@ -122,7 +147,8 @@ describe('CalendarEventPlatforms', () => {
         testCalendarEventPlatform({
           platformType: 'WordPress',
           status: 'Failed',
-          externalResourceUrl: 'https://example.com/posts/74',
+          externalResourceId: '74',
+          externalResourceUrl: 'https://example.com/wp-admin/post.php?post=74&action=edit',
         }),
       ),
     ).toBeNull();
@@ -134,12 +160,13 @@ describe('CalendarEventPlatforms', () => {
         testCalendarEventPlatform({
           platformName: 'Company blog',
           platformType: 'WordPress',
-          externalResourceUrl: 'https://example.com/posts/74',
+          externalResourceId: '74',
+          externalResourceUrl: 'https://example.com/wp-admin/post.php?post=74&action=edit',
         }),
       ),
     ).toEqual({
-      href: 'https://example.com/posts/74',
-      ariaLabel: 'View WordPress post for Company blog (opens in a new tab)',
+      href: 'https://example.com/wp-admin/post.php?post=74&action=edit',
+      ariaLabel: 'Edit WordPress post for Company blog (opens in a new tab)',
     });
   });
 
@@ -264,7 +291,7 @@ describe('CalendarEventPlatforms', () => {
             platformName: 'Company blog',
             platformType: 'WordPress',
             externalResourceId: '74',
-            externalResourceUrl: 'https://example.com/posts/74',
+            externalResourceUrl: 'https://example.com/wp-admin/post.php?post=74&action=edit',
             platformDeletedUtc: '2030-07-05T08:45:00+00:00',
             canDeletePublication: false,
           }),
@@ -279,12 +306,14 @@ describe('CalendarEventPlatforms', () => {
     const links = platformViewLinks();
     expect(links).toHaveLength(1);
     const link = links[0];
-    expect(link.getAttribute('href')).toBe('https://example.com/posts/74');
+    expect(link.getAttribute('href')).toBe(
+      'https://example.com/wp-admin/post.php?post=74&action=edit',
+    );
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
     expect(link.textContent?.trim()).toBe('View');
     expect(link.getAttribute('aria-label')).toBe(
-      'View WordPress post for Company blog (opens in a new tab)',
+      'Edit WordPress post for Company blog (opens in a new tab)',
     );
   });
 
@@ -298,12 +327,13 @@ describe('CalendarEventPlatforms', () => {
             status: 'Failed',
             platformType: 'WordPress',
             externalResourceId: '74',
-            externalResourceUrl: 'https://example.com/posts/74',
+            externalResourceUrl: 'https://example.com/wp-admin/post.php?post=74&action=edit',
           }),
           publishedPlatform({
             platformId: 'platform-3',
             platformType: 'WordPress',
-            externalResourceUrl: 'http://example.com/posts/74',
+            externalResourceId: '74',
+            externalResourceUrl: 'http://example.com/wp-admin/post.php?post=74&action=edit',
           }),
         ],
       }),

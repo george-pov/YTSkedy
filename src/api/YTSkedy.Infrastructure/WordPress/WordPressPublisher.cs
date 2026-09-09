@@ -157,7 +157,9 @@ public sealed class WordPressPublisher : IPlatformPublisher
 
             return new PlatformPublishResult(
                 externalResourceId,
-                WordPressPublicationUrlPolicy.NormalizeCanonical(body.Link, settings.SiteUrl));
+                WordPressPublicationUrlPolicy.BuildAdminEditUrl(
+                    settings.SiteUrl,
+                    externalResourceId));
         }
         catch (OperationCanceledException exception) when (
             !PublishCancellationClassifier.IsCallerCancellation(exception, cancellationToken))
@@ -338,6 +340,6 @@ public sealed class WordPressPublisher : IPlatformPublisher
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         IReadOnlyList<long>? Categories);
 
-    private sealed record WordPressPostResponse(long? Id, string? Link);
+    private sealed record WordPressPostResponse(long? Id);
 
 }

@@ -35,10 +35,13 @@ export interface PublicationLink {
 
 export function wordpressPublicationUrl(platform: CalendarEventPlatform): string | null {
   const externalResourceUrl = platform.externalResourceUrl?.trim();
+  const externalResourceId = platform.externalResourceId?.trim();
   if (
     platform.platformType !== 'WordPress' ||
     platform.status !== 'Published' ||
     !externalResourceUrl ||
+    !externalResourceId ||
+    !/^[1-9]\d*$/.test(externalResourceId) ||
     externalResourceUrl.length > maxPublicationUrlLength
   ) {
     return null;
@@ -60,6 +63,14 @@ export function wordpressPublicationUrl(platform: CalendarEventPlatform): string
     return null;
   }
 
+  if (
+    !url.pathname.endsWith('/wp-admin/post.php') ||
+    url.search !== `?post=${externalResourceId}&action=edit` ||
+    url.hash
+  ) {
+    return null;
+  }
+
   return externalResourceUrl;
 }
 
@@ -76,7 +87,7 @@ export function publicationLink(platform: CalendarEventPlatform): PublicationLin
   return wordpressUrl
     ? {
         href: wordpressUrl,
-        ariaLabel: `View WordPress post for ${platform.platformName} (opens in a new tab)`,
+        ariaLabel: `Edit WordPress post for ${platform.platformName} (opens in a new tab)`,
       }
     : null;
 }

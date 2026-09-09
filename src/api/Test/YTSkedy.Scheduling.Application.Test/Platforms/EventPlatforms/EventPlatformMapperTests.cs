@@ -90,7 +90,7 @@ public sealed class EventPlatformMapperTests
     }
 
     [Fact]
-    public void Project_ActivePublishedWordPressRow_PrefersSafeStoredCanonicalUrl()
+    public void Project_ActivePublishedWordPressRow_ReplacesStoredPublicUrlWithSnapshotAdminUrl()
     {
         var platform = CreatePlatform(
             PlatformId,
@@ -116,11 +116,13 @@ public sealed class EventPlatformMapperTests
             Now,
             StaleAfter));
 
-        Assert.Equal("https://history.example.com/custom/post", item.ExternalResourceUrl);
+        Assert.Equal(
+            "https://history.example.com/blog/wp-admin/post.php?post=74&action=edit",
+            item.ExternalResourceUrl);
     }
 
     [Fact]
-    public void Project_OrphanPublishedWordPressRow_UsesSnapshotFallback()
+    public void Project_OrphanPublishedWordPressRow_UsesSnapshotAdminUrl()
     {
         var orphan = CreatePublication(
             OtherPlatformId,
@@ -141,11 +143,13 @@ public sealed class EventPlatformMapperTests
             Now,
             StaleAfter));
 
-        Assert.Equal("https://example.com/blog?p=74", item.ExternalResourceUrl);
+        Assert.Equal(
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
+            item.ExternalResourceUrl);
     }
 
     [Fact]
-    public void Project_PublishedWordPressRow_UnsafeCanonicalFallsBackOnlyWithSafeSnapshotAndId()
+    public void Project_PublishedWordPressRow_StoredUrlIsIgnoredWithoutSafeSnapshotAndId()
     {
         var platform = CreatePlatform(
             PlatformId,
@@ -171,7 +175,9 @@ public sealed class EventPlatformMapperTests
             Now,
             StaleAfter));
 
-        Assert.Equal("https://example.com/blog?p=74", item.ExternalResourceUrl);
+        Assert.Equal(
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
+            item.ExternalResourceUrl);
 
         var incomplete = publication with
         {
@@ -326,7 +332,7 @@ public sealed class EventPlatformMapperTests
     }
 
     [Fact]
-    public void MapPublished_WordPressResult_ResolvesCanonicalUrlFromAttemptSettings()
+    public void MapPublished_WordPressResult_ResolvesAdminUrlFromAttemptSettings()
     {
         var result = EventPlatformMapper.MapPublished(
             CreateEvent(),
@@ -336,12 +342,14 @@ public sealed class EventPlatformMapperTests
                 PlatformType.WordPress,
                 ApplicationTestData.WordPressSettings(siteUrl: "https://example.com/blog")),
             "74",
-            "https://example.com/posts/74",
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
             Now,
             Now,
             thumbnailStatus: null);
 
-        Assert.Equal("https://example.com/posts/74", result.ExternalResourceUrl);
+        Assert.Equal(
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
+            result.ExternalResourceUrl);
     }
 
     [Fact]

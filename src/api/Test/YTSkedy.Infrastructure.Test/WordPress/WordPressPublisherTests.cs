@@ -55,7 +55,9 @@ public class WordPressPublisherTests
             CancellationToken.None);
 
         Assert.Equal("74", result.ExternalResourceId);
-        Assert.Equal("https://example.com/blog/post", result.ExternalResourceUrl);
+        Assert.Equal(
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
+            result.ExternalResourceUrl);
         Assert.NotNull(capturedRequest);
         Assert.Equal(HttpMethod.Post, capturedRequest.Method);
         Assert.Equal(
@@ -91,7 +93,7 @@ public class WordPressPublisherTests
     [InlineData("https://user:password@example.com/post")]
     [InlineData("http://example.com/post")]
     [InlineData("ftp://example.com/post")]
-    public async Task PublishAsync_UnsafeOrMissingLink_StillReturnsSuccessfulIdWithNullUrl(
+    public async Task PublishAsync_ResponseLink_DoesNotChangeDerivedAdminUrl(
         string? link)
     {
         var responseJson = JsonSerializer.Serialize(new { id = 74, link });
@@ -100,11 +102,13 @@ public class WordPressPublisherTests
         var result = await publisher.PublishAsync(Request(), CancellationToken.None);
 
         Assert.Equal("74", result.ExternalResourceId);
-        Assert.Null(result.ExternalResourceUrl);
+        Assert.Equal(
+            "https://example.com/wp-admin/post.php?post=74&action=edit",
+            result.ExternalResourceUrl);
     }
 
     [Fact]
-    public async Task PublishAsync_OversizedLink_StillReturnsSuccessfulIdWithNullUrl()
+    public async Task PublishAsync_OversizedResponseLink_DoesNotChangeDerivedAdminUrl()
     {
         var link = $"https://example.com/{new string('a', WordPressPublicationUrlPolicy.MaxUrlLength)}";
         var responseJson = JsonSerializer.Serialize(new { id = 74, link });
@@ -113,7 +117,9 @@ public class WordPressPublisherTests
         var result = await publisher.PublishAsync(Request(), CancellationToken.None);
 
         Assert.Equal("74", result.ExternalResourceId);
-        Assert.Null(result.ExternalResourceUrl);
+        Assert.Equal(
+            "https://example.com/wp-admin/post.php?post=74&action=edit",
+            result.ExternalResourceUrl);
     }
 
     [Fact]
@@ -275,6 +281,9 @@ public class WordPressPublisherTests
             CancellationToken.None);
 
         Assert.Equal("74", result.ExternalResourceId);
+        Assert.Equal(
+            "https://example.com/wp-admin/post.php?post=74&action=edit",
+            result.ExternalResourceUrl);
         Assert.NotNull(capturedRequest);
         Assert.Equal(HttpMethod.Post, capturedRequest.Method);
         Assert.Equal(

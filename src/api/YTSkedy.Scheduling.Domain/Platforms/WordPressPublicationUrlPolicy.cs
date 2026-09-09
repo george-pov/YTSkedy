@@ -3,28 +3,33 @@ using System.Globalization;
 namespace YTSkedy.Scheduling.Domain.Platforms;
 
 /// <summary>
-/// Validates WordPress publication navigation URLs and builds a deterministic
-/// plain-permalink fallback from the immutable publication target snapshot.
+/// Builds and validates deterministic WordPress post editor URLs from the
+/// immutable publication target snapshot and provider post id.
 /// </summary>
 public static class WordPressPublicationUrlPolicy
 {
     public const int MaxUrlLength = 2048;
 
-    public static string? NormalizeCanonical(
+    public static string? NormalizeAdminEditUrl(
         string? externalResourceUrl,
-        string? wordpressSiteUrl)
+        string? wordpressSiteUrl,
+        string? externalResourceId)
     {
-        if (!TryCreateSafeUri(externalResourceUrl, out var externalResourceUri) ||
-            !TryCreateSafeUri(wordpressSiteUrl, out var wordpressSiteUri) ||
-            !SameOrigin(externalResourceUri, wordpressSiteUri))
+        var expectedUrl = BuildAdminEditUrl(wordpressSiteUrl, externalResourceId);
+        if (expectedUrl is null ||
+            !TryCreateSafeUri(externalResourceUrl, out var externalResourceUri) ||
+            !string.Equals(
+                externalResourceUri.AbsoluteUri,
+                expectedUrl,
+                StringComparison.Ordinal))
         {
             return null;
         }
 
-        return externalResourceUri.AbsoluteUri;
+        return expectedUrl;
     }
 
-    public static string? BuildFallback(
+    public static string? BuildAdminEditUrl(
         string? wordpressSiteUrl,
         string? externalResourceId)
     {
@@ -41,22 +46,27 @@ public static class WordPressPublicationUrlPolicy
             return null;
         }
 
+        var sitePath = wordpressSiteUri.AbsolutePath.TrimEnd('/');
         var builder = new UriBuilder(wordpressSiteUri)
         {
-            Query = $"p={postId.ToString(CultureInfo.InvariantCulture)}",
+            Path = $"{sitePath}/wp-admin/post.php",
+            Query = $"post={postId.ToString(CultureInfo.InvariantCulture)}&action=edit",
             Fragment = string.Empty
         };
-        var fallback = builder.Uri.AbsoluteUri;
+        var adminEditUrl = builder.Uri.AbsoluteUri;
 
-        return fallback.Length <= MaxUrlLength ? fallback : null;
+        return adminEditUrl.Length <= MaxUrlLength ? adminEditUrl : null;
     }
 
     public static string? Resolve(
         string? externalResourceUrl,
         string? wordpressSiteUrl,
         string? externalResourceId) =>
-        NormalizeCanonical(externalResourceUrl, wordpressSiteUrl) ??
-        BuildFallback(wordpressSiteUrl, externalResourceId);
+        NormalizeAdminEditUrl(
+            externalResourceUrl,
+            wordpressSiteUrl,
+            externalResourceId) ??
+        BuildAdminEditUrl(wordpressSiteUrl, externalResourceId);
 
     private static bool TryCreateSafeUri(string? value, out Uri uri)
     {
@@ -77,9 +87,4 @@ public static class WordPressPublicationUrlPolicy
         uri = parsedUri;
         return true;
     }
-
-    private static bool SameOrigin(Uri first, Uri second) =>
-        string.Equals(first.Scheme, second.Scheme, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(first.DnsSafeHost, second.DnsSafeHost, StringComparison.OrdinalIgnoreCase) &&
-        first.Port == second.Port;
 }

@@ -55,7 +55,7 @@ public sealed class PublishEventPlatformApiTests
             PlatformType.WordPress,
             "123",
             publishedUtc,
-            "https://example.com/posts/123");
+            "https://example.com/wp-admin/post.php?post=123&action=edit");
 
         var actionResult = PublishEventPlatformApi.ToResult(result, CalendarEventId, PlatformId);
 
@@ -65,7 +65,9 @@ public sealed class PublishEventPlatformApiTests
         Assert.Equal("WordPress", body.PlatformType);
         Assert.Equal("Published", body.Status);
         Assert.Equal("123", body.ExternalResourceId);
-        Assert.Equal("https://example.com/posts/123", body.ExternalResourceUrl);
+        Assert.Equal(
+            "https://example.com/wp-admin/post.php?post=123&action=edit",
+            body.ExternalResourceUrl);
         Assert.Null(body.ThumbnailStatus);
         Assert.Equal(publishedUtc, body.PublishedUtc);
         Assert.Equal(publishedUtc, body.PublicationUpdatedUtc);

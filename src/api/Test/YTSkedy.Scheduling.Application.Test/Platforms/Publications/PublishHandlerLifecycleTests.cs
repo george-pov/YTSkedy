@@ -443,9 +443,10 @@ public class PublishHandlerLifecycleTests
     }
 
     [Fact]
-    public async Task HandleAsync_WordPressSuccess_ForwardsAndReturnsCanonicalUrl()
+    public async Task HandleAsync_WordPressSuccess_ForwardsAndReturnsAdminEditUrl()
     {
-        const string externalResourceUrl = "https://example.com/posts/74";
+        const string externalResourceUrl =
+            "https://example.com/wp-admin/post.php?post=74&action=edit";
         var scenario = _scenario;
         scenario.SelectedPlatform = PublishHandlerScenario.Platform(
             "Company blog",

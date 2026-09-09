@@ -6,69 +6,29 @@ public class WordPressPublicationUrlPolicyTests
 {
     [Theory]
     [InlineData(
-        "https://example.com/posts/74",
-        "https://example.com/blog",
-        "https://example.com/posts/74")]
+        "https://example.com/blog?old=1#section",
+        "74",
+        "https://example.com/blog/wp-admin/post.php?post=74&action=edit")]
     [InlineData(
-        " https://EXAMPLE.com:443/posts/74 ",
-        "https://example.com/blog",
-        "https://example.com/posts/74")]
+        "https://example.com/blog/",
+        "74",
+        "https://example.com/blog/wp-admin/post.php?post=74&action=edit")]
     [InlineData(
-        "http://localhost:8080/posts/74",
+        "https://example.com",
+        "126",
+        "https://example.com/wp-admin/post.php?post=126&action=edit")]
+    [InlineData(
         "http://localhost:8080/blog",
-        "http://localhost:8080/posts/74")]
-    [InlineData(
-        "http://127.0.0.1/posts/74",
-        "http://127.0.0.1",
-        "http://127.0.0.1/posts/74")]
-    public void NormalizeCanonical_SafeSameOrigin_ReturnsNormalizedUrl(
-        string canonical,
-        string siteUrl,
-        string expected)
-    {
-        var result = WordPressPublicationUrlPolicy.NormalizeCanonical(canonical, siteUrl);
-
-        Assert.Equal(expected, result);
-    }
-
-    [Theory]
-    [InlineData(null, "https://example.com")]
-    [InlineData("", "https://example.com")]
-    [InlineData("/posts/74", "https://example.com")]
-    [InlineData("https://other.example.com/posts/74", "https://example.com")]
-    [InlineData("http://example.com/posts/74", "https://example.com")]
-    [InlineData("https://example.com:444/posts/74", "https://example.com")]
-    [InlineData("https://user:password@example.com/posts/74", "https://example.com")]
-    [InlineData("ftp://example.com/posts/74", "https://example.com")]
-    [InlineData("http://example.com/posts/74", "http://example.com")]
-    [InlineData("https://example.com/posts/74", null)]
-    public void NormalizeCanonical_UnsafeOrIncomplete_ReturnsNull(
-        string? canonical,
-        string? siteUrl)
-    {
-        var result = WordPressPublicationUrlPolicy.NormalizeCanonical(canonical, siteUrl);
-
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public void NormalizeCanonical_OversizedValue_ReturnsNull()
-    {
-        var value = $"https://example.com/{new string('a', WordPressPublicationUrlPolicy.MaxUrlLength)}";
-
-        Assert.Null(WordPressPublicationUrlPolicy.NormalizeCanonical(value, "https://example.com"));
-    }
-
-    [Theory]
-    [InlineData("https://example.com/blog?old=1#section", "74", "https://example.com/blog?p=74")]
-    [InlineData("https://example.com/blog/", "74", "https://example.com/blog/?p=74")]
-    [InlineData("http://localhost:8080/blog", "9", "http://localhost:8080/blog?p=9")]
-    public void BuildFallback_SafeTargetAndPositiveId_ReturnsPlainPermalink(
+        "9",
+        "http://localhost:8080/blog/wp-admin/post.php?post=9&action=edit")]
+    public void BuildAdminEditUrl_SafeTargetAndPositiveId_ReturnsEditorUrl(
         string siteUrl,
         string externalResourceId,
         string expected)
     {
-        var result = WordPressPublicationUrlPolicy.BuildFallback(siteUrl, externalResourceId);
+        var result = WordPressPublicationUrlPolicy.BuildAdminEditUrl(
+            siteUrl,
+            externalResourceId);
 
         Assert.Equal(expected, result);
     }
@@ -83,9 +43,9 @@ public class WordPressPublicationUrlPolicyTests
     [InlineData(" 1")]
     [InlineData("1 ")]
     [InlineData("abc")]
-    public void BuildFallback_InvalidId_ReturnsNull(string? externalResourceId)
+    public void BuildAdminEditUrl_InvalidId_ReturnsNull(string? externalResourceId)
     {
-        var result = WordPressPublicationUrlPolicy.BuildFallback(
+        var result = WordPressPublicationUrlPolicy.BuildAdminEditUrl(
             "https://example.com/blog",
             externalResourceId);
 
@@ -93,29 +53,60 @@ public class WordPressPublicationUrlPolicyTests
     }
 
     [Fact]
-    public void BuildFallback_UnsafeOrMissingTarget_ReturnsNull()
+    public void BuildAdminEditUrl_UnsafeOrMissingTarget_ReturnsNull()
     {
-        Assert.Null(WordPressPublicationUrlPolicy.BuildFallback(null, "74"));
-        Assert.Null(WordPressPublicationUrlPolicy.BuildFallback("http://example.com", "74"));
-        Assert.Null(WordPressPublicationUrlPolicy.BuildFallback(
+        Assert.Null(WordPressPublicationUrlPolicy.BuildAdminEditUrl(null, "74"));
+        Assert.Null(WordPressPublicationUrlPolicy.BuildAdminEditUrl("http://example.com", "74"));
+        Assert.Null(WordPressPublicationUrlPolicy.BuildAdminEditUrl(
             "https://user:password@example.com",
             "74"));
     }
 
+    [Theory]
+    [InlineData("https://example.com/posts/74")]
+    [InlineData("https://other.example.com/wp-admin/post.php?post=74&action=edit")]
+    [InlineData("https://example.com/wp-admin/post.php?post=75&action=edit")]
+    [InlineData("https://example.com/wp-admin/post.php?action=edit&post=74")]
+    [InlineData("https://example.com/wp-admin/post.php?post=74&action=edit&extra=1")]
+    [InlineData("https://example.com/wp-admin/post.php?post=74&action=edit#section")]
+    public void NormalizeAdminEditUrl_UnexpectedDestination_ReturnsNull(string storedUrl)
+    {
+        Assert.Null(WordPressPublicationUrlPolicy.NormalizeAdminEditUrl(
+            storedUrl,
+            "https://example.com",
+            "74"));
+    }
+
     [Fact]
-    public void Resolve_PrefersCanonicalAndFallsBackWhenCanonicalIsUnsafe()
+    public void Resolve_StoredEditorUrlMatchesTarget_ReturnsNormalizedUrl()
     {
         Assert.Equal(
-            "https://example.com/custom/post",
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
             WordPressPublicationUrlPolicy.Resolve(
-                "https://example.com/custom/post",
+                " https://EXAMPLE.com:443/blog/wp-admin/post.php?post=74&action=edit ",
                 "https://example.com/blog",
                 "74"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("https://example.com/posts/74")]
+    [InlineData("https://other.example.com/wp-admin/post.php?post=74&action=edit")]
+    public void Resolve_MissingOrOldStoredUrl_DerivesEditorUrl(string? storedUrl)
+    {
         Assert.Equal(
-            "https://example.com/blog?p=74",
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
             WordPressPublicationUrlPolicy.Resolve(
-                "https://other.example.com/post",
+                storedUrl,
                 "https://example.com/blog",
                 "74"));
+    }
+
+    [Fact]
+    public void BuildAdminEditUrl_ResultExceedsLimit_ReturnsNull()
+    {
+        var siteUrl = $"https://example.com/{new string('a', 2020)}";
+
+        Assert.Null(WordPressPublicationUrlPolicy.BuildAdminEditUrl(siteUrl, "74"));
     }
 }

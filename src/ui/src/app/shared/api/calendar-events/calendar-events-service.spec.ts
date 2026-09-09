@@ -370,7 +370,7 @@ describe('CalendarEventsService', () => {
       platformType: 'YouTube',
       status: 'Published',
       externalResourceId: 'broadcast-123',
-      externalResourceUrl: 'https://example.com/posts/74',
+      externalResourceUrl: 'https://example.com/wp-admin/post.php?post=74&action=edit',
       thumbnailStatus: 'Applied',
       publishedUtc: '2026-06-15T17:30:00+00:00',
       publicationUpdatedUtc: '2026-06-15T17:30:00+00:00',

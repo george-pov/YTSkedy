@@ -222,7 +222,7 @@ public class GetCalendarEventDetailsHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_OrphanWordPressRow_ExposesSnapshotFallbackUrl()
+    public async Task HandleAsync_OrphanWordPressRow_ExposesSnapshotAdminUrl()
     {
         _scenario.CalendarEvent = CreateEvent();
         _scenario.Platforms = [];
@@ -244,7 +244,9 @@ public class GetCalendarEventDetailsHandlerTests
         var result = await _scenario.HandleAsync();
 
         var history = Assert.Single(result!.Platforms);
-        Assert.Equal("https://example.com/blog?p=74", history.ExternalResourceUrl);
+        Assert.Equal(
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
+            history.ExternalResourceUrl);
     }
 
     [Fact]
