@@ -150,7 +150,8 @@ public static class SchedulingSamples
         DateTimeOffset? updatedUtc = null,
         PublicationTargetSnapshot? targetSnapshot = null,
         ContentSnapshot? contentSnapshot = null,
-        ThumbnailPublishStatus? thumbnailStatus = null) =>
+        ThumbnailPublishStatus? thumbnailStatus = null,
+        string? externalResourceUrl = null) =>
         new(
             calendarEventId,
             platformId,
@@ -163,7 +164,8 @@ public static class SchedulingSamples
             updatedUtc ?? SchedulingSampleTimes.Now,
             targetSnapshot,
             contentSnapshot,
-            thumbnailStatus);
+            thumbnailStatus,
+            ExternalResourceUrl: externalResourceUrl);
 
     public static Thumbnail Thumbnail(
         string calendarEventId = SchedulingSampleIds.CalendarEventId,

@@ -15,7 +15,7 @@ public class AzurePlatformPublicationRepositoryTests
     private const string PlatformId = SchedulingSampleIds.PlatformId;
 
     [Fact]
-    public async Task StartAndMarkPublished_PreservesContentSnapshot()
+    public async Task StartAndMarkPublished_PersistsIdUrlAndContentSnapshotTogether()
     {
         var tableClient = new PlatformPublicationTableClient();
         var repository = CreateRepository(tableClient);
@@ -33,6 +33,7 @@ public class AzurePlatformPublicationRepositoryTests
             CalendarEventId,
             PlatformId,
             SchedulingSampleIds.YouTubeBroadcastId,
+            " https://example.com/posts/74 ",
             CancellationToken.None);
         var published = await repository.GetAsync(CalendarEventId, PlatformId, CancellationToken.None);
 
@@ -46,9 +47,33 @@ public class AzurePlatformPublicationRepositoryTests
         Assert.NotNull(published);
         Assert.Equal(PublishStatus.Published, published.Status);
         Assert.Equal(SchedulingSampleIds.YouTubeBroadcastId, published.ExternalResourceId);
+        Assert.Equal("https://example.com/posts/74", published.ExternalResourceUrl);
         Assert.Equal(ThumbnailPublishStatus.NotConfigured, published.ThumbnailStatus);
         Assert.Equal("Rendered title", published.ContentSnapshot!.Title);
         Assert.Equal("Rendered description", published.ContentSnapshot.Description);
+    }
+
+    [Fact]
+    public async Task MarkPublishedAsync_EtagRace_DoesNotPartiallyStoreIdOrUrl()
+    {
+        var tableClient = new PlatformPublicationTableClient();
+        var entity = PublicationEntity(PublishStatus.Publishing);
+        tableClient.Seed(entity);
+        tableClient.FailNextUpdateWithPreconditionFailed(entity);
+
+        var publishedUtc = await CreateRepository(tableClient).MarkPublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            "74",
+            "https://example.com/posts/74",
+            CancellationToken.None);
+
+        var stored = Assert.Single(tableClient.Entities).Value;
+        Assert.Null(publishedUtc);
+        Assert.Equal(PublishStatus.Publishing.ToString(), stored.Status);
+        Assert.Null(stored.ExternalResourceId);
+        Assert.Null(stored.ExternalResourceUrl);
+        Assert.Null(stored.PublishedUtc);
     }
 
     [Fact]
@@ -263,6 +288,7 @@ public class AzurePlatformPublicationRepositoryTests
     {
         var tableClient = new PlatformPublicationTableClient();
         var entity = PublicationEntity(PublishStatus.Failed, externalResourceId: null);
+        entity.ExternalResourceUrl = "https://example.com/old-post";
         entity.FailureCode = Failure().Code;
         entity.FailureMessage = Failure().Message;
         entity.FailureStage = Failure().Stage;
@@ -283,6 +309,7 @@ public class AzurePlatformPublicationRepositoryTests
         Assert.Equal(StartPublicationResult.Started, result);
         Assert.Equal(PublishStatus.Publishing, publication!.Status);
         Assert.Null(publication.LastFailure);
+        Assert.Null(publication.ExternalResourceUrl);
         Assert.Equal(
             "retry-attempt-id",
             Assert.Single(tableClient.Entities).Value.AttemptId);
@@ -766,6 +793,7 @@ public class AzurePlatformPublicationRepositoryTests
             CalendarEventId,
             PlatformId,
             SchedulingSampleIds.YouTubeBroadcastId,
+            null,
             CancellationToken.None);
     }
 

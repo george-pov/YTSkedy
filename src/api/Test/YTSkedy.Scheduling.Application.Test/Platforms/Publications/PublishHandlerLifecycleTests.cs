@@ -128,6 +128,7 @@ public class PublishHandlerLifecycleTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((DateTimeOffset?)null);
 
@@ -148,6 +149,7 @@ public class PublishHandlerLifecycleTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((DateTimeOffset?)null);
         scenario.PublicationAttempts
@@ -174,6 +176,7 @@ public class PublishHandlerLifecycleTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("storage unavailable"));
 
@@ -278,6 +281,7 @@ public class PublishHandlerLifecycleTests
             CalendarEventId,
             PlatformId,
             ExternalResourceId,
+            null,
             finalization.Token));
         Assert.NotEqual(request.Token, operation.Token);
     }
@@ -381,6 +385,7 @@ public class PublishHandlerLifecycleTests
             CalendarEventId,
             PlatformId,
             ExternalResourceId,
+            null,
             It.IsAny<CancellationToken>()));
         scenario.PublicationAttempts.Verify(candidate => candidate.MarkFailedAsync(
             It.IsAny<string>(),
@@ -420,6 +425,7 @@ public class PublishHandlerLifecycleTests
             CalendarEventId,
             PlatformId,
             ExternalResourceId,
+            null,
             It.IsAny<CancellationToken>()));
         VerifyNoRelease();
         scenario.Publisher.Verify(candidate => candidate.PublishAsync(
@@ -434,6 +440,37 @@ public class PublishHandlerLifecycleTests
             CalendarEventId,
             PlatformId,
             It.IsAny<CancellationToken>()));
+    }
+
+    [Fact]
+    public async Task HandleAsync_WordPressSuccess_ForwardsAndReturnsAdminEditUrl()
+    {
+        const string externalResourceUrl =
+            "https://example.com/wp-admin/post.php?post=74&action=edit";
+        var scenario = _scenario;
+        scenario.SelectedPlatform = PublishHandlerScenario.Platform(
+            "Company blog",
+            PlatformType.WordPress,
+            PublishHandlerScenario.WordPressPublishSettings);
+        scenario.ActivePlatforms = [scenario.SelectedPlatform];
+        scenario.Publisher.SetupGet(candidate => candidate.Type).Returns(PlatformType.WordPress);
+        scenario.Publisher
+            .Setup(candidate => candidate.PublishAsync(
+                It.IsAny<PlatformPublishRequest>(),
+                It.IsAny<IPlatformPublishCheckpoint>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PlatformPublishResult("74", externalResourceUrl));
+
+        var result = await scenario.HandleAsync();
+
+        Assert.Equal(PublishResultStatus.Published, result.Status);
+        Assert.Equal(externalResourceUrl, result.Platform!.ExternalResourceUrl);
+        scenario.PublicationAttempts.Verify(candidate => candidate.MarkPublishedAsync(
+            CalendarEventId,
+            PlatformId,
+            "74",
+            externalResourceUrl,
+            It.IsAny<CancellationToken>()), Times.Once());
     }
 
     [Fact]
@@ -523,6 +560,7 @@ public class PublishHandlerLifecycleTests
             CalendarEventId,
             PlatformId,
             "123",
+            null,
             It.IsAny<CancellationToken>()));
         scenario.Publisher.Verify(candidate => candidate.PublishAsync(
             It.Is<PlatformPublishRequest>(request =>
@@ -564,6 +602,7 @@ public class PublishHandlerLifecycleTests
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<string>(),
+            It.IsAny<string?>(),
             It.IsAny<CancellationToken>()), Times.Never());
 
     private void VerifyNoIndexAdd() =>

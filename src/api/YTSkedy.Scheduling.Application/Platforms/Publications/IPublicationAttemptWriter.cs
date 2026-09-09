@@ -44,14 +44,16 @@ public interface IPublicationAttemptWriter
     /// <summary>
     /// Marks an in-progress publication row
     /// <see cref="Domain.Platforms.PublishStatus.Published"/> after the provider
-    /// call succeeds, recording the provider <paramref name="externalResourceId"/>
-    /// and the publish instant. Returns the recorded publish instant, or null
-    /// when the current row is missing, orphaned, or no longer publishing.
+    /// call succeeds, recording the provider <paramref name="externalResourceId"/>,
+    /// optional <paramref name="externalResourceUrl"/>, and publish instant in
+    /// the same conditional write. Returns the recorded publish instant, or
+    /// null when the current row is missing, orphaned, or no longer publishing.
     /// </summary>
     Task<DateTimeOffset?> MarkPublishedAsync(
         string calendarEventId,
         string platformId,
         string externalResourceId,
+        string? externalResourceUrl,
         CancellationToken cancellationToken);
 
     /// <summary>

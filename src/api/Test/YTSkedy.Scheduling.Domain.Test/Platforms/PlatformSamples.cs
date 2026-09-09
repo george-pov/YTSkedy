@@ -81,7 +81,8 @@ internal static class PlatformSamples
         DateTimeOffset? updatedUtc = null,
         PublicationTargetSnapshot? targetSnapshot = null,
         ContentSnapshot? contentSnapshot = null,
-        ThumbnailPublishStatus? thumbnailStatus = null) =>
+        ThumbnailPublishStatus? thumbnailStatus = null,
+        string? externalResourceUrl = null) =>
         SchedulingSamples.Publication(
             status,
             calendarEventId,
@@ -94,5 +95,6 @@ internal static class PlatformSamples
             updatedUtc ?? UpdatedUtc,
             targetSnapshot,
             contentSnapshot,
-            thumbnailStatus);
+            thumbnailStatus,
+            externalResourceUrl);
 }

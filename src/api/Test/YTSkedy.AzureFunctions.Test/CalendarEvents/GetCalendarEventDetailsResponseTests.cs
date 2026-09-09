@@ -186,12 +186,16 @@ public sealed class GetCalendarEventDetailsResponseTests
             CanPreviewPublishingContent: true,
             ThumbnailStatus: ThumbnailPublishStatus.Applied,
             PublicationUpdatedUtc: publicationUpdatedUtc,
-            CanRecoverPublication: false);
+            CanRecoverPublication: false,
+            ExternalResourceUrl: "https://example.com/wp-admin/post.php?post=74&action=edit");
 
         var response = CalendarEventsApi.ToEventPlatformResponse(view);
 
         Assert.Equal("Published", response.Status);
         Assert.Equal("abc123youtubeid", response.ExternalResourceId);
+        Assert.Equal(
+            "https://example.com/wp-admin/post.php?post=74&action=edit",
+            response.ExternalResourceUrl);
         Assert.Equal("Applied", response.ThumbnailStatus);
         Assert.Equal(publishedUtc, response.PublishedUtc);
         Assert.Equal(publicationUpdatedUtc, response.PublicationUpdatedUtc);

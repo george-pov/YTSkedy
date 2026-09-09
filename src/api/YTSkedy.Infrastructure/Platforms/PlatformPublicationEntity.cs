@@ -34,6 +34,8 @@ internal sealed class PlatformPublicationEntity : ITableEntity
 
     public string? ExternalResourceId { get; set; }
 
+    public string? ExternalResourceUrl { get; set; }
+
     public string? ThumbnailStatus { get; set; }
 
     public string? ContentSnapshotTitle { get; set; }

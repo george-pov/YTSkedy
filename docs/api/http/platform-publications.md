@@ -45,6 +45,19 @@ Publication status values are:
 - `Failed`: a handled started failure was recorded for operator verification
   and explicit retry. A known provider id may be present.
 
+Each row also includes additive nullable `externalResourceUrl` navigation
+metadata. It is non-null only for a `Published` WordPress row with a safe post
+editor destination. The backend builds
+`{storedWordPressSiteUrl}/wp-admin/post.php?post={positivePostId}&action=edit`
+from the immutable target snapshot and numeric `externalResourceId`, preserving
+the WordPress installation subdirectory while replacing any stored site query
+or fragment. A previously stored public post URL is ignored and replaced by the
+derived editor URL. Missing legacy snapshots, invalid ids, unsafe targets,
+non-WordPress rows, and non-published rows return null. Published orphan history
+follows the same stored-data rules. Reads never contact WordPress, and a
+non-null URL requires the current browser session to authenticate to WordPress
+with permission to edit the post.
+
 ## Get Platform Publishing Content
 
 ```text
@@ -170,9 +183,13 @@ WordPress can accept a stale positive ID while silently dropping that category,
 so a successful create status alone does not prove category assignment. The
 numeric WordPress post id is returned as the provider-neutral
 `externalResourceId`. YTSkedy checkpoints the id after parsing a valid create
-response and before returning provider success. A local `Published` row means
-the provider resource was created; YTSkedy does not track the later WordPress
-transition from `future` to `publish`.
+response and before returning provider success. The response's optional `link`
+does not determine navigation. YTSkedy derives the post-editor
+`externalResourceUrl` from the configured site URL and validated post id. The
+id and optional editor URL are finalized with the `Published` status in one
+conditional write. A local `Published` row means the provider resource was
+created; YTSkedy does not track the later WordPress transition from `future` to
+`publish`.
 
 YouTube success response (`200 OK`):
 
@@ -183,6 +200,7 @@ YouTube success response (`200 OK`):
   "platformType": "YouTube",
   "status": "Published",
   "externalResourceId": "abc123youtubeid",
+  "externalResourceUrl": null,
   "thumbnailStatus": "Applied",
   "publishedUtc": "2026-06-22T12:00:00+00:00",
   "publicationUpdatedUtc": "2026-06-22T12:00:00+00:00",
@@ -204,6 +222,7 @@ WordPress success response (`200 OK`):
   "platformType": "WordPress",
   "status": "Published",
   "externalResourceId": "123",
+  "externalResourceUrl": "https://example.com/wp-admin/post.php?post=123&action=edit",
   "thumbnailStatus": null,
   "publishedUtc": "2026-06-22T12:00:00+00:00",
   "publicationUpdatedUtc": "2026-06-22T12:00:00+00:00",
@@ -226,6 +245,7 @@ as:
   "platformType": "WordPress",
   "status": "Failed",
   "externalResourceId": null,
+  "externalResourceUrl": null,
   "thumbnailStatus": null,
   "publishedUtc": null,
   "publicationUpdatedUtc": "2026-06-22T12:00:05+00:00",
@@ -250,6 +270,9 @@ as:
 
 `externalResourceId` is null when the provider failed before returning an id.
 It is retained when a later required step failed after resource creation.
+`externalResourceUrl` remains null on failed rows even when an id was
+checkpointed. It is optional navigation metadata and is never used for provider
+cleanup, reconciliation, or reference-key substitution.
 `lastFailure` is null for legacy rows and rows without a retained diagnostic
 summary. It never contains provider credentials, authorization headers, publish
 content, or a raw provider response body.
@@ -425,6 +448,7 @@ same shape as `GET /api/calendar-events/{calendarEventId}`:
   "platformType": "YouTube",
   "status": "NotPublished",
   "externalResourceId": null,
+  "externalResourceUrl": null,
   "thumbnailStatus": "NotConfigured",
   "publishedUtc": null,
   "publicationUpdatedUtc": null,

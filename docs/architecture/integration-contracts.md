@@ -73,6 +73,13 @@ Cross-boundary rules:
   `canRecoverPublication` flag. Clients must not calculate staleness. Details do
   not include the list aggregate and continue to use authoritative publication
   rows.
+- Published WordPress rows may expose nullable `externalResourceUrl` navigation
+  metadata for the WordPress post editor. The backend constructs
+  `{storedWordPressSiteUrl}/wp-admin/post.php?post={id}&action=edit` from the
+  immutable target snapshot and positive numeric external resource id. It does
+  not use the public post `link` returned by WordPress. Clients must not derive
+  a WordPress destination from current platform settings or treat the URL as
+  provider identity or proof of browser access.
 - Calendar event update requests include both `start` and `texts`. The backend
   owns scheduled-start conversion, invalid/repeated local-time validation,
   publication-lock enforcement, and best-effort duplicate scheduled-start
@@ -230,6 +237,11 @@ HTTP routes.
 - YouTube checkpoints the broadcast id immediately after insert and before
   later video metadata work. WordPress checkpoints the post id after validating
   the create response. Checkpoint and final-state writes are conditional.
+- After a successful WordPress create response supplies a positive post id, the
+  API derives optional post-editor navigation metadata from that id and the
+  safe publication target. The provider's public post `link` does not determine
+  the operator destination. Event-platform reads rebuild or revalidate the
+  editor URL from stored publication data and do not call WordPress.
 - Handled started failures, including bounded cancellation, are recorded as
   `Failed` without automatic provider deletion. A known external id is retained
   for operator verification, and retry conditionally replaces only that failed

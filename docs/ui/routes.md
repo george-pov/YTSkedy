@@ -121,6 +121,16 @@ response. Actions use the backend row flags documented by the
   operation-specific lifecycle.
 - Successful publish or publication delete refreshes details before applying
   root event action flags and clears an open preview for that platform.
+- A published YouTube row keeps its application-owned watch destination. A
+  published WordPress row shows the same native `View` link only when the API
+  supplies a safe post-editor `externalResourceUrl` whose post id matches the
+  row; the browser does not derive it from current platform settings. Eligible
+  orphaned published WordPress history also shows the link. Missing legacy
+  snapshots, absent or unsafe URL data, failed rows, and other provider types
+  show no WordPress link. The link opens the WordPress admin editor in a new tab
+  with `noopener noreferrer` and an `Edit WordPress post` accessible label. The
+  current browser session must authenticate to WordPress and have permission to
+  edit the post.
 - If the provider mutation succeeds but the details refresh fails, the page
   reports the partial success and directs the operator to reload before taking
   another action.

@@ -82,6 +82,10 @@ Canonical product concepts and public identifier vocabulary for YTSkedy.
 - `provider`: Infrastructure adapter that performs an external publish for a
   platform type.
 - `external resource id`: Provider-owned identifier returned after a publish.
+- `external resource URL`: Optional provider-neutral navigation metadata for a
+  created provider resource. It is distinct from provider identity, is not used
+  for cleanup or reference substitution, and does not guarantee that the
+  current browser can access the resource.
 
 Verify exact YouTube resource names, required fields, and API behavior against
 official Google or YouTube documentation before implementation.
@@ -136,6 +140,7 @@ Shorter names are acceptable for:
 | `PublishStatus` | Status of a platform publication. | `Status` is acceptable inside platform-publication-specific code. |
 | `PublishingStatus` | Informational aggregate of a calendar event's successful publications compared with active platforms. | Use `publicationStatus` in HTTP and TypeScript list shapes. Do not use it for per-platform rows or action policy. |
 | `ExternalResourceId` | Provider-owned id returned after publishing. | `ResourceId` is acceptable inside provider-specific result mapping. Provider-specific ids such as `YouTubeBroadcastId` belong only at provider boundaries. |
+| `ExternalResourceUrl` | Optional provider-neutral navigation URL for a created provider resource. | Use `externalResourceUrl` in HTTP and TypeScript shapes. Keep it nullable, validate it at trust boundaries, and never use it in place of `ExternalResourceId` for cleanup, reconciliation, or reference substitution. |
 | `ScheduledStart` | Local date/time plus explicit time zone context. | `StartDate` or `StartTime` is acceptable only when the value is truly date-only or time-only, or when the enclosing type already owns the scheduling context. |
 | `ScheduledStartUtc` | Persisted UTC instant derived from the scheduled start. | `UtcStart` is acceptable in storage or formatting helpers. Avoid bare `Date` unless the local scope is very small and unambiguous. |
 | `Broadcast` | YouTube live broadcast metadata concept. | Use mainly in YouTube-specific adapters and tests. |

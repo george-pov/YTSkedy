@@ -58,6 +58,7 @@ public class YouTubePublisherTests
             CancellationToken.None);
 
         Assert.Equal(BroadcastId, result.ExternalResourceId);
+        Assert.Null(result.ExternalResourceUrl);
         _factory.Verify(candidate => candidate.Create(It.Is<YouTubeCredentials>(credentials =>
             credentials.ClientId == "client-id")));
         Assert.NotNull(insertedBroadcast);

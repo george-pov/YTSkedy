@@ -222,6 +222,34 @@ public class GetCalendarEventDetailsHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_OrphanWordPressRow_ExposesSnapshotAdminUrl()
+    {
+        _scenario.CalendarEvent = CreateEvent();
+        _scenario.Platforms = [];
+        _scenario.Publications =
+        [
+            CreatePublication(
+                OtherPlatformId,
+                "Old company blog",
+                PublishStatus.Published,
+                externalResourceId: "74",
+                platformDeletedUtc: ApplicationTestData.Now,
+                platformType: PlatformType.WordPress,
+                targetSnapshot: new PublicationTargetSnapshot(
+                    PlatformType.WordPress,
+                    "https://example.com/blog",
+                    YouTubeClientId: null))
+        ];
+
+        var result = await _scenario.HandleAsync();
+
+        var history = Assert.Single(result!.Platforms);
+        Assert.Equal(
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
+            history.ExternalResourceUrl);
+    }
+
+    [Fact]
     public async Task HandleAsync_ReadsCalendarEventExactlyOnce()
     {
         _scenario.CalendarEvent = CreateEvent();
@@ -271,17 +299,23 @@ public class GetCalendarEventDetailsHandlerTests
         DateTimeOffset? publishedUtc = null,
         DateTimeOffset? platformDeletedUtc = null,
         DateTimeOffset? updatedUtc = null,
-        ContentSnapshot? contentSnapshot = null) =>
+        ContentSnapshot? contentSnapshot = null,
+        PlatformType platformType = PlatformType.YouTube,
+        PublicationTargetSnapshot? targetSnapshot = null,
+        string? externalResourceUrl = null) =>
         ApplicationTestData.Publication(
             status,
             calendarEventId: CalendarEventId,
             platformId: platformId,
             platformName: platformName,
+            platformType: platformType,
             externalResourceId: externalResourceId,
             publishedUtc: publishedUtc,
             platformDeletedUtc: platformDeletedUtc,
             updatedUtc: updatedUtc,
-            contentSnapshot: contentSnapshot);
+            targetSnapshot: targetSnapshot,
+            contentSnapshot: contentSnapshot,
+            externalResourceUrl: externalResourceUrl);
 
     private static Thumbnail CreateThumbnail() =>
         ApplicationTestData.Thumbnail(

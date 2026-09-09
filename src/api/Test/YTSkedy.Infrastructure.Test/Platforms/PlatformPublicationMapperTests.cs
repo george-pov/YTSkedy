@@ -18,6 +18,7 @@ public class PlatformPublicationMapperTests
         var updatedUtc = new DateTimeOffset(2026, 6, 22, 12, 0, 5, TimeSpan.Zero);
         var entity = CreateEntity(PublishStatus.Published);
         entity.ExternalResourceId = "abc123youtubeid";
+        entity.ExternalResourceUrl = " https://example.com/post ";
         entity.PublishedUtc = publishedUtc;
         entity.UpdatedUtc = updatedUtc;
         entity.ContentSnapshotTitle = "Rendered title";
@@ -32,6 +33,7 @@ public class PlatformPublicationMapperTests
         Assert.Equal(PlatformType.YouTube, publication.PlatformType);
         Assert.Equal(PublishStatus.Published, publication.Status);
         Assert.Equal("abc123youtubeid", publication.ExternalResourceId);
+        Assert.Equal("https://example.com/post", publication.ExternalResourceUrl);
         Assert.Equal(ThumbnailPublishStatus.Applied, publication.ThumbnailStatus);
         Assert.Equal(publishedUtc, publication.PublishedUtc);
         Assert.Null(publication.PlatformDeletedUtc);
@@ -146,6 +148,7 @@ public class PlatformPublicationMapperTests
         Assert.Equal("YouTube", entity.PlatformType);
         Assert.Equal("Publishing", entity.Status);
         Assert.Null(entity.ExternalResourceId);
+        Assert.Null(entity.ExternalResourceUrl);
         Assert.Equal("NotConfigured", entity.ThumbnailStatus);
         Assert.Equal("Rendered title", entity.ContentSnapshotTitle);
         Assert.Equal("Rendered description", entity.ContentSnapshotDescription);

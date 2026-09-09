@@ -90,6 +90,143 @@ public sealed class EventPlatformMapperTests
     }
 
     [Fact]
+    public void Project_ActivePublishedWordPressRow_ReplacesStoredPublicUrlWithSnapshotAdminUrl()
+    {
+        var platform = CreatePlatform(
+            PlatformId,
+            "Company blog",
+            PlatformType.WordPress,
+            ApplicationTestData.WordPressSettings(siteUrl: "https://current.example.com"));
+        var publication = CreatePublication(
+            PlatformId,
+            "Company blog",
+            PublishStatus.Published,
+            externalResourceId: "74",
+            platformType: PlatformType.WordPress,
+            targetSnapshot: new PublicationTargetSnapshot(
+                PlatformType.WordPress,
+                "https://history.example.com/blog",
+                YouTubeClientId: null),
+            externalResourceUrl: "https://history.example.com/custom/post");
+
+        var item = Assert.Single(EventPlatformMapper.Map(
+            CreateEvent(),
+            [platform],
+            [publication],
+            Now,
+            StaleAfter));
+
+        Assert.Equal(
+            "https://history.example.com/blog/wp-admin/post.php?post=74&action=edit",
+            item.ExternalResourceUrl);
+    }
+
+    [Fact]
+    public void Project_OrphanPublishedWordPressRow_UsesSnapshotAdminUrl()
+    {
+        var orphan = CreatePublication(
+            OtherPlatformId,
+            "Old company blog",
+            PublishStatus.Published,
+            externalResourceId: "74",
+            platformDeletedUtc: Now,
+            platformType: PlatformType.WordPress,
+            targetSnapshot: new PublicationTargetSnapshot(
+                PlatformType.WordPress,
+                "https://example.com/blog?old=1#section",
+                YouTubeClientId: null));
+
+        var item = Assert.Single(EventPlatformMapper.Map(
+            CreateEvent(),
+            [],
+            [orphan],
+            Now,
+            StaleAfter));
+
+        Assert.Equal(
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
+            item.ExternalResourceUrl);
+    }
+
+    [Fact]
+    public void Project_PublishedWordPressRow_StoredUrlIsIgnoredWithoutSafeSnapshotAndId()
+    {
+        var platform = CreatePlatform(
+            PlatformId,
+            "Company blog",
+            PlatformType.WordPress,
+            ApplicationTestData.WordPressSettings());
+        var publication = CreatePublication(
+            PlatformId,
+            "Company blog",
+            PublishStatus.Published,
+            externalResourceId: "74",
+            platformType: PlatformType.WordPress,
+            targetSnapshot: new PublicationTargetSnapshot(
+                PlatformType.WordPress,
+                "https://example.com/blog",
+                YouTubeClientId: null),
+            externalResourceUrl: "https://other.example.com/posts/74");
+
+        var item = Assert.Single(EventPlatformMapper.Map(
+            CreateEvent(),
+            [platform],
+            [publication],
+            Now,
+            StaleAfter));
+
+        Assert.Equal(
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
+            item.ExternalResourceUrl);
+
+        var incomplete = publication with
+        {
+            ExternalResourceId = "not-numeric",
+            TargetSnapshot = null
+        };
+        item = Assert.Single(EventPlatformMapper.Map(
+            CreateEvent(),
+            [platform],
+            [incomplete],
+            Now,
+            StaleAfter));
+        Assert.Null(item.ExternalResourceUrl);
+    }
+
+    [Theory]
+    [InlineData(PublishStatus.NotPublished)]
+    [InlineData(PublishStatus.Publishing)]
+    [InlineData(PublishStatus.Failed)]
+    public void Project_NonPublishedWordPressRow_DoesNotExposeUrl(PublishStatus status)
+    {
+        var platform = CreatePlatform(
+            PlatformId,
+            "Company blog",
+            PlatformType.WordPress,
+            ApplicationTestData.WordPressSettings());
+        var publication = CreatePublication(
+            PlatformId,
+            "Company blog",
+            status,
+            externalResourceId: "74",
+            platformType: PlatformType.WordPress,
+            targetSnapshot: new PublicationTargetSnapshot(
+                PlatformType.WordPress,
+                "https://example.com/blog",
+                YouTubeClientId: null),
+            externalResourceUrl: "https://example.com/posts/74");
+
+        var item = Assert.Single(EventPlatformMapper.Map(
+            CreateEvent(),
+            [platform],
+            [publication],
+            Now,
+            StaleAfter));
+
+        Assert.Null(item.ExternalResourceUrl);
+    }
+
+    [Fact]
     public void Project_ActiveFutureFailedRow_IsRetryableButNotDeletable()
     {
         var calendarEvent = CreateEvent();
@@ -179,6 +316,7 @@ public sealed class EventPlatformMapperTests
             calendarEvent,
             platform,
             "abc123youtubeid",
+            null,
             publishedUtc,
             Now,
             ThumbnailPublishStatus.Applied);
@@ -190,6 +328,28 @@ public sealed class EventPlatformMapperTests
         Assert.True(result.CanDeletePublication);
         Assert.True(result.CanPreviewPublishingContent);
         Assert.Equal(ThumbnailPublishStatus.Applied, result.ThumbnailStatus);
+        Assert.Null(result.ExternalResourceUrl);
+    }
+
+    [Fact]
+    public void MapPublished_WordPressResult_ResolvesAdminUrlFromAttemptSettings()
+    {
+        var result = EventPlatformMapper.MapPublished(
+            CreateEvent(),
+            CreatePlatform(
+                PlatformId,
+                "Company blog",
+                PlatformType.WordPress,
+                ApplicationTestData.WordPressSettings(siteUrl: "https://example.com/blog")),
+            "74",
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
+            Now,
+            Now,
+            thumbnailStatus: null);
+
+        Assert.Equal(
+            "https://example.com/blog/wp-admin/post.php?post=74&action=edit",
+            result.ExternalResourceUrl);
     }
 
     [Fact]
@@ -243,15 +403,21 @@ public sealed class EventPlatformMapperTests
         DateTimeOffset? publishedUtc = null,
         DateTimeOffset? platformDeletedUtc = null,
         ContentSnapshot? contentSnapshot = null,
-        DateTimeOffset? updatedUtc = null) =>
+        DateTimeOffset? updatedUtc = null,
+        PlatformType platformType = PlatformType.YouTube,
+        PublicationTargetSnapshot? targetSnapshot = null,
+        string? externalResourceUrl = null) =>
         ApplicationTestData.Publication(
             status,
             calendarEventId: CalendarEventId,
             platformId: platformId,
             platformName: platformName,
+            platformType: platformType,
             externalResourceId: externalResourceId,
             publishedUtc: publishedUtc,
             platformDeletedUtc: platformDeletedUtc,
             contentSnapshot: contentSnapshot,
-            updatedUtc: updatedUtc ?? Now);
+            updatedUtc: updatedUtc ?? Now,
+            targetSnapshot: targetSnapshot,
+            externalResourceUrl: externalResourceUrl);
 }

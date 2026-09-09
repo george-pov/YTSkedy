@@ -61,17 +61,13 @@
           (click)="platformState.recoverPlatformPublication(platform)"
         />
       }
-      @if (youtubePublicationUrl(platform); as publicationUrl) {
+      @if (publicationLink(platform); as link) {
         <a
           class="platform-view-link"
-          [href]="publicationUrl"
+          [href]="link.href"
           target="_blank"
           rel="noopener noreferrer"
-          [attr.aria-label]="
-            'View published stream for ' +
-            platform.platformName +
-            ' on YouTube (opens in a new tab)'
-          "
+          [attr.aria-label]="link.ariaLabel"
         >
           View
         </a>

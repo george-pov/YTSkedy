@@ -273,9 +273,15 @@ one platform.
   ETag. YouTube checkpoints after broadcast insert and WordPress checkpoints
   after parsing a valid post id.
 - `MarkPublishedAsync` conditionally records `Published`, the provider
-  `ExternalResourceId`, and the publish instant. `MarkFailedAsync` conditionally
-  records `Failed` and preserves an existing checkpointed id, target snapshot,
-  content snapshot, and thumbnail evidence. Handled started attempts do not use
+  `ExternalResourceId`, optional `ExternalResourceUrl`, and the publish instant
+  in the same ETag-guarded replacement. `ExternalResourceUrl` is nullable
+  provider-neutral navigation metadata, not provider identity. WordPress
+  publishes store the derived post-editor URL. Missing legacy properties read
+  as null, and reads can derive the editor URL from a safe target snapshot and
+  positive post id. `MarkFailedAsync` records `Failed`, clears the URL, and
+  preserves an existing checkpointed id, target snapshot, content snapshot, and
+  thumbnail evidence. Starting or retrying a `Publishing` row also clears prior
+  URL data. Handled started attempts do not use
   `ReleasePublishingAsync` as failure cleanup.
 - `RecoverStalePublishingAsync` re-reads the exact row observed by the handler,
   requires non-orphan `Publishing` and the same `UpdatedUtc`, then changes only
@@ -313,7 +319,9 @@ one platform.
 - Platform-publication rows do not store the platform `ReferenceKey`.
   Reference keys are platform lookup metadata only; publication rows continue to
   store provider-neutral `ExternalResourceId` values for created provider
-  resources.
+  resources. The optional `ExternalResourceUrl` property is navigation metadata
+  only. For WordPress it contains a derived post-editor destination and is never
+  used for cleanup, reconciliation, or reference substitution.
 - `PlatformPublications.PublishSettingsJson` is a snapshot, not the live
   platform settings store. Cleanup target snapshots use only non-secret
   provider target data such as the YouTube OAuth client id or the WordPress

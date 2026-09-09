@@ -228,6 +228,7 @@ public sealed class AzurePlatformPublicationRepository(
         string calendarEventId,
         string platformId,
         string externalResourceId,
+        string? externalResourceUrl,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(calendarEventId);
@@ -245,7 +246,10 @@ public sealed class AzurePlatformPublicationRepository(
 
         var now = timeProvider.GetUtcNow();
         entity.Status = PublishStatus.Published.ToString();
-        entity.ExternalResourceId = externalResourceId;
+        entity.ExternalResourceId = externalResourceId.Trim();
+        entity.ExternalResourceUrl = string.IsNullOrWhiteSpace(externalResourceUrl)
+            ? null
+            : externalResourceUrl.Trim();
         entity.PublishedUtc = now;
         entity.UpdatedUtc = now;
 
@@ -300,6 +304,7 @@ public sealed class AzurePlatformPublicationRepository(
             ? null
             : externalResourceId.Trim();
         entity.ExternalResourceId = checkpointedExternalResourceId ?? failureExternalResourceId;
+        entity.ExternalResourceUrl = null;
         entity.PublishedUtc = null;
         entity.UpdatedUtc = now;
         ApplyFailure(entity, failure);

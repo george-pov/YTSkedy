@@ -447,7 +447,8 @@ public sealed class CalendarEventsApi(
                     view.LastFailure.RetryAfterUtc,
                     view.LastFailure.FailedUtc,
                     view.LastFailure.AttemptId,
-                    view.LastFailure.VerificationRequired));
+                    view.LastFailure.VerificationRequired),
+            view.ExternalResourceUrl);
     }
 
     private static string ToSortString(CalendarEventSortField sort) =>

@@ -62,8 +62,10 @@ internal static class ApplicationTestData
         string postStatus = "publish",
         IReadOnlyList<long>? categoryIds = null,
         bool sticky = false,
-        int? scheduleOffsetHours = null) =>
+        int? scheduleOffsetHours = null,
+        string siteUrl = "https://example.com") =>
         SchedulingSamples.WordPressSettings(
+            siteUrl: siteUrl,
             postStatus: postStatus,
             categoryIds: categoryIds,
             sticky: sticky,
@@ -111,7 +113,8 @@ internal static class ApplicationTestData
         DateTimeOffset? updatedUtc = null,
         PublicationTargetSnapshot? targetSnapshot = null,
         ContentSnapshot? contentSnapshot = null,
-        ThumbnailPublishStatus? thumbnailStatus = null) =>
+        ThumbnailPublishStatus? thumbnailStatus = null,
+        string? externalResourceUrl = null) =>
         SchedulingSamples.Publication(
             status,
             calendarEventId,
@@ -124,7 +127,8 @@ internal static class ApplicationTestData
             updatedUtc,
             targetSnapshot,
             contentSnapshot,
-            thumbnailStatus);
+            thumbnailStatus,
+            externalResourceUrl);
 
     public static Thumbnail Thumbnail(
         string calendarEventId = CalendarEventId,
